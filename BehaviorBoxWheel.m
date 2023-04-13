@@ -1,0 +1,2047 @@
+classdef BehaviorBoxWheel < handle
+    %BehaviorBox Super class
+    %DROPBOX VERSION TESTTTT
+    %====================================================================
+    %Super Class for BehaviorBox Ver 1.4
+    %This Class is called by the GUI BehaviorBox via RunTraining()and runs the Training
+    %loop, reads levers, gives rewards, plots data, etc. It stores data in the BehaviorBoxData.
+    %Air Puff penalty code is being added
+    %It interacts with class BehaviorBoxVisualStimulusTraining.m to create the
+    %visual stimuli.
+    %This is a superclass to BehaviorBoxSub1/2.
+    %THIS FILE IS PART OF A SET OF FILES CONTAINING (ALL NEEDED):
+    %BehaviorBox.fig
+    %BehaviorBox.m
+    %BehaviorBoxData.m
+    %BehaviorBoxSub1.m
+    %BehaviorBoxSub2.m
+    %BehaviorBoxSuper.m
+    %BehaviorBoxVisualGratingObject.m
+    %BehaviorBoxVisualStimulus.m
+    %BehaviorBoxVisualStimulusTraining.m
+    %====================================================================
+    properties (SetAccess = protected)
+        fig; %The figure window that shows the stimulus
+        figpos;
+        ReadyCueAx;
+        LStimAx; %Axis that contains the left stimulus plot
+        RStimAx; %Axis that contains the left stimulus plot
+        FLAx; %Axis that contains the 2 finish line triangles
+        graphFig;
+        ReadyCueStruct = struct();
+        StimulusStruct = struct();
+        %Structures of variables:
+        Stimulus_Object = struct();
+        Data_Object = struct();
+        Setting_Struct = struct();
+        SetIdx = {};
+        SetStr = {};
+        Include = {};
+        GuiHandles = struct();
+        app = struct();
+        appProps; %cycle thru these 3 to update settings
+        appPropsTypes;
+        dropdowns;
+        %Interface handles:
+        message_handle;
+        Pause;
+        FF;
+        Skip;
+        stop_handle;
+        Axes = struct();
+        Buttons = struct();
+        Data = struct();
+        GUI_numbers = struct();
+        Old_Setting_Struct = {}; %After the settings are updated, the older ones are stored here for plotting
+        SetUpdate = {0};
+        StimHistory = cell(400,2); %Use the one in BBData
+        Box; %Equipment variables for arduino, sensors, valves
+        a; %The arduino
+        %Variables for running training loop:
+        i=0; %Trial Number
+        trial; %All trial data that is added to data structure
+        counter_for_alternate = 0;
+        current_side;
+        Level;
+        isCorrect = 1;
+        isLeftTrial = 1; %Overwritten when the first trial starts, but initialized as 1 to prevent a crash
+        isTraining = 0; %Set during setup, if 1 run BBSuper loop, if 0 run BBSub1 loop %Use this for the new NosePoke settings.
+        RewardPulses = 0;
+        SideBias;
+        timeout_counter = 0;
+        variable_counter;
+        %Behavior counters:
+        DuringTMal = 0; %How many airpuffs did the mouse get when they picked the wrong stimulus during the trial?
+        duringPuffRecord = [];
+        InterTMal = 0; %How many times did the mouse go to try and suck water from the Left/Right reward port during the intertrial period instead of starting a new trial?
+        interPuffRecord = [];
+        WhatDecision;
+        wheelchoice = []; %Use the one in BBData
+        wheelchoicetime = [];
+        wheelchoice_record = cell(400,3); %All wheel choice processes with what_decision
+        %Timers during each trial:
+        start_time; %Clock time at initiation of first trial
+        t1; %Used to record times between different functions
+        BetweenTrialTime = 0; %Manual mode: time to use keyboard to pick trial, also to watch the mouse and wait for them to calm down between trials
+        TrialStartTime = 0; %Time for mouse to respond to ready cue and begin the next trial
+        ResponseTime = 0; %Time for mouse to answer
+        DrinkTime = 0; %Time mouse spent drinking reward
+        timers = struct();
+        %SoundObjs: (only created if sounds is used)
+        Sound_Object = struct();
+        Sound_Struct = struct(); %This is only used to make the sounds, which are not used anymore since mice are trained concurrently.
+        textdiary
+    end
+    methods
+        %constructor
+        function this = BehaviorBoxWheel(GUI_handles, app)
+            this.app = app;
+            this.GuiHandles = GUI_handles;
+            %dbstop if error
+            try
+                this.stop_handle.Value = 0;
+                this.getGUI();
+            catch err
+                this.unwrapError(err)
+            end
+        end
+        %INTERFACE====
+        function RunTrials(this)
+            try
+                delete(findobj("Type", "figure", "Name", "Graphs"))
+                this.SetUpHardware(); %Set up arduino, make sounds if used
+                this.DoLoop(); %the actual loop
+            catch err
+                this.unwrapError(err)
+                this.cleanUP();
+            end
+        end
+        %MEMBER FUNCTIONS====
+        %Run the loop
+        function DoLoop(this)
+            %=====MAIN LOOP===========================
+            this.SetupBeforeLoop();
+            %LOOP==== %run loop
+            errorc = 0;
+            while 1
+                try
+                    this.i = this.i+1;
+                    if errorc >= 5 || get(this.stop_handle, 'Value') %check if stop pressed
+                        close(this.fig)
+                        break;
+                    end
+                    this.BeforeTrial() %Get this.isLeftTrial, this.Reward_pulse_count, this.current_difficulty
+                    this.WaitForInput(); %if the mouse does anything but a center poke, immediately end the trial
+                    this.WaitForInputAndGiveReward();
+                    this.AfterTrial()
+                    drawnow
+                    errorc = 0;
+                catch err
+                    this.unwrapError(err)
+                    errorc = errorc + 1;
+                end
+            end %END loop
+            %=====END LOOP============================
+            this.cleanUP();
+            this.SaveAllData();
+        end
+        %get the GUI settings for the experiment
+        function getGUI(this)
+            tempSetting_Struct = struct();
+            %Get handles to GUI figure, the buttons, axes, message line:
+            this.stop_handle = this.GuiHandles.Stop; %Buttons
+            this.Skip = this.GuiHandles.Skip;
+            this.FF = this.GuiHandles.FastForward;
+            this.Pause = this.GuiHandles.Pause;
+            this.message_handle = this.GuiHandles.text1;
+            this.GUI_numbers.trial_no = 0; %GUI Numbers and their handles on the figure
+            this.GUI_numbers.choices = 0;
+            this.GUI_numbers.difficulty = 0;
+            this.GUI_numbers.rewards = 0;
+            this.GUI_numbers.left = 0;
+            this.GUI_numbers.right = 0;
+            this.GUI_numbers.total_correct = 0;
+            this.GUI_numbers.time = 0;
+            this.GUI_numbers.handle.trial_no = this.app.text16; %Every input must be a string, not a number
+            this.GUI_numbers.handle.choices = this.app.text19;
+            this.GUI_numbers.handle.difficulty = this.app.text17;
+            this.GUI_numbers.handle.rewards = this.app.text25;
+            this.GUI_numbers.handle.left = this.app.text28;
+            this.GUI_numbers.handle.right = this.app.text26;
+            this.GUI_numbers.handle.total_correct = this.app.text30;
+            this.GUI_numbers.handle.time = this.app.text3;
+            this.timers.betweenTrialsRecord = []; %Set up timers structure
+            this.timers.TrialStartTimeRecord = [];
+            this.timers.response_timeRecord = [];
+            this.timers.drinkDwellTimeRecord = [];
+            skiptypes = {'buttongroup', 'figure', 'label', 'panel', 'annotationpane', 'axes', 'tab', 'uigridlayout'};
+            props = properties(this.app); %Get all names
+            props(props == "MsgBox") = [];
+            types = cellfun(@(x) this.app.(x).Type, props, 'UniformOutput', false); %Get their types
+            props = props(~contains(types, skiptypes));
+            types = types(~contains(types, skiptypes));
+            buttons = props(contains(types, {'button'}));
+            for b = buttons'
+                x = b{:};
+                this.Buttons.(this.app.(x).Tag) = this.app.(x);
+            end
+            this.appProps = props(~contains(types, 'button'))';
+            this.appPropsTypes = types(~contains(types, 'button'))';
+            this.appPropsTypes(contains(this.appProps, 'TextArea2')) = []; %Do not update the Notes box with settings
+            this.appProps(contains(this.appProps, 'TextArea2')) = []; %Do not update the Notes box with settings
+            for p = this.appProps
+                x = p{:};
+                tag = this.app.(x).Tag;
+                try
+                    temp_val = str2double(this.app.(x).Value);
+                    if isnan(temp_val)
+                        temp_val = Settings.(x);
+                    end
+                    tempSetting_Struct.(tag) = temp_val;
+                catch
+                    try
+                        tempSetting_Struct.(tag) = this.app.(x).Value;
+                    catch % Fails if there is no Tag value
+                        fprintf("Failed at: "+x+", "+tag+", "+this.app.(x).Value+"\n")
+                    end
+                end
+            end
+            this.dropdowns = this.appProps(contains(this.appPropsTypes, {'dropdown'}));
+            for d = this.dropdowns
+                x = d{:};
+                tag = this.app.(x).Tag;
+                tempSetting_Struct.(tag) = find(matches(this.app.(x).Items, this.app.(x).Value));
+            end
+            %this.Setting_Struct = tempSetting_Struct;
+            this.makeTrialStructures(tempSetting_Struct)
+            this.Setting_Struct = tempSetting_Struct;
+            %Get the settings label from the setting structure, to label the data.
+            this.SetIdx = 1;
+            [this.SetStr, this.Include] = this.structureSettings(this.Setting_Struct);
+        end
+        function makeTrialStructures(this, Settings)
+            f = fieldnames(Settings);
+            Stimulus = f(contains(f, 'Stimulus_'));
+            for s = Stimulus'
+                x = s{:};
+                temp_val = str2double(Settings.(x));
+                if isnan(temp_val)
+                    temp_val = Settings.(x);
+                end
+                tag = erase(x, 'Stimulus_');
+                if ~contains(tag, "color", IgnoreCase=true)
+                    val = temp_val;
+                else
+                    val = repmat(temp_val, 1, 3);
+                end
+                this.StimulusStruct.(tag) = val;
+            end
+            Box = f(contains(f, 'Box_'));
+            for b = Box'
+                x = b{:};
+                temp_val = str2double(Settings.(x));
+                if isnan(temp_val)
+                    temp_val = Settings.(x);
+                end
+                tag = erase(x, 'Box_');
+                this.Box.(tag) = temp_val;
+            end
+            ReadyCue = f(contains(f, 'ReadyCue_'));
+            for r = ReadyCue'
+                x = r{:};
+                temp_val = str2double(Settings.(x));
+                if isnan(temp_val)
+                    temp_val = Settings.(x);
+                end
+                tag = erase(x, 'ReadyCue_');
+                if ~contains(tag, "color", IgnoreCase=true)
+                    val = temp_val;
+                else
+                    val = repmat(temp_val, 1, 3);
+                end
+                this.ReadyCueStruct.(tag) = val;
+            end
+        end
+        %set up all variables
+        function SetUpHardware(this)
+            if this.Box.Input_type == 8 %Keyboard input, no arduino
+                fprintf('Using keyboard input with no arduino...')
+            else
+                if isempty(this.a)
+                    try
+                        this.a = evalin('base','a');
+                    catch err
+                        1;
+                    end
+                end
+            end
+            this.ConfigureArduino(); %set up configuration of levers
+        end
+        %set hardware (arduino) parameters
+        function ConfigureArduino(this)
+            this.Box.use_ball = 0; %All these are automatically off
+            this.Box.use_wheel = 0;
+            this.Box.ardunioReadDigital = 0;
+            this.Box.KeyboardInput = 0;
+            this.Box.readHigh = 0;
+            switch this.Setting_Struct.Box_Input_type
+                case 3 %Three Pokes
+                    this.Box.ardunioReadDigital = 1;
+                    this.Box.readHigh = 0;
+                    %Set up box structure
+                    this.Box.Left = 'D2';
+                    this.Box.Middle = 'D3';
+                    this.Box.Right = 'D7';
+                    this.Box.ValveL = 'D6';
+                    this.Box.ValveR = 'D8';
+                    this.Box.AirPuff  = 'D11';
+                case 5 %Lick ports
+                    this.Box.ardunioReadDigital = 1;
+                case 6 %Rotating Wheel
+                    this.Box.Reward =  'D6';
+                    this.Box.use_wheel = 1;
+                    this.StimulusStruct.FinishLine = 1;
+                    try
+                        
+                        this.Box.encoder = rotaryEncoder(this.a,'D2','D3', 1024);
+                    catch err
+                        1;
+                    end
+                case 8 %Keyboard, used if no arduino connected
+                    this.Box.KeyboardInput = 1;
+                    this.Box.readHigh = 1;
+                    return
+            end
+            if this.Setting_Struct.Box_Input_type == 8 %Skip all this if keyboard mode
+                return
+            end
+            %set which lever is what and what the input setup is from
+            this.Box.ResetPin        = 'D4';
+            this.Box.TriggerPin      = 'D5';
+            %             %Check how necessary this code is, move to another fx if necessary.
+            %             this.a.configurePin('A2','AnalogInput'); % connect to pin 2 analog input (a2)
+            %             this.a.configurePin('A3','AnalogInput'); % connect to pin 3 analog input (a3)
+            %             this.a.configurePin('D4','DigitalOutput'); % connect to pin 4 analog input (a4)***
+            %             this.a.configurePin('D5','DigitalInput'); % connect to pin 5 digital output (5)***
+            %             this.a.configurePin('D6','DigitalOutput'); % connect to pin 6 digital output (6)
+            %             this.a.configurePin('D7','DigitalInput'); % connect to pin 7 digital output (7)***
+            %             this.a.configurePin('D8','DigitalOutput'); % connect to pin 8 digital output (8)
+            %             this.a.configurePin('D9','DigitalOutput'); % connect to pin 9 digital output (9)
+            %             this.a.configurePin('D10','DigitalOutput'); % connect to pin 10 digital output (10)
+            %             this.a.configurePin('D11','DigitalOutput'); % connect to pin 11 digital output (11), PuffValve_left
+            %             this.a.configurePin('D12','DigitalOutput'); % connect to pin 12 digital output (12), PuffValve_right
+        end
+        function makeSounds(this)
+            %Sounds aren't really used anymore, and the Variable_Struct is only used to make the sounds
+            %Common Sound variables:
+            %sample rate [Hz] Supported by SoundCard (16000,48000,96000,192000)
+            Fs = 48000;
+
+            %generate sound waves for Start Trial Time
+            %time seconds
+            T=0.7;
+            %samples vector
+            t = 0 : 1/Fs : T;
+            %Frequency [Hz] (mice hear from 1kHz to 70kHz
+            Fn = 6000;
+            %Signal
+            this.Sound_Struct.soundstart = sin(Fn*2*pi*t);
+
+            %generate sound waves for Left Trial Time
+            %time seconds
+            T=0.7;
+            %samples vector
+            t = 0 : 1/Fs : T;
+            %Frequency [Hz] (mice hear from 1kHz to 70kHz
+            Fn = 7000;
+            %Signal
+            this.Sound_Struct.soundleft = sin(Fn*2*pi*t);
+
+            %generate sound waves for Right Trial Time
+            %time seconds
+            T=0.7;
+            %samples vector
+            t = 0 : 1/Fs : T;
+            %Frequency [Hz] (mice hear from 1kHz to 70kHz
+            Fn = 6000;
+            %Signal
+            this.Sound_Struct.soundright = sin(Fn*2*pi*t);
+
+
+            %generate sound waves for Correct Trial Time
+            %time seconds (1s)
+            T=0.5;
+            %samples vector
+            t = 0 : 1/Fs : T;
+            %Frequency [Hz] (mice hear from 1kHz to 70kHz
+            Fn = 8000;
+            %Signal
+            this.Sound_Struct.soundcorrect = sin(Fn*2*pi*t);
+
+            %generate sound waves for Cue show
+            %time seconds (1s)
+            T=0.7;
+            %samples vector
+            t = 0 : 1/Fs : T;
+            %Frequency [Hz] (mice hear from 1kHz to 70kHz
+            Fn = 40000;
+            %Signal
+            this.Sound_Struct.soundcue = sin(Fn*2*pi*t);
+
+            %generate sound waves for Wrong Trial Time
+            %time seconds (1s)
+            T=1;
+            %samples vector
+            t = 0 : 1/Fs : T;
+            %Frequency [Hz] (mice hear from 1kHz to 70kHz
+            Fn = 6000;
+            %Signal
+            this.Sound_Struct.soundwrong = tan(Fn*2*pi*t);
+        end
+        %Prepare the window and stimulus
+        function SetupBeforeLoop(this)
+            this.GuiHandles.MsgBox.String = "";
+            this.GuiHandles.NotesText.String = "";
+            this.GuiHandles.NotesText.String = sprintf(string(datetime("today"))+" Behavior Notes:\n");
+            this.setGuiNumbers(this.GUI_numbers); %update gui
+            try
+                this.Data_Object = evalin('base','BBData');
+            catch
+                this.Data_Object = BehaviorBoxData( ...
+                    Inv=this.app.Inv.Value, ...
+                    Inp=this.app.Box_Input_type.Value, ...
+                    Str=this.app.Strain.Value, ...
+                    Sub={this.app.Subject.Value}, ...
+                    load=1, ...
+                    analyze=1); % Set up data storage object
+            end
+            diaryname = join([this.Data_Object.filedir "BBTrialOutput"+this.Data_Object.date+".txt"], filesep);
+            this.textdiary = diaryname;
+            diary(diaryname)
+            this.Data_Object.TrainingNow = 1;
+            %create stimulus depending on input device
+            [this.Stimulus_Object] = BehaviorBoxVisualStimulus(this.StimulusStruct);
+            this.Data_Object.StimType = erase(this.app.Stimulus_type.Value, ' ');
+            clo(this.app.PerformanceTab);
+            this.graphFig = this.app.PerformanceTab;
+            this.Data_Object.Axes = this.Data_Object.CreateDailyGraphs(this.graphFig);
+            this.Data_Object.SB = this.Setting_Struct.Data_Sbin; %Make these names match
+            this.Data_Object.BB = this.Setting_Struct.Data_Lbin*this.Setting_Struct.Data_Sbin;
+            this.Data_Object.current_data_struct = this.Data_Object.new_init_data_struct();
+            [this.Level] = this.Setting_Struct.Starting_opacity;
+            rng('shuffle');
+            if this.Setting_Struct.Ext_trigger %wait for trigger to start experiment
+                txt = "Waiting for trigger to start..";
+                set(this.message_handle,'String',txt, ...
+                    'BackgroundColor','blue');
+                fprintf(txt+"\n");
+                while this.a.readDigitalPin(this.Setting_Struct.TriggerPin) == this.Box.readHigh
+                    if get(this.stop_handle, 'Value') %check if abort button is pressed
+                        break %abort
+                    end
+                end
+            end
+            fprintf("- - - - -\n");
+            txt = "Start trial Mouse "+this.Setting_Struct.Subject+" at "+string(datetime('now'));
+            set(this.message_handle,'String',txt, ...
+                'BackgroundColor', 'none');
+            fprintf(txt+"\n");
+            [this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.Stimulus_Object.setUpFigure();
+            this.StimulusStruct.fig = this.fig;
+            this.ReadyCue(1)
+            this.ReadyCueStruct.Ax = this.ReadyCueAx;
+            this.StimulusStruct.ReadyCue = this.ReadyCueStruct;
+            if this.Box.Input_type == 6
+                this.fig.Children = [this.fig.Children([2 3 1 4 5])];
+                this.Box.use_wheel = 1;
+            end
+            this.toggleButtonsOnOff(this.Buttons,0); % Turn off all buttons
+        end
+        %Do some things before each trial
+        function BeforeTrial(this)
+            switch this.Setting_Struct.Box_Input_type
+                case 3 %Nose
+                    this.fig.Color = this.StimulusStruct.BackgroundColor;
+                case 6 %Wheel
+                    this.fig.Color = this.ReadyCueStruct.Color;
+                otherwise
+            end
+            set(this.FF, 'Value', 0) %Turn off FF button
+            this.UpdateSettings()
+            %Update GUI window numbers
+            this.updateGUIbeforeIteration();
+            %Pick next reward drop size, if variable
+            if this.Box.Variable_pulses
+                Pulse_Min = this.Setting_Struct.Pulse_Min;
+                Pulse_Max = this.Setting_Struct.PulseMax;
+                range = Pulse_Min:1:Pulse_Max;
+                this.RewardPulses = range(randperm(numel(range), 1));
+            end
+            try
+                LastScore = this.Data_Object.current_data_struct.CodedChoice(end);
+            catch
+                LastScore = 1;
+            end
+            if this.Setting_Struct.Repeat_wrong==1 && any(LastScore == [3 4]) %If repeat wrong and they got it wrong
+                if isvalid(this.fig)
+                    %this.StimHistory(this.i,:) = this.StimHistory(this.i-1,:); %Use the same stimulus from last time
+                    [this.StimHistory{this.i,1},this.StimHistory{this.i,2}] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, this.Level); %Plot new stimulus as hidden objects, record positions and angles of the segments
+                else
+                    [this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.Stimulus_Object.setUpFigure();
+                    %this.StimHistory(this.i,:) = this.StimHistory(this.i-1,:); %Use the same stimulus from last time
+                    [this.StimHistory{this.i,1},this.StimHistory{this.i,2}] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, this.Level); %Plot new stimulus as hidden objects, record positions and angles of the segments
+                end
+                %                 this.LStimAx.Position(1) = 0;
+                %                 this.RStimAx.Position(1) = 0.5;
+            else %If correct or no repeat wrong
+                this.isLeftTrial = this.PickSideForCorrect(this.isLeftTrial, this.SideBias); %Pick if isLeftTrial
+                %Pick next difficulty level, if variable
+                if this.Setting_Struct.EasyTrials
+                    [this.Level] = this.PickDifficultyLevel();
+                end
+                if isvalid(this.fig)
+                    [this.StimHistory{this.i,1},this.StimHistory{this.i,2}] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, this.Level); %Plot new stimulus as hidden objects, record positions and angles of the segments
+                else
+                    [this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.Stimulus_Object.setUpFigure();
+                    [this.StimHistory{this.i,1},this.StimHistory{this.i,2}] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, this.Level); %Plot new stimulus as hidden objects, record positions and angles of the segments
+                end
+            end
+            %Update GUI window numbers
+            this.updateGUIbeforeIteration(); %Update again, in case the level changed
+            [this.fig.Children.findobj('Type','Line').Visible] = deal(0);
+            drawnow
+            this.ReadyCue(1)
+        end
+        %update GUI numbers before each trial
+        function updateGUIbeforeIteration(this)
+            %add local variables to Gui Numbers
+            this.GUI_numbers.trial_no = this.i;
+            this.GUI_numbers.choices = this.i- this.timeout_counter;
+            this.GUI_numbers.difficulty = this.Level;
+            try %Will fail before first trial is begun bc this.start_time is empty
+                this.GUI_numbers.time = [num2str(floor(etime(clock, this.start_time)/60)) ' min ' num2str(round((etime(clock, this.start_time)/60- floor(etime(clock, this.start_time)/60))*60)) ' sec'];
+            catch
+            end
+            %update Gui window
+            this.setGuiNumbers(this.GUI_numbers);
+        end
+        %Pick difficulty level if variable:
+        function [current_difficulty] = PickDifficultyLevel(this)
+            try
+                initLev = this.Setting_Struct.Starting_opacity;
+                list = split(split(this.Setting_Struct.prob_list, ';'), ',');
+                if size(list,2) == 1
+                    list = list';
+                end
+                LPlist = cellfun(@str2num, list, 'UniformOutput', false);
+                LPlist(:,1) = cellfun(@(x) x*100, LPlist(:,1), "UniformOutput", false);
+                PossibleLvls = [];
+                for l = LPlist'
+                    Lv = l{2};
+                    p = ceil(l{1}/numel(Lv));
+                    for L = Lv
+                        PossibleLvls = [PossibleLvls repmat(L, 1, p)];
+                    end
+                end
+                CurrentLvLProb = 100 - sum([LPlist{:,1}]); %Probability for current Level
+                PossibleLvls = [PossibleLvls repmat(initLev, 1, CurrentLvLProb)];
+                WhichLevel = randperm(numel(PossibleLvls), 1);
+                current_difficulty = PossibleLvls(WhichLevel);
+            catch
+                current_difficulty = this.Setting_Struct.Starting_opacity;
+                return
+            end
+        end
+        %Update all the settings if the button is ticked
+        function UpdateSettings(this)
+            for p = this.appProps
+                x = p{:};
+                tag = this.app.(x).Tag;
+                try
+                    temp_val = str2double(this.app.(x).Value);
+                    if isnan(temp_val)
+                        temp_val = this.app.(x).Value;
+                    end
+                    tempSetting_Struct.(tag) = temp_val;
+                catch
+                    tempSetting_Struct.(tag) = this.app.(x).Value;
+                end
+            end
+            for d = this.dropdowns
+                x = d{:};
+                tag = this.app.(x).Tag;
+                tempSetting_Struct.(tag) = find(matches(this.app.(x).Items, this.app.(x).Value));
+            end
+            if isequal(tempSetting_Struct, this.Setting_Struct)
+                return
+            end
+            updatelist = {};
+            names = fieldnames(tempSetting_Struct);
+            for n = names'
+                x = n{:};
+                if ~isequal(tempSetting_Struct.(x), this.Setting_Struct.(x))
+                    try
+                        updatelist{end+1} = " "+x+" - "+this.Setting_Struct.(x)+" to "+tempSetting_Struct.(x);
+                    catch
+                        updatelist{end+1} = " "+x;
+                    end
+                end
+            end
+            msg = "Trial "+this.i+" Updating:\n"+join([updatelist{:}],"\n")+"\n";
+            this.GuiHandles.MsgBox.String = [{sprintf(msg)} ; this.GuiHandles.MsgBox.String];
+            fprintf(msg) %Print this to the Message window
+            this.Old_Setting_Struct{end+1} = this.Setting_Struct;
+            this.makeTrialStructures(tempSetting_Struct)
+            this.Setting_Struct = tempSetting_Struct;
+            this.SetIdx = this.SetIdx + 1;
+            this.SetUpdate{end+1} = this.i;
+            [this.SetStr(end+1), this.Include(end+1)] = this.structureSettings(tempSetting_Struct);
+            this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
+            [this.Level] = this.Setting_Struct.Starting_opacity;
+        end
+        %Choose if Left or Right will be correct
+        function isLeftTrial = PickSideForCorrect(this, isLeftTrial, SB)
+            % ATTENTION!!!
+            % Do NOT double the & and | to && and || just because the Matlab error
+            % warning says it will be "faster." Doubling them will change the logical
+            % meaning of the phrase and will ruin how repeat wrong functions. Keeping
+            % the boolean operators singular (& and | as opposed to && and ||) prevents
+            % short circuiting and keeps the code from erroneourly engaging repeat
+            % wrong. Use debug mode to check the outcomes of all of these commands to
+            % ensure that repeat wrong can be disabled. WBS 3/11/2022
+            %Also do NOT change the order of the if statements.
+            if all(this.StimulusStruct.side ~= [2 3 8]) && this.i == 1 %%If not left/right only and first trial, no data structure exists yet.
+                if this.StimulusStruct.side == 7 %Pseudo random
+                    this.Setting_Struct.Repeat_wrong = 1;
+                elseif this.StimulusStruct.side == 5 %Alternate random
+                    range = this.Setting_Struct.MinRandAlt:this.Setting_Struct.MaxRandAlt;
+                    this.Setting_Struct.Change_alternate = range(randperm(numel(range),1));
+                    this.counter_for_alternate = 0;
+                end
+                choice = [0 1];
+                isLeftTrial = choice(randperm(2,1));
+            else
+                switch this.StimulusStruct.side
+                    case 1 %Random
+                        choice = [0 1];
+                        isLeftTrial = choice(randperm(2,1));
+                    case 2 %all left
+                        isLeftTrial = 1;
+                    case 3 %all right
+                        isLeftTrial = 0;
+                    case 4 %alternate repeat
+                        if this.GuiHandles.popupmenu5.Value == 7 %If Smart Random is active:
+                            if this.counter_for_alternate == -1 %When starting Smart Random Alternate, counter is -1.
+                                this.counter_for_alternate = 0;
+                            elseif any(LastScore == [3 4])
+                            else %To deactivate alternate random the mouse must get some number correct on the opposite side
+                                this.counter_for_alternate = this.counter_for_alternate+1;
+                                if this.counter_for_alternate >= this.Setting_Struct.Change_alternate %When the mouse has gotten enough correct trials in a row, check SB against threshold and switch sides.
+                                    if abs(SB) < this.Setting_Struct.SideBiasInterval %If they have improved their SB ratio, turn off alt repeat:
+                                        this.Old_Setting_Struct{end+1} = this.Setting_Struct; %Put this BEFORE the setting changes
+                                        this.SetUpdate{end+1} = this.i; %This current trial is now random
+                                        this.StimulusStruct.side = 7; %Switchback into smart random mode
+                                        this.Setting_Struct.Repeat_wrong = 0; %And turn off repeat wrong
+                                        choice = [0 1];
+                                        isLeftTrial = choice(randperm(2,1));
+                                        text = ['Side bias reduced, disabling alternate repeat. Current SB is ' num2str(SB) '.'];
+                                        disp(text)
+                                        set(this.message_handle,'String',text);
+                                    else
+                                        isLeftTrial = ~isLeftTrial; %Opposite
+                                        this.counter_for_alternate = 0;
+                                        range = int8(this.Setting_Struct.MinRandAlt:1:this.Setting_Struct.MaxRandAlt);
+                                        this.Setting_Struct.Change_alternate = range(randperm(numel(range),1));
+                                        text = ['Switching side... Must get ' num2str(this.Setting_Struct.Change_alternate) ' ' this.current_side ' correct.'];
+                                        disp(text)
+                                        set(this.message_handle,'String',text);
+                                    end
+                                end
+                            end
+                        else
+                            if this.Setting_Struct.Repeat_wrong && any(LastScore == [3 4])
+                                %do nothing if the last was wrong
+                            else
+                                this.counter_for_alternate = this.counter_for_alternate+1;
+                                %if counter for change has been reached, change side
+                                if this.counter_for_alternate >= this.Setting_Struct.Change_alternate
+                                    isLeftTrial = ~isLeftTrial; %Opposite
+                                    this.counter_for_alternate = 0;
+                                end
+                            end
+                        end
+                    case 5 %alternate random
+                        if this.Setting_Struct.Repeat_wrong && any(LastScore == [3 4])
+                            %do nothing if repeat wrong
+                        else
+                            this.counter_for_alternate = this.counter_for_alternate+1;
+                            %if counter is larger than the random number, change side
+                            if this.counter_for_alternate >= this.Setting_Struct.Change_alternate
+                                isLeftTrial = ~isLeftTrial; %Opposite
+                                range = int8(this.Setting_Struct.MinRandAlt:this.Setting_Struct.MaxRandAlt);
+                                this.Setting_Struct.Change_alternate = range(randperm(numel(range),1));
+                                this.counter_for_alternate = 0;
+                                text = ['Switching side... Must get ' num2str(this.Setting_Struct.Change_alternate) ' ' this.current_side ' correct.'];
+                                disp(text)
+                                set(this.message_handle,'String',text);
+                            end
+                        end
+                    case 6 %Side-Bias Correction.
+                        RAND = rand;
+                        isLeftTrial = round(RAND+SB);
+                    case 7 %Smart Random engages repeat wrong if there is a side bias.
+                        if this.i < 20 && any(LastScore == [1 2]) %Last trial was correct (1 or 2) %But also if i<21 repeat wrong is on, so maybe this doesn't need to be here
+                            choice = [0 1];
+                            isLeftTrial = choice(randperm(2,1));
+                        elseif this.i > 20
+                            if this.i == 21
+                                this.Old_Setting_Struct{end+1} = this.Setting_Struct; %Put this BEFORE the setting changes
+                                this.SetUpdate{end+1} = this.i; %This current trial is no longer repeat wrong
+                                this.Setting_Struct.Repeat_wrong = 0;
+                            end
+                            if abs(SB)>=this.Setting_Struct.SideBiasInterval && any(LastScore == [3 4])%If there's a side bias, start repeat wrong.
+                                this.Old_Setting_Struct{end+1} = this.Setting_Struct; %Put this BEFORE the setting changes
+                                this.SetUpdate{end+1} = this.i; %This current trial is repeat wrong
+                                this.StimulusStruct.side = 4; %Switch into alternate random mode
+                                this.Setting_Struct.Repeat_wrong = 1; %Turn on repeat wrong at least for the settings structure to be accurate later for plotting
+                                this.counter_for_alternate = -1; %When choosing which side to start the alternate pattern on, set counter to -1
+                                range = int8(this.Setting_Struct.MinRandAlt:1:this.Setting_Struct.MaxRandAlt);
+                                this.Setting_Struct.Change_alternate = range(randperm(numel(range),1));
+                                text = ['Activating alternate repeat wrong... Must get ' num2str(this.Setting_Struct.Change_alternate) ' ' this.current_side ' correct.'];
+                                disp(text)
+                                set(this.message_handle,'String',text);
+                            else
+                                choice = [0 1];
+                                isLeftTrial = choice(randperm(2,1));
+                            end
+                        end
+                    case 8 % Keyboard / Manual Mode
+                        text = 'Press L for Left, R for Right, ? for Random or S to correct Side-Bias:';
+                        set(this.message_handle,'String',text);
+                        fprintf([text '\n'])
+                        prompt = 'L, R, ? or S:   ';
+                        keypress = 0;
+                        while keypress==0
+                            currkey = input(prompt,"s");
+                            switch true
+                                case strcmp(currkey, 'l') || strcmp(currkey, 'L')
+                                    text = 'Starting Left trial...';
+                                    fprintf([text '\n'])
+                                    set(this.message_handle,'String',text);
+                                    isLeftTrial = 1;
+                                    keypress = 1;
+                                case strcmp(currkey, 'r') || strcmp(currkey, 'R')
+                                    text = 'Starting Right trial...';
+                                    fprintf([text '\n'])
+                                    set(this.message_handle,'String',text);
+                                    isLeftTrial = 0;
+                                    keypress = 1;
+                                case strcmp(currkey, 'slash') || strcmp(currkey, '?')
+                                    text = 'Making random choice';
+                                    fprintf([text '\n'])
+                                    set(this.message_handle,'String',text);
+                                    choice = [0 1];
+                                    isLeftTrial = choice(randperm(2,1));
+                                    keypress = 1;
+                                case strcmp(currkey, 's') || strcmp(currkey, 'S')
+                                    keypress = 1;
+                                    [SB, ~, ~] = this.SideBias(this);
+                                    if SB == 0 || this.i == 1
+                                        text = 'Making random choice...';
+                                        fprintf([text '\n'])
+                                        set(this.message_handle,'String',text);
+                                        choice = [0 1];
+                                        isLeftTrial = choice(randperm(2,1));
+                                    else
+                                        if SB>0
+                                            isLeftTrial = 0;
+                                            side = 'Right trial';
+                                            bias = 'Left bias';
+                                        else
+                                            isLeftTrial = 1;
+                                            side = 'Left trial';
+                                            bias = 'Right bias';
+                                        end
+                                        text = ['Correcting Side-Bias (' num2str(SB) ', ' bias ') with ' side ' trial...'];
+                                        fprintf([text '\n'])
+                                        set(this.message_handle,'String',text);
+                                    end
+                                otherwise
+                                    text = 'Please only press one of the indicated keys...';
+                                    fprintf([text '\n'])
+                                    set(this.message_handle,'String',text);
+                            end
+                        end
+                end
+            end
+            if isLeftTrial %Set properties
+                this.current_side = 'left';
+            else
+                this.current_side = 'right';
+            end
+        end
+        %Show Cue
+        function ShowCue(this,current_opacity)
+            %select stim by making new stimulus object
+            %initialize by subracting 8 from the type, as id for
+            %the cue is -2 for circle and -1 for contour and 0 is image
+            set(this.message_handle,'String','Showing Cue');
+            %drawnow; %refresh gui
+            Current_Cue_Object = BehaviorBoxVisualStimulus((this.Setting_Struct.Stimulus_type) -8 , 0, current_opacity ,this.Setting_Struct.Box_Input_type);
+            %display stimulus
+            Current_Cue_Object.DisplayOnScreen(1, 0, this.Setting_Struct.Stimulussize_y, this.Setting_Struct.Stimulussize_x, this.Setting_Struct.Stimulusposition_x, this.Setting_Struct.Stimulusposition_y, this.Setting_Struct.Orientation);
+            %wait for cue time
+            pause(this.Setting_Struct.CueDuration)
+            %close stim
+            Current_Cue_Object.DisplayOnScreen(0, 0, this.Setting_Struct.Stimulussize_y, this.Setting_Struct.Stimulussize_x, this.Setting_Struct.Stimulusposition_x, this.Setting_Struct.Stimulusposition_y, this.Setting_Struct.Orientation);
+            %wait after cue
+            pause(this.Setting_Struct.WaitAfterCue)
+        end
+        %loop function that reads lever
+        function WaitForInput(this)
+            this.TrialStartTime = 0;
+            if ~this.Setting_Struct.Initialize_by_input
+                if this.i == 1 %start the timer after the first trial has begun. Maybe this should be put somewhere else but I don't want the timer to start until the mouse begins the first trial so where else?
+                    this.start_time = clock;
+                    this.Data_Object.GetStartTime;
+                end
+                return
+            end
+            set(this.message_handle,'String','Waiting for Trial initialization');
+            this.t1 = clock; t2 = this.t1;%In case of crash
+            switch 1
+                case this.Box.Input_type==6 && this.i ~=1 %Wheel 2.0, wait for the mouse to hold the wheel still for the interval to start a new trial
+                    this.ReadyCue('k');
+                    fl = [this.FLAx.Children];
+                    [fl.Visible] = deal(1);
+                    this.fig.Color = this.StimulusStruct.BackgroundColor;
+                    timelimit = this.Setting_Struct.HoldStill;
+                    starttime = clock;
+                    while etime(clock, starttime)<timelimit
+                        this.message_handle.String = ['Keep the wheel still for ' num2str(round(timelimit - etime(clock, starttime),1)) ' seconds.'];
+                        if abs(this.Box.encoder.readSpeed) > this.Setting_Struct.Hold_Still_Thresh
+                            this.Flash(this.StimulusStruct, findobj('Type', 'Polygon'), 'Wheel');
+                            starttime = clock;
+                        end
+                        if get(this.stop_handle, 'Value')
+                            this.message_handle.String = 'Ending session...';
+                            break;
+                        end
+                        if get(this.FF, 'Value')
+                            set(this.message_handle, 'String','Skipping interval...')
+                            set(this.FF, 'Value', 0)
+                            drawnow
+                            break;
+                        end
+                    end
+                    t2 = clock;
+                    this.ReadyCue(this.ReadyCueStruct.Color);
+                case this.Box.ardunioReadDigital==1 %Nose and Lick are Digital
+                    if this.Setting_Struct.Box_Input_type == [5]
+                        this.ResetSensor(this)
+                    end
+                    while this.a.readDigitalPin(this.Box.Middle) ~= this.Box.readHigh && ~get(this.stop_handle, 'Value') %While the stop button has not been pressed
+                        %drawnow %Update the buttons
+                        if this.Setting_Struct.IntertrialMalCancel && this.a.readDigitalPin(this.Box.Left) == this.Box.readHigh | this.a.readDigitalPin(this.Box.Right) == this.Box.readHigh
+                            this.ReadyCue('k')
+                            this.message_handle.String = ['Do not poke L or R for the Intertrial Malingering interval: ' num2str(this.Setting_Struct.IntertrialMalSec) ' sec...'];
+                            timerStart = clock;
+                            while 1
+                                %drawnow %Update the buttons
+                                if this.a.readDigitalPin(this.Box.Left) == this.Box.readHigh | this.a.readDigitalPin(this.Box.Right) == this.Box.readHigh %if L or R poke then restart timerStart
+                                    timerStart = clock;
+                                end
+                                if get(this.FF, 'Value')
+                                    set(this.message_handle, 'String','Skipping interval...')
+                                    get(this.FF, 'Value', 0)
+                                    %drawnow
+                                    break;
+                                end
+                                if get(this.stop_handle, 'Value')
+                                    set(this.message_handle, 'String','Ending session...')
+                                    %drawnow
+                                    break;
+                                end
+                                if etime(clock, timerStart) > this.Setting_Struct.IntertrialMalSec %End when mouse has not poked L or R for the interval
+                                    this.ReadyCue(1)
+                                    this.Flash(this.StimulusStruct, findobj('Tag', 'ReadyCueDot'), 'NewStim')
+                                    set(this.message_handle,'String','Waiting for Trial initialization');
+                                    break
+                                end
+                            end
+                        end
+                    end
+                    t2 = clock;
+                case this.Box.KeyboardInput==1 % Keyboard inputthis.Box.KeyboardInput==1
+                    InterTMalInterv = this.Setting_Struct.IntertrialMalSec;
+                    text = 'Initialize: Press L for Left, R for Right, C or M for Middle:'; set(this.message_handle,'String',text); fprintf([text '\n'])
+                    prompt = 'L, R, or M/C:   ';
+                    keypress = 0;
+                    while keypress==0
+                        Mal = 0;
+                        currkey = input(prompt,"s");
+                        t2 = clock;
+                        switch true
+                            case any(currkey == ["L","l"])
+                                text = 'Left choice...'; fprintf([text '\n']); set(this.message_handle,'String',text);
+                                Mal = 1;
+                            case any(currkey == ["R","r"])
+                                text = 'Right choice...'; fprintf([text '\n']); set(this.message_handle,'String',text);
+                                Mal = 1;
+                            case any(currkey == ["C","c", "M", "m", ""])
+                                text = 'Middle choice'; fprintf([text '\n']); set(this.message_handle,'String',text);
+                                keypress = 1;
+                            otherwise
+                                text = 'Please only press one of the indicated keys...'; fprintf([text '\n']); set(this.message_handle,'String',text);
+                        end
+                        drawnow
+                        if Mal
+                            this.ReadyCueAx.Children.Visible=0;
+                            this.fig.Color = 'k';
+                            text = 'Only choose Middle to start trial, malingering timeout...'; fprintf([text '\n']); set(this.message_handle,'String',text);
+                            timerStart = clock;
+                            while 1
+                                drawnow
+                                if get(this.FF, 'Value')
+                                    set(this.message_handle, 'String','Skipping interval...')
+                                    set(this.FF, 'Value', 0)
+                                    drawnow
+                                    break;
+                                end
+                                if get(this.stop_handle, 'Value')
+                                    set(this.message_handle, 'String','Ending session...')
+                                    drawnow
+                                    break;
+                                end
+                                if etime(clock, timerStart) > InterTMalInterv %End when mouse has not poked L or R for the interval
+                                    this.ReadyCue(1)
+                                    set(this.message_handle,'String','Waiting for Trial initialization');
+                                    break
+                                end
+                            end
+                            text = 'Initialize: Press L for Left, R for Right, C or M for Middle:'; set(this.message_handle,'String',text); fprintf([text '\n'])
+                        end
+                        drawnow
+                        if get(this.stop_handle, 'Value')
+                            this.message_handle.String ='Ending session...';
+                            break;
+                        end
+                    end
+            end
+            if this.i ~= 1 && ~get(this.stop_handle,'Value')
+                this.TrialStartTime = etime(t2,this.t1);
+            elseif get(this.stop_handle, 'Value')
+                this.TrialStartTime = 0;
+            end
+            if this.i == 1 %start the timer after the first trial has begun. Maybe this should be put somewhere else but I don't want the timer to start until the mouse begins the first trial so where else?
+                this.start_time = clock;
+                this.Data_Object.GetStartTime;
+            end
+        end
+        %wait loop while lever is read and open valves if correct
+        function WaitForInputAndGiveReward(this)
+            this.ResponseTime = 0; %In case of crash
+            this.WhatDecision = 'time out'; %In case of crash
+            this.DrinkTime = 0; %In case of crash
+            if get(this.stop_handle, 'Value')
+                return
+            end
+            o = {this.fig.Children.Children}; % Hide ReadyCue and set background
+            o(cellfun(@isempty, o)) = [];
+            for obj = o
+                x = obj{:};
+                [x.Visible] = deal(1);
+            end
+            this.fig.Color = this.StimulusStruct.BackgroundColor;
+            this.ReadyCue(0);
+            %ignore input if set
+            t1 = datetime("now");
+            while this.Setting_Struct.Input_ignored & seconds(datetime("now")-t1)<this.Setting_Struct.Pokes_ignored_time
+                time = this.Setting_Struct.Pokes_ignored_time-seconds(datetime("now")-t1);
+                txt = "Ignoring input for "+round(time,1)+" sec...";
+                set(this.message_handle,'String',txt)
+                drawnow
+            end
+            this.Flash(this.StimulusStruct, findobj(this.fig.Children, 'Type', 'Line'), 'NewStim'); % Make visible stimulus and flash if set
+            %play sound
+            if this.Setting_Struct.Play_sound
+                if this.isLeftTrial
+                else
+                end
+            end
+            set(this.message_handle,'String',['Waiting for ',this.current_side,' choice...']);
+            this.Data_Object.addStimEvent(this.isLeftTrial); %Add the timestamp for the trial
+            switch 1
+                case any(this.Box.Input_type == [1 2 3 5]) %NosePoke
+                    [this.WhatDecision, this.ResponseTime] = this.readLeverLoopDigital(this);
+                case this.Box.Input_type == 6 %Wheel (new)
+                    [this.WhatDecision, this.ResponseTime] = this.readLeverLoopAnalogWheel(this);
+                otherwise
+                    [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial);
+            end
+            if this.Box.Input_type==6
+                pause(this.Setting_Struct.Input_Delay_Respond)
+                try
+                    d = this.fig.Children.findobj('Tag', 'Distractor');
+                    [d.Color] = deal(this.StimulusStruct.DimColor);
+                end
+                pause(this.Setting_Struct.Input_Delay_Respond)
+                try
+                    p = findobj('Type', 'Polygon');
+                    [p.FaceColor] = deal(this.StimulusStruct.BackgroundColor);
+                end
+                pause(this.Setting_Struct.Input_Delay_Respond)
+            end
+            %stop sound
+            if this.Setting_Struct.Play_sound
+            end
+            switch true
+                case contains({this.WhatDecision} , 'correct', 'IgnoreCase', true)
+                    %play sound
+                    if this.Setting_Struct.Play_sound && ~this.Setting_Struct.ErrorSoundOnly
+                        play(this.Sound_Object.Sound_correct_Object);
+                    end
+                    set(this.message_handle,'String','Giving Reward...');
+                    t1 = clock; t2 = clock;
+                    this.GiveReward(this.a, this.Box, this.Buttons, this.WhatDecision); %give reward
+                    %Flash
+                    this.Flash(this.StimulusStruct, findobj('Tag', 'Contour'),  this.WhatDecision);
+                    if this.Box.Input_type == 3
+                        while this.checkRewardPortsandwait(this.WhatDecision)%Pause while the mouse is standing there and drinking their water reward
+                        end
+                    end
+                    t2 = clock;
+                    this.DrinkTime = etime(t2,t1);
+                    if this.StimulusStruct.PersistCorrectInterv > 0
+                        thisInt = (this.StimulusStruct.PersistCorrectInterv);
+                    else
+                        thisInt = 0;
+                    end
+                    set(this.message_handle, 'String',['Persisting correct stimulus for ' num2str(thisInt)  ' (sec)...']); drawnow
+                    if this.Box.Input_type == 3 %Nose
+                        this.UpdatePause(thisInt)
+                    elseif this.Box.Input_type == 6 %Wheel
+                        timerStart = clock;
+                        while 1
+                            drawnow %unless drawnow is here the button statuses will not update...
+                            if etime(clock, timerStart) > thisInt
+                                break
+                            end
+                            if get(this.FF, 'Value')
+                                set(this.message_handle, 'String','Skipping persist interval...'); drawnow
+                                break;
+                            end
+                            if get(this.stop_handle, 'Value')
+                                set(this.message_handle, 'String','Ending session...'); drawnow
+                                break;
+                            end
+                        end
+                    end
+                    o = findobj(this.fig.Children);
+                    [o(:).Visible] = deal(0);
+                case contains({this.WhatDecision} , 'wrong', 'IgnoreCase', true)
+                    set(this.message_handle,'String',[this.WhatDecision,' - Penalty...']);
+                    if this.Setting_Struct.Play_sound || this.Setting_Struct.ErrorSoundOnly
+                        play(this.Sound_Object.Sound_wrong_Object);
+                    end
+                    if this.Box.Input_type == 3 && this.Box.Air_Puff_Penalty
+                        this.GiveReward(this.a, this.Box, this.Buttons, this.WhatDecision);
+                    end
+                    %Flash
+                    this.Flash(this.StimulusStruct, findobj('Tag', 'Contour'), this.WhatDecision);
+                    if ~get(this.stop_handle, 'Value') && this.StimulusStruct.PersistIncorrect %Only persist incorrect for the Nose
+                        set(this.message_handle,'String','Persisting correct stimulus...');
+                        this.UpdatePause(this.StimulusStruct.PersistIncorrectInterv)
+                    else
+                    end
+                    o = findobj(this.fig.Children);
+                    [o(:).Visible] = deal(0);
+                    this.fig.Color = 'k';
+            end
+        end
+        % read from either reward port and see if the mouse is standing there getting the rewards
+        function [read] = checkRewardPortsandwait(this, WhatDecision)
+            switch true
+                case contains({WhatDecision} , 'left', 'IgnoreCase', true)
+                    [read] = checkLeftRewardPort();
+                case contains({WhatDecision} , 'right', 'IgnoreCase', true)
+                    [read] = checkRightRewardPort();
+                case contains({WhatDecision} , 'time out', 'IgnoreCase', true)
+                    [read] = checkBothRewardPort();
+            end
+            % read from right reward port and see if the mouse is standing there
+            function [read] = checkRightRewardPort()
+                try
+                    if this.a.readDigitalPin(this.Box.Right) == this.Box.readHigh
+                        read = 1;
+                    else
+                        read = 0;
+                    end
+                catch
+                    read = 0;
+                end
+            end
+            % read from left reward port and see if the mouse is standing there
+            function [read] = checkLeftRewardPort()
+                try
+                    if this.a.readDigitalPin(this.Box.Left) == this.Box.readHigh
+                        read = 1;
+                    else
+                        read = 0;
+                    end
+                catch
+                    read = 0;
+                end
+            end
+            % read from both reward ports and see if the mouse is standing there
+            function [read] = checkBothRewardPort()
+                try
+                    if this.a.readDigitalPin(this.Box.Right) == this.Box.readHigh || this.a.readDigitalPin(this.Box.Left) == this.Box.readHigh
+                        read = 1;
+                    else
+                        read = 0;
+                    end
+                catch
+                    read = 0;
+                end
+            end
+        end
+        % read from the non-rewarded port and see if the mouse is stealing water
+        function [read] = checkRewardPorts(this, WhatDecision)
+            switch true
+                case ~exist("WhatDecision", "var") || contains({WhatDecision} , 'time out', 'IgnoreCase', true) || contains({WhatDecision} , 'wrong', 'IgnoreCase', true) % This one must be first otherwise code will break if 'WhatDecision' doesn't exist
+                    [read] = checkBothRewardPort();
+                case contains({WhatDecision} , 'right', 'IgnoreCase', true)
+                    [read] = checkLeftRewardPort();
+                case contains({WhatDecision} , 'left', 'IgnoreCase', true)
+                    [read] = checkRightRewardPort();
+            end
+            % read from right reward port and see if the mouse is standing there
+            function [read] = checkRightRewardPort()
+                try
+                    if this.a.readDigitalPin(this.Box.Right) == this.Box.readHigh
+                        read = 1;
+                    else
+                        read = 0;
+                    end
+                catch
+                    read = 0;
+                end
+            end
+            % read from left reward port and see if the mouse is standing there
+            function [read] = checkLeftRewardPort()
+                try
+                    if this.a.readDigitalPin(this.Box.Left) == this.Box.readHigh
+                        read = 1;
+                    else
+                        read = 0;
+                    end
+                catch
+                    read = 0;
+                end
+            end
+            % read from both reward ports and see if the mouse is standing there
+            function [read] = checkBothRewardPort()
+                try
+                    if this.a.readDigitalPin(this.Box.Right) == this.Box.readHigh || this.a.readDigitalPin(this.Box.Left) == this.Box.readHigh
+                        read = 1;
+                    else
+                        read = 0;
+                    end
+                catch
+                    read = 0;
+                end
+            end
+        end
+        %Use this function instead of pausing, so that buttons are checked and settings are updated during the pause
+        function UpdatePause(this, interval)
+            starttime = clock;
+            while etime(clock, starttime) < interval
+                drawnow
+                if this.Pause.Value
+                    set(this.message_handle,'String','Paused, click pause button again to continue...');
+                    o = findobj(this.fig.Children);
+                    [o(:).Visible] = deal(0);
+                    this.fig.Color = this.ReadyCueStruct.Color;% Clear stim and turn the screen black to tell the mouse the time to drink water is now over. This should help mice not associate an air puff with the correct/rewarded stimulus, and instead associate an air puff with the black screen.
+                    while get(this.Pause, 'Value')
+                        drawnow
+                    end
+                    this.fig.Color = this.StimulusStruct.BackgroundColor;
+                end
+                %check if stop pressed
+                if get(this.stop_handle, 'Value') || get(this.FF, 'Value')
+                    %abort
+                    break;
+                end
+            end
+        end
+        %Update data structure, update graphs, do intertrial time
+        function AfterTrial(this)
+            switch true
+                case contains(this.WhatDecision,'correct')
+                    interval = 'Intertrial interval';
+                    interval_time = this.Setting_Struct.Intertrial_time;
+                case contains(this.WhatDecision,'wrong')
+                    interval = 'Penalty interval';
+                    interval_time = this.Setting_Struct.Penalty_time;
+                case contains(this.WhatDecision , 'malinger', 'IgnoreCase', true)
+                    interval = 'Only poke center to begin a trial, Penalty interval';
+                    interval_time = this.Setting_Struct.Penalty_time;
+                case contains(this.WhatDecision,'time out')
+                    interval = 'Time out, proceed to next trial';
+                    interval_time = 0.5;
+                    this.timeout_counter = this.timeout_counter+1;
+            end
+            %Update data & Plot, update GUI numbers
+            this.UpdateData();
+            if contains(this.WhatDecision,'time out')
+                set(this.message_handle,'String',interval);
+            else
+                set(this.message_handle,'String',interval+" ("+num2str(interval_time)+" sec)");
+            end
+            if get(this.stop_handle, 'Value')
+                return
+            end
+            switch this.Box.Input_type
+                case 3 % Nose
+                    while this.checkRewardPortsandwait(this.WhatDecision)%Pause while the mouse is standing there and drinking their water reward
+                    end
+                    o = findobj(this.fig.Children);
+                    [o(:).Visible] = deal(0);
+                case 6 % Wheel
+                    this.ReadyCue(1)
+            end
+            %Wait for interval
+            this.UpdatePause(interval_time)
+        end
+        %Update the data object
+        function UpdateData(this)
+            %Save these records, which will be eventually moved to the Data
+            % Names of data structure fields:
+            % structOrder = {
+            %         'TimeStamp',
+            %         'Score',
+            %         'Level',
+            %         'isLeftTrial',
+            %         'CodedChoice',
+            %         'RewardPulses',
+            %         'InterTMal',
+            %         'DuringTMal',
+            %         'TrialStartTime',
+            %         'ResponseTime',
+            %         'DrinkTime',
+            %         'SetIdx'
+            %         'isTraining',
+            %         'SideBias',
+            %         'BetweenTrialTime',
+            %         'SetStr',
+            %         'SetUpdate',
+            %         'Settings',
+            %         'RewardTime',
+            %         'WhatDecision'};
+            %New
+            this.Data_Object.AddData( ...
+                this.Level, ...
+                this.isLeftTrial, ...
+                this.WhatDecision, ...
+                this.RewardPulses, ...
+                this.InterTMal, ...
+                this.DuringTMal, ...
+                this.TrialStartTime, ...
+                this.ResponseTime, ...
+                this.DrinkTime, ...
+                this.BetweenTrialTime, ...
+                this.SideBias, ...
+                this.SetIdx, ...
+                this.SetStr(end))
+
+            %Wheel stuff, only save this if its a wheel trial
+            this.wheelchoice_record{this.i,1} = this.WhatDecision;
+            this.wheelchoice_record{this.i,2} = this.wheelchoice;
+            this.wheelchoice_record{this.i,3} = this.wheelchoicetime;
+
+            this.RewardPulses = 0;
+            this.InterTMal = 0;
+            this.DuringTMal = 0;
+            this.TrialStartTime = 0;
+            this.ResponseTime = 0;
+            this.DrinkTime = 0;
+            this.BetweenTrialTime = 0;
+            this.wheelchoice = [];
+            this.wheelchoicetime = [];
+            %Plot graphs
+            if isvalid(this.graphFig)
+                this.Data_Object.PlotNewData();
+            else
+                this.graphFig = figure("Name", "Graphs", "MenuBar","none");
+                this.Data_Object.Axes = this.Data_Object.CreateGraphs(this.graphFig);
+                this.Data_Object.PlotData();
+            end
+            %update Gui window
+            this.setGuiNumbers(this.GUI_numbers);
+        end
+        %save data when done, give unique name for stimulus, input, etc.
+        function SaveAllData(this)
+            fakeNames = {'w', 'W'};
+            if any(strcmp(num2str(this.Setting_Struct.Subject), fakeNames)) || any(strcmp(this.Setting_Struct.Strain, fakeNames)) %do not save if I use a fake name for fake data
+                return
+            end
+            D = string(datetime(this.Data_Object.start_time, "Format", "yyMMdd_HHmmss"));
+            stim = erase(this.app.Stimulus_type.Value, ' ');
+            input = this.app.Box_Input_type.Value;
+            Sub = this.Setting_Struct.Subject;
+            Str = this.Data_Object.Str;
+            saveasname = join([D Sub Str stim input],'_');
+            savefolder = [this.Data_Object.filedir filesep];
+            set(this.message_handle,'String', 'Saving data as: '+saveasname+'.mat');
+            [newData] = this.Data_Object.current_data_struct;
+            names = fieldnames(newData);
+            for n = names(structfun(@isrow, newData) & structfun(@length, newData) > 1)' %Make sure everything is saved as a column
+                newData.(n{:}) = newData.(n{:})';
+            end
+            FullTrials = numel(newData.TimeStamp);
+            for n = names(structfun(@length, newData) > FullTrials)'
+                newData.(n{:}) = newData.(n{:})(1:FullTrials);
+            end
+            Settings = [this.Setting_Struct cell2mat(this.Old_Setting_Struct)];
+            newData.SetUpdate = this.SetUpdate;
+            nonEmptyRows = any(~cellfun(@isempty, this.StimHistory'))';
+            newData.StimHist = this.StimHistory(nonEmptyRows,:);
+            rmv = {'GUI_numbers', 'encoder'};
+            for r = rmv
+                try
+                    Settings = rmfield(Settings, r);
+                end
+            end
+            newData.Settings = Settings;
+            if this.Box.Input_type == 6
+                newData.wheel_record = this.wheelchoice_record;
+                newData.wheel_record(any(cellfun(@isempty, newData.wheel_record)'),:) = [];
+            end
+            if numel(this.SetUpdate) == 1 % Settings never changed during the session.
+                newData.SetStr = this.SetStr;
+                newData.Include = repmat(this.Include, size(newData.TimeStamp));
+                newData.SetIdx = repmat(this.SetIdx, size(newData.TimeStamp));
+            elseif numel(this.SetUpdate) > 1
+                Ts = this.Include;
+                newData.SetStr =  this.SetStr;
+                Idcs = unique([cell2mat(this.SetUpdate) length(newData.TimeStamp)]);
+                [~, ~, newData.SetIdx] = histcounts(1:length(newData.TimeStamp), Idcs);
+                newData.Include = Ts(newData.SetIdx);
+            end
+            newData.Weight = this.Setting_Struct.Weight;
+            Notes = this.GuiHandles.NotesText.String;
+            try
+                try
+                    save(savefolder+saveasname+".mat", 'Settings', 'newData', 'Notes')
+                    f = figure("MenuBar","none","Visible","off");
+                    copyobj(this.graphFig.Children, f)
+                    this.saveFigure(f, savefolder, saveasname)
+                    dispstring = 'Data saved as: '+saveasname;
+                    fprintf([dispstring+'\n']);
+                    set(this.message_handle,'String',dispstring);
+                catch err
+                    this.unwrapError(err)
+                    [file,path] = uiputfile(pwd , 'Choose folder to save training data' , saveasname);
+                    save([path file],  'Settings', 'newData')
+                    this.saveFigure(this.graphFig, savefolder, saveasname)
+                end
+            catch err
+                this.unwrapError(err)
+            end
+            f.MenuBar = 'figure';
+            f.Visible = 1;
+        end
+        %when done, clean up
+        function cleanUP(this)
+            %switch on all buttons
+            this.toggleButtonsOnOff(this.Buttons,1);
+            this.stop_handle.Value = 0;%Turn off Stop button
+            %turn off sound
+            if this.Setting_Struct.Play_sound
+                stop(this.Sound_start_Object);
+            end
+            %close stimulus if still open
+            delete(findobj("Type", "figure", "Name", "Stimulus"))
+            disp_string = ['Stopped training Mouse ',num2str(this.Setting_Struct.Subject), ' at ',datestr(now)];
+            disp(disp_string);
+            disp('- - - - -');
+        end
+        function ReadyCue(this, isVis)
+            %isVis is 1 or 0
+            switch 1
+                case numel(isVis) == 3 %RGB triplet
+                    this.ReadyCueAx.Color = isVis;
+                    [this.ReadyCueAx.Visible] = deal(1);
+                    return
+                case any(int8(isVis) == [0 1]) || islogical(isVis)%Logical off or on
+                    isVis = logical(isVis);
+                case ischar(isVis) %Letter color abbrev.
+                    ax = findobj(this.ReadyCueAx, 'Type', 'Axes');
+                    ax.Color = char(isVis);
+                    [this.ReadyCueAx.Visible] = deal(1);
+                    try
+                        [this.ReadyCueAx.Children.Visible] = deal(0);
+                    end
+                    return
+            end
+            % Plot a circle in the center to show that a new trial is ready
+            %Make the figure if this is the first call to readycue, or make a new one
+            %if the window has been closed
+            if ~isempty(this.ReadyCueAx) & all(isvalid(this.ReadyCueAx))
+                [this.ReadyCueAx.Visible] = deal(isVis);
+                if this.Box.Input_type~=6
+                    [this.ReadyCueAx.Children.Visible] = deal(isVis);
+                end
+            else %First time, make axis
+                switch this.Box.Input_type
+                    case 6 % Wheel is different
+                        RQ_Ax = axes('Parent', this.fig, ...
+                            'color', this.ReadyCueStruct.Color, ...
+                            'Position', [0 0 1 1], ...
+                            'Xlim', [-10 10], ...
+                            'YLim', [-7 13], ...
+                            'XTick',[], 'YTick',[], ...
+                            'Tag', 'ReadyCue');
+                        hold(findobj(this.fig, 'Tag', 'ReadyCue'), 'on')
+                        this.ReadyCueAx = [findobj(this.fig, 'Tag', 'ReadyCue')];
+                    otherwise
+                        RQ_Ax = axes('Parent', this.fig, ...
+                            'color', this.StimulusStruct.BackgroundColor, ...
+                            'Position', [0 0 1 1], ...
+                            'Xlim', [-10 10], ...
+                            'YLim', [-7 13], ...
+                            'XTick',[], 'YTick',[], ...
+                            'Tag', 'ReadyCue');
+                        hold(findobj(this.fig, 'Tag', 'ReadyCue'), 'on')
+                        Dot = scatter(0,0,this.ReadyCueStruct.Size*1000, ...
+                            'LineWidth', 10000, ...
+                            'Marker', 'o', ...
+                            'MarkerFaceColor', this.ReadyCueStruct.Color, ...
+                            'MarkerEdgeColor', 'none', ...
+                            'Parent', RQ_Ax, ...
+                            'Tag', 'ReadyCueDot');
+                        this.ReadyCueAx = [findobj(this.fig, 'Tag', 'ReadyCue')];
+                end
+                if this.Box.Input_type~=6
+                    this.Flash(this.StimulusStruct, findobj('Tag', 'ReadyCueDot'), 'NewStim')
+                end
+            end
+            drawnow
+        end
+        function TestWater(this)
+            this.ResetSensor(this)
+            set(this.message_handle,'String','Trigger the Left Sensor');
+            while this.a.readDigitalPin(this.Box.Left) ~= this.Box.readHigh
+                %just wait until the sensor is triggered
+            end
+            this.ResetSensor(this)
+            set(this.message_handle,'String','Trigger the Right Sensor');
+            while this.a.readDigitalPin(this.Box.Right) ~= this.Box.readHigh
+                %just wait until the sensor is triggered
+            end
+            this.ResetSensor(this)
+            set(this.message_handle,'String','Trigger the Middle Sensor');
+            while this.a.readDigitalPin(this.Box.Middle) ~= this.Box.readHigh
+                %just wait until the sensor is triggered
+            end
+            this.cleanUP();
+            set(this.message_handle,'String','Did the sensors work?');
+        end
+        function TestStimulus(this)
+            this.Stimulus_Object = BehaviorBoxVisualStimulus(this.StimulusStruct);
+            if ~isempty(this.fig) & isvalid(this.fig)
+                [this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.Stimulus_Object.findfigs();
+                [~,~] = this.Stimulus_Object.DisplayOnScreen(this.PickSideForCorrect(0, 0), this.Setting_Struct.Starting_opacity); %Plot new stimulus as hidden objects, record positions and angles of the segments
+            else
+                [this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.Stimulus_Object.setUpFigure();
+                [~,~] = this.Stimulus_Object.DisplayOnScreen(this.PickSideForCorrect(0, 0), this.Setting_Struct.Starting_opacity); %Plot new stimulus as hidden objects, record positions and angles of the segments
+            end
+            [this.fig.findobj('Type','Line').Visible] = deal(0);
+            pause(0.25)
+            this.Flash(this.StimulusStruct, findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
+        end
+    end
+    %STATIC FUNCTIONS====
+    methods(Static = true)
+        %toggle GUI buttons active/inactive
+        function toggleButtonsOnOff(Buttons, on)
+            for b = struct2cell(Buttons)'
+                if b{:}.Type == "uistatebutton"
+                    continue
+                else
+                    b{:}.Enable = on;
+                end
+            end
+            %             B = findobj(Buttons, 'Type', 'uibutton');
+            %             [B.Enable] = deal(on);
+        end
+        %set GUI settings and numbers from save or when starting new
+        function setGuiNumbers(GUI_numbers)
+            %trial no, choices, diff
+            names = fieldnames(GUI_numbers);
+            names(contains(names, 'handle', IgnoreCase=true)) = [];
+            for n = names'
+                GUI_numbers.handle.(n{:}).Text = num2str(GUI_numbers.(n{:}));
+            end
+        end
+        %open reward valves
+        function GiveReward(A, Box, Buttons, whatdecision)
+            %Get reward valve, pulse number and time:
+            switch Box.Input_type
+                case 3 %Nose
+                    switch true
+                        case contains(whatdecision, 'left correct', 'IgnoreCase', true)
+                            CorrectLever = Box.Left; %Left
+                            OtherLever = Box.Right; %Right
+                            PulseNum = Box.LeftPulse;
+                            Valve = Box.ValveR; %Left
+                            Time = Box.Lrewardtime; %Left
+                        case contains(whatdecision, 'right correct', 'IgnoreCase', true)
+                            CorrectLever = Box.Right; %Right
+                            OtherLever = Box.Left; %Left
+                            PulseNum = Box.RightPulse;
+                            Valve = Box.ValveL; %Right
+                            Time = Box.Rrewardtime; %Right
+                        case contains(whatdecision, 'wrong', 'IgnoreCase', true)
+                            if Box.Air_Puff_Penalty
+                                PulseNum = Box.AirPuffPulses;
+                                Valve = Box.AirPuff;
+                                Time = Box.AirPuffTime;
+                            else
+                                return
+                            end
+                    end
+                    % Don't dispense the reward unless the mouse is waiting for it!
+                    while contains(whatdecision, 'correct', 'IgnoreCase', true) && A.readDigitalPin(CorrectLever) ~= Box.readHigh
+                        if get(Buttons.Stop, 'Value') || get(Buttons.FastForward, 'Value')
+                            break
+                        end
+                    end
+                case 6 % Wheel
+                    switch true
+                        case contains(whatdecision, 'correct', 'IgnoreCase', true)
+                            PulseNum = Box.RightPulse;
+                            Valve = Box.Reward; %Right
+                            Time = Box.Rrewardtime; %Right
+                        case contains(whatdecision, 'wrong', 'IgnoreCase', true)
+                            return %No air puff for wheel
+                    end
+                otherwise %Keyboard, any input method I haven't used before
+                    return
+            end
+            for i = 1:PulseNum
+                A.writeDigitalPin(Valve,1)
+                pause(Time);
+                A.writeDigitalPin(Valve,0)
+                if i < PulseNum
+                    switch Box.Input_type
+                        case 3 %Nose
+                            pause(Box.SecBwPulse)
+                            while contains(whatdecision, 'correct', 'IgnoreCase', true) && A.readDigitalPin(CorrectLever) ~= Box.readHigh %Wait for NosePoke Don't dispense the reward unless the mouse is waiting for it! Wait indefinitely between pulses for them to learn to collect all the water
+                                if get(Buttons.Stop, 'Value') || get(Buttons.FastForward, 'Value')
+                                    break
+                                end
+                            end
+                        case 6 %wheel
+                            bigTimer = [];
+                            timer = clock;
+                            while etime(clock, timer) < Box.SecBwPulse
+                                if get(Buttons.Stop, 'Value') || get(Buttons.FastForward, 'Value')
+                                    break
+                                end
+                            end
+                    end
+                end
+            end
+        end
+        function GiveOnePuff(this)
+            this.a.writeDigitalPin(this.Box.AirPuff,1)
+            pause(this.Box.AirPuffTime);
+            this.a.writeDigitalPin(this.Box.AirPuff,0)
+        end
+        function [WhatDecision, response_time] = readKeyboardInput(stop_handle, message_handle, isLeftTrial)
+            text = 'Respond: Press L for Left, R for Right, C or M for Middle:'; set(message_handle,'String',text); fprintf([text '\n']); drawnow
+            prompt = 'L, R, or M/C:   ';
+            keypress = 0; t1 = clock;
+            while keypress==0
+                currkey = input(prompt,"s");
+                response_time = etime(clock, t1);
+                switch true
+                    case strcmp(currkey, 'l') || strcmp(currkey, 'L')
+                        text = 'Left choice...'; fprintf([text '\n']); set(message_handle,'String',text); drawnow
+                        event = 1;
+                        keypress = 1;
+                    case strcmp(currkey, 'r') || strcmp(currkey, 'R')
+                        text = 'Right choice...'; fprintf([text '\n']); set(message_handle,'String',text); drawnow
+                        event = 2;
+                        keypress = 1;
+                    case strcmp(currkey, 'C') || strcmp(currkey, 'c') || strcmp(currkey, 'M') || strcmp(currkey, 'm')
+                        text = 'Middle choice'; fprintf([text '\n']); set(message_handle,'String',text); drawnow
+                    otherwise
+                        text = 'Please only press one of the indicated keys...'; fprintf([text '\n']); set(message_handle,'String',text); drawnow
+                end
+                drawnow
+                if stop_handle.Value
+                    set(message_handle, 'String','Ending session...'); drawnow
+                    event = -1;
+                    drawnow
+                    break;
+                end
+            end
+            switch event
+                case -1
+                    WhatDecision = 'time out';
+                    response_time = 0;
+                case 1
+                    %-1 is for trainingstrials always correct
+                    if isLeftTrial==1
+                        WhatDecision = 'left correct';
+                    else
+                        WhatDecision = 'left wrong';
+                    end
+                case 2
+                    if isLeftTrial==0
+                        WhatDecision = 'right correct';
+                    else
+                        WhatDecision = 'right wrong';
+                    end
+            end
+        end
+        %read the lever (digital read)
+        function [WhatDecision, response_time] = readLeverLoopDigital(this)
+            response_time = 0;
+            this.DuringTMal = 0;
+            event = -1;
+            try
+                %Turn on/Reset lick sensor
+                this.ResetSensor(this)
+                timeout_value = this.Box.Timeout_after_time;
+                timeout_timer = clock;
+                response_timer = clock;
+                %run loop
+                while timeout_value == 0 | etime(clock, timeout_timer)<timeout_value
+                    if get(this.Skip, 'Value') %this.Skip.Value
+                        this.Skip.Value = 0; %Turn the button off
+                        break
+                    end
+                    %check if stop pressed
+                    if get(this.stop_handle, 'Value')
+                        break %abort
+                    end
+                    if this.a.readDigitalPin(this.Box.Middle) == this.Box.readHigh
+                        this.Flash(this.StimulusStruct, findobj(this.fig.Children, 'Type', 'Line'), 'center')
+                        this.DuringTMal = this.DuringTMal + 1;
+                    end
+                    if this.a.readDigitalPin(this.Box.Left) == this.Box.readHigh %& this.isLeftTrial %LeverA is left
+                        event = 1; %beam A broken
+                        break
+                    elseif this.a.readDigitalPin(this.Box.Right) == this.Box.readHigh %& ~this.isLeftTrial %LeverB is right
+                        event = 2; %beam B broken
+                        break
+                    end
+                end
+                response_time = etime(clock, response_timer);
+            catch err
+                this.unwrapError(err)
+            end
+            %translate to decision enum
+            switch event
+                case -1
+                    WhatDecision = 'time out';
+                    response_time = 0;
+                case 1
+                    %-1 is for trainingstrials always correct
+                    if this.isLeftTrial ==1 || this.isLeftTrial == -1
+                        WhatDecision = 'left correct';
+                    else
+                        WhatDecision = 'left wrong';
+                    end
+                case 2
+                    if this.isLeftTrial ==0 || this.isLeftTrial == -1
+                        WhatDecision = 'right correct';
+                    else
+                        WhatDecision = 'right wrong';
+                    end
+            end
+        end
+        function [WhatDecision, response_time] = readLeverLoopAnalogWheel(this)
+            event = -1;
+            delta = 0;
+            timeout_value = this.Box.Timeout_after_time;
+            threshold = this.Setting_Struct.TurnMag;
+            o = this.fig.findobj('Type', 'Axes');
+            C = o(contains({o.Tag}, 'Correct'));
+            W = o(contains({o.Tag}, 'Incorrect'));
+            % A full revolution is about 4000 pulses 4400/360 = 12.22 pulses/degree 90 deg is ~1000 pulses
+            StimDistance = 0.3;
+            axes = [this.RStimAx this.LStimAx];
+            pos1i = axes(1).Position;
+            if numel(axes) > 1
+                pos2i = axes(2).Position;
+            end
+            thresh = abs(pos1i(1)/2);
+            RoundUp = (this.Setting_Struct.RoundUpVal/100); %Default is 75 --> 0.75
+            this.ResetSensor(this)
+            if this.Setting_Struct.RoundUp
+                thresh = RoundUp*thresh;
+            end
+            timeout_timer = clock;
+            response_timer = clock;
+            while timeout_value == 0 | etime(clock, timeout_timer)<timeout_value % do NOT replace | with || or the expression is changed.
+                dist = this.Box.encoder.readCount;
+                delta = (dist/threshold)*StimDistance;
+                if abs(delta)>thresh
+                    if sign(delta)>0
+                        delta =  thresh;
+                    elseif sign(delta)<0
+                        delta = -thresh;
+                    end
+                end
+                if this.isLeftTrial & delta < -thresh*RoundUp
+                    delta = -thresh*RoundUp;
+                elseif ~this.isLeftTrial & delta > thresh*RoundUp
+                    delta = thresh*RoundUp;
+                end
+                this.wheelchoice(end+1) = delta;
+                this.wheelchoicetime(end+1) = etime(clock, response_timer);
+                pos1 = pos1i + ([delta 0 0 0]);
+                axes(1).Position = pos1;
+                if numel(axes) > 1
+                    pos2 = pos2i + ([delta 0 0 0]);
+                    axes(2).Position = pos2;
+                end
+                drawnow
+                if this.isLeftTrial & delta <= -thresh*RoundUp
+                    event = 2;
+                    break
+                elseif ~this.isLeftTrial & delta >= thresh*RoundUp
+                    event = 1;
+                    break
+                end
+                if double(abs(delta)) >= double(thresh) %If a choice is made: !!! Add code to round up the correct choice but not accept an incorrect choice until it is fully made. Accept the correct choice early but wait for a full incorrect choice.
+                    if sign(delta) > 0
+                        event = 1;
+                        break
+                    elseif sign(delta) < 0
+                        event = 2;
+                        break
+                    end
+                end
+                %                 if get(this.stop_handle, 'Value') %Don't check stop button, let the mouse finish their trial
+                %                     break;
+                %                 end
+                if get(this.Skip, 'Value')
+                    set(this.Skip, 'Value', 0) %Turn the button off
+                    break
+                end
+            end
+            response_time = etime(clock, response_timer);
+            if event == -1 %If the mouse was close to picking a side, round up their choice:
+                if abs(delta) >= thresh*RoundUp
+                    if sign(delta) > 0
+                        event = 1;
+                    elseif sign(delta) < 0
+                        event = 2;
+                    end
+                end
+            end
+            %translate response to decision
+            switch event
+                case -1
+                    WhatDecision = 'time out';
+                case 1
+                    if this.isLeftTrial == 1
+                        WhatDecision = 'left correct';
+                    else
+                        WhatDecision = 'left wrong';
+                    end
+                case 2
+                    if this.isLeftTrial == 0
+                        WhatDecision = 'right correct';
+                    else
+                        WhatDecision = 'right wrong';
+                    end
+            end
+        end
+        function [Set, T] = structureSettings(Settings)
+            SetStr = ""; %Get the label for the settings (to go on top of the performance scatter)
+            Include = 0;
+            if isfield(Settings, 'Stimulus_side')
+                switch Settings.Stimulus_side %Settings are stored in the Settings structure, copied from BB when saving data.
+                    case 1
+                        SetStr = strcat(SetStr, '*');
+                        Include = 1;
+                    case 2
+                        SetStr = strcat(SetStr, 'L');
+                    case 3
+                        SetStr = strcat(SetStr, 'R');
+                    case 4
+                        SetStr = strcat(SetStr, 'aRp');
+                    case 5
+                        SetStr = strcat(SetStr, 'aRn');
+                    case 6
+                        SetStr = strcat(SetStr, 'SB');
+                    case 7
+                        SetStr = strcat(SetStr, 's*');
+                        Include = 1;
+                    case 8 %Keyboard
+                        SetStr = strcat(SetStr, 'K');
+                        Include = 1;
+                end
+            end
+            if isfield(Settings, 'TrainingChoices') & Settings.TrainingChoices ~=3 %BBPractice, would show two correct stimuli. I was using this to get rid of side biases, by showing the mice that both sides reward water always.
+                switch Settings.TrainingChoices
+                    case 1
+                        SetStr = strcat(SetStr, 'Tuw');
+                    case 2
+                        SetStr = strcat(SetStr, 'nToc'); %Nose only correct or timeout
+                    case 3
+                        SetStr = strcat(SetStr, '*'); %this code will never be reached=
+                    case 4
+                        SetStr = strcat(SetStr, 'P');
+                    case 5
+                        SetStr = strcat(SetStr, 'wT1');
+                    case 6
+                        SetStr = strcat(SetStr, 'wT3');
+                    case 7
+                        SetStr = strcat(SetStr, 'wT2oc');
+                    case 8
+                        SetStr = strcat(SetStr, 'T1');
+                    case 9
+                        SetStr = strcat(SetStr, 'T2');
+                    case 10
+                        SetStr = strcat(SetStr, 'T3');
+                end
+                if Settings.TrainingChoices ~=3
+                    Include = 0;
+                end
+            end
+            if isfield(Settings, 'Repeat_wrong') & Settings.Repeat_wrong
+                SetStr = strcat(SetStr, 'rw');
+                Include = 0;
+            end
+            %Airpuff?
+            if isfield(Settings, 'Box_Air_Puff_Penalty') & Settings.Box_Air_Puff_Penalty
+                SetStr = strcat(SetStr, 'A');
+            end
+            Set = SetStr;
+            T = Include;
+        end
+        function ResetSensor(this)
+            drawnow;
+            if this.Box.Input_type == 5
+                this.a.writeDigitalPin(this.Setting_Struct.ResetPin, 0); drawnow;
+                this.a.writeDigitalPin(this.Setting_Struct.ResetPin, 1);
+            elseif this.Box.use_wheel == 1
+                this.Box.encoder.resetCount
+            end
+            drawnow;
+        end
+        function Flash(Stim, Lines, whatdecision)
+            arguments
+                Stim % from Setting structure
+                Lines = findobj('Tag', 'Contour')
+                whatdecision = "time out"
+            end
+            drawnow
+            if ~Stim.FlashStim
+                return
+            end
+            switch 1
+                case contains(whatdecision, 'wrong')
+                    Reps = Stim.RepFlashAfterW;
+                case contains(whatdecision, 'correct')
+                    Reps = Stim.RepFlashAfterC;
+            end
+            if contains(whatdecision, {'wrong', 'correct'}) && Reps == 0
+                return
+            end
+            start_color = Stim.LineColor;
+            flash_color = Stim.FlashColor;
+            dark_color = Stim.DimColor;
+            %[Stim.fig.findobj('Type','Line').Visible] = deal(0); drawnow
+            if whatdecision == "time out"
+                Reps = Stim.RepFlashInitial;
+                Freq = Stim.FreqFlashInitial;
+                SimpleFlash(Stim.LineColor)
+            elseif whatdecision == "Wheel" %Wheel hold still interval
+                Reps = 1;
+                Freq = 3;
+                RQFlash()
+            elseif whatdecision == "NewStim" %L or R poke during intertrial
+                Reps = Stim.RepFlashInitial;
+                Freq = Stim.FreqFlashInitial;
+                RQFlash()
+            elseif whatdecision == "center" %Center poke during trial
+                Reps = 1;
+                Freq = Stim.FreqFlashInitial;
+                RQFlash()
+            else
+                Freq = Stim.FreqFlashAfter;
+                d = findobj('Tag', 'Distractor');
+                if isempty(d)
+                    d = struct();
+                end
+                switch 1
+                    case contains(whatdecision, 'wrong')
+                        Reps = Stim.RepFlashAfterW;
+                        if Reps > 0
+                            WrongFlash
+                        end
+                    case contains(whatdecision, 'correct')
+                        Reps = Stim.RepFlashAfterC;
+                        if Reps > 0
+                            CorrectFlash()
+                        end
+                end
+            end
+            function RQFlash()
+                if [Lines.Type] == "scatter"
+                    r = 1 ;
+                    for StimRep = 1:Reps
+                        [Lines.FaceColor] = deal(flash_color); drawnow
+                        pause(1/Freq/6)
+                        [Lines.FaceColor] = deal(start_color); drawnow
+                        if StimRep < r
+                            pause(1/Freq/2)
+                        end
+                    end
+                elseif [Lines(1).Type] == "polygon"
+                    for StimRep = 1:Reps
+                        [Lines.FaceColor] = deal(flash_color); drawnow
+                        pause(1/Freq/6)
+                        [Lines.FaceColor] = deal(start_color); drawnow
+                    end
+                else %line
+                    for StimRep = 1:Reps
+                        [Lines(:).Color] = deal(Stim.BackgroundColor); [Lines(:).Visible] = deal(1); drawnow
+                        pause(1/Freq/5)
+                        [Lines(:).Color] = deal(dark_color); drawnow
+                        pause(1/Freq/10)
+                        [Lines(:).Color] = deal(start_color); drawnow
+                        pause(1/Freq/10)
+                        [Lines(:).Color] = deal(flash_color); drawnow
+                        pause(1/Freq/5)
+                        [Lines(:).Color] = deal(start_color); drawnow
+                        if StimRep < Reps
+                            pause(1/Freq/10)
+                        end
+                    end
+                end
+            end
+            function CorrectFlash
+                [Lines(:).Color] = deal(Stim.BackgroundColor);
+                pause(1/Freq/5)
+                for StimRep = 1:Reps
+                    [Lines(:).Color] = deal(dark_color); drawnow
+                    pause(1/Freq/10)
+                    [Lines(:).Color] = deal(start_color);
+                    try
+                        [d.Color] = deal(Stim.DimColor); drawnow
+                    end
+                    pause(1/Freq/10)
+                    [Lines(:).Color] = deal(flash_color);
+                    try
+                        [d.Color] = deal(Stim.DimColor);
+                    end
+                    drawnow
+                    pause(1/Freq/5)
+                    [Lines(:).Color] = deal(start_color); drawnow
+                    if StimRep < Reps
+                        pause(1/Freq/10)
+                    end
+                end
+            end
+            function SimpleFlash(Color)
+                [Lines.Color] = deal(Stim.LineColor);
+                [d.Color] = deal(Stim.BackgroundColor); drawnow
+                pause(1/Freq/8)
+                Reps = 1;
+                for StimRep = 1:Reps
+                    [Lines.Color] = deal(Stim.BackgroundColor);
+                    [d.Color] = deal(Stim.BackgroundColor); drawnow
+                    pause(1/Freq/8)
+                    [Lines.Color] = deal(Stim.DimColor);
+                    [d.Color] = deal(Stim.DimColor); drawnow
+                    pause(1/Freq/8)
+                    [Lines(:).Color] = deal(Stim.BrightColor);
+                    [d.Color] = deal(Stim.LineColor); drawnow
+                    pause(1/Freq/2)
+                    [Lines.Color] = deal(Stim.LineColor);
+                    [d.Color] = deal(Stim.DimColor); drawnow
+                    pause(1/Freq/2)
+                end
+            end
+            function WrongFlash
+                [Lines.Color] = deal(flash_color);
+                [d.Color] = deal(dark_color); drawnow
+                pause(1/Freq/2)
+                for StimRep = 1:Reps
+                    [Lines.Color] = deal(Stim.BackgroundColor); drawnow
+                    pause(1/Freq/5)
+                    [Lines.Color] = deal(dark_color); drawnow
+                    pause(1/Freq/10)
+                    [Lines.Color] = deal(flash_color); drawnow
+                    pause(1/Freq/2)
+                end
+                [Lines.Color] = deal(Stim.LineColor);
+            end
+        end
+        function saveFigure(fig, folder, name)
+            name = erase(name, '.mat');
+            figure_property = struct; %Reset export Settings:
+            figure_property.units = 'inches';
+            figure_property.format = 'pdf';
+            figure_property.Preview= 'none';
+            figure_property.Width= '11'; % Figure width on canvas
+            figure_property.Height= '8.5'; % Figure height on canvas
+            figure_property.Units= 'inches';
+            figure_property.Color= 'rgb';
+            figure_property.Background= 'w';
+            %         figure_property.FixedfontSize= '9';
+            %         figure_property.ScaledfontSize= 'auto';
+            %         figure_property.FontMode= 'scaled';
+            %         figure_property.FontSizeMin= '.5';
+            figure_property.FixedLineWidth= '1';
+            figure_property.ScaledLineWidth= 'auto';
+            figure_property.LineMode= 'none';
+            figure_property.LineWidthMin= '0.1';
+            figure_property.FontName= 'Helvetica';% Might want to change this to something that is available
+            figure_property.FontWeight= 'auto';
+            figure_property.FontAngle= 'auto';
+            figure_property.FontEncoding= 'latin1';
+            %         figure_property.PSLevel= '3';
+            figure_property.Renderer= 'painters';
+            figure_property.Resolution= '600';
+            figure_property.LineStyleMap= 'none';
+            figure_property.ApplyStyle= '0';
+            figure_property.Bounds= 'tight';
+            figure_property.LockAxes= 'off';
+            figure_property.LockAxesTicks= 'off';
+            figure_property.ShowUI= 'off';
+            figure_property.SeparateText= 'off';
+            chosen_figure=fig;
+            set(chosen_figure,'PaperUnits','inches');
+            set(chosen_figure,'PaperPositionMode','auto');
+            set(chosen_figure,'PaperSize',[str2double(figure_property.Width) str2double(figure_property.Height)]); % Canvas Size
+            set(chosen_figure,'Units','inches');
+            hgexport(fig, join([folder name + ".pdf"], filesep), figure_property); %Save as pdf
+        end
+        function unwrapError(err)
+            %Is there an error? Send the err object over here and it will be unwrapped in the command window. Maybe too much info?
+            errFields = fields(err);
+            for i = 1:numel(errFields)
+                if ~matches(errFields{i}, 'stack')
+                    if ~isempty(err.(errFields{i}))
+                        disp([errFields{i} ': ' err.(errFields{i})])
+                    end
+                elseif matches(errFields{i}, 'stack')
+                    for L = numel(err.stack):-1:1
+                        disp(['In fx ' err.stack(L).name ', line ' num2str(err.stack(L).line)])
+                    end
+                end
+            end
+        end
+    end
+end
