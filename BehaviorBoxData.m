@@ -1,36 +1,29 @@
 classdef BehaviorBoxData < handle
-    %BehaviorBox Data class
-    %====================================================================
+    % 4.16.23
+%====================================================================
+    %Data class
     %This Class stores all the data during training, and analyzes the
-    % group data.
-    %
-    %Trigger inputs from the hardware (decisons of animal) get entered
-    %using the interface AddDecision() in the form of integers from 1-6
-    %representing left correct (1),
-    %right correct (2),
-    %left wrong (3),
-    %right wrong (4),
-    %time out (5) and
-    %center poke (6).
+    % group data in analysis.
     %AddStimEvent() as interface logs the times the stimulus was presented
     %The input data is then logged in time and stored.
     %Get functions are used to covert that data to averages, performance
     %matrices, activity rates and others which then get plotted in the GUI.
     % Small_Bin_Size: divides # of trials in each data set into Small_Bins
     % (multiples of 10 are preferred)
-    %This class is called by BehaviorBoxSuper and BehaviorBoxSub1
+    %This class is called by BehaviorBoxSuper/Nose/Wheel
     %THIS FILE IS PART OF A SET OF FILES CONTAINING:
     %BehaviorBox.mlapp
-    %BehaviorBoxSuper.m
+    %BehaviorBoxWheel.m OR %BehaviorBoxNose.m
     %BehaviorBoxData.m
     %BehaviorBoxVisualStimulus.m
     % Optional and currently unused files:
+    %BehaviorBoxSuper.m
     %BehaviorBoxSub2.m
     %BehaviorBoxVisualGratingObject.m
     %BehaviorBoxVisualStimulusTraining.m
     %
     %   Will Snyder 12/2022
-    %====================================================================
+%====================================================================
     properties
         TrainingNow=0;
         BB = []; %Trials in a big bin e.g. 40
@@ -86,9 +79,9 @@ classdef BehaviorBoxData < handle
                 catch
                 end
             end
+            this.current_data_struct = new_init_data_struct();
             this.date = char(datetime("now", "Format","yyMMdd"));
             [~,~,this.SBidx] = histcounts((1:this.BB)', [1:this.SB:this.BB inf]);
-            this.current_data_struct = new_init_data_struct();
             %Find subject data
             [this.filedir, this.fds] = this.GetFiles();
             if options.load
@@ -96,7 +89,7 @@ classdef BehaviorBoxData < handle
             end
             if options.find
                 %Make fields
-                this.current_data_struct = new_init_data_struct();
+                %this.current_data_struct = new_init_data_struct();
                 return
             end
             if options.analyze
@@ -456,6 +449,7 @@ classdef BehaviorBoxData < handle
                 this.MaxLevel = find(MaxLPerf>=0.8, 1, 'last')+1;
             end
             this.AnalyzedData = Out;
+            this.current_data_struct = new_init_data_struct();
             time = seconds(datetime('now') - t1);
             fprintf("Analyzed... etime: " + time + " seconds.\n")
             if nargout >= 1
