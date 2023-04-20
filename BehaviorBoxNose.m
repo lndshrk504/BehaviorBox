@@ -871,12 +871,12 @@ classdef BehaviorBoxNose < handle
                         this.ResetSensor(this)
                     end
                     t1 = datetime("now");
-                    while this.Setting_Struct.Input_ignored & seconds(datetime("now")-t1)<this.Setting_Struct.Pokes_ignored_time
-                        time = this.Setting_Struct.Pokes_ignored_time-seconds(datetime("now")-t1);
-                        txt = "Ignoring input for "+round(time,1)+" sec...";
-                        set(this.message_handle,'String',txt)
-                        drawnow
-                    end
+                    % while this.Setting_Struct.Input_ignored & seconds(datetime("now")-t1)<this.Setting_Struct.Pokes_ignored_time
+                    %     time = this.Setting_Struct.Pokes_ignored_time-seconds(datetime("now")-t1);
+                    %     txt = "Ignoring input for "+round(time,1)+" sec...";
+                    %     set(this.message_handle,'String',txt)
+                    %     drawnow
+                    % end
                     this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.LineColor;
                     set(this.message_handle,'String','Waiting for Trial initialization'); drawnow
                     InpDelay = this.Setting_Struct.Input_Delay_Start;
