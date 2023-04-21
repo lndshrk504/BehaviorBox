@@ -1290,6 +1290,7 @@ classdef BehaviorBoxData < handle
                 this
                 options.save logical = true
                 options.Text logical = false
+                options.LevDay logical = false
             end
             this.sc = 0;
             for SUB = this.Sub
@@ -1309,7 +1310,7 @@ classdef BehaviorBoxData < handle
                 Ax.Title.String = title;
                 numDays = max(cell2mat(this.AnalyzedData.DayMM{this.sc}.DayNums));
                 Ax.XLim = [0 numDays];
-                Ax.YLim = [-1 maxPassedL];
+                Ax.YLim = [0 maxPassedL];
                 thresh = 0.8;
                 dayLine = xline(1:numDays, 'LineStyle',':');
                 yline(0:1:maxPassedL, '-')
@@ -1403,47 +1404,52 @@ classdef BehaviorBoxData < handle
                         end
                     end
                 end
-                Ddat = sortrows(this.AnalyzedData.DayMM{this.sc}, "DayNums");
-                Ddat.DayNums=cell2mat(Ddat.DayNums);
-                for d = unique(Ddat.DayNums')
-                    clear x y Ctxt Atxt Ntxt cross CROSS num NUM AVG avg
-                    wD = Ddat.DayNums==d;
-                    Ld = Ddat.dayBin(wD);
-                    LevIdx = Ddat.Ls(wD)';
-                    Xrange = normalize([0 LevIdx LevIdx(end)+1], "range");
-                    Xrange = Xrange(2:end-1);
-                    NUM = cellfun(@(x)x{4} ,Ld, "UniformOutput", true)';
-                    AVG = cellfun(@(x)x{5} ,Ld, "UniformOutput", true)';
-                    STD = cellfun(@(x)x{6} ,Ld, "UniformOutput", true)';
-                    try
-                        CROSS = cellfun(@(x)x(10) ,Ld, "UniformOutput", true, "ErrorHandler", @errorFuncZeroCell)';
-                    catch err
-                        err;
-                    end
-                    x = (d-1)+Xrange;
-                    y = AVG-1;
-                    for L = [x; y; STD; LevIdx]
-                        E = errorbar(L(1), L(2), L(3), ...
-                            'LineStyle','none', ...
-                            'Marker', this.Shape_code{L(4)}, ...
-                            'SeriesIndex',L(4));
-                        E.MarkerFaceColor = E.Color;
-                        E.CapSize = 1;
-                    end
-                    avg = string(round(100*AVG,1));
-                    Atxt = text(x, y, avg); FMTtext(Atxt);
-                    num = string(NUM);
-                    y = -ones(size(x))+0.1;
-                    Ntxt = text(x, y, num); FMTtext(Ntxt);
-                    if ~isempty(cell2mat(CROSS))
-                        NE = ~cellfun(@isempty,CROSS);
-                        x = x(NE); CROSS = CROSS(NE);
-                        cross = string(cell2mat(CROSS));
-                        y = -ones(size(x))+0.2;
+                if options.LevDay
+                    Ax.YLim = [-1 maxPassedL];
+                    Ddat = sortrows(this.AnalyzedData.DayMM{this.sc}, "DayNums");
+                    Ddat.DayNums=cell2mat(Ddat.DayNums);
+                    for d = unique(Ddat.DayNums')
+                        clear x y Ctxt Atxt Ntxt cross CROSS num NUM AVG avg
+                        wD = Ddat.DayNums==d;
+                        Ld = Ddat.dayBin(wD);
+                        LevIdx = Ddat.Ls(wD)';
+                        Xrange = normalize([0 LevIdx LevIdx(end)+1], "range");
+                        Xrange = Xrange(2:end-1);
+                        NUM = cellfun(@(x)x{4} ,Ld, "UniformOutput", true)';
+                        AVG = cellfun(@(x)x{5} ,Ld, "UniformOutput", true)';
+                        STD = cellfun(@(x)x{6} ,Ld, "UniformOutput", true)';
                         try
-                            Ctxt = text(x, y, cross); FMTtext(Ctxt);
+                            CROSS = cellfun(@(x)x(10) ,Ld, "UniformOutput", true, "ErrorHandler", @errorFuncZeroCell)';
                         catch err
                             err;
+                        end
+                        x = (d-1)+Xrange;
+                        y = AVG-1;
+                        for L = [x; y; STD; LevIdx]
+                            E = errorbar(L(1), L(2), L(3), ...
+                                'LineStyle','none', ...
+                                'Marker', this.Shape_code{L(4)}, ...
+                                'SeriesIndex',L(4));
+                            E.MarkerFaceColor = E.Color;
+                            E.CapSize = 1;
+                        end
+                        if options.Text
+                            avg = string(round(100*AVG,1));
+                            Atxt = text(x, y, avg); FMTtext(Atxt);
+                            num = string(NUM);
+                            y = -ones(size(x))+0.1;
+                            Ntxt = text(x, y, num); FMTtext(Ntxt);
+                            if ~isempty(cell2mat(CROSS))
+                                NE = ~cellfun(@isempty,CROSS);
+                                x = x(NE); CROSS = CROSS(NE);
+                                cross = string(cell2mat(CROSS));
+                                y = -ones(size(x))+0.2;
+                                try
+                                    Ctxt = text(x, y, cross); FMTtext(Ctxt);
+                                catch err
+                                    err;
+                                end
+                            end
                         end
                     end
                 end
