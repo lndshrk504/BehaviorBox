@@ -203,7 +203,7 @@ classdef BehaviorBoxData < handle
                         if isfolder(newpath)
                             fprintf("Found "+numel(this.Sub)+" subject(s) matching user input:\n - "+cell2mat(join(this.Sub, "\n - "))+"\n")
                         else
-                            %mkdir(newpath)
+                            mkdir(newpath)
                             fprintf("New strain, folders will be created when saving data...\n")
                         end
                     else

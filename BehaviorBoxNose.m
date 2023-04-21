@@ -444,7 +444,11 @@ classdef BehaviorBoxNose < handle
                     load=1, ...
                     analyze=1); % Set up data storage object
             end
-            diaryname = join([this.Data_Object.filedir "BBTrialOutput"+this.Data_Object.date+".txt"], filesep);
+            try
+                diaryname = join([this.Data_Object.filedir "BBTrialOutput"+this.Data_Object.date+".txt"], filesep);
+            catch
+                diaryname = join([this.Data_Object.Sub "BBTrialOutput"+this.Data_Object.date+".txt"], filesep);
+            end
             this.textdiary = diaryname;
             diary(diaryname)
             this.Data_Object.TrainingNow = 1;
