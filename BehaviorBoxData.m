@@ -205,6 +205,7 @@ classdef BehaviorBoxData < handle
                         else
                             mkdir(newpath)
                             fprintf("New strain, folders will be created when saving data...\n")
+                            subfiledir = newpath;
                         end
                     else
                         newpath = join([startpath this.Str this.Sub], filesep);
@@ -213,6 +214,7 @@ classdef BehaviorBoxData < handle
                         else
                             %mkdir(newpath)
                             fprintf("New strain, folders will be created when saving data...\n")
+                            subfiledir = newpath;
                         end
                     end
             end
