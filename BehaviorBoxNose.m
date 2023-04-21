@@ -903,7 +903,7 @@ classdef BehaviorBoxNose < handle
                                 end
                                 if get(this.FF, 'Value')
                                     set(this.message_handle, 'String','Skipping interval...')
-                                    get(this.FF, 'Value', 0)
+                                    set(this.FF, 'Value', 0)
                                     %drawnow
                                     break;
                                 end
@@ -920,28 +920,34 @@ classdef BehaviorBoxNose < handle
                                 end
                             end
                         end
-                        while this.a.readDigitalPin(this.Box.Middle) == this.Box.readHigh
-                            t1 = datetime("now");
-                            while seconds(datetime("now")-t1) < InpDelay
-                                this.message_handle.String = "Hold Center choice for "+round(InpDelay - seconds(datetime("now")-t1),1)+" seconds...";
-                                if this.a.readDigitalPin(this.Box.Middle) ~= this.Box.readHigh
-                                    break
-                                end
-                            end
-                            if this.a.readDigitalPin(this.Box.Middle) ~= this.Box.readHigh
-                                this.Flash(this.StimulusStruct, findobj('Tag', 'ReadyCueDot'), 'Mal')
-                                this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.LineColor;
-                                set(this.message_handle,'String','Waiting for center choice...'); drawnow
-                                t1 = datetime("now");
-                                break
-                            else
-                                event = 1;
-                                break
-                            end
-                        end
-                        if event == 1
+                        %Immediately accept choice
+                        if this.a.readDigitalPin(this.Box.Middle) == this.Box.readHigh
+                            event = 1;
                             break
                         end
+                        % %Make the mouse wait
+                        % while this.a.readDigitalPin(this.Box.Middle) == this.Box.readHigh
+                        %     t1 = datetime("now");
+                        %     while seconds(datetime("now")-t1) < InpDelay
+                        %         this.message_handle.String = "Hold Center choice for "+round(InpDelay - seconds(datetime("now")-t1),1)+" seconds...";
+                        %         if this.a.readDigitalPin(this.Box.Middle) ~= this.Box.readHigh
+                        %             break
+                        %         end
+                        %     end
+                        %     if this.a.readDigitalPin(this.Box.Middle) ~= this.Box.readHigh
+                        %         this.Flash(this.StimulusStruct, findobj('Tag', 'ReadyCueDot'), 'Mal')
+                        %         this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.LineColor;
+                        %         set(this.message_handle,'String','Waiting for center choice...'); drawnow
+                        %         t1 = datetime("now");
+                        %         break
+                        %     else
+                        %         event = 1;
+                        %         break
+                        %     end
+                        % end
+                        % if event == 1
+                        %     break
+                        % end
                     end
                     t2 = clock;
                 otherwise % Keyboard inputthis.Box.KeyboardInput==1
@@ -1012,9 +1018,9 @@ classdef BehaviorBoxNose < handle
         end
         %wait loop while lever is read and open valves if correct
         function WaitForInputAndGiveReward(this)
-            this.ResponseTime = 0; %In case of crash
-            this.WhatDecision = 'time out'; %In case of crash
-            this.DrinkTime = 0; %In case of crash
+            this.ResponseTime = 0;
+            this.WhatDecision = 'time out';
+            this.DrinkTime = 0;
             if get(this.stop_handle, 'Value')
                 return
             end
@@ -1680,45 +1686,50 @@ classdef BehaviorBoxNose < handle
                         this.Flash(this.StimulusStruct, findobj(this.fig.Children, 'Type', 'Line'), 'center')
                         this.DuringTMal = this.DuringTMal + 1;
                     end
-                    %Make the mouse stand at its choice for the input ignore duration
-                    %Instead of an input ignore duration before the flash.
+                    %Immediately accept the choice:
                     while this.a.readDigitalPin(this.Box.Left) == this.Box.readHigh %& this.isLeftTrial %LeverA is left
-                        t1 = datetime("now");
-                        while seconds(datetime("now")-t1) < InpDelay
-                            this.message_handle.String = "Hold Left choice for "+round(InpDelay - seconds(datetime("now")-t1),1)+" seconds...";
-                            if this.a.readDigitalPin(this.Box.Left) ~= this.Box.readHigh
-                                break
-                            end
-                        end
-                        if this.a.readDigitalPin(this.Box.Left) ~= this.Box.readHigh
-                            set(this.message_handle,'String',['Waiting for ',this.current_side,' choice...']);
-                            t1 = datetime("now");
-                            break
-                        else
-                            event = 1; %Left Choice
-                            break
-                        end
-                    end
-                    while this.a.readDigitalPin(this.Box.Right) == this.Box.readHigh %& ~this.isLeftTrial %LeverB is right
-                        t1 = datetime("now");
-                        while seconds(datetime("now")-t1) < InpDelay
-                            this.message_handle.String = "Hold Right choice for "+round(InpDelay - seconds(datetime("now")-t1),1)+" seconds...";
-                            if this.a.readDigitalPin(this.Box.Right) ~= this.Box.readHigh
-                                break
-                            end
-                        end
-                        if this.a.readDigitalPin(this.Box.Right) ~= this.Box.readHigh
-                            set(this.message_handle,'String',['Waiting for ',this.current_side,' choice...']);
-                            t1 = datetime("now");
-                            break
-                        else
-                            event = 2; %Right Choice
-                            break
-                        end
-                    end
-                    if event ~= -1
+                        event = 1; %Left Choice
                         break
                     end
+                    while this.a.readDigitalPin(this.Box.Right) == this.Box.readHigh %& ~this.isLeftTrial %LeverB is right
+                        event = 2; %Right Choice
+                        break
+                    end
+                    % %Make the mouse stand at its choice for the input ignore duration
+                    % while this.a.readDigitalPin(this.Box.Left) == this.Box.readHigh %& this.isLeftTrial %LeverA is left
+                    %     t1 = datetime("now");
+                    %     while seconds(datetime("now")-t1) < InpDelay
+                    %         this.message_handle.String = "Hold Left choice for "+round(InpDelay - seconds(datetime("now")-t1),1)+" seconds...";
+                    %         if this.a.readDigitalPin(this.Box.Left) ~= this.Box.readHigh
+                    %             break
+                    %         end
+                    %     end
+                    %     if this.a.readDigitalPin(this.Box.Left) ~= this.Box.readHigh
+                    %         set(this.message_handle,'String',['Waiting for ',this.current_side,' choice...']);
+                    %         t1 = datetime("now");
+                    %         break
+                    %     else
+                    %         event = 1; %Left Choice
+                    %         break
+                    %     end
+                    % end
+                    % while this.a.readDigitalPin(this.Box.Right) == this.Box.readHigh %& ~this.isLeftTrial %LeverB is right
+                    %     t1 = datetime("now");
+                    %     while seconds(datetime("now")-t1) < InpDelay
+                    %         this.message_handle.String = "Hold Right choice for "+round(InpDelay - seconds(datetime("now")-t1),1)+" seconds...";
+                    %         if this.a.readDigitalPin(this.Box.Right) ~= this.Box.readHigh
+                    %             break
+                    %         end
+                    %     end
+                    %     if this.a.readDigitalPin(this.Box.Right) ~= this.Box.readHigh
+                    %         set(this.message_handle,'String',['Waiting for ',this.current_side,' choice...']);
+                    %         t1 = datetime("now");
+                    %         break
+                    %     else
+                    %         event = 2; %Right Choice
+                    %         break
+                    %     end
+                    % end
                 end
                 try
                     d = this.fig.findobj("Tag", "Distractor");
