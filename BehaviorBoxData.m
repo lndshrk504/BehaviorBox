@@ -1,6 +1,6 @@
 classdef BehaviorBoxData < handle
     % 4.16.23
-%====================================================================
+    %====================================================================
     %Data class
     %This Class stores all the data during training, and analyzes the
     % group data in analysis.
@@ -23,7 +23,7 @@ classdef BehaviorBoxData < handle
     %BehaviorBoxVisualStimulusTraining.m
     %
     %   Will Snyder 12/2022
-%====================================================================
+    %====================================================================
     properties
         TrainingNow=0;
         BB = []; %Trials in a big bin e.g. 40
@@ -490,39 +490,39 @@ classdef BehaviorBoxData < handle
             end
         end
         function Out = SplitDayLevels(this, D)
-                [~, Ls] = findgroups(this.trialTbl.Level');
-                r = this.trialTbl.Date==D;
-                Dtbl = this.trialTbl(r,:);
-                Out = Dtbl;
+            [~, Ls] = findgroups(this.trialTbl.Level');
+            r = this.trialTbl.Date==D;
+            Dtbl = this.trialTbl(r,:);
+            Out = Dtbl;
         end
         function Out = LevelMMAnalysis(this, L)
-                try
-                    scores = L(L(:,1)~=2,1);
-                    bMM = movmean(scores, [this.BB-1 0], 'Endpoints', 'discard');
-                    B1 = movmean(scores(1:(end-this.SB)), [this.SB-1 0], 'Endpoints', 'discard');
-                    B2 = movmean(scores((this.SB+1):end), [this.SB-1 0], 'Endpoints', 'discard');
-                    bSD = std([B1 B2],0,2);
-                    D = L(L(:,1)~=2,2);
-                    XCoord = zeros(size(D));
-                    XCoordLevDay = zeros(size(D));
-                    offset = D(1);
-                    dc = 0;
-                    for d = unique(D')
-                        dc = dc + 1;
-                        w = D==d;
-                        x = 1:numel(D(w));
-                        XCoord(w) = (d-1)+normalize(x, 'range');
-                        XCoordLevDay(w) = (dc-1)+normalize(x, 'range');
-                    end
-                    Out = {[bMM bSD XCoord(this.BB:end) XCoordLevDay(this.BB:end)]};
-                catch Err
-                    if size(L,2)==1
-                        Out = {[bMM bSD]};
-                    else
-                        Out = {[NaN NaN NaN NaN]};
-                    end
+            try
+                scores = L(L(:,1)~=2,1);
+                bMM = movmean(scores, [this.BB-1 0], 'Endpoints', 'discard');
+                B1 = movmean(scores(1:(end-this.SB)), [this.SB-1 0], 'Endpoints', 'discard');
+                B2 = movmean(scores((this.SB+1):end), [this.SB-1 0], 'Endpoints', 'discard');
+                bSD = std([B1 B2],0,2);
+                D = L(L(:,1)~=2,2);
+                XCoord = zeros(size(D));
+                XCoordLevDay = zeros(size(D));
+                offset = D(1);
+                dc = 0;
+                for d = unique(D')
+                    dc = dc + 1;
+                    w = D==d;
+                    x = 1:numel(D(w));
+                    XCoord(w) = (d-1)+normalize(x, 'range');
+                    XCoordLevDay(w) = (dc-1)+normalize(x, 'range');
+                end
+                Out = {[bMM bSD XCoord(this.BB:end) XCoordLevDay(this.BB:end)]};
+            catch Err
+                if size(L,2)==1
+                    Out = {[bMM bSD]};
+                else
+                    Out = {[NaN NaN NaN NaN]};
                 end
             end
+        end
         function Out = DayMM(this,D)
             %This fx is redundant and has been combined with DayBin
             Out = num2cell(nan(3,1));
@@ -559,8 +559,8 @@ classdef BehaviorBoxData < handle
                 sMM = movmean( [0.5 ; these], [this.SB-1 0], 'Endpoints', 'shrink')';
                 xMM = normalize(1:numel(sMM),'range');
                 Cross = find( [sMM>=0.8], 1, 'first');
-                Out = {binned; 
-                    x; 
+                Out = {binned;
+                    x;
                     txt;
                     numel(D);
                     mean(these);
@@ -1292,7 +1292,7 @@ classdef BehaviorBoxData < handle
                 this
                 options.save logical = true
                 options.Text logical = false
-                options.LevDay logical = false
+                options.LevDay logical = true
             end
             this.sc = 0;
             for SUB = this.Sub
@@ -1317,8 +1317,8 @@ classdef BehaviorBoxData < handle
                 dayLine = xline(1:numDays, 'LineStyle',':');
                 yline(0:1:maxPassedL, '-')
                 TH = yline(thresh:1:(maxPassedL+1), ':',(100*thresh)+"%", ...
-                        "LabelHorizontalAlignment","left", ...
-                        "FontSize",6);
+                    "LabelHorizontalAlignment","left", ...
+                    "FontSize",6);
                 for L = 1:maxPassedL
                     LO = L-1;
                     wL = this.AnalyzedData.DayMM{this.sc}.Ls==L;
@@ -1348,9 +1348,9 @@ classdef BehaviorBoxData < handle
                         if any(y>thresh)
                             %PASSING
                             PassingDayIdx = floor( x( find( y>=thresh,1, 'first') ) )+0.5;
-%                             PassText = text(PassingDayIdx, levOffset+0.1, "PASSED", ...
-%                                 "FontSize",6, ...
-%                                 "HorizontalAlignment","center");
+                            %                             PassText = text(PassingDayIdx, levOffset+0.1, "PASSED", ...
+                            %                                 "FontSize",6, ...
+                            %                                 "HorizontalAlignment","center");
                             TT = this.BB+find(y>=thresh,1, 'first')+" Trials";
                             TrialText = text(PassingDayIdx, LO+0.2, TT, ...
                                 "FontSize",6, ...
@@ -1407,53 +1407,7 @@ classdef BehaviorBoxData < handle
                     end
                 end
                 if options.LevDay
-                    Ax.YLim = [-1 maxPassedL];
-                    Ddat = sortrows(this.AnalyzedData.DayMM{this.sc}, "DayNums");
-                    Ddat.DayNums=cell2mat(Ddat.DayNums);
-                    for d = unique(Ddat.DayNums')
-                        clear x y Ctxt Atxt Ntxt cross CROSS num NUM AVG avg
-                        wD = Ddat.DayNums==d;
-                        Ld = Ddat.dayBin(wD);
-                        LevIdx = Ddat.Ls(wD)';
-                        Xrange = normalize([0 LevIdx LevIdx(end)+1], "range");
-                        Xrange = Xrange(2:end-1);
-                        NUM = cellfun(@(x)x{4} ,Ld, "UniformOutput", true)';
-                        AVG = cellfun(@(x)x{5} ,Ld, "UniformOutput", true)';
-                        STD = cellfun(@(x)x{6} ,Ld, "UniformOutput", true)';
-                        try
-                            CROSS = cellfun(@(x)x(10) ,Ld, "UniformOutput", true, "ErrorHandler", @errorFuncZeroCell)';
-                        catch err
-                            err;
-                        end
-                        x = (d-1)+Xrange;
-                        y = AVG-1;
-                        for L = [x; y; STD; LevIdx]
-                            E = errorbar(L(1), L(2), L(3), ...
-                                'LineStyle','none', ...
-                                'Marker', this.Shape_code{L(4)}, ...
-                                'SeriesIndex',L(4));
-                            E.MarkerFaceColor = E.Color;
-                            E.CapSize = 1;
-                        end
-                        if options.Text
-                            avg = string(round(100*AVG,1));
-                            Atxt = text(x, y, avg); FMTtext(Atxt);
-                            num = string(NUM);
-                            y = -ones(size(x))+0.1;
-                            Ntxt = text(x, y, num); FMTtext(Ntxt);
-                            if ~isempty(cell2mat(CROSS))
-                                NE = ~cellfun(@isempty,CROSS);
-                                x = x(NE); CROSS = CROSS(NE);
-                                cross = string(cell2mat(CROSS));
-                                y = -ones(size(x))+0.2;
-                                try
-                                    Ctxt = text(x, y, cross); FMTtext(Ctxt);
-                                catch err
-                                    err;
-                                end
-                            end
-                        end
-                    end
+                    this.PlotLevelGroups("Ax",Ax, "InComposite",1)
                 end
                 Ax.XLimitMethod = "tight";
                 Ax.YLimitMethod = "tight";
@@ -1464,12 +1418,83 @@ classdef BehaviorBoxData < handle
                 time = seconds(datetime("now") - t1);
                 fprintf("Plotted "+SUB{:}+ "... etime: " + time + " seconds.\n")
             end
+            %Add'l fcns:
             function FMTtext(TextHandle)
                 [TextHandle(:).FontSize] = deal(12);
                 [TextHandle(:).HorizontalAlignment] = deal("center");
                 [TextHandle(:).VerticalAlignment] = deal("bottom");
             end
-
+        end
+        function PlotLevelGroups(this, options)
+            arguments
+                this
+                options.InComposite logical = false
+                options.Text logical = false
+                options.Ax %Axis object
+            end
+            Ddat = sortrows(this.AnalyzedData.DayMM{this.sc}, "DayNums");
+            Ddat.DayNums=cell2mat(Ddat.DayNums);
+            if options.InComposite
+                Ax = options.Ax;
+                Ax.YLim(1) = -1;
+                yOff = -1;
+            else
+                Ax = MakeAxis();
+                Ax.YLim = [-0.55 0.05];
+                Ax.XLim = [min(Ddat.DayNums)-1 max(Ddat.DayNums)];
+                Ax.Title.String = this.Sub{this.sc}+" Level Performance";
+                xline(min(Ddat.DayNums):1:max(Ddat.DayNums), '-', 'Color',[0.7 0.7 0.7])
+                Ax.YTick = -1:0.25:0;
+                Ax.YTickLabel = string(0:25:100)+"%";
+                Ax.YMinorTick = "on";
+                Ax.YGrid = 1;
+                Ax.YMinorGrid = 1;
+                hold(Ax, "on")
+            end
+            for d = unique(Ddat.DayNums')
+                clear x y Ctxt Atxt Ntxt cross CROSS num NUM AVG avg
+                wD = Ddat.DayNums==d;
+                Ld = Ddat.dayBin(wD);
+                LevIdx = Ddat.Ls(wD)';
+                Xrange = normalize([0 LevIdx LevIdx(end)+1], "range");
+                Xrange = Xrange(2:end-1);
+                NUM = cellfun(@(x)x{4} ,Ld, "UniformOutput", true)';
+                AVG = cellfun(@(x)x{5} ,Ld, "UniformOutput", true)';
+                STD = cellfun(@(x)x{6} ,Ld, "UniformOutput", true)';
+                try
+                    CROSS = cellfun(@(x)x(10) ,Ld, "UniformOutput", true, "ErrorHandler", @errorFuncZeroCell)';
+                catch err
+                    err;
+                end
+                x = (d-1)+Xrange;
+                y = AVG-1;
+                for L = [x; y; STD; LevIdx]
+                    E = errorbar(L(1), L(2), L(3), ...
+                        'LineStyle','none', ...
+                        'Marker', this.Shape_code{L(4)}, ...
+                        'SeriesIndex',L(4));
+                    E.MarkerFaceColor = E.Color;
+                    E.CapSize = 1;
+                end
+                if options.Text
+                    avg = string(round(100*AVG,1));
+                    Atxt = text(x, y, avg); FMTtext(Atxt);
+                    num = string(NUM);
+                    y = -ones(size(x))+0.1;
+                    Ntxt = text(x, y, num); FMTtext(Ntxt);
+                    if ~isempty(cell2mat(CROSS))
+                        NE = ~cellfun(@isempty,CROSS);
+                        x = x(NE); CROSS = CROSS(NE);
+                        cross = string(cell2mat(CROSS));
+                        y = -ones(size(x))+0.2;
+                        try
+                            Ctxt = text(x, y, cross); FMTtext(Ctxt);
+                        catch err
+                            err;
+                        end
+                    end
+                end
+            end
         end
         function t = PlotWeightAndWater(this, options)
             arguments
@@ -2263,6 +2288,20 @@ classdef BehaviorBoxData < handle
     end %end methods
 end %end class
 %EXTERNAL FUNCTIONS ====
+function Ax = MakeAxis(options)
+arguments
+    options.Ax = [];
+end
+if isempty(options.Ax)
+    f = figure;
+    t = tiledlayout('flow','TileSpacing','none', 'Padding','tight');
+    Ax = nexttile;
+else
+    Ax = options.Ax;
+end
+Ax.YTick = [];
+Ax.XTick = [];
+end
 function [struct_out] = new_init_data_struct() %Initialize data structure
 %Use these names to match the analysis scripts:
 structOrder = {
