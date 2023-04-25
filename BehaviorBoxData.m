@@ -119,6 +119,41 @@ classdef BehaviorBoxData < handle
             end
         end
         %INPUT INTERFACE FUNCTIONS ==== %log all activity here, which then gets passed to organize
+        function [struct_out] = new_init_data_struct(this) %Initialize data structure
+            %Use these names to match the analysis scripts:
+            structOrder = {
+                'TrialNum',
+                'SmallBin',
+                'BigBin',
+                'TimeStamp',
+                'Score',
+                'Level',
+                'isLeftTrial',
+                'CodedChoice',
+                'SetIdx'
+                'RewardPulses',
+                'InterTMal',
+                'DuringTMal',
+                'TrialStartTime',
+                'ResponseTime',
+                'DrinkTime',
+                'isTraining',
+                'SideBias',
+                'BetweenTrialTime',
+                'SetStr',
+                'SetUpdate',
+                'Settings',
+                'RewardTime',
+                'WhatDecision',
+                'LevelGroups',
+                'StimHist',
+                'wheel_record',
+                'Include'};
+            struct_out = struct();
+            for i = structOrder'
+                struct_out.(i{:}) = [];
+            end
+        end
         function GetStartTime(this)
             this.start_time = clock; %Start time is after the mouse begins the first trial
         end
@@ -435,7 +470,6 @@ classdef BehaviorBoxData < handle
                     [G,Out.DayMM{sc}.Ds,Out.DayMM{sc}.Ls] = findgroups(trialTbl.Date, trialTbl.Level);
                     Out.DayMM{sc}.DayNums = num2cell(findgroups(Out.DayMM{sc}.Ds));
                     Out.DayMM{sc}.dayBin = splitapply(@(x){this.DayBin(x)}, trialTbl.Score, G);
-                    Out.DayMM{sc}.daymm = splitapply(@(x){this.DayMM(x)}, trialTbl.Score, G);
                     Out.DayMM{sc} = sortrows(Out.DayMM{sc}, {'Ls'});
                 catch Err
                     Err
@@ -463,30 +497,6 @@ classdef BehaviorBoxData < handle
                 Dtbl = trialTbl(r,:);
                 Out = Dtbl;
                 %Out = cellfun(@(x)Dtbl(Dtbl.Level==x,:), num2cell(Ls), "UniformOutput", false)';
-            end
-            function Out = LevelMM(L)
-                try
-                    scores = L(L(:,1)~=2,1);
-                    bMM = movmean(scores, [this.BB-1 0], 'Endpoints', 'discard');
-                    B1 = movmean(scores(1:end-30), [this.SB-1 0], 'Endpoints', 'discard');
-                    B2 = movmean(scores(31:end), [this.SB-1 0], 'Endpoints', 'discard');
-                    bSD = std([B1 B2],0,2);
-                    D = L(L(:,1)~=2,2);
-                    XCoord = zeros(size(D));
-                    XCoordLevDay = zeros(size(D));
-                    offset = D(1);
-                    dc = 0;
-                    for d = unique(D')
-                        dc = dc + 1;
-                        w = D==d;
-                        x = 1:numel(D(w));
-                        XCoord(w) = (d-1)+normalize(x, 'range');
-                        XCoordLevDay(w) = (dc-1)+normalize(x, 'range');
-                    end
-                    Out = {[bMM bSD XCoord(this.BB:end) XCoordLevDay(this.BB:end)]};
-                catch Err
-                    Out = {[NaN NaN NaN NaN]};
-                end
             end
         end
         function Out = SplitDayLevels(this, D)
@@ -521,23 +531,6 @@ classdef BehaviorBoxData < handle
                 else
                     Out = {[NaN NaN NaN NaN]};
                 end
-            end
-        end
-        function Out = DayMM(this,D)
-            %This fx is redundant and has been combined with DayBin
-            Out = num2cell(nan(3,1));
-            try
-                these = [0.5 ; D(D~=2)];
-                sMM = movmean(these, [this.SB-1 0], 'Endpoints', 'shrink')';
-                xMM = normalize(1:numel(sMM),'range');
-                Thr = sMM>=0.8;
-                Cross = find(Thr, 1, 'first');
-                if numel(xMM)>=10
-                    Out = {sMM;
-                        xMM;
-                        Cross};
-                end
-            catch
             end
         end
         function Out = DayBin(this,D)
@@ -961,331 +954,6 @@ classdef BehaviorBoxData < handle
             catch err
                 unwrapErr(err)
             end
-        end
-        function plotMM(this, thresh)
-            % Ideas & Improvements:
-            %Add axes in middle showing an example of that level's 2 images
-            arguments
-                this
-                thresh double = 80
-            end
-            thresh = thresh/100;
-            maxLv = max(cellfun(@(x) numel(x), this.AnalyzedData.LevelMM)); %Find level that everyone has made it to
-            if this.Inp == "Wheel"
-                maxLv = 12;
-            elseif this.Inp == "NosePoke"
-                maxLv = 5;
-            end
-            HetIdx = contains(this.Sub, 'Het');
-            try
-                f = findobj('Type', 'figure');
-                T = f.Children.findobj('Type', 'Tiled');
-                delete(T.Children)
-            catch
-                f = figure;
-                T = tiledlayout(4, 3,'Padding','tight','TileSpacing','tight', 'Parent',f);
-            end
-            for L = 2:maxLv
-                try
-                    mLAVG = 0;
-                    wLAVG = 0;
-                    plotPerf2 = cellfun(@(x) x{L}, this.AnalyzedData.LevelMM, 'UniformOutput', false, 'ErrorHandler', @errorFuncNaN);
-                    maxTrials = max(cellfun(@(x)size(x,1), plotPerf2, 'UniformOutput', true, 'ErrorHandler', @errorFuncZeroDouble));
-                    pc = 0;
-                    for p = plotPerf2
-                        try
-                            [m,n] = size(p{:});
-                            pc = pc+1;
-                            len = maxTrials-m;
-                            if m>0
-                                plotPerf2{pc} = [p{:} ; NaN(len,n)];
-                            else %Never seen this level yet
-                                plotPerf2{pc} = [p{:} ; [0.5 0 0.5 0.5] ; NaN(len-1,n)];
-                            end
-                        end
-                    end
-                    wMMSubs = cellfun(@(x) numel(x)>1, plotPerf2, 'UniformOutput', true); %Which subs have MADE IT TO this level
-                    MMNames = this.Sub(wMMSubs);
-                    Het = contains(MMNames, ' - Het');
-                    HetMMNames = MMNames(Het); %Names for MM Plots
-                    WtMMNames = MMNames(~Het);
-                    bigAvg = cellfun(@(x)(x(:,1)), plotPerf2(wMMSubs), "UniformOutput", false);
-                    bigSTD = cellfun(@(x)(x(:,2)), plotPerf2(wMMSubs), "UniformOutput", false);
-                    bigX = cellfun(@(x)(x(:,4)), plotPerf2(wMMSubs), "UniformOutput", false); % normalize and make days start at 1 and be continuous
-                    mBAvg = [bigAvg{:,Het}];
-                    wBAvg = [bigAvg{:,~Het}];
-                    mBX = [bigX{:,Het}];
-                    wBX = [bigX{:,~Het}];
-                    %Calculate TrialsTo, AVGs and STDs
-                    trialsTo = zeros(size(wMMSubs));
-                    Mut = zeros(size(HetMMNames));
-                    WT = zeros(size(WtMMNames));
-                    try
-                        trialsTo = (this.BB-1)+cellfun(@(x) find(x>=thresh, 1, 'first'), bigAvg, 'ErrorHandler', @errorFuncZeroDouble, "UniformOutput",true);
-                    catch
-                        trialsTo = cellfun(@(x) find(x(:,4)>=thresh, 1, 'first'), plotPerf2, 'ErrorHandler', @errorFuncZeroDouble, "UniformOutput",false);
-                        trialsTo(cellfun(@isempty, trialsTo)) = {0};
-                        trialsTo = cell2mat(trialsTo);
-                    end
-                    wTTSubs = trialsTo~=0; %Which Subs have PASSED this level
-                    TTNames = this.Sub(wTTSubs);
-                    Het = contains(TTNames, ' - Het');
-                    HetTTNames = TTNames(Het);
-                    WtTTNames = TTNames(~Het);
-                    Mut = trialsTo(HetIdx);
-                    Mut = Mut(Mut~=0);
-                    WT = trialsTo(~HetIdx);
-                    WT = WT(WT~=0);
-                    if all(Mut~=0)
-                        mLAVG = mean(Mut);
-                    elseif any(Mut==0)
-                        mLAVG = mean(Mut(Mut~=0));
-                    elseif all(Mut==0)
-                        mLAVG = 0;
-                    end
-                    if all(WT~=0)
-                        wLAVG = mean(WT);
-                    elseif any(WT==0)
-                        wLAVG = mean(WT(WT~=0));
-                    elseif all(WT==0)
-                        wLAVG = 0;
-                    end
-                    BarValues = [Mut mLAVG wLAVG WT];
-                    label = [HetTTNames {'Mut AVG', 'WT AVG'} WtTTNames];
-                    %Make Axes
-                    ttl =  "Lv. " +L+" AVG "+this.BB+", STD "+this.SB;
-                    a = nexttile(T); hold(a, 'on'); a.YLim = [0.4 1]; a.YTick = 0.5:0.1:1; a.YTickLabel = []; a.XTick = [];
-                    a.Title.String = "Mutants "+ttl;
-                    bx = nexttile(T); hold(bx, 'on');
-                    ttl2 =  "Trials to "+thresh*100+"%";
-                    bx.Title.String = ttl2;
-                    bx.YTick = [];
-                    bx.XTick = [];
-                    try
-                        bx.YLim = [0 max(BarValues)];
-                    end
-                    b = nexttile(T); hold(b, 'on'); b.YLim = [0.4 1]; b.YTick = 0.5:0.1:1; b.YTickLabel = []; b.XTick = [];
-                    b.Title.String = "WT "+ttl;
-                    %Plot Threshold Perentage line
-                    yline(thresh, 'Parent',b, 'Label','');
-                    yline(thresh, 'Parent',a, 'Label','');
-                    %Plot the big and small AVGs
-                    if ~all(all(isnan(mBAvg)))
-                        pBm = plot(mBX, mBAvg, 'Parent',a, 'LineWidth',2);
-                        l = legend(pBm, HetMMNames,'Location','southeast', 'AutoUpdate','off');
-                    end
-                    if ~all(all(isnan(wBAvg)))
-                        pBw = plot(wBX, wBAvg, 'Parent',b, 'LineWidth',2);
-                        l = legend(pBw, WtMMNames,'Location','southeast', 'AutoUpdate','off');
-                    end
-                    %Plot the shaded STD behind the big AVG
-                    wc = 0; %Loop counting vars
-                    hc = 0;
-                    for m = [MMNames ; bigAvg ; bigSTD ; bigX]
-                        if contains(m{1}, "Het", "IgnoreCase",true)
-                            prnt = a;
-                            hc = hc+1;
-                            mc = hc;
-                        else
-                            prnt = b;
-                            wc = wc+1;
-                            mc = wc;
-                        end
-                        try
-                            lines = flip(prnt.findobj('Type', 'Line'));
-                            c = lines(mc).Color;
-                            y = m{2}';
-                            err = m{3}';
-                            x = m{4}'; %STD starts at first full big bin
-                            y = y(~isnan(y));
-                            err = err(~isnan(err));
-                            x = x(~isnan(x));
-                            inby = [y+err  fliplr(y-err)];
-                            inbx = [x  fliplr(x)];
-                            pF = fill(inbx, inby, c, ...
-                                'EdgeColor','none', ...
-                                'FaceAlpha',0.2, ...
-                                'Parent',prnt);
-                            l = legend(pF, m{1});
-                            l.Visible = 0;
-                        end
-                    end
-                    %Rearrange the line plot order, fix legends
-                    try
-                        a.Children = [a.Children.findobj('-not','Type','Patch') ; a.Children.findobj('Type', 'Patch')];
-                        LmMM = legend(pBm, HetMMNames,'Location','southeast', 'AutoUpdate','off');
-                    end
-                    try
-                        b.Children = [b.Children.findobj('-not','Type','Patch') ; b.Children.findobj('Type', 'Patch')];
-                        LwMM = legend(pBw, WtMMNames, 'Location','southeast', 'AutoUpdate','off');
-                    end
-                    %Plot TrialsTo bar graph
-                    try
-                        %Bar Graph
-                        b = bar(BarValues, 'Parent',bx, 'EdgeColor','none', 'FaceColor','flat');
-                        StVal = numel(HetMMNames) + 1;
-                        %Plot the BoxChart
-                        BoxID = [StVal*ones(size(Mut(Mut~=0))) (StVal+1)*ones(size(WT(WT~=0)))]; %Put Het AVG first and WT Avg last
-                        Box = boxchart(BoxID, [Mut(Mut~=0) WT(WT~=0)], 'Parent',bx);
-                        b.CData(contains(label, ' - Het'), :) = repmat(a.ColorOrder(7,:), numel(Mut),1);
-                        b.CData(contains(label, ' - WT'), :) = repmat(a.ColorOrder(5,:), numel(WT),1);
-                        txt = split(num2str(round(BarValues,1)), ' ');
-                        txt = txt(~cellfun(@isempty, txt))';
-                        x = 1:numel(BarValues);
-                        t = text(x, BarValues, txt,'Parent',bx, ...
-                            'HorizontalAlignment','center', ...
-                            'VerticalAlignment','top');
-                    catch Err
-                        Err
-                    end
-                catch Err
-                    Err
-                end
-            end
-            tree = split(this.filedir, filesep);
-            try
-                folder = [cell2mat(join(tree(1:end-1), filesep)) filesep];
-            end
-            filename = "TrialsTo"+this.Inp+this.Str;%+".pdf";
-            %filename = folder+filename;
-            this.SaveManyFigures(f,filename+".pdf")
-            %print(filename,'-vector', '-dpdf', '-fillpage', '-r300')
-        end
-        function plotLvByDay(this)
-            %Next step: display each day as a vertical column, all levels aligned vertically
-            dat = this.AnalyzedData.LevelMM;
-            maxL = max(cellfun(@numel, dat, 'UniformOutput', true));
-            %[~,~,SBidx] = histcounts((1:MaxTrials), [1:this.SB:this.BB inf]);
-            f = figure("Name","Level By Day", "Visible","off");
-            T = tiledlayout((maxL-1),1,"Parent",f,"TileSpacing","none","Padding","tight");
-            for L = 2:maxL
-                if L == 7
-                    L;
-                end
-                Ax = nexttile(T); hold(Ax, "on");
-                Ax.YLim = [0 1];
-                Ax.YTick = 0:0.25:1;
-                Ax.XTick = [];
-                Ax.YGrid = 1;
-                Ax.YMinorTick = 1;
-                Ax.YMinorGrid = 1;
-                Ax.YAxis.MinorTickValues = 0:0.1:1;
-                Ax.YAxis.TickLabels = [];
-                Ax.XAxis.TickLabels = [];
-                %                 for Val = 0.5:0.1:1
-                %                     %yline(Val, ':', num2str(Val*100)+"%")
-                %                     yline(Val, ':')
-                %                 end
-                LDat = cellfun(@(x) x{L}, dat, "UniformOutput",false,"ErrorHandler",@errorFuncNaN);
-                [dayNums,dates] = findgroups(LDat{:}.Date);
-                y = LDat{:}.MeanMM;
-                x = dayNums;
-                for d = 1:numel(dates)
-                    x(dayNums == d) = (d-1)+normalize(1:sum(dayNums == d), 'range');
-                end
-                AllTime = plot(x,y, "Parent",Ax);
-                AllTime.SeriesIndex = L;
-                [AllTime(:).LineWidth] = deal(4);
-                [AllTime.DisplayName] = "Level "+L+": All Time Accuracy";
-                for d = 1:max(cellfun(@(x) max(x.DayNum), LDat,"ErrorHandler",@errorFuncZeroDouble))
-                    if numel(this.Sub)>1
-                        LabStr = "Day "+d;
-                    else
-                        LevTrials = sum(this.trial_table.Date == dates(d) & this.trial_table.Level == L);
-                        DayTrials = sum(this.trial_table.Date == dates(d));
-                        Dtime = datetime(dates(d)+20000000, "ConvertFrom", "yyyymmdd");
-                        LabStr = string(Dtime, 'd-MMM-yy')+" Day "+d;
-                        t = text((d-1)+0.5, 0.95, LevTrials+" T");
-                        t.FontSize = 6;
-                        t.HorizontalAlignment= "center";
-                    end
-                    LabStr = [];
-                    xline(d-1, '-', LabStr,'LabelOrientation','aligned', FontSize=6)
-                    dDat = cellfun(@(x) x(x.DayNum==d,[1 5 6 10]), LDat, "UniformOutput", false,"ErrorHandler",@errorFuncZeroDouble);
-                    MaxTrials = max(cellfun(@(x) size(x,1), dDat, 'UniformOutput', true));
-                    [~,BinXVals,SBidx] = histcounts((1:MaxTrials)', [1:this.SB:MaxTrials inf]);
-                    dayMMs = cellfun(@(x) {movmean([x.Score], [this.SB-1 0], "Endpoints","shrink")' ; ...
-                        [NaN accumarray(SBidx, x.Score, [], @mean)' NaN] ;...
-                        movmean([x.Score], [this.BB-1 0], "Endpoints","shrink")'; ...
-                        normalize(1:numel([x.Score]), 'range')},...
-                        dDat, ...
-                        'UniformOutput',false,"ErrorHandler",@errorFuncNaN);
-                    if numel(this.Sub)>1
-                        ySmall = cellfun(@(x) x(1,:),dayMMs,'UniformOutput',false);
-                        yBins = cellfun(@(x) x(2,:),dayMMs,'UniformOutput',false);
-                        yBig = cellfun(@(x) x(3,:),dayMMs,'UniformOutput',false,"ErrorHandler",@errorFuncNaN);
-                        ID = num2cell(1:numel(ySmall));
-                        ySmall = [ySmall ; ID];
-                        yBig = [yBig ; ID];
-                        Out = cell(size(ID));
-                        for M = ySmall
-                            ExtraCols = MaxTrials-size(M{1},2);
-                            addCols = NaN(1,ExtraCols);
-                            Out{M{2}} = [M{1} addCols];
-                        end
-                        ySmall = Out';
-                        Out = cell(size(ID));
-                        for M = yBig
-                            ExtraCols = MaxTrials-size(M{1},2);
-                            addCols = NaN(1,ExtraCols);
-                            Out{M{2}} = [M{1} addCols];
-                        end
-                        yBig = Out';
-                    else
-                        ySmall = cellfun(@(x) x{1,:},dayMMs,'UniformOutput',false);
-                        %ySmall{1}(1:this.SB/2) = NaN;
-                        yBins = cellfun(@(x) x{2,:},dayMMs,'UniformOutput',false);
-                        yBig = cellfun(@(x) x{3,:},dayMMs,'UniformOutput',false,"ErrorHandler",@errorFuncNaN);
-                        if numel(yBig{1})>this.BB/2
-                            yBig{1}(1:this.BB/2) = NaN;
-                        end
-                    end
-                    MMXVals = (d-1)+normalize(1:(MaxTrials), 'range');
-                    if MaxTrials < this.SB
-                        BinXVals = (d-1)+normalize(1:1:3,'range');
-                    else
-                        BinXVals(end) = MaxTrials;
-                        BinXVals = BinXVals+(this.SB);
-                        BinXVals = (d-1)+normalize([1 BinXVals],'range');
-                    end
-                    try
-                        try
-                            SmallPlot = cellfun(@(x) plot(MMXVals,x, "Parent",Ax), ySmall);
-                            if ~all(isnan(yBig{:}))
-                                BigPlot = cellfun(@(x) plot(MMXVals,x, "Parent",Ax), yBig);
-                            end
-                        end
-                        %                         BinnedPlot = cellfun(@(x) plot(BinXVals,x), ...
-                        %                             yBins);
-                    catch
-                        SmallPlot = cellfun(@(x) plot(MMXVals,x{:}), ySmall);
-                        BigPlot = cellfun(@(x) plot(MMXVals,x{:}), yBig);
-                    end
-                    try
-                        %                         [BinnedPlot(:).DisplayName] = this.Sub{:};
-                        %                         [BinnedPlot(:).Marker] = this.Shape_code{L};
-                        %                         [BinnedPlot(:).LineStyle] = 'none';
-                        %                         [BinnedPlot(:).SeriesIndex] = L;
-                        %                         BinnedPlot.MarkerFaceColor = BinnedPlot.Color;
-                        %                         BinnedPlot.MarkerEdgeColor = deal('w');
-                        %                         BinnedPlot.MarkerSize = deal(10);
-                        [SmallPlot(:).SeriesIndex] = L;
-                        [SmallPlot(:).DisplayName] = this.Sub{:};
-                        [SmallPlot(:).LineStyle] = deal(':');
-                        [SmallPlot(:).LineWidth] = deal(1);
-                        [BigPlot(:).SeriesIndex] = L;
-                        [BigPlot(:).DisplayName] = "Level "+L+": Daily Accuracy last "+this.BB+" trials - "+this.Sub{:};
-                        [BigPlot(:).LineWidth] = deal(1);
-                        %t = text(BinXVals, yBins{:})
-                    end
-                end
-                l = legend(BigPlot);
-                l.Location = "southwest";
-                Ax.XLimitMethod = "tight";
-            end
-            %Save the figure
-            this.SaveManyFigures(f, "AllTime.pdf")
-            f.Visible = 1;
         end
         function GroupData(this, options)
             arguments
@@ -2211,7 +1879,63 @@ classdef BehaviorBoxData < handle
                 fig.Visible = 1;
             end
         end
-        function [FigProps] = getFigProps(~, fig, options)
+        
+        function [g, groups] = inspectAllSettings(allData)
+            x = cellfun(@(x) x.Settings, allData(:,3), 'UniformOutput', false); %get all the settings in a cell
+            y = cellfun(@(x) x{:}, x, 'UniformOutput', false); %get the settings
+            z = cellfun(@fieldnames, y, 'UniformOutput', false);
+            names = vertcat(z{:});
+            [g,groups] = findgroups(names);
+        end
+        
+    end %end methods
+    methods(Static)
+        function [struct_out] = new_init_data_struct() %Initialize data structure
+            %Use these names to match the analysis scripts:
+            structOrder = {
+                'TrialNum',
+                'SmallBin',
+                'BigBin',
+                'TimeStamp',
+                'Score',
+                'Level',
+                'isLeftTrial',
+                'CodedChoice',
+                'SetIdx'
+                'RewardPulses',
+                'InterTMal',
+                'DuringTMal',
+                'TrialStartTime',
+                'ResponseTime',
+                'DrinkTime',
+                'isTraining',
+                'SideBias',
+                'BetweenTrialTime',
+                'SetStr',
+                'SetUpdate',
+                'Settings',
+                'RewardTime',
+                'WhatDecision',
+                'LevelGroups',
+                'StimHist',
+                'wheel_record',
+                'Include'};
+            struct_out = struct();
+            for i = structOrder'
+                struct_out.(i{:}) = [];
+            end
+        end
+        function [Out] = getLevelTNums(Tbl)
+            [~,Levels] = findgroups(Tbl.Level');
+            for L = Levels
+                r = Tbl.Level == L & Tbl.Score ~= 2 & Tbl.Include == 1;
+                Tbl.LvlTrialNum(r,:) = (1:sum(r))';
+            end
+            TotalTrialNum = zeros(size(Tbl.Level));
+            Out = addvars(Tbl, TotalTrialNum, 'After','LvlTrialNum');
+            Out.TotalTrialNum = (1:numel(Tbl.Level))';
+        end
+        function [FigProps] = getFigProps(fig, options)
             chosen_figure=fig;
             figure_property = struct; %Reset export Settings:
             FigProps = struct;
@@ -2252,59 +1976,7 @@ classdef BehaviorBoxData < handle
             set(chosen_figure,'Units','inches');
             FigProps = figure_property;
         end
-        function [Out] = getLevelTNums(~,Tbl)
-            [~,Levels] = findgroups(Tbl.Level');
-            for L = Levels
-                r = Tbl.Level == L & Tbl.Score ~= 2 & Tbl.Include == 1;
-                Tbl.LvlTrialNum(r,:) = (1:sum(r))';
-            end
-            TotalTrialNum = zeros(size(Tbl.Level));
-            Out = addvars(Tbl, TotalTrialNum, 'After','LvlTrialNum');
-            Out.TotalTrialNum = (1:numel(Tbl.Level))';
-        end
-        function [g, groups] = inspectAllSettings(allData)
-            x = cellfun(@(x) x.Settings, allData(:,3), 'UniformOutput', false); %get all the settings in a cell
-            y = cellfun(@(x) x{:}, x, 'UniformOutput', false); %get the settings
-            z = cellfun(@fieldnames, y, 'UniformOutput', false);
-            names = vertcat(z{:});
-            [g,groups] = findgroups(names);
-        end
-        function [struct_out] = new_init_data_struct(~) %Initialize data structure
-            %Use these names to match the analysis scripts:
-            structOrder = {
-                'TrialNum',
-                'SmallBin',
-                'BigBin',
-                'TimeStamp',
-                'Score',
-                'Level',
-                'isLeftTrial',
-                'CodedChoice',
-                'SetIdx'
-                'RewardPulses',
-                'InterTMal',
-                'DuringTMal',
-                'TrialStartTime',
-                'ResponseTime',
-                'DrinkTime',
-                'isTraining',
-                'SideBias',
-                'BetweenTrialTime',
-                'SetStr',
-                'SetUpdate',
-                'Settings',
-                'RewardTime',
-                'WhatDecision',
-                'LevelGroups',
-                'StimHist',
-                'wheel_record',
-                'Include'};
-            struct_out = struct();
-            for i = structOrder'
-                struct_out.(i{:}) = [];
-            end
-        end
-    end %end methods
+    end
 end %end class
 %EXTERNAL FUNCTIONS ====
 function Ax = MakeAxis(options)
@@ -2313,48 +1985,13 @@ arguments
 end
 if isempty(options.Ax)
     f = figure;
-    t = tiledlayout('flow','TileSpacing','none', 'Padding','tight');
-    Ax = nexttile;
+    t = tiledlayout('flow','TileSpacing','none', 'Padding','tight', 'Parent',f);
+    Ax = nexttile(t);
 else
     Ax = options.Ax;
 end
 Ax.YTick = [];
 Ax.XTick = [];
-end
-function [struct_out] = new_init_data_struct() %Initialize data structure
-%Use these names to match the analysis scripts:
-structOrder = {
-    'TrialNum',
-    'SmallBin',
-    'BigBin',
-    'TimeStamp',
-    'Score',
-    'Level',
-    'isLeftTrial',
-    'CodedChoice',
-    'SetIdx'
-    'RewardPulses',
-    'InterTMal',
-    'DuringTMal',
-    'TrialStartTime',
-    'ResponseTime',
-    'DrinkTime',
-    'isTraining',
-    'SideBias',
-    'BetweenTrialTime',
-    'SetStr',
-    'SetUpdate',
-    'Settings',
-    'RewardTime',
-    'WhatDecision',
-    'LevelGroups',
-    'StimHist',
-    'wheel_record',
-    'Include'};
-struct_out = struct();
-for i = structOrder'
-    struct_out.(i{:}) = [];
-end
 end
 function [filepath] = getFilePath
 filepath = string;
