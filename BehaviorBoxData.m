@@ -1287,136 +1287,155 @@ classdef BehaviorBoxData < handle
             this.SaveManyFigures(f, "AllTime.pdf")
             f.Visible = 1;
         end
-        function Ax = plotLvByDayOneAxis(this, options)
+        function GroupData(this, options)
+            arguments
+                this
+                options.Composite logical = false
+            end
+            Num = num2cell(1:numel(this.Sub));
+            t1 = datetime("now");
+            ACell = cellfunp(@(x){this.plotLvByDayOneAxis(Sc=x, LevDay=1)}, Num);
+            time = seconds(datetime("now") - t1);
+            fprintf("Total time: " + time + " seconds.\n")
+        end
+        function Out = plotLvByDayOneAxis(this, options)
             arguments
                 this
                 options.save logical = true
                 options.Text logical = false
                 options.LevDay logical = true
+                options.Sc
             end
-            this.sc = 0;
-            for SUB = this.Sub
-                t1 = datetime("now");
-                this.sc = this.sc+1;
-                Ldat = this.AnalyzedData.LevelMM{this.sc};
-                HighScore = cellfun(@(x) max([x(:,1) ; 0]), Ldat, 'UniformOutput', true, 'ErrorHandler', @errorFuncNaN);
-                maxPassedL = find(HighScore>=0.8, 1, 'last')+1;
-                this.trial_table = this.AnalyzedData.TrialTbls{this.sc};
-                title = SUB{:}+" All Time Performance";
-                f = figure("Name",title, "Visible", "off"); %f.Visible=1;
-                T = tiledlayout(1,1,"Parent",f,"TileSpacing","none","Padding","tight");
-                Ax = nexttile(T); hold(Ax, "on");
-                Ax.Box = 0;
-                Ax.XTick = [];
-                Ax.YTick = [];
-                Ax.Title.String = title;
-                numDays = max(cell2mat(this.AnalyzedData.DayMM{this.sc}.DayNums));
-                Ax.XLim = [0 numDays];
-                Ax.YLim = [0 maxPassedL];
-                thresh = 0.8;
-                dayLine = xline(1:numDays, 'LineStyle',':');
-                yline(0:1:maxPassedL, '-')
-                TH = yline(thresh:1:(maxPassedL+1), ':',(100*thresh)+"%", ...
-                    "LabelHorizontalAlignment","left", ...
-                    "FontSize",6);
-                for L = 1:maxPassedL
-                    LO = L-1;
-                    wL = this.AnalyzedData.DayMM{this.sc}.Ls==L;
-                    Ddat = this.AnalyzedData.DayMM{this.sc}(wL,:);
+            if ~isempty(options.Sc)
+                this.sc = options.Sc;
+            end
+            SUB = this.Sub{this.sc};
+            %for SUB = this.Sub
+            t1 = datetime("now");
+            %this.sc = this.sc+1;
+            Ldat = this.AnalyzedData.LevelMM{this.sc};
+            HighScore = cellfun(@(x) max([x(:,1) ; 0]), Ldat, 'UniformOutput', true, 'ErrorHandler', @errorFuncNaN);
+            maxPassedL = find(HighScore>=0.8, 1, 'last')+1;
+            this.trial_table = this.AnalyzedData.TrialTbls{this.sc};
+            title = SUB+" All Time Performance";
+            f = figure("Name",title, "Visible", "off"); f.Visible=1;
+            T = tiledlayout(1,1,"Parent",f,"TileSpacing","none","Padding","tight");
+            Ax = nexttile(T); hold(Ax, "on");
+            Ax.Box = 0;
+            Ax.XTick = [];
+            Ax.YTick = [];
+            Ax.Title.String = title;
+            numDays = max(cell2mat(this.AnalyzedData.DayMM{this.sc}.DayNums));
+            Ax.XLim = [0 numDays];
+            Ax.YLim = [0 maxPassedL];
+            thresh = 0.8;
+            dayLine = xline(1:numDays, 'LineStyle',':');
+            yline(0:1:maxPassedL, '-')
+            TH = yline(thresh:1:(maxPassedL+1), ':',(100*thresh)+"%", ...
+                "LabelHorizontalAlignment","left", ...
+                "FontSize",6);
+            for L = 1:maxPassedL
+                LO = L-1;
+                wL = this.AnalyzedData.DayMM{this.sc}.Ls==L;
+                Ddat = this.AnalyzedData.DayMM{this.sc}(wL,:);
+                try
+                    y = Ldat{L}(:,1)';
+                    std = Ldat{L}(:,2)';
+                    x = Ldat{L}(:,3)';
+                    %Perf
+                    dn = "Level "+L+": All Time ";
+                    AllTime = plot(x,LO+y, ...
+                        "Parent",Ax, ...
+                        "SeriesIndex",L, ...
+                        "LineWidth",1, ...
+                        "DisplayName",dn+"Accuracy");
+                    %STD
+                    Y = LO+[y+std fliplr(y-std)];
+                    X = [x fliplr(x)];
+                    P = patch(X,Y,AllTime.Color, ...
+                        "Parent", Ax, ...
+                        "EdgeColor", "none", ...
+                        "FaceAlpha", 0.4);
+                    P.DisplayName = dn+"STD";
+                catch
+                end
+                try
+                    if any(y>thresh)
+                        %PASSING
+                        PassingDayIdx = floor( x( find( y>=thresh,1, 'first') ) )+0.5;
+                        %                             PassText = text(PassingDayIdx, levOffset+0.1, "PASSED", ...
+                        %                                 "FontSize",6, ...
+                        %                                 "HorizontalAlignment","center");
+                        TT = this.BB+find(y>=thresh,1, 'first')+" Trials";
+                        TrialText = text(PassingDayIdx, LO+0.2, TT, ...
+                            "FontSize",6, ...
+                            "HorizontalAlignment","center", ...
+                            "Color",AllTime.Color);
+                        %Threshold Integrand:
+                        yPatch = LO+[max(y,thresh) max(y-thresh,thresh)];
+                        xPatch = [x fliplr(x)];
+                        threshPatch = patch(xPatch,yPatch,AllTime.Color, ...
+                            "Parent", Ax, ...
+                            "EdgeColor", "none");
+                        firstPass = find(y>=thresh,1, 'first');
+                        yPass = y(firstPass:end);
+                        OverThresh = max(yPass-thresh,0)*100;
+                        TimeOverThresh = sum(OverThresh)/numel(yPass);
+                        UnderThresh = min(yPass-thresh,0)*100;
+                        TimeUnderThresh = sum(UnderThresh)/numel(OverThresh);
+                        TXT = round(TimeOverThresh,2)+"% from Thresh per trial";
+                        ThreshText = text(numDays, LO+0.1,TXT, ...
+                            "FontSize",12, ...
+                            "HorizontalAlignment","right", ...
+                            "Color",AllTime.Color);
+                    end
+                catch %They have not passed this level
+                end
+                for d = [ Ddat.DayNums' ; [Ddat.dayBin{:}] ]
+                    DO = d{1}-1;
+                    %Small Bin Moving mean:
                     try
-                        y = Ldat{L}(:,1)';
-                        std = Ldat{L}(:,2)';
-                        x = Ldat{L}(:,3)';
-                        %Perf
-                        dn = "Level "+L+": All Time ";
-                        AllTime = plot(x,LO+y, ...
+                        x = DO+d{end-1};
+                        y = LO+d{end-2};
+                        SmallPlot = plot(x,y, ...
                             "Parent",Ax, ...
                             "SeriesIndex",L, ...
-                            "LineWidth",1, ...
-                            "DisplayName",dn+"Accuracy");
-                        %STD
-                        Y = LO+[y+std fliplr(y-std)];
-                        X = [x fliplr(x)];
-                        P = patch(X,Y,AllTime.Color, ...
-                            "Parent", Ax, ...
-                            "EdgeColor", "none", ...
-                            "FaceAlpha", 0.4);
-                        P.DisplayName = dn+"STD";
-                    catch
+                            "LineWidth", 0.5);
                     end
+                    %Daily bin values:
                     try
-                        if any(y>thresh)
-                            %PASSING
-                            PassingDayIdx = floor( x( find( y>=thresh,1, 'first') ) )+0.5;
-                            %                             PassText = text(PassingDayIdx, levOffset+0.1, "PASSED", ...
-                            %                                 "FontSize",6, ...
-                            %                                 "HorizontalAlignment","center");
-                            TT = this.BB+find(y>=thresh,1, 'first')+" Trials";
-                            TrialText = text(PassingDayIdx, LO+0.2, TT, ...
-                                "FontSize",6, ...
-                                "HorizontalAlignment","center", ...
-                                "Color",AllTime.Color);
-                            %Threshold Integrand:
-                            yPatch = LO+[max(y,thresh) max(y-thresh,thresh)];
-                            xPatch = [x fliplr(x)];
-                            threshPatch = patch(xPatch,yPatch,AllTime.Color, ...
-                                "Parent", Ax, ...
-                                "EdgeColor", "none");
-                            firstPass = find(y>=thresh,1, 'first');
-                            yPass = y(firstPass:end);
-                            OverThresh = max(yPass-thresh,0)*100;
-                            TimeOverThresh = sum(OverThresh)/numel(yPass);
-                            UnderThresh = min(yPass-thresh,0)*100;
-                            TimeUnderThresh = sum(UnderThresh)/numel(OverThresh);
-                            TXT = round(TimeOverThresh,2)+"% from Thresh per trial";
-                            ThreshText = text(numDays, LO+0.1,TXT, ...
-                                "FontSize",12, ...
-                                "HorizontalAlignment","right", ...
-                                "Color",AllTime.Color);
-                        end
-                    catch %They have not passed this level
-                    end
-                    for d = [ Ddat.DayNums' ; [Ddat.dayBin{:}] ]
-                        DO = d{1}-1;
-                        %Small Bin Moving mean:
-                        try
-                            x = DO+d{end-1};
-                            y = LO+d{end-2};
-                            SmallPlot = plot(x,y, ...
+                        if options.Text
+                            x = DO+Ddat.dayBin{wD}{2};
+                            y = LO+Ddat.dayBin{wD}{1};
+                            BinPlot = scatter(x,y, ...
                                 "Parent",Ax, ...
                                 "SeriesIndex",L, ...
-                                "LineWidth", 0.5);
-                        end
-                        %Daily bin values:
-                        try
-                            if options.Text
-                                x = DO+Ddat.dayBin{wD}{2};
-                                y = LO+Ddat.dayBin{wD}{1};
-                                BinPlot = scatter(x,y, ...
-                                    "Parent",Ax, ...
-                                    "SeriesIndex",L, ...
-                                    "Marker", this.Shape_code{L}, ...
-                                    "SizeData",10);
-                                BinPlot.MarkerFaceColor = BinPlot.MarkerEdgeColor;
-                                Txt = text(x, y, Ddat.dayBin{wD}{3}, ...
-                                    "HorizontalAlignment","center", ...
-                                    "VerticalAlignment","bottom", ...
-                                    "FontSize",6);
-                            end
+                                "Marker", this.Shape_code{L}, ...
+                                "SizeData",10);
+                            BinPlot.MarkerFaceColor = BinPlot.MarkerEdgeColor;
+                            Txt = text(x, y, Ddat.dayBin{wD}{3}, ...
+                                "HorizontalAlignment","center", ...
+                                "VerticalAlignment","bottom", ...
+                                "FontSize",6);
                         end
                     end
                 end
-                if options.LevDay
-                    this.PlotLevelGroups("Ax",Ax, "InComposite",1)
-                end
-                Ax.XLimitMethod = "tight";
-                Ax.YLimitMethod = "tight";
-                Ax.Title.String = title;
-                if options.save && numel(this.Sub)>1 %Save the figure
-                    this.SaveManyFigures(f,title+".pdf", Columns=numDays,Rows=maxPassedL)
-                end
-                time = seconds(datetime("now") - t1);
-                fprintf("Plotted "+SUB{:}+ "... etime: " + time + " seconds.\n")
+            end
+            if options.LevDay
+                this.PlotLevelGroups("Ax",Ax, "InComposite",1)
+            end
+            Ax.XLimitMethod = "tight";
+            Ax.YLimitMethod = "tight";
+            Ax.Title.String = title;
+            if options.save && numel(this.Sub)>1 %Save the figure
+                this.SaveManyFigures(f,title+".pdf", Columns=numDays,Rows=maxPassedL)
+            end
+            time = seconds(datetime("now") - t1);
+            fprintf("Plotted "+SUB+ "... etime: " + time + " seconds.\n")
+            if isempty(options.Sc)
+                Out = Ax;
+            else
+                Out = f;
             end
             %Add'l fcns:
             function FMTtext(TextHandle)
