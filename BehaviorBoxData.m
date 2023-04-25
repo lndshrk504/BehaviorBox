@@ -79,7 +79,6 @@ classdef BehaviorBoxData < handle
                 catch
                 end
             end
-            this.current_data_struct = new_init_data_struct();
             this.date = char(datetime("now", "Format","yyMMdd"));
             [~,~,this.SBidx] = histcounts((1:this.BB)', [1:this.SB:this.BB inf]);
             %Find subject data
@@ -87,27 +86,22 @@ classdef BehaviorBoxData < handle
             if options.load
                 this.loadFiles();
             end
-            if options.find
-                %Make fields
-                %this.current_data_struct = new_init_data_struct();
-                return
-            end
-            if options.analyze
+            if ~options.find && options.analyze
                 try
                     this.AnalyzeAllData();
                 end
-            end
-            if options.plot
-                if numel(this.Sub)>1
-                    this.plotMM();
-                    this.plotLvByDayOneAxis();
-                else
-                    f = this.plotLvByDayOneAxis();
-                    f.Visible = 1;
+                if options.plot
+                    if numel(this.Sub)>1
+                        this.plotMM();
+                        this.plotLvByDayOneAxis();
+                    else
+                        f = this.plotLvByDayOneAxis();
+                        f.Visible = 1;
+                    end
                 end
             end
             %Make fields
-            this.current_data_struct = new_init_data_struct();
+            this.current_data_struct = this.new_init_data_struct();
         end
         function this = updateBBData(this, varargin)
             for pair = reshape(varargin, 2, [])
@@ -119,41 +113,6 @@ classdef BehaviorBoxData < handle
             end
         end
         %INPUT INTERFACE FUNCTIONS ==== %log all activity here, which then gets passed to organize
-        function [struct_out] = new_init_data_struct(this) %Initialize data structure
-            %Use these names to match the analysis scripts:
-            structOrder = {
-                'TrialNum',
-                'SmallBin',
-                'BigBin',
-                'TimeStamp',
-                'Score',
-                'Level',
-                'isLeftTrial',
-                'CodedChoice',
-                'SetIdx'
-                'RewardPulses',
-                'InterTMal',
-                'DuringTMal',
-                'TrialStartTime',
-                'ResponseTime',
-                'DrinkTime',
-                'isTraining',
-                'SideBias',
-                'BetweenTrialTime',
-                'SetStr',
-                'SetUpdate',
-                'Settings',
-                'RewardTime',
-                'WhatDecision',
-                'LevelGroups',
-                'StimHist',
-                'wheel_record',
-                'Include'};
-            struct_out = struct();
-            for i = structOrder'
-                struct_out.(i{:}) = [];
-            end
-        end
         function GetStartTime(this)
             this.start_time = clock; %Start time is after the mouse begins the first trial
         end
