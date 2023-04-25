@@ -150,75 +150,60 @@ classdef BehaviorBoxNose < handle
         function getGUI(this)
             tempSetting_Struct = struct();
             %Get handles to GUI figure, the buttons, axes, message line:
-            this.stop_handle = this.GuiHandles.Stop; %Buttons
-            this.Skip = this.GuiHandles.Skip;
-            this.FF = this.GuiHandles.FastForward;
-            this.Pause = this.GuiHandles.Pause;
-            this.message_handle = this.GuiHandles.text1;
+            this.stop_handle = this.app.stop; %Buttons
+            this.Skip = this.app.skip;
+            this.FF = this.app.ff;
+            this.Pause = this.app.pause;
+            this.message_handle = this.app.text1;
             this.GUI_numbers.trial_no = 0; %GUI Numbers and their handles on the figure
             this.GUI_numbers.choices = 0;
             this.GUI_numbers.difficulty = 0;
-            this.GUI_numbers.rewards = 0;
-            this.GUI_numbers.left = 0;
-            this.GUI_numbers.right = 0;
-            this.GUI_numbers.total_correct = 0;
             this.GUI_numbers.time = 0;
             this.GUI_numbers.handle.trial_no = this.app.text16; %Every input must be a string, not a number
             this.GUI_numbers.handle.choices = this.app.text19;
             this.GUI_numbers.handle.difficulty = this.app.text17;
-            this.GUI_numbers.handle.rewards = this.app.text25;
-            this.GUI_numbers.handle.left = this.app.text28;
-            this.GUI_numbers.handle.right = this.app.text26;
-            this.GUI_numbers.handle.total_correct = this.app.text30;
             this.GUI_numbers.handle.time = this.app.text3;
             this.timers.betweenTrialsRecord = []; %Set up timers structure
             this.timers.TrialStartTimeRecord = [];
             this.timers.response_timeRecord = [];
             this.timers.drinkDwellTimeRecord = [];
-            skiptypes = {'buttongroup', 'figure', 'label', 'panel', 'annotationpane', 'axes', 'tab', 'uigridlayout'};
             props = properties(this.app); %Get all names
             props(props == "MsgBox") = [];
-            types = cellfun(@(x) this.app.(x).Type, props, 'UniformOutput', false); %Get their types
-            props = props(~contains(types, skiptypes));
-            types = types(~contains(types, skiptypes));
+            props(props == "TextArea2") = [];
+            skiptypes = {'buttongroup', 'figure', 'label', 'panel', 'annotationpane', 'axes', 'tab', 'uigridlayout'};
+            types = GetType(this.app, props); %cellfun(@(x) this.app.(x).Type, props, 'UniformOutput', false); %Get their types
+            props = props(~contains(types, skiptypes, "IgnoreCase",true));
+            types = GetType(this.app, props);
+        %Make Button structure
             buttons = props(contains(types, {'button'}));
-            for b = buttons'
-                x = b{:};
-                this.Buttons.(this.app.(x).Tag) = this.app.(x);
-            end
-            this.appProps = props(~contains(types, 'button'))';
-            this.appPropsTypes = types(~contains(types, 'button'))';
-            this.appPropsTypes(contains(this.appProps, 'TextArea2')) = []; %Do not update the Notes box with settings
-            this.appProps(contains(this.appProps, 'TextArea2')) = []; %Do not update the Notes box with settings
-            for p = this.appProps
-                x = p{:};
-                tag = this.app.(x).Tag;
-                try
-                    temp_val = str2double(this.app.(x).Value);
-                    if isnan(temp_val)
-                        temp_val = Settings.(x);
-                    end
-                    tempSetting_Struct.(tag) = temp_val;
-                catch
-                    try
-                        tempSetting_Struct.(tag) = this.app.(x).Value;
-                    catch % Fails if there is no Tag value
-                        fprintf("Failed at: "+x+", "+tag+", "+this.app.(x).Value+"\n")
-                    end
-                end
-            end
-            this.dropdowns = this.appProps(contains(this.appPropsTypes, {'dropdown'}));
-            for d = this.dropdowns
-                x = d{:};
-                tag = this.app.(x).Tag;
-                tempSetting_Struct.(tag) = find(matches(this.app.(x).Items, this.app.(x).Value));
-            end
-            %this.Setting_Struct = tempSetting_Struct;
+            bTags = GetTag(this.app, buttons);
+            this.Buttons = cell2struct(cellfun(@(x)(this.app.(x)), buttons, 'UniformOutput',false), bTags);
+            props = props(~contains(types, {'button'})); types = GetType(this.app, props);
+            Dropdowns = props(contains(types, {'dropdown'}));
+            dTags = GetTag(this.app, Dropdowns);
+            DropVals = cellfun(@(x)find(matches(this.app.(x).Items, this.app.(x).Value)), Dropdowns, 'UniformOutput',false);
+            this.dropdowns = cell2struct(DropVals, dTags);
+            props = props(~contains(types, {'dropdown'})); types = GetType(this.app, props);
+            CIdx = contains(types, {'check'});
+            Checkboxes = props(CIdx);
+            cVals = cellfun(@(x)logical(this.app.(x).Value), Checkboxes, 'UniformOutput',false);
+            pTags = GetTag(this.app, props);
+            tempVal = cellfun(@(x)str2double(this.app.(x).Value), props, 'UniformOutput',false);
+            ReDo = cellfun(@isnan, tempVal, 'UniformOutput',true);
+            tempVal(ReDo) = cellfun(@(x)string(this.app.(x).Value), props(ReDo), 'UniformOutput',false);
+            tempVal(CIdx) = cVals;
+            tempSetting_Struct = cell2struct(tempVal, pTags);
             this.makeTrialStructures(tempSetting_Struct)
             this.Setting_Struct = tempSetting_Struct;
             %Get the settings label from the setting structure, to label the data.
             this.SetIdx = 1;
             [this.SetStr, this.Include] = this.structureSettings(this.Setting_Struct);
+            function Types = GetType(App, Props)
+                Types = cellfun(@(x) App.(x).Type, Props, 'UniformOutput', false);
+            end
+            function Types = GetTag(App, Props)
+                Types = cellfun(@(x) App.(x).Tag, Props, 'UniformOutput', false);
+            end
         end
         function makeTrialStructures(this, Settings)
             f = fieldnames(Settings);
@@ -265,17 +250,7 @@ classdef BehaviorBoxNose < handle
         end
         %set up all variables
         function SetUpHardware(this)
-            if this.Setting_Struct.Play_sound
-                this.Sound_Struct = struct();
-                this.makeSounds();
-                this.Sound_Object.Sound_start_Object = audioplayer(this.Sound_Struct.soundstart, 48000);
-                this.Sound_Object.Sound_start_Left = audioplayer(this.Sound_Struct.soundleft, 48000);
-                this.Sound_Object.Sound_start_Right = audioplayer(this.Sound_Struct.soundright, 48000);
-                this.Sound_Object.Sound_wrong_Object = audioplayer(this.Sound_Struct.soundwrong, 48000);
-                this.Sound_Object.Sound_correct_Object = audioplayer(this.Sound_Struct.soundcorrect, 48000);
-                this.Sound_Object.Sound_cue_Object = audioplayer(this.Sound_Struct.soundcue, 48000);
-            end
-            if this.Box.Input_type == 8 %Keyboard input, no arduino
+            if ismac || this.Box.Input_type == 8 %Keyboard input, no arduino
                 fprintf('Using keyboard input with no arduino...')
             else
                 try
