@@ -279,6 +279,9 @@ classdef BehaviorBoxNose < handle
                     this.Box.ValveL = 'D6';
                     this.Box.ValveR = 'D8';
                     this.Box.AirPuff  = 'D11';
+                    this.Box.readL = @(x)this.a.readDigitalPin('D2')==this.Box.readHigh;
+                    this.Box.readM = @(x)this.a.readDigitalPin('D3')==this.Box.readHigh;
+                    this.Box.readR = @(x)this.a.readDigitalPin('D7')==this.Box.readHigh;
                 case 5 %Lick ports
                     this.Box.ardunioReadDigital = 1;
                 case 6 %Rotating Wheel
@@ -747,12 +750,6 @@ classdef BehaviorBoxNose < handle
                         this.ResetSensor(this)
                     end
                     t1 = datetime("now");
-                    % while this.Setting_Struct.Input_ignored & seconds(datetime("now")-t1)<this.Setting_Struct.Pokes_ignored_time
-                    %     time = this.Setting_Struct.Pokes_ignored_time-seconds(datetime("now")-t1);
-                    %     txt = "Ignoring input for "+round(time,1)+" sec...";
-                    %     set(this.message_handle,'Text',txt)
-                    %     drawnow
-                    % end
                     this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.LineColor;
                     set(this.message_handle,'Text','Waiting for Trial initialization'); drawnow
                     InpDelay = this.Setting_Struct.Input_Delay_Start;
@@ -770,7 +767,7 @@ classdef BehaviorBoxNose < handle
                                 txt = "Do not poke L or R! Intertrial Malingering timeout: "+round(time,1)+" sec...";
                                 set(this.message_handle,'Text',txt)
                                 drawnow %Update the buttons
-                                if this.a.readDigitalPin(this.Box.Left) == this.Box.readHigh | this.a.readDigitalPin(this.Box.Right) == this.Box.readHigh %if L or R poke then restart timerStart
+                                if this.Box.readL() | this.Box.readR() %if L or R poke then restart timerStart
                                     timerStart = datetime("now");
                                 end
                                 if get(this.FF, 'Value')
@@ -793,7 +790,7 @@ classdef BehaviorBoxNose < handle
                             end
                         end
                         %Immediately accept choice
-                        if this.a.readDigitalPin(this.Box.Middle) == this.Box.readHigh
+                        if this.Box.readM()
                             event = 1;
                             break
                         end
@@ -913,7 +910,7 @@ classdef BehaviorBoxNose < handle
                 drawnow
             end
             this.Flash(this.StimulusStruct, findobj(this.fig.Children, 'Type', 'Line'), 'NewStim'); % Make visible stimulus and flash if set
-            set(this.message_handle,'Text',['Waiting for ',this.current_side,' choice...']);
+            set(this.message_handle,'Text',['Waiting for ',this.current_side,' choice...']); drawnow
             this.Data_Object.addStimEvent(this.isLeftTrial); %Add the timestamp for the trial
             switch 1
                 case any(this.Box.Input_type == [1 2 3 5]) %NosePoke
@@ -922,9 +919,6 @@ classdef BehaviorBoxNose < handle
                     [this.WhatDecision, this.ResponseTime] = this.readLeverLoopAnalogWheel(this);
                 otherwise
                     [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial);
-            end
-            %stop sound
-            if this.Setting_Struct.Play_sound
             end
             if this.Box.Input_type == 6
                 p = findobj('Type', 'Polygon');
@@ -1551,8 +1545,10 @@ classdef BehaviorBoxNose < handle
                 InpDelay = this.Setting_Struct.Input_Delay_Respond;
                 timeout_timer = clock;
                 response_timer = clock;
+                drawnow
                 %run loop
                 while timeout_value == 0 | etime(clock, timeout_timer)<timeout_value
+                    drawnow
                     if get(this.Skip, 'Value') %this.Skip.Value
                         this.Skip.Value = 0; %Turn the button off
                         break
@@ -1561,16 +1557,16 @@ classdef BehaviorBoxNose < handle
                     if get(this.stop_handle, 'Value')
                         break %abort
                     end
-                    if this.a.readDigitalPin(this.Box.Middle) == this.Box.readHigh
+                    if this.Box.readM()
                         this.Flash(this.StimulusStruct, findobj(this.fig.Children, 'Type', 'Line'), 'center')
                         this.DuringTMal = this.DuringTMal + 1;
                     end
                     %Immediately accept the choice:
-                    if this.a.readDigitalPin(this.Box.Left) == this.Box.readHigh %& this.isLeftTrial %LeverA is left
+                    if this.Box.readL() %& this.isLeftTrial %LeverA is left
                         event = 1; %Left Choice
                         break
                     end
-                    if this.a.readDigitalPin(this.Box.Right) == this.Box.readHigh %& ~this.isLeftTrial %LeverB is right
+                    if this.Box.readR() %& ~this.isLeftTrial %LeverB is right
                         event = 2; %Right Choice
                         break
                     end
