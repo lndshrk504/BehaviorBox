@@ -1164,10 +1164,11 @@ classdef BehaviorBoxData < handle
             Ddat = sortrows(this.AnalyzedData.DayMM{this.sc}, "Ls");
             Ddat.DayNums=cell2mat(Ddat.DayNums);
             Ax = MakeAxis();
-            Ax.YLim = [min(Ddat.DayNums)-1 max(Ddat.Ls)];
-            Ax.XLim = [min(Ddat.DayNums)-1 max(Ddat.DayNums)];
+            %Ax.YLim = [min(Ddat.DayNums)-1 1];
+            %Ax.XLim = [min(Ddat.DayNums)-1 max(Ddat.DayNums)];
             Ax.Title.String = this.Sub{this.sc}+" Level Performance";
-            xline(min(Ddat.DayNums):1:max(Ddat.DayNums), '-', 'Color',[0.7 0.7 0.7])
+            xline(1.5:2:2*max(Ddat.DayNums), '-', 'Color',[0.7 0.7 0.7])
+            yline(findgroups(Ddat.DayNums), '-', 'Color',[0.7 0.7 0.7])
             %Ax.YTick = -1:0.25:0;
             %Ax.YTickLabel = string(0:25:100)+"%";
             %Ax.YMinorTick = "on";
@@ -1175,33 +1176,38 @@ classdef BehaviorBoxData < handle
             %Ax.YMinorGrid = 1;
             hold(Ax, "on")
             %splitapply(@(x)plotLv(x), Ddat.dayBin, findgroups(Ddat.Ls))
-            for L = unique(Ddat.Ls')
+            for L = 1
+                Ax.YLim = [0 L];
                 %clear x y Ctxt Atxt Ntxt cross CROSS num NUM AVG avg
                 wL = Ddat.Ls==L;
-                Ld = Ddat.dayBin(wL);
-                for d = Ddat.DayNums(wL)
-                end
-                numel(days)
-                cellfun(@(x)x{12}, Ld, "UniformOutput",false)
-                %Xrange = normalize([0 dIdx dIdx(end)+1], "range");
-                %Xrange = Xrange(2:end-1);
-                NUM = cellfun(@(x)x{4} ,Ld, "UniformOutput", true)';
-                AVG = cellfun(@(x)x{5} ,Ld, "UniformOutput", true)';
-                STD = cellfun(@(x)x{6} ,Ld, "UniformOutput", true)';
-                try
-                    CROSS = cellfun(@(x)x(10) ,Ld, "UniformOutput", true, "ErrorHandler", @errorFuncZeroCell)';
-                catch err
-                    err;
-                end
-                x = (L-1)+Xrange;
-                y = AVG-1;
-                for L = [x; y; STD; dIdx]
-                    E = errorbar(L(1), L(2), L(3), ...
-                        'LineStyle','none', ...
-                        'Marker', this.Shape_code{L(4)}, ...
-                        'SeriesIndex',L(4));
-                    E.MarkerFaceColor = E.Color;
-                    E.CapSize = 1;
+                Ld = Ddat.dayBin;
+                for d = [Ddat.DayNums(wL)' ; findgroups(Ddat.DayNums(wL)')]
+                    xOff = 2*(d(2)-1);
+                    yOff = L-1;
+                    Ax.XLim = [0 2*d(2) ]; drawnow
+                    wD = Ddat.DayNums==d(1);
+                    try
+                        LevIdx = cellfun(@(x)x{11} ,Ld(wD), "UniformOutput", true, "ErrorHandler", @errorFuncNaN)';
+                    catch err
+                        err;
+                    end
+                    if numel(LevIdx)>1
+                        1;
+                    end
+                    Xrange = normalize([0 LevIdx LevIdx(end)+1], "range");
+                    Xrange = Xrange(2:end-1);
+                    x = xOff+Xrange;
+                    AVG = cellfun(@(x)x{5}+yOff ,Ld(wD), "UniformOutput", true)';
+                    NUM = cellfun(@(x)x{4} ,Ld(wD), "UniformOutput", true)';
+                    STD = cellfun(@(x)x{6} ,Ld(wD), "UniformOutput", true)';
+                    try
+                        tDAT = [x ; AVG ; STD ; LevIdx];
+                        tDAT(:, isnan(LevIdx) ) = [];
+                        DAT = mat2cell( tDAT , 4, [ones( size(tDAT,2) ,1)] );
+                    catch err
+                        err;
+                    end
+                    Plots = cellfun(@(x){plotLv(x)}, DAT);
                 end
                 if options.Text
                     avg = string(round(100*AVG,1));
@@ -1222,16 +1228,35 @@ classdef BehaviorBoxData < handle
                     end
                 end
             end
-
-
             parfor L = unique(Ddat.Ls)'
                 wL = Ddat.Ls==L;
                 Ld = Ddat.Ls(wL);
                 dIdx = Ddat.DayNums(wL)';
             end
             
-            function plotLv(In)
-
+            function E = plotLv(In)
+                xR = In(1);
+                yL = In(2);
+                std = In(3);
+                Level = In(4);
+                E = errorbar(xR, yL, std,'Parent',Ax, ...
+                    'SeriesIndex', Level, ...
+                    'Marker', this.Shape_code{Level});
+                E.MarkerFaceColor = E.Color;
+                E.MarkerEdgeColor = E.Color;
+                E.MarkerSize = 15;
+                    E.CapSize = 5;
+                    E.LineWidth = 5;
+                % if Level == L
+                %     E.MarkerSize = 20;
+                %     E.CapSize = 1;
+                %     E.LineWidth = 1;
+                % else
+                %     E.MarkerSize = 15;
+                %     E.CapSize = 5;
+                %     E.LineWidth = 5;
+                % end
+                %drawnow
             end
             Out = Ax;
         end
