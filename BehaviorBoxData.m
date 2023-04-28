@@ -1,5 +1,5 @@
 classdef BehaviorBoxData < handle
-    % 4.16.23
+    % 4.27.23
     %====================================================================
     %Data class
     %This Class stores all the data during training, and analyzes the
@@ -181,7 +181,11 @@ classdef BehaviorBoxData < handle
             dirlist = dir(fullfile(startpath, "**"+filesep+"*.*"));
             dirlist = dirlist([dirlist.isdir]);
             filelist = dir(fullfile(startpath, "**"+filesep+"*.mat"));
-            subfiledir = dirlist(contains({dirlist.name}, this.Sub));
+            if ispc
+                subfiledir = dirlist(contains({dirlist.name}, this.Sub));
+            elseif ismac
+                subfiledir = filelist(contains({dirlist.name}, this.Sub));
+            end
             switch 1
                 %Any files?
                 case any(contains({filelist.name}, this.Sub))
@@ -238,7 +242,8 @@ classdef BehaviorBoxData < handle
                 return
             end
             t1 = datetime("now");
-            aD = this.fds.readall("UseParallel",false);
+            aD = this.fds.readall("UseParallel",true); 
+            %aD = this.fds.readall("UseParallel",false);
             allData = cell(numel(aD),6);
             for i = 1:6
                 allData(:,i) = cellfun(@(x) x{i}, aD, 'UniformOutput', false);
@@ -428,7 +433,7 @@ classdef BehaviorBoxData < handle
                 try
                     [G,Out.DayMM{sc}.Ds,Out.DayMM{sc}.Ls] = findgroups(trialTbl.Date, trialTbl.Level);
                     Out.DayMM{sc}.DayNums = num2cell(findgroups(Out.DayMM{sc}.Ds));
-                    Out.DayMM{sc}.dayBin = splitapply(@(x){this.DayBin(x)}, trialTbl.Score, G);
+                    Out.DayMM{sc}.dayBin = splitapply(@(x){this.DayBin(x)}, [trialTbl.Score trialTbl.Level trialTbl.Date allDates'], G);
                     Out.DayMM{sc} = sortrows(Out.DayMM{sc}, {'Ls'});
                 catch Err
                     Err
@@ -495,7 +500,11 @@ classdef BehaviorBoxData < handle
         function Out = DayBin(this,D)
             %D is trial scores grouped by Level, and by Day
             Out = num2cell(nan(10,1));
-            these = D(D~=2);
+            s = D(:,1);
+            Level = D(1,2);
+            Date = D(1,3);
+            Day = D(1,4);
+            these = s(s~=2);
             try
                 %Binning stuff
                 xid = [0:this.SB:numel(these) numel(these)];
@@ -517,10 +526,13 @@ classdef BehaviorBoxData < handle
                     numel(D);
                     mean(these);
                     std(binned);
-                    D';
+                    s';
                     sMM;
                     xMM;
-                    Cross};
+                    Cross;
+                    Level;
+                    Day;
+                    Date};
             catch
             end
         end
@@ -921,6 +933,7 @@ classdef BehaviorBoxData < handle
             end
             Num = num2cell(1:numel(this.Sub));
             t1 = datetime("now");
+            LevDay = cellfun(@(x){this.PlotLevelGroupsByLevel(Sc=x)}, Num);
             ACell = cellfunp(@(x){this.plotLvByDayOneAxis(Sc=x, LevDay=1)}, Num);
             time = seconds(datetime("now") - t1);
             fprintf("Total time: " + time + " seconds.\n")
@@ -1049,7 +1062,7 @@ classdef BehaviorBoxData < handle
                 end
             end
             if options.LevDay
-                this.PlotLevelGroups("Ax",Ax, "InComposite",1)
+                this.PlotLevelGroupsByDay("Ax",Ax, "InComposite",1)
             end
             Ax.XLimitMethod = "tight";
             Ax.YLimitMethod = "tight";
@@ -1071,7 +1084,7 @@ classdef BehaviorBoxData < handle
                 [TextHandle(:).VerticalAlignment] = deal("bottom");
             end
         end
-        function PlotLevelGroups(this, options)
+        function PlotLevelGroupsByDay(this, options)
             arguments
                 this
                 options.InComposite logical = false
@@ -1141,6 +1154,86 @@ classdef BehaviorBoxData < handle
                     end
                 end
             end
+        end
+        function Out = PlotLevelGroupsByLevel(this, options)
+            arguments
+                this
+                options.Sc
+                options.Text logical = false
+            end
+            Ddat = sortrows(this.AnalyzedData.DayMM{this.sc}, "Ls");
+            Ddat.DayNums=cell2mat(Ddat.DayNums);
+            Ax = MakeAxis();
+            Ax.YLim = [min(Ddat.DayNums)-1 max(Ddat.Ls)];
+            Ax.XLim = [min(Ddat.DayNums)-1 max(Ddat.DayNums)];
+            Ax.Title.String = this.Sub{this.sc}+" Level Performance";
+            xline(min(Ddat.DayNums):1:max(Ddat.DayNums), '-', 'Color',[0.7 0.7 0.7])
+            %Ax.YTick = -1:0.25:0;
+            %Ax.YTickLabel = string(0:25:100)+"%";
+            %Ax.YMinorTick = "on";
+            %Ax.YGrid = 1;
+            %Ax.YMinorGrid = 1;
+            hold(Ax, "on")
+            %splitapply(@(x)plotLv(x), Ddat.dayBin, findgroups(Ddat.Ls))
+            for L = unique(Ddat.Ls')
+                %clear x y Ctxt Atxt Ntxt cross CROSS num NUM AVG avg
+                wL = Ddat.Ls==L;
+                Ld = Ddat.dayBin(wL);
+                for d = Ddat.DayNums(wL)
+                end
+                numel(days)
+                cellfun(@(x)x{12}, Ld, "UniformOutput",false)
+                %Xrange = normalize([0 dIdx dIdx(end)+1], "range");
+                %Xrange = Xrange(2:end-1);
+                NUM = cellfun(@(x)x{4} ,Ld, "UniformOutput", true)';
+                AVG = cellfun(@(x)x{5} ,Ld, "UniformOutput", true)';
+                STD = cellfun(@(x)x{6} ,Ld, "UniformOutput", true)';
+                try
+                    CROSS = cellfun(@(x)x(10) ,Ld, "UniformOutput", true, "ErrorHandler", @errorFuncZeroCell)';
+                catch err
+                    err;
+                end
+                x = (L-1)+Xrange;
+                y = AVG-1;
+                for L = [x; y; STD; dIdx]
+                    E = errorbar(L(1), L(2), L(3), ...
+                        'LineStyle','none', ...
+                        'Marker', this.Shape_code{L(4)}, ...
+                        'SeriesIndex',L(4));
+                    E.MarkerFaceColor = E.Color;
+                    E.CapSize = 1;
+                end
+                if options.Text
+                    avg = string(round(100*AVG,1));
+                    Atxt = text(x, y, avg); FMTtext(Atxt);
+                    num = string(NUM);
+                    y = -ones(size(x))+0.1;
+                    Ntxt = text(x, y, num); FMTtext(Ntxt);
+                    if ~isempty(cell2mat(CROSS))
+                        NE = ~cellfun(@isempty,CROSS);
+                        x = x(NE); CROSS = CROSS(NE);
+                        cross = string(cell2mat(CROSS));
+                        y = -ones(size(x))+0.2;
+                        try
+                            Ctxt = text(x, y, cross); FMTtext(Ctxt);
+                        catch err
+                            err;
+                        end
+                    end
+                end
+            end
+
+
+            parfor L = unique(Ddat.Ls)'
+                wL = Ddat.Ls==L;
+                Ld = Ddat.Ls(wL);
+                dIdx = Ddat.DayNums(wL)';
+            end
+            
+            function plotLv(In)
+
+            end
+            Out = Ax;
         end
         function t = PlotWeightAndWater(this, options)
             arguments
