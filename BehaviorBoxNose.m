@@ -303,6 +303,7 @@ classdef BehaviorBoxNose < handle
                 case 3 %Three Pokes
                     tic
                     a = arduino(comsnum,'Uno','Libraries',{}, 'ForceBuildOn',true);
+                    toc
                     this.Box.ardunioReadDigital = 1;
                     this.Box.readHigh = 0;
                     %Set up box structure
@@ -312,6 +313,7 @@ classdef BehaviorBoxNose < handle
                     this.Box.ValveL = 'D6';
                     this.Box.ValveR = 'D8';
                     this.Box.AirPuff  = 'D11';
+                    %this.Box.readL = @(x)this.a.read
                     configurePin(a, "D2", "Unset");
                     configurePin(a, "D3", "Unset");
                     configurePin(a, "D4", "Unset");
@@ -332,7 +334,6 @@ classdef BehaviorBoxNose < handle
                     configurePin(a, "D5", "DigitalInput");
                     configurePin(a, "D6", "DigitalOutput");
                     configurePin(a, "D8", "DigitalOutput");
-                    toc
                 case 5 %Lick ports
                     this.Box.ardunioReadDigital = 1;
                 case 6 %Rotating Wheel
