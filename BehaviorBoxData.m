@@ -177,15 +177,10 @@ classdef BehaviorBoxData < handle
         function [subfiledir, fds] = GetFiles(this)
             fds = [];
             %Do an initial search for this mouse
-            startpath = join([getFilePath() this.Inv this.Inp], filesep);
-            dirlist = dir(fullfile(startpath, "**"+filesep+"*.*"));
+            startpath = fullfile(getFilePath(), this.Inv,this.Inp);
+            dirlist = dir(startpath);
             dirlist = dirlist([dirlist.isdir]);
-            filelist = dir(fullfile(startpath, "**"+filesep+"*.mat"));
-            if ispc
-                subfiledir = dirlist(contains({dirlist.name}, this.Sub));
-            elseif ismac
-                subfiledir = filelist(contains({dirlist.name}, this.Sub));
-            end
+            filelist = dir(fullfile(startpath, '**','*.*'));
             switch 1
                 %Any files?
                 case any(contains({filelist.name}, this.Sub))
@@ -242,8 +237,11 @@ classdef BehaviorBoxData < handle
                 return
             end
             t1 = datetime("now");
-            aD = this.fds.readall("UseParallel",true); 
-            %aD = this.fds.readall("UseParallel",false);
+            if ispc
+                aD = this.fds.readall("UseParallel",false);
+            elseif ismac
+                aD = this.fds.readall("UseParallel",true); 
+            end
             allData = cell(numel(aD),6);
             for i = 1:6
                 allData(:,i) = cellfun(@(x) x{i}, aD, 'UniformOutput', false);
@@ -519,7 +517,7 @@ classdef BehaviorBoxData < handle
                 %Moving mean Stuff
                 sMM = movmean( [0.5 ; these], [this.SB-1 0], 'Endpoints', 'shrink')';
                 xMM = normalize(1:numel(sMM),'range');
-                Cross = find( [sMM>=0.8], 1, 'first');
+                Cross = find( sMM>=0.8, 1, 'first');
                 Out = {binned;
                     x;
                     txt;
@@ -926,6 +924,8 @@ classdef BehaviorBoxData < handle
                 unwrapErr(err)
             end
         end
+        
+%For Group Plotting:
         function GroupData(this, options)
             arguments
                 this
@@ -1160,46 +1160,49 @@ classdef BehaviorBoxData < handle
                 this
                 options.Sc
                 options.Text logical = false
+                options.Ani logical = false
             end
+            this.sc = options.Sc;
             Ddat = sortrows(this.AnalyzedData.DayMM{this.sc}, "Ls");
             Ddat.DayNums=cell2mat(Ddat.DayNums);
-            Ax = MakeAxis();
+            % try
+            %     f = findobj('Type', 'figure');
+            %     Ax = f.Children.findobj('Type', 'Axes');
+            %     clo(Ax)
+            % catch
+            %     Ax = MakeAxis();
+            % end
             %Ax.YLim = [min(Ddat.DayNums)-1 1];
             %Ax.XLim = [min(Ddat.DayNums)-1 max(Ddat.DayNums)];
-            Ax.Title.String = this.Sub{this.sc}+" Level Performance";
-            xline(1.5:2:2*max(Ddat.DayNums), '-', 'Color',[0.7 0.7 0.7])
-            yline(findgroups(Ddat.DayNums), '-', 'Color',[0.7 0.7 0.7])
-            %Ax.YTick = -1:0.25:0;
-            %Ax.YTickLabel = string(0:25:100)+"%";
-            %Ax.YMinorTick = "on";
-            %Ax.YGrid = 1;
-            %Ax.YMinorGrid = 1;
-            hold(Ax, "on")
-            %splitapply(@(x)plotLv(x), Ddat.dayBin, findgroups(Ddat.Ls))
-            for L = 1
-                Ax.YLim = [0 L];
-                %clear x y Ctxt Atxt Ntxt cross CROSS num NUM AVG avg
+            %yline(findgroups(Ddat.DayNums), '-', 'Color',[0.7 0.7 0.7])
+            for L = unique(Ddat.Ls)'
+                Ax = MakeAxis(); hold(Ax, "on")
+                Ax.Title.String = this.Sub{this.sc}+" Level "+L+" Performance";
+                xline(0:1:max(Ddat.DayNums), '-', 'Color',[0.7 0.7 0.7])
+                yline(findgroups(Ddat.DayNums)-0.2, ':', 'Color',[0.5 0.5 0.5]) ; if options.Ani; drawnow; end
+                Ax.YLim = [L-.57 L+0.03];
                 wL = Ddat.Ls==L;
                 Ld = Ddat.dayBin;
                 for d = [Ddat.DayNums(wL)' ; findgroups(Ddat.DayNums(wL)')]
-                    xOff = 2*(d(2)-1);
+                    clear x Xrange y NUM AVG STD LevIdx tDAT DAT
+                    xOff = (d(2)-1);
                     yOff = L-1;
-                    Ax.XLim = [0 2*d(2) ]; drawnow
+                    Ax.XLim = [-0.5 d(2) ]; if options.Ani; drawnow; end
                     wD = Ddat.DayNums==d(1);
                     try
                         LevIdx = cellfun(@(x)x{11} ,Ld(wD), "UniformOutput", true, "ErrorHandler", @errorFuncNaN)';
+                        AVG = cellfun(@(x)x{5}+yOff ,Ld(wD), "UniformOutput", true)';
+                        NUM = cellfun(@(x)x{4} ,Ld(wD), "UniformOutput", true)';
+                        STD = cellfun(@(x)x{6} ,Ld(wD), "UniformOutput", true)';
                     catch err
                         err;
                     end
                     if numel(LevIdx)>1
                         1;
                     end
-                    Xrange = normalize([0 LevIdx LevIdx(end)+1], "range");
-                    Xrange = Xrange(2:end-1);
+                    Xrange = normalize([LevIdx max(LevIdx)+1], "range");
+                    Xrange = Xrange(1:end-1);
                     x = xOff+Xrange;
-                    AVG = cellfun(@(x)x{5}+yOff ,Ld(wD), "UniformOutput", true)';
-                    NUM = cellfun(@(x)x{4} ,Ld(wD), "UniformOutput", true)';
-                    STD = cellfun(@(x)x{6} ,Ld(wD), "UniformOutput", true)';
                     try
                         tDAT = [x ; AVG ; STD ; LevIdx];
                         tDAT(:, isnan(LevIdx) ) = [];
@@ -1209,56 +1212,62 @@ classdef BehaviorBoxData < handle
                     end
                     Plots = cellfun(@(x){plotLv(x)}, DAT);
                 end
-                if options.Text
-                    avg = string(round(100*AVG,1));
-                    Atxt = text(x, y, avg); FMTtext(Atxt);
-                    num = string(NUM);
-                    y = -ones(size(x))+0.1;
-                    Ntxt = text(x, y, num); FMTtext(Ntxt);
-                    if ~isempty(cell2mat(CROSS))
-                        NE = ~cellfun(@isempty,CROSS);
-                        x = x(NE); CROSS = CROSS(NE);
-                        cross = string(cell2mat(CROSS));
-                        y = -ones(size(x))+0.2;
-                        try
-                            Ctxt = text(x, y, cross); FMTtext(Ctxt);
-                        catch err
-                            err;
-                        end
-                    end
-                end
+                %if options.Ani; drawnow; end
+                a = 1;
+                % if options.Text
+                %     avg = string(round(100*AVG,1));
+                %     Atxt = text(x, y, avg); FMTtext(Atxt);
+                %     num = string(NUM);
+                %     y = -ones(size(x))+0.1;
+                %     Ntxt = text(x, y, num); FMTtext(Ntxt);
+                %     if ~isempty(cell2mat(CROSS))
+                %         NE = ~cellfun(@isempty,CROSS);
+                %         x = x(NE); CROSS = CROSS(NE);
+                %         cross = string(cell2mat(CROSS));
+                %         y = -ones(size(x))+0.2;
+                %         try
+                %             Ctxt = text(x, y, cross); FMTtext(Ctxt);
+                %         catch err
+                %             err;
+                %         end
+                %     end
+                % end
+            this.filedir = fullfile(pwd, this.Sub{this.sc}, 'LevelGroups', "SinceLev"+L+"Grouped");
+                title = "SinceLev"+L+"Grouped";
+            this.SaveManyFigures(Ax.Parent.Parent,this.filedir+".pdf", Columns=max(Ddat.DayNums) , Rows=1 )
+            pause(1)
             end
-            parfor L = unique(Ddat.Ls)'
-                wL = Ddat.Ls==L;
-                Ld = Ddat.Ls(wL);
-                dIdx = Ddat.DayNums(wL)';
-            end
+            if options.Ani; drawnow; end
+            Out = Ax;
             
+
+
+
             function E = plotLv(In)
                 xR = In(1);
                 yL = In(2);
                 std = In(3);
                 Level = In(4);
                 E = errorbar(xR, yL, std,'Parent',Ax, ...
-                    'SeriesIndex', Level, ...
-                    'Marker', this.Shape_code{Level});
-                E.MarkerFaceColor = E.Color;
-                E.MarkerEdgeColor = E.Color;
-                E.MarkerSize = 15;
-                    E.CapSize = 5;
+                    'SeriesIndex', Level);
+                S = scatter(xR, yL, 'filled', ...
+                    'Marker', this.Shape_code{Level}, ...
+                    'Parent',Ax, ...
+                    'SeriesIndex', Level);
+                %S.MarkerFaceColor = E.Color;
+                %S.MarkerEdgeColor = E.Color;
+                if Level == L
+                    S.SizeData = 200;
+                    S.AlphaData = 0.7;
+                    E.CapSize = 0;
                     E.LineWidth = 5;
-                % if Level == L
-                %     E.MarkerSize = 20;
-                %     E.CapSize = 1;
-                %     E.LineWidth = 1;
-                % else
-                %     E.MarkerSize = 15;
-                %     E.CapSize = 5;
-                %     E.LineWidth = 5;
-                % end
+                else
+                    S.SizeData = 75;
+                    E.CapSize = 2;
+                    E.LineWidth = 4;
+                end
                 %drawnow
             end
-            Out = Ax;
         end
         function t = PlotWeightAndWater(this, options)
             arguments
@@ -1933,7 +1942,8 @@ classdef BehaviorBoxData < handle
             end
             FigProps = this.getFigProps(fig, options);
             if numel(this.Sub)>1
-                SaveAsName = join([this.filedir , filename], filesep);
+                %SaveAsName = fullfile(join([this.filedir , filename], filesep));
+                SaveAsName = filename;
             else
                 tree = split(this.filedir, filesep);
                 parent = cell2mat(join([tree{1:end-1}, {'AllTime'}], filesep));
@@ -1944,10 +1954,18 @@ classdef BehaviorBoxData < handle
                 end
             end
             if ispc
-                print(fig, SaveAsName, '-dpdf', ...
+                try
+                print(FigProps, SaveAsName, '-dpdf', ...
                     '-vector', ...
                     '-fillpage')
-                winopen(SaveAsName)
+                catch
+                    tree=split(SaveAsName, filesep);
+                    mkdir(fullfile(tree{1:end-1}))
+                    print(fig, SaveAsName, '-dpdf', ...
+                    '-vector', ...
+                    '-fillpage')
+                end
+                %winopen(SaveAsName)
                 close(fig)
             else
                 print(fig, filename, '-dpdf', ...
@@ -1956,7 +1974,6 @@ classdef BehaviorBoxData < handle
                 fig.Visible = 1;
             end
         end
-        
         function [g, groups] = inspectAllSettings(allData)
             x = cellfun(@(x) x.Settings, allData(:,3), 'UniformOutput', false); %get all the settings in a cell
             y = cellfun(@(x) x{:}, x, 'UniformOutput', false); %get the settings
@@ -2012,14 +2029,14 @@ classdef BehaviorBoxData < handle
             Out = addvars(Tbl, TotalTrialNum, 'After','LvlTrialNum');
             Out.TotalTrialNum = (1:numel(Tbl.Level))';
         end
-        function [FigProps] = getFigProps(fig, options)
+        function [chosen_figure] = getFigProps(fig, options)
             chosen_figure=fig;
             figure_property = struct; %Reset export Settings:
             FigProps = struct;
             figure_property.units = 'inches';
             figure_property.format = 'pdf';
             figure_property.Preview= 'none';
-            figure_property.Width= num2str(2*options.Columns); % Figure width on canvas
+            figure_property.Width= num2str(options.Columns); % Figure width on canvas
             figure_property.Height= num2str(4*options.Rows); % Figure height on canvas
             figure_property.Units= 'inches';
             figure_property.Color= 'rgb';
@@ -2048,7 +2065,7 @@ classdef BehaviorBoxData < handle
             figure_property.SeparateText= 'off';
             set(chosen_figure,'PaperUnits','inches');
             set(chosen_figure,'PaperPositionMode','auto');
-            set(chosen_figure,'PaperOrientation','landscape');
+            %set(chosen_figure,'PaperOrientation','landscape');
             set(chosen_figure,'PaperSize',[str2double(figure_property.Width) str2double(figure_property.Height)]); % Canvas Size
             set(chosen_figure,'Units','inches');
             FigProps = figure_property;
@@ -2064,6 +2081,7 @@ if isempty(options.Ax)
     f = figure;
     t = tiledlayout('flow','TileSpacing','none', 'Padding','tight', 'Parent',f);
     Ax = nexttile(t);
+    f.Visible = 0;
 else
     Ax = options.Ax;
 end
@@ -2074,9 +2092,9 @@ function [filepath] = getFilePath
 filepath = string;
 switch 1
     case ispc
-        filepath = "D:\Dropbox (Dropbox @RU)\Gilbert Lab\BehaviorBoxData\Data";
+        filepath = 'D:\Dropbox (Dropbox @RU)\Gilbert Lab\BehaviorBoxData\Data\';
     case ismac
-        filepath = "/Users/willsnyder/Dropbox (Dropbox @RU)/Gilbert Lab/BehaviorBoxData/Data";
+        filepath = '/Users/willsnyder/Dropbox (Dropbox @RU)/Gilbert Lab/BehaviorBoxData/Data/';
 end
 end
 function setGUI(Data, GUINums)

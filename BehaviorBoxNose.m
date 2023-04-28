@@ -224,6 +224,7 @@ classdef BehaviorBoxNose < handle
         end
         %set up all variables
         function SetUpHardware(this)
+    %PHASE OUT
             if ismac || this.Box.Input_type == 8 %Keyboard input, no arduino
                 fprintf('Using keyboard input with no arduino...')
             else
@@ -262,14 +263,46 @@ classdef BehaviorBoxNose < handle
             this.ConfigureArduino(); %set up configuration of levers
         end
         %set hardware (arduino) parameters
+        function connectArduino(this, COMSnum)
+            try
+                switch nargin
+                    case 1
+                        COMSnum = num2str(this.app.edit22.Value);
+                end
+                if ispc
+                    comsnum = ['COM' COMSnum];
+                elseif ismac
+                    return
+                    comsnum = COMSnum;
+                end
+                a = arduino(comsnum,'Uno','Libraries',{'I2C' 'Servo' 'SPI','RotaryEncoder'});
+                configurePin(a, 'D2', 'Unset')
+                configurePin(a, 'D3', 'Unset')
+                assignin("base", "a", a)
+                this.app.text1.Text = ['Arduino at COM' COMSnum ' claimed and copied into base workspace.' ];
+                fprintf('Arduino at COM%s claimed and copied into base workspace.\n', COMSnum)
+            catch
+                fprintf('Check the USB connection.\n')
+            end
+        end
         function ConfigureArduino(this)
+% https://docs.arduino.cc/learn/microcontrollers/digital-pins
+            if this.Setting_Struct.Box_Input_type == 8 %Skip all this if keyboard mode
+                return
+            end
+            comsnum = "COM"+this.app.edit22.Value;
             this.Box.use_ball = 0; %All these are automatically off
             this.Box.use_wheel = 0;
             this.Box.ardunioReadDigital = 0;
             this.Box.KeyboardInput = 0;
-            this.Box.readHigh = 0;
+            this.Box.readHigh = 0; % When unselected, NosePoke reads HIGH, when selected it reads LOW
+            %set which lever is what and what the input setup is from
+            this.Box.ResetPin        = 'D4';
+            this.Box.TriggerPin      = 'D5';
             switch this.Setting_Struct.Box_Input_type
                 case 3 %Three Pokes
+                    tic
+                    a = arduino(comsnum,'Uno','Libraries',{}, 'ForceBuildOn',true);
                     this.Box.ardunioReadDigital = 1;
                     this.Box.readHigh = 0;
                     %Set up box structure
@@ -279,23 +312,52 @@ classdef BehaviorBoxNose < handle
                     this.Box.ValveL = 'D6';
                     this.Box.ValveR = 'D8';
                     this.Box.AirPuff  = 'D11';
+                    configurePin(a, "D2", "Unset");
+                    configurePin(a, "D3", "Unset");
+                    configurePin(a, "D4", "Unset");
+                    configurePin(a, "D5", "Unset");
+                    configurePin(a, "D6", "Unset");
+                    configurePin(a, "D7", "Unset");
+                    configurePin(a, "D8", "Unset");
+                    if this.Box.readHigh %Voltage goes HIGH on choice
+                        configurePin(a, "D2", "DigitalInput");
+                        configurePin(a, "D3", "DigitalInput");
+                        configurePin(a, "D7", "DigitalInput");
+                    else %Voltage goes LOW on choice
+                        configurePin(a, "D2", "Pullup");
+                        configurePin(a, "D3", "Pullup");
+                        configurePin(a, "D7", "Pullup");
+                    end
+                    configurePin(a, "D4", "DigitalInput");
+                    configurePin(a, "D5", "DigitalInput");
+                    configurePin(a, "D6", "DigitalOutput");
+                    configurePin(a, "D8", "DigitalOutput");
+                    toc
                 case 5 %Lick ports
                     this.Box.ardunioReadDigital = 1;
                 case 6 %Rotating Wheel
+                    tic
+                    a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'}, 'ForceBuildOn',true);
+                    configurePin(a, "D2", "Unset");
+                    configurePin(a, "D3", "Unset");
+                    configurePin(a, "D4", "Unset");
+                    configurePin(a, "D5", "Unset");
+                    configurePin(a, "D6", "Unset");
+                    configurePin(a, "D7", "Unset");
+                    configurePin(a, "D8", "Unset");
                     this.Box.encoder = rotaryEncoder(this.a,'D2','D3', 1024);
+                    configurePin(a, "D2", "Interrupt");
+                    configurePin(a, "D3", "Interrupt");
                     this.Box.Reward =  'D6';
+                    configurePin(a, "D6", "DigitalOutput");
                     this.Box.use_wheel = 1;
+                    toc
                 case 8 %Keyboard, used if no arduino connected
                     this.Box.KeyboardInput = 1;
                     this.Box.readHigh = 1;
                     return
             end
-            if this.Setting_Struct.Box_Input_type == 8 %Skip all this if keyboard mode
-                return
-            end
-            %set which lever is what and what the input setup is from
-            this.Box.ResetPin        = 'D4';
-            this.Box.TriggerPin      = 'D5';
+            this.a = a;
         end
         %Prepare the window and stimulus
         function SetupBeforeLoop(this)
