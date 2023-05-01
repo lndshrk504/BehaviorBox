@@ -263,17 +263,20 @@ classdef BehaviorBoxNose < handle
             this.ConfigureArduino(); %set up configuration of levers
         end
         %set hardware (arduino) parameters
-        function connectArduino(this, COMSnum)
+        function connectArduino(this, options)
+            arguments
+                this
+                options.COMSnum
+                options.Rebuild logical = false
+            end
+            if isempty(options.COMSnum)
+                options.COMSnum = num2str(this.app.edit22.Value);
+            end
             try
-                switch nargin
-                    case 1
-                        COMSnum = num2str(this.app.edit22.Value);
-                end
                 if ispc
                     comsnum = ['COM' COMSnum];
                 elseif ismac
                     return
-                    comsnum = COMSnum;
                 end
                 a = arduino(comsnum,'Uno','Libraries',{'I2C' 'Servo' 'SPI','RotaryEncoder'});
                 configurePin(a, 'D2', 'Unset')
@@ -285,7 +288,11 @@ classdef BehaviorBoxNose < handle
                 fprintf('Check the USB connection.\n')
             end
         end
-        function ConfigureArduino(this)
+        function ConfigureArduino(this, options)
+            arguments
+                this
+                options.Rebuild logical = false
+            end
 % https://docs.arduino.cc/learn/microcontrollers/digital-pins
             if this.Setting_Struct.Box_Input_type == 8 %Skip all this if keyboard mode
                 return
@@ -301,9 +308,18 @@ classdef BehaviorBoxNose < handle
             this.Box.TriggerPin      = 'D5';
             switch this.Setting_Struct.Box_Input_type
                 case 3 %Three Pokes
-                    tic
-                    a = arduino(comsnum,'Uno','Libraries',{}, 'ForceBuildOn',true);
-                    toc
+                    if options.Rebuild
+                        tic
+                        try
+                            this.a = [];
+                        end
+                        a = arduino(comsnum,'Uno','Libraries',{}, 'ForceBuildOn',true);
+                        toc
+                    else
+                        if ~this.Buttons.ResetAll.Value
+                            a = arduino(comsnum,'Uno','Libraries',{});
+                        end
+                    end
                     this.Box.ardunioReadDigital = 1;
                     this.Box.readHigh = 0;
                     %Set up box structure
@@ -313,7 +329,13 @@ classdef BehaviorBoxNose < handle
                     this.Box.ValveL = 'D6';
                     this.Box.ValveR = 'D8';
                     this.Box.AirPuff  = 'D11';
-                    %this.Box.readL = @(x)this.a.read
+                    this.Box.readPin = @(x)this.a.readDigitalPin(x)==this.Box.readHigh;
+                    this.Box.readL = this.Box.readPin(this.Box.Left);
+                    this.Box.readR = this.Box.readPin(this.Box.Right);
+                    this.Box.readM = this.Box.readPin(this.Box.Middle);
+                    %Check these... not correct
+                    %this.Box.rewardL = @(x,y){this.a.writeDigitalPin(x, 1); pause(y); this.a.writeDigitalPin(x, 0)};
+                    %this.Box.rewardR = @(x){this.a.writeDigitalPin(this.Box.ValveR, 1); pause(this.Box.Rrewardtime); this.a.writeDigitalPin(this.Box.ValveR, 0); drawnow;};
                     configurePin(a, "D2", "Unset");
                     configurePin(a, "D3", "Unset");
                     configurePin(a, "D4", "Unset");
@@ -338,7 +360,11 @@ classdef BehaviorBoxNose < handle
                     this.Box.ardunioReadDigital = 1;
                 case 6 %Rotating Wheel
                     tic
-                    a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'}, 'ForceBuildOn',true);
+                    if options.Rebuild
+                        a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'}, 'ForceBuildOn',true);
+                    else
+                        a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'});
+                    end
                     configurePin(a, "D2", "Unset");
                     configurePin(a, "D3", "Unset");
                     configurePin(a, "D4", "Unset");
@@ -350,6 +376,8 @@ classdef BehaviorBoxNose < handle
                     configurePin(a, "D2", "Interrupt");
                     configurePin(a, "D3", "Interrupt");
                     this.Box.Reward =  'D6';
+                    configurePin(a, "D4", "DigitalInput");
+                    configurePin(a, "D5", "DigitalInput");
                     configurePin(a, "D6", "DigitalOutput");
                     this.Box.use_wheel = 1;
                     toc
