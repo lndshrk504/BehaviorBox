@@ -50,6 +50,7 @@ try
         t.newData.SetIdx = ones(size(t.newData.Score));
     end
     data{3} = t.newData; %Get newData
+% Add code to check stimulus for Decoy correct answers?
 catch err
     disp("stop")
     disp("stop")

@@ -1436,20 +1436,16 @@ classdef BehaviorBoxNose < handle
             set(this.message_handle,'Text','Did the sensors work?');
         end
         function TestStimulus(this)
-            this.Stimulus_Object = BehaviorBoxVisualStimulus(this.StimulusStruct);
-            if ~isempty(this.fig) & isvalid(this.fig)
-                [this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.Stimulus_Object.findfigs();
+            this.Stimulus_Object = BehaviorBoxVisualStimulus(this.StimulusStruct, Preview=1);
+            try
                 [~,~] = this.Stimulus_Object.DisplayOnScreen(this.PickSideForCorrect(0, 0), this.Setting_Struct.Starting_opacity); %Plot new stimulus as hidden objects, record positions and angles of the segments
-            else
-                [this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.Stimulus_Object.setUpFigure();
+            catch
+                [this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.Stimulus_Object.setUpFigure(); drawnow
                 [~,~] = this.Stimulus_Object.DisplayOnScreen(this.PickSideForCorrect(0, 0), this.Setting_Struct.Starting_opacity); %Plot new stimulus as hidden objects, record positions and angles of the segments
             end
-            [this.fig.findobj('Type','Line').Visible] = deal(0);
-            pause(0.25)
             this.Flash(this.StimulusStruct, findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
         end
     end
-    
     %STATIC FUNCTIONS====
     methods(Static = true)
         function Types = GetType(App, Props)
