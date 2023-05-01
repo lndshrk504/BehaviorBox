@@ -177,19 +177,21 @@ classdef BehaviorBoxData < handle
         function [subfiledir, fds] = GetFiles(this)
             fds = [];
             %Do an initial search for this mouse
-            startpath = fullfile(getFilePath(), this.Inv,this.Inp);
+            startpath = fullfile(getFilePath(), this.Inv,this.Inp, '*', '*');
             dirlist = dir(startpath);
-            dirlist = dirlist([dirlist.isdir]);
-            filelist = dir(fullfile(startpath, '**','*.*'));
+            dirlist = dirlist([dirlist.isdir] & ~contains({dirlist.name}, {'.', 'settings', 'alltime'}, "IgnoreCase",true));
+            filelist = dir(fullfile(startpath, '**','*.mat'));
             switch 1
                 %Any files?
                 case any(contains({filelist.name}, this.Sub))
                     [subfiledir, fds] = makefiles(startpath);
                     %Any folders but no files?
-                case any(contains({dirlist.name}, this.Sub))
+                case any(contains({dirlist.name}, this.Sub)) && sum(contains({dirlist.name}, this.Sub)) == 1
                     dirlist = dirlist(contains({dirlist.name}, this.Sub));
                     newpath = dirlist.folder;
-                    subfiledir = newpath; %Leave fds empty
+                    tree = split(dirlist.folder, filesep);
+                    this.Str = tree{end};
+                    subfiledir = fullfile(newpath, this.Sub{:}); %Leave fds empty
                 otherwise
                     if ~isempty(this.Str)
                         newpath = join([startpath this.Str this.Sub], filesep);
