@@ -244,7 +244,8 @@ classdef BehaviorBoxVisualStimulus
             set(this.fig,'OuterPosition',this.figpos); %move window here, also determines size
         end
         function [Dist] = plotDistractors2(this, LeftStim, isCorrect, numDistractors)
-            tic
+            %tic
+
             % SANTI 10-1-2020
             if isCorrect
                 tag = 'Correct';
@@ -306,7 +307,7 @@ classdef BehaviorBoxVisualStimulus
             else
                 Dist = [selectedNodes selectedAngle];
             end
-            toc
+            %toc
         end
     end
 end
@@ -335,7 +336,8 @@ view(-this.Orient,90)
 set(this.fig,'OuterPosition',this.figpos); %move window here, also determines size
 end
 function [Dist] = plotDistractors2(this, LeftStim, isCorrect, numDistractors)
-tic
+%tic
+
 % SANTI 10-1-2020
 if isCorrect
     tag = 'Correct';
@@ -397,7 +399,7 @@ if isCorrect
 else
     Dist = [selectedNodes selectedAngle];
 end
-toc
+%toc
 end
 function getRect(this, ax)
 rectangle('Parent', ax, ...
