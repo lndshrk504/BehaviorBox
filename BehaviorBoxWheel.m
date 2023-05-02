@@ -109,12 +109,14 @@ classdef BehaviorBoxWheel < handle
         function RunTrials(this)
             try
                 delete(findobj("Type", "figure", "Name", "Graphs"))
-                this.SetUpHardware(); %Set up arduino, make sounds if used
+                %this.SetUpHardware(); %Set up arduino, make sounds if used
                 this.DoLoop(); %the actual loop
             catch err
                 this.unwrapError(err)
                 this.cleanUP();
             end
+            this.GuiHandles.MsgBox.String = fileread(this.textdiary);
+            diary off
         end
         %MEMBER FUNCTIONS====
         %Run the loop
@@ -147,145 +149,176 @@ classdef BehaviorBoxWheel < handle
         end
         %get the GUI settings for the experiment
         function getGUI(this)
-            tempSetting_Struct = struct();
-            %Get handles to GUI figure, the buttons, axes, message line:
-            this.stop_handle = this.GuiHandles.Stop; %Buttons
-            this.Skip = this.GuiHandles.Skip;
-            this.FF = this.GuiHandles.FastForward;
-            this.Pause = this.GuiHandles.Pause;
-            this.message_handle = this.GuiHandles.text1;
+            % %Get handles to GUI figure, the buttons, axes, message line:
+            % this.timers.betweenTrialsRecord = []; %Set up timers structure
+            % this.timers.TrialStartTimeRecord = [];
+            % this.timers.response_timeRecord = [];
+            % this.timers.drinkDwellTimeRecord = [];
+            this.stop_handle = this.app.stop; %Buttons
+            this.Skip = this.app.skip;
+            this.FF = this.app.ff;
+            this.Pause = this.app.pause;
+            this.message_handle = this.app.text1;
             this.GUI_numbers.trial_no = 0; %GUI Numbers and their handles on the figure
             this.GUI_numbers.choices = 0;
             this.GUI_numbers.difficulty = 0;
-            this.GUI_numbers.rewards = 0;
-            this.GUI_numbers.left = 0;
-            this.GUI_numbers.right = 0;
-            this.GUI_numbers.total_correct = 0;
             this.GUI_numbers.time = 0;
             this.GUI_numbers.handle.trial_no = this.app.text16; %Every input must be a string, not a number
             this.GUI_numbers.handle.choices = this.app.text19;
             this.GUI_numbers.handle.difficulty = this.app.text17;
-            this.GUI_numbers.handle.rewards = this.app.text25;
-            this.GUI_numbers.handle.left = this.app.text28;
-            this.GUI_numbers.handle.right = this.app.text26;
-            this.GUI_numbers.handle.total_correct = this.app.text30;
             this.GUI_numbers.handle.time = this.app.text3;
-            this.timers.betweenTrialsRecord = []; %Set up timers structure
-            this.timers.TrialStartTimeRecord = [];
-            this.timers.response_timeRecord = [];
-            this.timers.drinkDwellTimeRecord = [];
-            skiptypes = {'buttongroup', 'figure', 'label', 'panel', 'annotationpane', 'axes', 'tab', 'uigridlayout'};
             props = properties(this.app); %Get all names
             props(props == "MsgBox") = [];
-            types = cellfun(@(x) this.app.(x).Type, props, 'UniformOutput', false); %Get their types
-            props = props(~contains(types, skiptypes));
-            types = types(~contains(types, skiptypes));
+            props(props == "TextArea2") = [];
+            skiptypes = {'buttongroup', 'figure', 'label', 'panel', 'annotationpane', 'axes', 'tab', 'uigridlayout'};
+            types = GetType(this.app, props); %cellfun(@(x) this.app.(x).Type, props, 'UniformOutput', false); %Get their types
+            props = props(~contains(types, skiptypes, "IgnoreCase",true));
+            types = GetType(this.app, props);
+            %Make Button structure
             buttons = props(contains(types, {'button'}));
-            for b = buttons'
-                x = b{:};
-                this.Buttons.(this.app.(x).Tag) = this.app.(x);
-            end
-            this.appProps = props(~contains(types, 'button'))';
-            this.appPropsTypes = types(~contains(types, 'button'))';
-            this.appPropsTypes(contains(this.appProps, 'TextArea2')) = []; %Do not update the Notes box with settings
-            this.appProps(contains(this.appProps, 'TextArea2')) = []; %Do not update the Notes box with settings
-            for p = this.appProps
-                x = p{:};
-                tag = this.app.(x).Tag;
-                try
-                    temp_val = str2double(this.app.(x).Value);
-                    if isnan(temp_val)
-                        temp_val = Settings.(x);
-                    end
-                    tempSetting_Struct.(tag) = temp_val;
-                catch
-                    try
-                        tempSetting_Struct.(tag) = this.app.(x).Value;
-                    catch % Fails if there is no Tag value
-                        fprintf("Failed at: "+x+", "+tag+", "+this.app.(x).Value+"\n")
-                    end
-                end
-            end
-            this.dropdowns = this.appProps(contains(this.appPropsTypes, {'dropdown'}));
-            for d = this.dropdowns
-                x = d{:};
-                tag = this.app.(x).Tag;
-                tempSetting_Struct.(tag) = find(matches(this.app.(x).Items, this.app.(x).Value));
-            end
-            %this.Setting_Struct = tempSetting_Struct;
+            bTags = GetTag(this.app, buttons);
+            this.Buttons = cell2struct(cellfun(@(x)(this.app.(x)), buttons, 'UniformOutput',false), bTags);
+            props = props(~contains(types, {'button'})); types = GetType(this.app, props);
+            this.appProps = props;
+            this.appPropsTypes = types;
+            Dropdowns = props(contains(types, {'dropdown'}));
+            dTags = GetTag(this.app, Dropdowns);
+            DropVals = cellfun(@(x)find(matches(this.app.(x).Items, this.app.(x).Value)), Dropdowns, 'UniformOutput',false);
+            this.dropdowns = cell2struct(DropVals, dTags);
+            props = props(~contains(types, {'dropdown'})); types = GetType(this.app, props);
+            tempVal = cell(size(props));
+            CIdx = contains(types, {'check'});
+            Checkboxes = props(CIdx);
+            cVals = cellfun(@(x)logical(this.app.(x).Value), Checkboxes, 'UniformOutput',false);
+            tempVal(CIdx) = cVals;
+            pTags = GetTag(this.app, props);
+            tempVal(~CIdx) = cellfun(@(x)str2double(this.app.(x).Value), props(~CIdx), 'UniformOutput',false);
+            ReDo = cellfun(@isnan, tempVal, 'UniformOutput',true);
+            tempVal(ReDo) = cellfun(@(x)(this.app.(x).Value), props(ReDo), 'UniformOutput',false);
+            tempSetting_Struct = cell2struct(tempVal, pTags);
+            tempSetting_Struct = appendStruct(tempSetting_Struct, this.dropdowns);
             this.makeTrialStructures(tempSetting_Struct)
             this.Setting_Struct = tempSetting_Struct;
             %Get the settings label from the setting structure, to label the data.
             this.SetIdx = 1;
             [this.SetStr, this.Include] = this.structureSettings(this.Setting_Struct);
+            function Types = GetType(App, Props)
+                Types = cellfun(@(x) App.(x).Type, Props, 'UniformOutput', false);
+            end
+            function Types = GetTag(App, Props)
+                Types = cellfun(@(x) App.(x).Tag, Props, 'UniformOutput', false);
+            end
         end
         function makeTrialStructures(this, Settings)
-            f = fieldnames(Settings);
-            Stimulus = f(contains(f, 'Stimulus_'));
-            for s = Stimulus'
-                x = s{:};
-                temp_val = str2double(Settings.(x));
-                if isnan(temp_val)
-                    temp_val = Settings.(x);
-                end
-                tag = erase(x, 'Stimulus_');
-                if ~contains(tag, "color", IgnoreCase=true)
-                    val = temp_val;
-                else
-                    val = repmat(temp_val, 1, 3);
-                end
-                this.StimulusStruct.(tag) = val;
-            end
-            Box = f(contains(f, 'Box_'));
-            for b = Box'
-                x = b{:};
-                temp_val = str2double(Settings.(x));
-                if isnan(temp_val)
-                    temp_val = Settings.(x);
-                end
-                tag = erase(x, 'Box_');
-                this.Box.(tag) = temp_val;
-            end
-            ReadyCue = f(contains(f, 'ReadyCue_'));
-            for r = ReadyCue'
-                x = r{:};
-                temp_val = str2double(Settings.(x));
-                if isnan(temp_val)
-                    temp_val = Settings.(x);
-                end
-                tag = erase(x, 'ReadyCue_');
-                if ~contains(tag, "color", IgnoreCase=true)
-                    val = temp_val;
-                else
-                    val = repmat(temp_val, 1, 3);
-                end
-                this.ReadyCueStruct.(tag) = val;
+            this.StimulusStruct = appendStruct(this.StimulusStruct, PullOut(Settings, 'Stimulus_'));
+            this.Box = appendStruct(this.Box, PullOut(Settings, 'Box_'));
+            this.ReadyCueStruct = appendStruct(this.ReadyCueStruct, PullOut(Settings, 'ReadyCue_'));
+            function OUT = PullOut(IN, chr)
+                Out = struct();
+                names = fieldnames(IN);
+                inter = names(contains(names, chr));
+                vals = cellfun(@(x)IN.(x), inter, "UniformOutput",false);
+                CIDX = contains(inter, "color", IgnoreCase=true);
+                vals(CIDX) = cellfun(@(x)repmat(x,1,3), vals(CIDX), "UniformOutput",false);
+                OUT = cell2struct(vals, erase(inter, chr));
             end
         end
         %set up all variables
         function SetUpHardware(this)
-            if this.Box.Input_type == 8 %Keyboard input, no arduino
+    %PHASE OUT
+            if ismac || this.Box.Input_type == 8 %Keyboard input, no arduino
                 fprintf('Using keyboard input with no arduino...')
             else
-                if isempty(this.a)
-                    try
-                        this.a = evalin('base','a');
-                    catch err
-                        1;
+                try
+                    this.a = evalin('base','a');
+                catch
+                    sl = serialportlist("Available");
+                    if isempty(sl)
+                        fprintf("No COMs found. Check USB connection or clear Arduino if already in workspace.\n")
+                        return
+                    end
+                    if ismac
+                        COMS = contains(sl, 'tty.usbmodem');
+                    elseif ispc
+                        COMS = contains(sl, 'COM');
+                    end
+                    ardCOM = sl(COMS);
+                    if length(find(COMS)) == 1
+                        fprintf("Found 1 arduino at " +ardCOM+" proceeding...\n")
+                    end
+                    disp('Initializing Arduino...');
+                    if ispc && isempty(this.Setting_Struct.Arduino_Com)
+                        try
+                            this.a = arduino(ardCOM,'Uno','Libraries',{'I2C' 'Servo' 'SPI','RotaryEncoder'});
+                        catch
+                            disp('Automatically identified COM not responsive, trying indicated COM')
+                        end
+                    elseif ismac
+                        this.a=arduino(ardCOM,'Uno','Libraries',{'I2C' 'Servo' 'SPI','RotaryEncoder'});
+                    elseif ispc && ~isempty(this.Setting_Struct.Arduino_Com)
+                        this.a=arduino(['com',num2str(this.Setting_Struct.Arduino_Com)],'Uno','Libraries',{'I2C' 'Servo' 'SPI','RotaryEncoder'});
+                        assignin("base", "a", this.a) %Give the arduino back to the base workspace so next time starts faster.
                     end
                 end
             end
             this.ConfigureArduino(); %set up configuration of levers
         end
         %set hardware (arduino) parameters
-        function ConfigureArduino(this)
+        function connectArduino(this, options)
+            arguments
+                this
+                options.COMSnum
+                options.Rebuild logical = false
+            end
+            if isempty(options.COMSnum)
+                options.COMSnum = num2str(this.app.edit22.Value);
+            end
+            try
+                if ispc
+                    comsnum = ['COM' COMSnum];
+                elseif ismac
+                    return
+                end
+                a = arduino(comsnum,'Uno','Libraries',{'I2C' 'Servo' 'SPI','RotaryEncoder'});
+                configurePin(a, 'D2', 'Unset')
+                configurePin(a, 'D3', 'Unset')
+                assignin("base", "a", a)
+                this.app.text1.Text = ['Arduino at COM' COMSnum ' claimed and copied into base workspace.' ];
+                fprintf('Arduino at COM%s claimed and copied into base workspace.\n', COMSnum)
+            catch
+                fprintf('Check the USB connection.\n')
+            end
+        end
+        function ConfigureArduino(this, options)
+            arguments
+                this
+                options.Rebuild logical = false
+            end
+            tic
+% https://docs.arduino.cc/learn/microcontrollers/digital-pins
+            if this.Setting_Struct.Box_Input_type == 8 %Skip all this if keyboard mode
+                return
+            end
+            comsnum = "COM"+this.app.edit22.Value;
             this.Box.use_ball = 0; %All these are automatically off
             this.Box.use_wheel = 0;
             this.Box.ardunioReadDigital = 0;
             this.Box.KeyboardInput = 0;
-            this.Box.readHigh = 0;
+            this.Box.readHigh = 0; % When unselected, NosePoke reads HIGH, when selected it reads LOW
+            %set which lever is what and what the input setup is from
+            this.Box.ResetPin        = 'D4';
+            this.Box.TriggerPin      = 'D5';
             switch this.Setting_Struct.Box_Input_type
                 case 3 %Three Pokes
+                    if options.Rebuild
+                        try
+                            this.a = [];
+                        end
+                        a = arduino(comsnum,'Uno','Libraries',{}, 'ForceBuildOn',true);
+                    else
+                        a = arduino(comsnum,'Uno','Libraries',{});
+                    end
+                    this.a = a;
                     this.Box.ardunioReadDigital = 1;
                     this.Box.readHigh = 0;
                     %Set up box structure
@@ -295,108 +328,65 @@ classdef BehaviorBoxWheel < handle
                     this.Box.ValveL = 'D6';
                     this.Box.ValveR = 'D8';
                     this.Box.AirPuff  = 'D11';
+                    this.Box.readPin = @(x)this.a.readDigitalPin(x)==this.Box.readHigh;
+                    this.Box.readL = this.Box.readPin(this.Box.Left);
+                    this.Box.readR = this.Box.readPin(this.Box.Right);
+                    this.Box.readM = this.Box.readPin(this.Box.Middle);
+                    %Check these... not correct
+                    %this.Box.rewardL = @(x,y){this.a.writeDigitalPin(x, 1); pause(y); this.a.writeDigitalPin(x, 0)};
+                    %this.Box.rewardR = @(x){this.a.writeDigitalPin(this.Box.ValveR, 1); pause(this.Box.Rrewardtime); this.a.writeDigitalPin(this.Box.ValveR, 0); drawnow;};
+                    configurePin(a, "D2", "Unset");
+                    configurePin(a, "D3", "Unset");
+                    configurePin(a, "D4", "Unset");
+                    configurePin(a, "D5", "Unset");
+                    configurePin(a, "D6", "Unset");
+                    configurePin(a, "D7", "Unset");
+                    configurePin(a, "D8", "Unset");
+                    if this.Box.readHigh %Voltage goes HIGH on choice
+                        configurePin(a, "D2", "DigitalInput");
+                        configurePin(a, "D3", "DigitalInput");
+                        configurePin(a, "D7", "DigitalInput");
+                    else %Voltage goes LOW on choice
+                        configurePin(a, "D2", "Pullup");
+                        configurePin(a, "D3", "Pullup");
+                        configurePin(a, "D7", "Pullup");
+                    end
+                    configurePin(a, "D4", "DigitalInput");
+                    configurePin(a, "D5", "DigitalInput");
+                    configurePin(a, "D6", "DigitalOutput");
+                    configurePin(a, "D8", "DigitalOutput");
+                    this.a = a;
                 case 5 %Lick ports
                     this.Box.ardunioReadDigital = 1;
                 case 6 %Rotating Wheel
-                    this.Box.Reward =  'D6';
-                    this.Box.use_wheel = 1;
-                    this.StimulusStruct.FinishLine = 1;
-                    try
-                        
-                        this.Box.encoder = rotaryEncoder(this.a,'D2','D3', 1024);
-                    catch err
-                        1;
+                    if options.Rebuild
+                        a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'}, 'ForceBuildOn',true);
+                    else
+                        a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'});
                     end
+                    this.a = a;
+                    configurePin(a, "D2", "Unset");
+                    configurePin(a, "D3", "Unset");
+                    configurePin(a, "D4", "Unset");
+                    configurePin(a, "D5", "Unset");
+                    configurePin(a, "D6", "Unset");
+                    configurePin(a, "D7", "Unset");
+                    configurePin(a, "D8", "Unset");
+                    configurePin(a, "D2", "Interrupt");
+                    configurePin(a, "D3", "Interrupt");
+                    this.Box.encoder = rotaryEncoder(this.a,'D2','D3', 1024);
+                    this.Box.Reward =  'D6';
+                    configurePin(a, "D4", "DigitalInput");
+                    configurePin(a, "D5", "DigitalInput");
+                    configurePin(a, "D6", "DigitalOutput");
+                    this.Box.use_wheel = 1;
+                    this.a = a;
                 case 8 %Keyboard, used if no arduino connected
                     this.Box.KeyboardInput = 1;
                     this.Box.readHigh = 1;
                     return
             end
-            if this.Setting_Struct.Box_Input_type == 8 %Skip all this if keyboard mode
-                return
-            end
-            %set which lever is what and what the input setup is from
-            this.Box.ResetPin        = 'D4';
-            this.Box.TriggerPin      = 'D5';
-            %             %Check how necessary this code is, move to another fx if necessary.
-            %             this.a.configurePin('A2','AnalogInput'); % connect to pin 2 analog input (a2)
-            %             this.a.configurePin('A3','AnalogInput'); % connect to pin 3 analog input (a3)
-            %             this.a.configurePin('D4','DigitalOutput'); % connect to pin 4 analog input (a4)***
-            %             this.a.configurePin('D5','DigitalInput'); % connect to pin 5 digital output (5)***
-            %             this.a.configurePin('D6','DigitalOutput'); % connect to pin 6 digital output (6)
-            %             this.a.configurePin('D7','DigitalInput'); % connect to pin 7 digital output (7)***
-            %             this.a.configurePin('D8','DigitalOutput'); % connect to pin 8 digital output (8)
-            %             this.a.configurePin('D9','DigitalOutput'); % connect to pin 9 digital output (9)
-            %             this.a.configurePin('D10','DigitalOutput'); % connect to pin 10 digital output (10)
-            %             this.a.configurePin('D11','DigitalOutput'); % connect to pin 11 digital output (11), PuffValve_left
-            %             this.a.configurePin('D12','DigitalOutput'); % connect to pin 12 digital output (12), PuffValve_right
-        end
-        function makeSounds(this)
-            %Sounds aren't really used anymore, and the Variable_Struct is only used to make the sounds
-            %Common Sound variables:
-            %sample rate [Hz] Supported by SoundCard (16000,48000,96000,192000)
-            Fs = 48000;
-
-            %generate sound waves for Start Trial Time
-            %time seconds
-            T=0.7;
-            %samples vector
-            t = 0 : 1/Fs : T;
-            %Frequency [Hz] (mice hear from 1kHz to 70kHz
-            Fn = 6000;
-            %Signal
-            this.Sound_Struct.soundstart = sin(Fn*2*pi*t);
-
-            %generate sound waves for Left Trial Time
-            %time seconds
-            T=0.7;
-            %samples vector
-            t = 0 : 1/Fs : T;
-            %Frequency [Hz] (mice hear from 1kHz to 70kHz
-            Fn = 7000;
-            %Signal
-            this.Sound_Struct.soundleft = sin(Fn*2*pi*t);
-
-            %generate sound waves for Right Trial Time
-            %time seconds
-            T=0.7;
-            %samples vector
-            t = 0 : 1/Fs : T;
-            %Frequency [Hz] (mice hear from 1kHz to 70kHz
-            Fn = 6000;
-            %Signal
-            this.Sound_Struct.soundright = sin(Fn*2*pi*t);
-
-
-            %generate sound waves for Correct Trial Time
-            %time seconds (1s)
-            T=0.5;
-            %samples vector
-            t = 0 : 1/Fs : T;
-            %Frequency [Hz] (mice hear from 1kHz to 70kHz
-            Fn = 8000;
-            %Signal
-            this.Sound_Struct.soundcorrect = sin(Fn*2*pi*t);
-
-            %generate sound waves for Cue show
-            %time seconds (1s)
-            T=0.7;
-            %samples vector
-            t = 0 : 1/Fs : T;
-            %Frequency [Hz] (mice hear from 1kHz to 70kHz
-            Fn = 40000;
-            %Signal
-            this.Sound_Struct.soundcue = sin(Fn*2*pi*t);
-
-            %generate sound waves for Wrong Trial Time
-            %time seconds (1s)
-            T=1;
-            %samples vector
-            t = 0 : 1/Fs : T;
-            %Frequency [Hz] (mice hear from 1kHz to 70kHz
-            Fn = 6000;
-            %Signal
-            this.Sound_Struct.soundwrong = tan(Fn*2*pi*t);
+            toc
         end
         %Prepare the window and stimulus
         function SetupBeforeLoop(this)
@@ -415,7 +405,11 @@ classdef BehaviorBoxWheel < handle
                     load=1, ...
                     analyze=1); % Set up data storage object
             end
-            diaryname = join([this.Data_Object.filedir "BBTrialOutput"+this.Data_Object.date+".txt"], filesep);
+            try
+                diaryname = join([this.Data_Object.filedir "BBTrialOutput"+this.Data_Object.date+".txt"], filesep);
+            catch
+                diaryname = join([this.Data_Object.Sub "BBTrialOutput"+this.Data_Object.date+".txt"], filesep);
+            end
             this.textdiary = diaryname;
             diary(diaryname)
             this.Data_Object.TrainingNow = 1;
