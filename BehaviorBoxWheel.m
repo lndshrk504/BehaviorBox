@@ -55,7 +55,7 @@ classdef BehaviorBoxWheel < handle
         Old_Setting_Struct = {}; %After the settings are updated, the older ones are stored here for plotting
         SetUpdate = {0};
         StimHistory = cell(400,2); %Use the one in BBData
-        Box; %Equipment variables for arduino, sensors, valves
+        Box = struct(); %Equipment variables for arduino, sensors, valves
         a; %The arduino
         %Variables for running training loop:
         i=0; %Trial Number
