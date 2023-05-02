@@ -108,7 +108,7 @@ classdef BehaviorBoxNose < handle
         function RunTrials(this)
             try
                 delete(findobj("Type", "figure", "Name", "Graphs"))
-                %this.SetUpHardware(); %Set up arduino, make sounds if used
+                this.getGUI(); %Set up arduino, make sounds if used
                 this.DoLoop(); %the actual loop
             catch err
                 this.unwrapError(err)
