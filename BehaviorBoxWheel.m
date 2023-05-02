@@ -1455,6 +1455,12 @@ classdef BehaviorBoxWheel < handle
     end
     %STATIC FUNCTIONS====
     methods(Static = true)
+        function Types = GetType(App, Props)
+            Types = cellfun(@(x) App.(x).Type, Props, 'UniformOutput', false);
+        end
+        function Types = GetTag(App, Props)
+            Types = cellfun(@(x) App.(x).Tag, Props, 'UniformOutput', false);
+        end
         %toggle GUI buttons active/inactive
         function toggleButtonsOnOff(Buttons, on)
             for b = struct2cell(Buttons)'
