@@ -426,7 +426,7 @@ classdef BehaviorBoxWheel < handle
             rng('shuffle');
             if this.Setting_Struct.Ext_trigger %wait for trigger to start experiment
                 txt = "Waiting for trigger to start..";
-                set(this.message_handle,'String',txt, ...
+                set(this.message_handle,'Text',txt, ...
                     'BackgroundColor','blue');
                 fprintf(txt+"\n");
                 while this.a.readDigitalPin(this.Setting_Struct.TriggerPin) == this.Box.readHigh
@@ -437,7 +437,7 @@ classdef BehaviorBoxWheel < handle
             end
             fprintf("- - - - -\n");
             txt = "Start trial Mouse "+this.Setting_Struct.Subject+" at "+string(datetime('now'));
-            set(this.message_handle,'String',txt, ...
+            set(this.message_handle,'Text',txt, ...
                 'BackgroundColor', 'none');
             fprintf(txt+"\n");
             [this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.Stimulus_Object.setUpFigure();
@@ -546,26 +546,24 @@ classdef BehaviorBoxWheel < handle
                 return
             end
         end
-        %Update all the settings if the button is ticked
         function UpdateSettings(this)
-            for p = this.appProps
-                x = p{:};
-                tag = this.app.(x).Tag;
-                try
-                    temp_val = str2double(this.app.(x).Value);
-                    if isnan(temp_val)
-                        temp_val = this.app.(x).Value;
-                    end
-                    tempSetting_Struct.(tag) = temp_val;
-                catch
-                    tempSetting_Struct.(tag) = this.app.(x).Value;
-                end
-            end
-            for d = this.dropdowns
-                x = d{:};
-                tag = this.app.(x).Tag;
-                tempSetting_Struct.(tag) = find(matches(this.app.(x).Items, this.app.(x).Value));
-            end
+            props = this.appProps;
+            types = this.appPropsTypes;
+            Dropdowns = props(contains(this.appPropsTypes, {'dropdown'}));
+            dTags = this.GetTag(this.app, Dropdowns);
+            DropVals = cellfun(@(x)find(matches(this.app.(x).Items, this.app.(x).Value)), Dropdowns, 'UniformOutput',false);
+            this.dropdowns = cell2struct(DropVals, dTags);
+            tempVal = cell(size(props));
+            CIdx = contains(types, {'check'});
+            Checkboxes = props(CIdx);
+            cVals = cellfun(@(x)logical(this.app.(x).Value), Checkboxes, 'UniformOutput',false);
+            tempVal(CIdx) = cVals;
+            pTags = this.GetTag(this.app, props);
+            tempVal(~CIdx) = cellfun(@(x)str2double(this.app.(x).Value), props(~CIdx), 'UniformOutput',false);
+            ReDo = cellfun(@isnan, tempVal, 'UniformOutput',true);
+            tempVal(ReDo) = cellfun(@(x)(this.app.(x).Value), props(ReDo), 'UniformOutput',false);
+            tempSetting_Struct = cell2struct(tempVal, pTags);
+            tempSetting_Struct = appendStruct(tempSetting_Struct, this.dropdowns);
             if isequal(tempSetting_Struct, this.Setting_Struct)
                 return
             end
@@ -582,7 +580,6 @@ classdef BehaviorBoxWheel < handle
                 end
             end
             msg = "Trial "+this.i+" Updating:\n"+join([updatelist{:}],"\n")+"\n";
-            this.GuiHandles.MsgBox.String = [{sprintf(msg)} ; this.GuiHandles.MsgBox.String];
             fprintf(msg) %Print this to the Message window
             this.Old_Setting_Struct{end+1} = this.Setting_Struct;
             this.makeTrialStructures(tempSetting_Struct)
@@ -640,7 +637,7 @@ classdef BehaviorBoxWheel < handle
                                         isLeftTrial = choice(randperm(2,1));
                                         text = ['Side bias reduced, disabling alternate repeat. Current SB is ' num2str(SB) '.'];
                                         disp(text)
-                                        set(this.message_handle,'String',text);
+                                        set(this.message_handle,'Text',text);
                                     else
                                         isLeftTrial = ~isLeftTrial; %Opposite
                                         this.counter_for_alternate = 0;
@@ -648,7 +645,7 @@ classdef BehaviorBoxWheel < handle
                                         this.Setting_Struct.Change_alternate = range(randperm(numel(range),1));
                                         text = ['Switching side... Must get ' num2str(this.Setting_Struct.Change_alternate) ' ' this.current_side ' correct.'];
                                         disp(text)
-                                        set(this.message_handle,'String',text);
+                                        set(this.message_handle,'Text',text);
                                     end
                                 end
                             end
@@ -677,7 +674,7 @@ classdef BehaviorBoxWheel < handle
                                 this.counter_for_alternate = 0;
                                 text = ['Switching side... Must get ' num2str(this.Setting_Struct.Change_alternate) ' ' this.current_side ' correct.'];
                                 disp(text)
-                                set(this.message_handle,'String',text);
+                                set(this.message_handle,'Text',text);
                             end
                         end
                     case 6 %Side-Bias Correction.
@@ -703,7 +700,7 @@ classdef BehaviorBoxWheel < handle
                                 this.Setting_Struct.Change_alternate = range(randperm(numel(range),1));
                                 text = ['Activating alternate repeat wrong... Must get ' num2str(this.Setting_Struct.Change_alternate) ' ' this.current_side ' correct.'];
                                 disp(text)
-                                set(this.message_handle,'String',text);
+                                set(this.message_handle,'Text',text);
                             else
                                 choice = [0 1];
                                 isLeftTrial = choice(randperm(2,1));
@@ -711,7 +708,7 @@ classdef BehaviorBoxWheel < handle
                         end
                     case 8 % Keyboard / Manual Mode
                         text = 'Press L for Left, R for Right, ? for Random or S to correct Side-Bias:';
-                        set(this.message_handle,'String',text);
+                        set(this.message_handle,'Text',text);
                         fprintf([text '\n'])
                         prompt = 'L, R, ? or S:   ';
                         keypress = 0;
@@ -721,19 +718,19 @@ classdef BehaviorBoxWheel < handle
                                 case strcmp(currkey, 'l') || strcmp(currkey, 'L')
                                     text = 'Starting Left trial...';
                                     fprintf([text '\n'])
-                                    set(this.message_handle,'String',text);
+                                    set(this.message_handle,'Text',text);
                                     isLeftTrial = 1;
                                     keypress = 1;
                                 case strcmp(currkey, 'r') || strcmp(currkey, 'R')
                                     text = 'Starting Right trial...';
                                     fprintf([text '\n'])
-                                    set(this.message_handle,'String',text);
+                                    set(this.message_handle,'Text',text);
                                     isLeftTrial = 0;
                                     keypress = 1;
                                 case strcmp(currkey, 'slash') || strcmp(currkey, '?')
                                     text = 'Making random choice';
                                     fprintf([text '\n'])
-                                    set(this.message_handle,'String',text);
+                                    set(this.message_handle,'Text',text);
                                     choice = [0 1];
                                     isLeftTrial = choice(randperm(2,1));
                                     keypress = 1;
@@ -743,7 +740,7 @@ classdef BehaviorBoxWheel < handle
                                     if SB == 0 || this.i == 1
                                         text = 'Making random choice...';
                                         fprintf([text '\n'])
-                                        set(this.message_handle,'String',text);
+                                        set(this.message_handle,'Text',text);
                                         choice = [0 1];
                                         isLeftTrial = choice(randperm(2,1));
                                     else
@@ -758,12 +755,12 @@ classdef BehaviorBoxWheel < handle
                                         end
                                         text = ['Correcting Side-Bias (' num2str(SB) ', ' bias ') with ' side ' trial...'];
                                         fprintf([text '\n'])
-                                        set(this.message_handle,'String',text);
+                                        set(this.message_handle,'Text',text);
                                     end
                                 otherwise
                                     text = 'Please only press one of the indicated keys...';
                                     fprintf([text '\n'])
-                                    set(this.message_handle,'String',text);
+                                    set(this.message_handle,'Text',text);
                             end
                         end
                 end
@@ -779,7 +776,7 @@ classdef BehaviorBoxWheel < handle
             %select stim by making new stimulus object
             %initialize by subracting 8 from the type, as id for
             %the cue is -2 for circle and -1 for contour and 0 is image
-            set(this.message_handle,'String','Showing Cue');
+            set(this.message_handle,'Text','Showing Cue');
             %drawnow; %refresh gui
             Current_Cue_Object = BehaviorBoxVisualStimulus((this.Setting_Struct.Stimulus_type) -8 , 0, current_opacity ,this.Setting_Struct.Box_Input_type);
             %display stimulus
@@ -801,7 +798,7 @@ classdef BehaviorBoxWheel < handle
                 end
                 return
             end
-            set(this.message_handle,'String','Waiting for Trial initialization');
+            set(this.message_handle,'Text','Waiting for Trial initialization');
             this.t1 = clock; t2 = this.t1;%In case of crash
             switch 1
                 case this.Box.Input_type==6 && this.i ~=1 %Wheel 2.0, wait for the mouse to hold the wheel still for the interval to start a new trial
@@ -812,17 +809,17 @@ classdef BehaviorBoxWheel < handle
                     timelimit = this.Setting_Struct.HoldStill;
                     starttime = clock;
                     while etime(clock, starttime)<timelimit
-                        this.message_handle.String = ['Keep the wheel still for ' num2str(round(timelimit - etime(clock, starttime),1)) ' seconds.'];
+                        this.message_handle.Text = ['Keep the wheel still for ' num2str(round(timelimit - etime(clock, starttime),1)) ' seconds.'];
                         if abs(this.Box.encoder.readSpeed) > this.Setting_Struct.Hold_Still_Thresh
                             this.Flash(this.StimulusStruct, findobj('Type', 'Polygon'), 'Wheel');
                             starttime = clock;
                         end
                         if get(this.stop_handle, 'Value')
-                            this.message_handle.String = 'Ending session...';
+                            this.message_handle.Text = 'Ending session...';
                             break;
                         end
                         if get(this.FF, 'Value')
-                            set(this.message_handle, 'String','Skipping interval...')
+                            set(this.message_handle, 'Text','Skipping interval...')
                             set(this.FF, 'Value', 0)
                             drawnow
                             break;
@@ -838,7 +835,7 @@ classdef BehaviorBoxWheel < handle
                         %drawnow %Update the buttons
                         if this.Setting_Struct.IntertrialMalCancel && this.a.readDigitalPin(this.Box.Left) == this.Box.readHigh | this.a.readDigitalPin(this.Box.Right) == this.Box.readHigh
                             this.ReadyCue('k')
-                            this.message_handle.String = ['Do not poke L or R for the Intertrial Malingering interval: ' num2str(this.Setting_Struct.IntertrialMalSec) ' sec...'];
+                            this.message_handle.Text = ['Do not poke L or R for the Intertrial Malingering interval: ' num2str(this.Setting_Struct.IntertrialMalSec) ' sec...'];
                             timerStart = clock;
                             while 1
                                 %drawnow %Update the buttons
@@ -846,20 +843,20 @@ classdef BehaviorBoxWheel < handle
                                     timerStart = clock;
                                 end
                                 if get(this.FF, 'Value')
-                                    set(this.message_handle, 'String','Skipping interval...')
+                                    set(this.message_handle, 'Text','Skipping interval...')
                                     get(this.FF, 'Value', 0)
                                     %drawnow
                                     break;
                                 end
                                 if get(this.stop_handle, 'Value')
-                                    set(this.message_handle, 'String','Ending session...')
+                                    set(this.message_handle, 'Text','Ending session...')
                                     %drawnow
                                     break;
                                 end
                                 if etime(clock, timerStart) > this.Setting_Struct.IntertrialMalSec %End when mouse has not poked L or R for the interval
                                     this.ReadyCue(1)
                                     this.Flash(this.StimulusStruct, findobj('Tag', 'ReadyCueDot'), 'NewStim')
-                                    set(this.message_handle,'String','Waiting for Trial initialization');
+                                    set(this.message_handle,'Text','Waiting for Trial initialization');
                                     break
                                 end
                             end
@@ -868,7 +865,7 @@ classdef BehaviorBoxWheel < handle
                     t2 = clock;
                 case this.Box.KeyboardInput==1 % Keyboard inputthis.Box.KeyboardInput==1
                     InterTMalInterv = this.Setting_Struct.IntertrialMalSec;
-                    text = 'Initialize: Press L for Left, R for Right, C or M for Middle:'; set(this.message_handle,'String',text); fprintf([text '\n'])
+                    text = 'Initialize: Press L for Left, R for Right, C or M for Middle:'; set(this.message_handle,'Text',text); fprintf([text '\n'])
                     prompt = 'L, R, or M/C:   ';
                     keypress = 0;
                     while keypress==0
@@ -877,47 +874,47 @@ classdef BehaviorBoxWheel < handle
                         t2 = clock;
                         switch true
                             case any(currkey == ["L","l"])
-                                text = 'Left choice...'; fprintf([text '\n']); set(this.message_handle,'String',text);
+                                text = 'Left choice...'; fprintf([text '\n']); set(this.message_handle,'Text',text);
                                 Mal = 1;
                             case any(currkey == ["R","r"])
-                                text = 'Right choice...'; fprintf([text '\n']); set(this.message_handle,'String',text);
+                                text = 'Right choice...'; fprintf([text '\n']); set(this.message_handle,'Text',text);
                                 Mal = 1;
                             case any(currkey == ["C","c", "M", "m", ""])
-                                text = 'Middle choice'; fprintf([text '\n']); set(this.message_handle,'String',text);
+                                text = 'Middle choice'; fprintf([text '\n']); set(this.message_handle,'Text',text);
                                 keypress = 1;
                             otherwise
-                                text = 'Please only press one of the indicated keys...'; fprintf([text '\n']); set(this.message_handle,'String',text);
+                                text = 'Please only press one of the indicated keys...'; fprintf([text '\n']); set(this.message_handle,'Text',text);
                         end
                         drawnow
                         if Mal
                             this.ReadyCueAx.Children.Visible=0;
                             this.fig.Color = 'k';
-                            text = 'Only choose Middle to start trial, malingering timeout...'; fprintf([text '\n']); set(this.message_handle,'String',text);
+                            text = 'Only choose Middle to start trial, malingering timeout...'; fprintf([text '\n']); set(this.message_handle,'Text',text);
                             timerStart = clock;
                             while 1
                                 drawnow
                                 if get(this.FF, 'Value')
-                                    set(this.message_handle, 'String','Skipping interval...')
+                                    set(this.message_handle, 'Text','Skipping interval...')
                                     set(this.FF, 'Value', 0)
                                     drawnow
                                     break;
                                 end
                                 if get(this.stop_handle, 'Value')
-                                    set(this.message_handle, 'String','Ending session...')
+                                    set(this.message_handle, 'Text','Ending session...')
                                     drawnow
                                     break;
                                 end
                                 if etime(clock, timerStart) > InterTMalInterv %End when mouse has not poked L or R for the interval
                                     this.ReadyCue(1)
-                                    set(this.message_handle,'String','Waiting for Trial initialization');
+                                    set(this.message_handle,'Text','Waiting for Trial initialization');
                                     break
                                 end
                             end
-                            text = 'Initialize: Press L for Left, R for Right, C or M for Middle:'; set(this.message_handle,'String',text); fprintf([text '\n'])
+                            text = 'Initialize: Press L for Left, R for Right, C or M for Middle:'; set(this.message_handle,'Text',text); fprintf([text '\n'])
                         end
                         drawnow
                         if get(this.stop_handle, 'Value')
-                            this.message_handle.String ='Ending session...';
+                            this.message_handle.Text ='Ending session...';
                             break;
                         end
                     end
@@ -953,7 +950,7 @@ classdef BehaviorBoxWheel < handle
             while this.Setting_Struct.Input_ignored & seconds(datetime("now")-t1)<this.Setting_Struct.Pokes_ignored_time
                 time = this.Setting_Struct.Pokes_ignored_time-seconds(datetime("now")-t1);
                 txt = "Ignoring input for "+round(time,1)+" sec...";
-                set(this.message_handle,'String',txt)
+                set(this.message_handle,'Text',txt)
                 drawnow
             end
             this.Flash(this.StimulusStruct, findobj(this.fig.Children, 'Type', 'Line'), 'NewStim'); % Make visible stimulus and flash if set
@@ -963,7 +960,7 @@ classdef BehaviorBoxWheel < handle
                 else
                 end
             end
-            set(this.message_handle,'String',['Waiting for ',this.current_side,' choice...']);
+            set(this.message_handle,'Text',['Waiting for ',this.current_side,' choice...']);
             this.Data_Object.addStimEvent(this.isLeftTrial); %Add the timestamp for the trial
             switch 1
                 case any(this.Box.Input_type == [1 2 3 5]) %NosePoke
@@ -995,7 +992,7 @@ classdef BehaviorBoxWheel < handle
                     if this.Setting_Struct.Play_sound && ~this.Setting_Struct.ErrorSoundOnly
                         play(this.Sound_Object.Sound_correct_Object);
                     end
-                    set(this.message_handle,'String','Giving Reward...');
+                    set(this.message_handle,'Text','Giving Reward...');
                     t1 = clock; t2 = clock;
                     this.GiveReward(this.a, this.Box, this.Buttons, this.WhatDecision); %give reward
                     %Flash
@@ -1011,7 +1008,7 @@ classdef BehaviorBoxWheel < handle
                     else
                         thisInt = 0;
                     end
-                    set(this.message_handle, 'String',['Persisting correct stimulus for ' num2str(thisInt)  ' (sec)...']); drawnow
+                    set(this.message_handle, 'Text',['Persisting correct stimulus for ' num2str(thisInt)  ' (sec)...']); drawnow
                     if this.Box.Input_type == 3 %Nose
                         this.UpdatePause(thisInt)
                     elseif this.Box.Input_type == 6 %Wheel
@@ -1022,11 +1019,11 @@ classdef BehaviorBoxWheel < handle
                                 break
                             end
                             if get(this.FF, 'Value')
-                                set(this.message_handle, 'String','Skipping persist interval...'); drawnow
+                                set(this.message_handle, 'Text','Skipping persist interval...'); drawnow
                                 break;
                             end
                             if get(this.stop_handle, 'Value')
-                                set(this.message_handle, 'String','Ending session...'); drawnow
+                                set(this.message_handle, 'Text','Ending session...'); drawnow
                                 break;
                             end
                         end
@@ -1034,7 +1031,7 @@ classdef BehaviorBoxWheel < handle
                     o = findobj(this.fig.Children);
                     [o(:).Visible] = deal(0);
                 case contains({this.WhatDecision} , 'wrong', 'IgnoreCase', true)
-                    set(this.message_handle,'String',[this.WhatDecision,' - Penalty...']);
+                    set(this.message_handle,'Text',[this.WhatDecision,' - Penalty...']);
                     if this.Setting_Struct.Play_sound || this.Setting_Struct.ErrorSoundOnly
                         play(this.Sound_Object.Sound_wrong_Object);
                     end
@@ -1044,7 +1041,7 @@ classdef BehaviorBoxWheel < handle
                     %Flash
                     this.Flash(this.StimulusStruct, findobj('Tag', 'Contour'), this.WhatDecision);
                     if ~get(this.stop_handle, 'Value') && this.StimulusStruct.PersistIncorrect %Only persist incorrect for the Nose
-                        set(this.message_handle,'String','Persisting correct stimulus...');
+                        set(this.message_handle,'Text','Persisting correct stimulus...');
                         this.UpdatePause(this.StimulusStruct.PersistIncorrectInterv)
                     else
                     end
@@ -1153,7 +1150,7 @@ classdef BehaviorBoxWheel < handle
             while etime(clock, starttime) < interval
                 drawnow
                 if this.Pause.Value
-                    set(this.message_handle,'String','Paused, click pause button again to continue...');
+                    set(this.message_handle,'Text','Paused, click pause button again to continue...');
                     o = findobj(this.fig.Children);
                     [o(:).Visible] = deal(0);
                     this.fig.Color = this.ReadyCueStruct.Color;% Clear stim and turn the screen black to tell the mouse the time to drink water is now over. This should help mice not associate an air puff with the correct/rewarded stimulus, and instead associate an air puff with the black screen.
@@ -1189,9 +1186,9 @@ classdef BehaviorBoxWheel < handle
             %Update data & Plot, update GUI numbers
             this.UpdateData();
             if contains(this.WhatDecision,'time out')
-                set(this.message_handle,'String',interval);
+                set(this.message_handle,'Text',interval);
             else
-                set(this.message_handle,'String',interval+" ("+num2str(interval_time)+" sec)");
+                set(this.message_handle,'Text',interval+" ("+num2str(interval_time)+" sec)");
             end
             if get(this.stop_handle, 'Value')
                 return
@@ -1287,7 +1284,7 @@ classdef BehaviorBoxWheel < handle
             Str = this.Data_Object.Str;
             saveasname = join([D Sub Str stim input],'_');
             savefolder = [this.Data_Object.filedir filesep];
-            set(this.message_handle,'String', 'Saving data as: '+saveasname+'.mat');
+            set(this.message_handle,'Text', 'Saving data as: '+saveasname+'.mat');
             [newData] = this.Data_Object.current_data_struct;
             names = fieldnames(newData);
             for n = names(structfun(@isrow, newData) & structfun(@length, newData) > 1)' %Make sure everything is saved as a column
@@ -1333,7 +1330,7 @@ classdef BehaviorBoxWheel < handle
                     this.saveFigure(f, savefolder, saveasname)
                     dispstring = 'Data saved as: '+saveasname;
                     fprintf([dispstring+'\n']);
-                    set(this.message_handle,'String',dispstring);
+                    set(this.message_handle,'Text',dispstring);
                 catch err
                     this.unwrapError(err)
                     [file,path] = uiputfile(pwd , 'Choose folder to save training data' , saveasname);
@@ -1425,22 +1422,22 @@ classdef BehaviorBoxWheel < handle
         end
         function TestWater(this)
             this.ResetSensor(this)
-            set(this.message_handle,'String','Trigger the Left Sensor');
+            set(this.message_handle,'Text','Trigger the Left Sensor');
             while this.a.readDigitalPin(this.Box.Left) ~= this.Box.readHigh
                 %just wait until the sensor is triggered
             end
             this.ResetSensor(this)
-            set(this.message_handle,'String','Trigger the Right Sensor');
+            set(this.message_handle,'Text','Trigger the Right Sensor');
             while this.a.readDigitalPin(this.Box.Right) ~= this.Box.readHigh
                 %just wait until the sensor is triggered
             end
             this.ResetSensor(this)
-            set(this.message_handle,'String','Trigger the Middle Sensor');
+            set(this.message_handle,'Text','Trigger the Middle Sensor');
             while this.a.readDigitalPin(this.Box.Middle) ~= this.Box.readHigh
                 %just wait until the sensor is triggered
             end
             this.cleanUP();
-            set(this.message_handle,'String','Did the sensors work?');
+            set(this.message_handle,'Text','Did the sensors work?');
         end
         function TestStimulus(this)
             this.Stimulus_Object = BehaviorBoxVisualStimulus(this.StimulusStruct);
@@ -1555,7 +1552,7 @@ classdef BehaviorBoxWheel < handle
             this.a.writeDigitalPin(this.Box.AirPuff,0)
         end
         function [WhatDecision, response_time] = readKeyboardInput(stop_handle, message_handle, isLeftTrial)
-            text = 'Respond: Press L for Left, R for Right, C or M for Middle:'; set(message_handle,'String',text); fprintf([text '\n']); drawnow
+            text = 'Respond: Press L for Left, R for Right, C or M for Middle:'; set(message_handle,'Text',text); fprintf([text '\n']); drawnow
             prompt = 'L, R, or M/C:   ';
             keypress = 0; t1 = clock;
             while keypress==0
@@ -1563,21 +1560,21 @@ classdef BehaviorBoxWheel < handle
                 response_time = etime(clock, t1);
                 switch true
                     case strcmp(currkey, 'l') || strcmp(currkey, 'L')
-                        text = 'Left choice...'; fprintf([text '\n']); set(message_handle,'String',text); drawnow
+                        text = 'Left choice...'; fprintf([text '\n']); set(message_handle,'Text',text); drawnow
                         event = 1;
                         keypress = 1;
                     case strcmp(currkey, 'r') || strcmp(currkey, 'R')
-                        text = 'Right choice...'; fprintf([text '\n']); set(message_handle,'String',text); drawnow
+                        text = 'Right choice...'; fprintf([text '\n']); set(message_handle,'Text',text); drawnow
                         event = 2;
                         keypress = 1;
                     case strcmp(currkey, 'C') || strcmp(currkey, 'c') || strcmp(currkey, 'M') || strcmp(currkey, 'm')
-                        text = 'Middle choice'; fprintf([text '\n']); set(message_handle,'String',text); drawnow
+                        text = 'Middle choice'; fprintf([text '\n']); set(message_handle,'Text',text); drawnow
                     otherwise
-                        text = 'Please only press one of the indicated keys...'; fprintf([text '\n']); set(message_handle,'String',text); drawnow
+                        text = 'Please only press one of the indicated keys...'; fprintf([text '\n']); set(message_handle,'Text',text); drawnow
                 end
                 drawnow
                 if stop_handle.Value
-                    set(message_handle, 'String','Ending session...'); drawnow
+                    set(message_handle, 'Text','Ending session...'); drawnow
                     event = -1;
                     drawnow
                     break;
