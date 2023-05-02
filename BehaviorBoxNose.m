@@ -293,6 +293,7 @@ classdef BehaviorBoxNose < handle
                 this
                 options.Rebuild logical = false
             end
+            tic
 % https://docs.arduino.cc/learn/microcontrollers/digital-pins
             if this.Setting_Struct.Box_Input_type == 8 %Skip all this if keyboard mode
                 return
@@ -309,17 +310,14 @@ classdef BehaviorBoxNose < handle
             switch this.Setting_Struct.Box_Input_type
                 case 3 %Three Pokes
                     if options.Rebuild
-                        tic
                         try
                             this.a = [];
                         end
                         a = arduino(comsnum,'Uno','Libraries',{}, 'ForceBuildOn',true);
-                        toc
                     else
-                        if ~this.Buttons.ResetAll.Value
-                            a = arduino(comsnum,'Uno','Libraries',{});
-                        end
+                        a = arduino(comsnum,'Uno','Libraries',{});
                     end
+                    this.a = a;
                     this.Box.ardunioReadDigital = 1;
                     this.Box.readHigh = 0;
                     %Set up box structure
@@ -386,7 +384,7 @@ classdef BehaviorBoxNose < handle
                     this.Box.readHigh = 1;
                     return
             end
-            this.a = a;
+            toc
         end
         %Prepare the window and stimulus
         function SetupBeforeLoop(this)
