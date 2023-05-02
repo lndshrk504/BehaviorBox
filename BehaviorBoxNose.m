@@ -108,7 +108,7 @@ classdef BehaviorBoxNose < handle
         function RunTrials(this)
             try
                 delete(findobj("Type", "figure", "Name", "Graphs"))
-                this.SetUpHardware(); %Set up arduino, make sounds if used
+                %this.SetUpHardware(); %Set up arduino, make sounds if used
                 this.DoLoop(); %the actual loop
             catch err
                 this.unwrapError(err)
@@ -569,8 +569,6 @@ classdef BehaviorBoxNose < handle
             if isequal(tempSetting_Struct, this.Setting_Struct)
                 return
             end
-            this.makeTrialStructures(tempSetting_Struct)
-            this.Setting_Struct = tempSetting_Struct;
             updatelist = {};
             names = fieldnames(tempSetting_Struct);
             for n = names'
@@ -584,7 +582,6 @@ classdef BehaviorBoxNose < handle
                 end
             end
             msg = "Trial "+this.i+" Updating:\n"+join([updatelist{:}],"\n")+"\n";
-            this.GuiHandles.MsgBox.String = [{sprintf(msg)} ; this.GuiHandles.MsgBox.String];
             fprintf(msg) %Print this to the Message window
             this.Old_Setting_Struct{end+1} = this.Setting_Struct;
             this.makeTrialStructures(tempSetting_Struct)
