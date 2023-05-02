@@ -248,11 +248,15 @@ classdef BehaviorBoxData < handle
                 return
             end
             t1 = datetime("now");
-            p = gcp("nocreate");
-            if isempty(p)
+            try
+                p = gcp("nocreate");
+                if isempty(p)
+                    aD = this.fds.readall("UseParallel",false);
+                else
+                    aD = this.fds.readall("UseParallel",true); 
+                end
+            catch
                 aD = this.fds.readall("UseParallel",false);
-            else
-                aD = this.fds.readall("UseParallel",true); 
             end
             allData = cell(numel(aD),6);
             for i = 1:6
