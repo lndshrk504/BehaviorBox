@@ -1451,7 +1451,7 @@ classdef BehaviorBoxWheel < handle
                 [this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.Stimulus_Object.setUpFigure();
                 [~,~] = this.Stimulus_Object.DisplayOnScreen(this.PickSideForCorrect(0, 0), this.Setting_Struct.Starting_opacity); %Plot new stimulus as hidden objects, record positions and angles of the segments
             end
-            [this.fig.findobj('Type','Line').Visible] = deal(0);
+            %[this.fig.findobj('Type','Line').Visible] = deal(0);
             pause(0.25)
             this.Flash(this.StimulusStruct, findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
         end
