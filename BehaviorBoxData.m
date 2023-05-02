@@ -177,14 +177,19 @@ classdef BehaviorBoxData < handle
         function [subfiledir, fds] = GetFiles(this)
             fds = [];
             %Do an initial search for this mouse
-            startpath = fullfile(getFilePath(), this.Inv,this.Inp, '*', '*');
+            startpath = fullfile(getFilePath(), this.Inv,this.Inp, '**', '*');
             dirlist = dir(startpath);
-            dirlist = dirlist([dirlist.isdir] & ~contains({dirlist.name}, {'.', 'settings', 'alltime'}, "IgnoreCase",true));
-            filelist = dir(fullfile(startpath, '**','*.mat'));
+            dirlist = dirlist([dirlist.isdir] & ...
+                ~contains({dirlist.name}, {'.', 'settings', 'alltime', 'Rescued'}, 'IgnoreCase',true) ...
+                & contains({dirlist.name}, this.Sub, "IgnoreCase",true));
+            [a,b]=findgroups({dirlist.folder});
+            dirPath = cellfun(@(x) fullfile(b{:}, x), {dirlist.name} , 'UniformOutput', false);
+            filelist = dir(fullfile(getFilePath(), this.Inv,this.Inp, '**', '*.mat'));
+            filelist = filelist(contains({filelist.name}, this.Sub) & ~contains({filelist.name}, 'settings', 'IgnoreCase',true));
             switch 1
                 %Any files?
                 case any(contains({filelist.name}, this.Sub))
-                    [subfiledir, fds] = makefiles(startpath);
+                    [subfiledir, fds] = makefiles(dirPath);
                     %Any folders but no files?
                 case any(contains({dirlist.name}, this.Sub)) && sum(contains({dirlist.name}, this.Sub)) == 1
                     dirlist = dirlist(contains({dirlist.name}, this.Sub));
@@ -217,10 +222,14 @@ classdef BehaviorBoxData < handle
                 fprintf("Found "+numel(fds.Files)+" files for "+numel(this.Sub)+" subject(s) matching user input:\n - "+cell2mat(join(this.Sub, "\n - "))+"\n")
             end
             function [SUBDIR, FDS] = makefiles(direc)
-                FDS = fileDatastore(direc, "ReadMode", "file" ,"ReadFcn", @readFcn, "FileExtensions", ".mat", "IncludeSubfolders",true);
-                FDS.Files = FDS.Files(~contains(FDS.Files, {'Settings'}, "IgnoreCase",true));
-                FDS.Files = FDS.Files(~contains(FDS.Files, {'rescue'}, "IgnoreCase",true));
-                FDS.Files = FDS.Files(contains(FDS.Files, this.Sub));
+                try
+                    FDS = fileDatastore(direc, "ReadMode", "file" ,"ReadFcn", @readFcn, "FileExtensions", ".mat", "IncludeSubfolders",false);
+                catch
+                    FDS = fileDatastore(direc, "ReadMode", "file" ,"ReadFcn", @readFcn, "FileExtensions", ".mat", "IncludeSubfolders",false);
+                    FDS.Files = FDS.Files(~contains(FDS.Files, {'Settings'}, "IgnoreCase",true));
+                    FDS.Files = FDS.Files(~contains(FDS.Files, {'rescue'}, "IgnoreCase",true));
+                    FDS.Files = FDS.Files(contains(FDS.Files, this.Sub));
+                end
                 forest = cellfun(@(x) split(x,filesep), FDS.Files', 'UniformOutput', false);
                 [~,this.Sub]=findgroups(cellfun(@(x) x(end-1), forest));
                 [~,strains]=findgroups(cellfun(@(x) x(end-2), forest));
@@ -239,9 +248,10 @@ classdef BehaviorBoxData < handle
                 return
             end
             t1 = datetime("now");
-            if ispc
+            p = gcp("nocreate");
+            if isempty(p)
                 aD = this.fds.readall("UseParallel",false);
-            elseif ismac
+            else
                 aD = this.fds.readall("UseParallel",true); 
             end
             allData = cell(numel(aD),6);
@@ -283,6 +293,10 @@ classdef BehaviorBoxData < handle
                         sessions = [allData{cell2mat(allData(:,2)) == d & w ,3}];
                     catch %Fails for only one day, when include wasn't added correctly.
                         data = allData(cell2mat(allData(:,2)) == d & w ,3);
+                        % bigSesh = cellfun(@(x) ...
+                        %     [{x.Score} {x.Level} {x.isLeftTrial} {x.CodedChoice} {x.SetIdx}], ...
+                        %     allData(:,3), 'UniformOutput', true)
+                        % cellfun(@(x)cell2struct(x, {'Score', 'Level', 'isLeftTrial', 'CodedChoice', 'SetIdx'}), bigSesh )
                         names = cellfun(@(x) fieldnames(x), data, 'UniformOutput', false);
                         [a, b] =findgroups(cellfun(@numel, names));
                         fullTotal = max(cellfun(@(x) numel(x), names));
@@ -292,7 +306,11 @@ classdef BehaviorBoxData < handle
                         end
                         if isempty(n)
                             oddOne = a==find(b~=fullTotal);
+                            try
                             n = setdiff(names{1}, names{oddOne});
+                            catch err
+                                unwrapErr(err)
+                            end
                         end
                         switch 1
                             case n{:} == "Include"
