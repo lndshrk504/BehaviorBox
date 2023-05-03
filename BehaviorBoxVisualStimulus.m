@@ -11,18 +11,18 @@ classdef BehaviorBoxVisualStimulus
         LStimAx; %Axis that contains the left stimulus plot
         RStimAx; %Axis that contains the left stimulus plot
         FLAx; %Axis that contains the 2 finish line triangles
-        SpotlightColor;
-        SpotlightToggle;
-        FinishLine;
+        SpotlightColor = [0 0 0];
+        SpotlightToggle = 1;
+        FinishLine = 0;
         BetweenSpotlight;
-        LineColor;
-        FlashColor;
-        DimColor;
+        LineColor = [0.6 0.6 0.6];
+        FlashColor = [0.7 0.7 0.7];
+        DimColor = [0.3 0.3 0.3];
         Levertype;
-        BackgroundColor;
-        SegLength;
-        SegThick;
-        SegSpacing;
+        BackgroundColor = [0 0 0];
+        SegLength = 15;
+        SegThick = 13;
+        SegSpacing = 13;
         ContLength = 5; % number of segments in the target
         PatchSize=7; % size of patch, pick uneven
         BinSize=8; %size of bins
@@ -40,7 +40,7 @@ classdef BehaviorBoxVisualStimulus
         % Constructor:
         function [this] = BehaviorBoxVisualStimulus(StimStruct, options)
             arguments
-                StimStruct
+                StimStruct = struct();
                 options.Preview logical = false
             end
             if nargin == 0
@@ -245,7 +245,6 @@ classdef BehaviorBoxVisualStimulus
         end
         function [Dist] = plotDistractors2(this, LeftStim, isCorrect, numDistractors)
             %tic
-
             % SANTI 10-1-2020
             if isCorrect
                 tag = 'Correct';

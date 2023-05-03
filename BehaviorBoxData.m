@@ -253,7 +253,7 @@ classdef BehaviorBoxData < handle
                 if isempty(p)
                     aD = this.fds.readall("UseParallel",false);
                 else
-                    aD = this.fds.readall("UseParallel",true); 
+                    aD = this.fds.readall("UseParallel",true);
                 end
             catch
                 aD = this.fds.readall("UseParallel",false);
@@ -297,14 +297,20 @@ classdef BehaviorBoxData < handle
                 Lev = cellfun(@(x) getLev(x), StimHist, 'UniformOutput', false);
                 c = 0;
                 for d = days
+                    Out = struct();
+                    bigSession = struct;
                     sessions = struct;
+                    StimHist = [];
                     c = c+1;
                     dayData.((mouse)){c,2} = d;
                     wD = vertcat(allData{:,2}) == d;
                     try
+                        StimHist = allData{wD & w, 4};
                         sessions = [allData{wD & w ,3}];
+                        %sessions.StimHist = StimHist;
                     catch %Fails for only one day, when include wasn't added correctly.
                         data = allData(wD & w ,3);
+                        timHist = allData{wD & w, 4};
                         % bigSesh = cellfun(@(x) ...
                         %     [{x.Score} {x.Level} {x.isLeftTrial} {x.CodedChoice} {x.SetIdx}], ...
                         %     allData(:,3), 'UniformOutput', true)
@@ -317,9 +323,9 @@ classdef BehaviorBoxData < handle
                             n = setdiff(names{2}, names{1});
                         end
                         if isempty(n)
-                            oddOne = a==find(b~=fullTotal);
                             try
-                            n = setdiff(names{1}, names{oddOne});
+                                oddOne = a==find(b~=fullTotal);
+                                n = setdiff(names{1}, names{oddOne});
                             catch err
                                 unwrapErr(err)
                             end
@@ -359,19 +365,18 @@ classdef BehaviorBoxData < handle
                     end
                     dayData.((mouse)){c,1} = sessions;
                     %Vertcat all fields
-                    bigSession = struct;
-                    for f = {'TimeStamp', 'Score', 'Level', 'isLeftTrial', 'CodedChoice', 'SetIdx'}
+                    for f = fieldnames(sessions)'%{'TimeStamp', 'Score', 'Level', 'isLeftTrial', 'CodedChoice', 'SetIdx'}
                         try
-                            bigSession.(f{:}) = vertcat(dayData.((mouse)){c,1}.(f{:}));
+                            bigSession.(f{:}) = vertcat(sessions.(f{:} ) );
                         catch
                             try
-                                bigSession.(f{:}) = [dayData.((mouse)){c,1}.(f{:})]';
+                                bigSession.(f{:}) = sessions.(f{:});
                             catch err
                                 unwrapErr(err)
                             end
                         end
                     end
-                    bigSession.Settings = {sessions.Settings};
+                    %bigSession.Settings = {sessions.Settings};
                     idx = 0;
                     Include = zeros(sum(cellfun(@numel,{sessions.Settings})), 1);
                     SetStr = {zeros(sum(cellfun(@numel,{sessions.Settings})), 1)};
@@ -404,7 +409,9 @@ classdef BehaviorBoxData < handle
                         "CodedChoice";
                         "Include"];
                     finalorder = vertcat(theseFirst, setdiff(fieldnames(bigSession), theseFirst));
-                    dayData.((mouse)){c,3} = orderfields(bigSession, finalorder); %Get the binned data and put that in as well?
+                    Out = orderfields(bigSession, finalorder);
+                    Out.StimulusHistory = vertcat(StimHist);
+                    dayData.((mouse)){c,3} =Out;
                 end
                 emptyDays = cellfun(@isempty, dayData.(mouse)(:,1));
                 dayData.(mouse)(emptyDays,:) = [];
@@ -956,17 +963,29 @@ classdef BehaviorBoxData < handle
                 unwrapErr(err)
             end
         end
-        
-%For Group Plotting:
-        function GroupData(this, options)
+
+        %For Group Plotting:
+        function GroupData(this, opts)
             arguments
                 this
-                options.Composite logical = false
+                opts.Composite logical = false
+                opts.LevGroup logical = false
+                opts.LevMM logical = false
+                opts.Stim logical = true
             end
             Num = num2cell(1:numel(this.Sub));
             t1 = datetime("now");
-            LevDay = cellfun(@(x){this.PlotLevelGroupsByLevel(Sc=x)}, Num);
-            ACell = cellfunp(@(x){this.plotLvByDayOneAxis(Sc=x, LevDay=1)}, Num);
+            if opts.LevGroup
+                LevDay = cellfun(@(x){this.PlotLevelGroupsByLevel(Sc=x)}, Num);
+            end
+            if opts.LevMM
+                ACell = cellfunp(@(x){this.plotLvByDayOneAxis(Sc=x, LevDay=1)}, Num);
+            end
+            if opts.Stim
+                SH = this.loadedData(:,4:end);
+                this.StimHistory = SH';
+                fig = this.PlotStimulusHistory();
+            end
             time = seconds(datetime("now") - t1);
             fprintf("Total time: " + time + " seconds.\n")
         end
@@ -1264,14 +1283,14 @@ classdef BehaviorBoxData < handle
                 %         end
                 %     end
                 % end
-            this.filedir = fullfile(pwd, this.Sub{this.sc}, 'LevelGroups', "SinceLev"+L+"Grouped");
+                this.filedir = fullfile(pwd, this.Sub{this.sc}, 'LevelGroups', "SinceLev"+L+"Grouped");
                 title = "SinceLev"+L+"Grouped";
-            this.SaveManyFigures(Ax.Parent.Parent,this.filedir+".pdf", Columns=max(Ddat.DayNums) , Rows=1 )
-            pause(1)
+                this.SaveManyFigures(Ax.Parent.Parent,this.filedir+".pdf", Columns=max(Ddat.DayNums) , Rows=1 )
+                pause(1)
             end
             if options.Ani; drawnow; end
             Out = Ax;
-            
+
 
 
 
@@ -1377,6 +1396,20 @@ classdef BehaviorBoxData < handle
                     this.SaveManyFigures(f,Name+"Fluid")
                 end
             end
+        end
+        function Out = PlotStimulusHistory(this)
+            arguments
+                this
+            end
+            Stim = BehaviorBoxVisualStimulus()
+            SH = this.StimHistory;
+            for t = SH
+                if isempty(t{1})
+                    continue
+                end
+            end
+
+
         end
         %Calculate functions
         function [Set, I] = structureSettings(~, Settings)
@@ -1987,15 +2020,15 @@ classdef BehaviorBoxData < handle
             end
             if ispc
                 try
-                print(FigProps, SaveAsName, '-dpdf', ...
-                    '-vector', ...
-                    '-fillpage')
+                    print(FigProps, SaveAsName, '-dpdf', ...
+                        '-vector', ...
+                        '-fillpage')
                 catch
                     tree=split(SaveAsName, filesep);
                     mkdir(fullfile(tree{1:end-1}))
                     print(fig, SaveAsName, '-dpdf', ...
-                    '-vector', ...
-                    '-fillpage')
+                        '-vector', ...
+                        '-fillpage')
                 end
                 %winopen(SaveAsName)
                 close(fig)
@@ -2013,7 +2046,7 @@ classdef BehaviorBoxData < handle
             names = vertcat(z{:});
             [g,groups] = findgroups(names);
         end
-        
+
     end %end methods
     methods(Static)
         function [struct_out] = new_init_data_struct() %Initialize data structure
