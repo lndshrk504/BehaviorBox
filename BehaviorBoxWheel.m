@@ -371,9 +371,9 @@ classdef BehaviorBoxWheel < handle
                     configurePin(a, "D6", "Unset");
                     configurePin(a, "D7", "Unset");
                     configurePin(a, "D8", "Unset");
-                    this.Box.encoder = rotaryEncoder(this.a,'D2','D3', 1024);
                     configurePin(a, "D2", "Interrupt");
                     configurePin(a, "D3", "Interrupt");
+                    this.Box.encoder = rotaryEncoder(this.a,'D2','D3', 1024);
                     this.Box.Reward =  'D6';
                     configurePin(a, "D4", "DigitalInput");
                     configurePin(a, "D5", "DigitalInput");
