@@ -358,6 +358,7 @@ classdef BehaviorBoxWheel < handle
                 case 5 %Lick ports
                     this.Box.ardunioReadDigital = 1;
                 case 6 %Rotating Wheel
+                    this.Box.use_wheel = 1;
                     if options.Rebuild
                         a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'}, 'ForceBuildOn',true);
                     else
