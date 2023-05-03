@@ -222,72 +222,7 @@ classdef BehaviorBoxNose < handle
                 OUT = cell2struct(vals, erase(inter, chr));
             end
         end
-        %set up all variables
-        function SetUpHardware(this)
-    %PHASE OUT
-            if ismac || this.Box.Input_type == 8 %Keyboard input, no arduino
-                fprintf('Using keyboard input with no arduino...')
-            else
-                try
-                    this.a = evalin('base','a');
-                catch
-                    sl = serialportlist("Available");
-                    if isempty(sl)
-                        fprintf("No COMs found. Check USB connection or clear Arduino if already in workspace.\n")
-                        return
-                    end
-                    if ismac
-                        COMS = contains(sl, 'tty.usbmodem');
-                    elseif ispc
-                        COMS = contains(sl, 'COM');
-                    end
-                    ardCOM = sl(COMS);
-                    if length(find(COMS)) == 1
-                        fprintf("Found 1 arduino at " +ardCOM+" proceeding...\n")
-                    end
-                    disp('Initializing Arduino...');
-                    if ispc && isempty(this.Setting_Struct.Arduino_Com)
-                        try
-                            this.a = arduino(ardCOM,'Uno','Libraries',{'I2C' 'Servo' 'SPI','RotaryEncoder'});
-                        catch
-                            disp('Automatically identified COM not responsive, trying indicated COM')
-                        end
-                    elseif ismac
-                        this.a=arduino(ardCOM,'Uno','Libraries',{'I2C' 'Servo' 'SPI','RotaryEncoder'});
-                    elseif ispc && ~isempty(this.Setting_Struct.Arduino_Com)
-                        this.a=arduino(['com',num2str(this.Setting_Struct.Arduino_Com)],'Uno','Libraries',{'I2C' 'Servo' 'SPI','RotaryEncoder'});
-                        assignin("base", "a", this.a) %Give the arduino back to the base workspace so next time starts faster.
-                    end
-                end
-            end
-            this.ConfigureArduino(); %set up configuration of levers
-        end
         %set hardware (arduino) parameters
-        function connectArduino(this, options)
-            arguments
-                this
-                options.COMSnum
-                options.Rebuild logical = false
-            end
-            if isempty(options.COMSnum)
-                options.COMSnum = num2str(this.app.edit22.Value);
-            end
-            try
-                if ispc
-                    comsnum = ['COM' COMSnum];
-                elseif ismac
-                    return
-                end
-                a = arduino(comsnum,'Uno','Libraries',{'I2C' 'Servo' 'SPI','RotaryEncoder'});
-                configurePin(a, 'D2', 'Unset')
-                configurePin(a, 'D3', 'Unset')
-                assignin("base", "a", a)
-                this.app.text1.Text = ['Arduino at COM' COMSnum ' claimed and copied into base workspace.' ];
-                fprintf('Arduino at COM%s claimed and copied into base workspace.\n', COMSnum)
-            catch
-                fprintf('Check the USB connection.\n')
-            end
-        end
         function ConfigureArduino(this, options)
             arguments
                 this
@@ -317,23 +252,8 @@ classdef BehaviorBoxNose < handle
                     else
                         a = arduino(comsnum,'Uno','Libraries',{});
                     end
-                    this.a = a;
                     this.Box.ardunioReadDigital = 1;
                     this.Box.readHigh = 0;
-                    %Set up box structure
-                    this.Box.Left = 'D2';
-                    this.Box.Middle = 'D3';
-                    this.Box.Right = 'D7';
-                    this.Box.ValveL = 'D6';
-                    this.Box.ValveR = 'D8';
-                    this.Box.AirPuff  = 'D11';
-                    this.Box.readPin = @(x)this.a.readDigitalPin(x)==this.Box.readHigh;
-                    this.Box.readL = this.Box.readPin(this.Box.Left);
-                    this.Box.readR = this.Box.readPin(this.Box.Right);
-                    this.Box.readM = this.Box.readPin(this.Box.Middle);
-                    %Check these... not correct
-                    %this.Box.rewardL = @(x,y){this.a.writeDigitalPin(x, 1); pause(y); this.a.writeDigitalPin(x, 0)};
-                    %this.Box.rewardR = @(x){this.a.writeDigitalPin(this.Box.ValveR, 1); pause(this.Box.Rrewardtime); this.a.writeDigitalPin(this.Box.ValveR, 0); drawnow;};
                     configurePin(a, "D2", "Unset");
                     configurePin(a, "D3", "Unset");
                     configurePin(a, "D4", "Unset");
@@ -354,11 +274,28 @@ classdef BehaviorBoxNose < handle
                     configurePin(a, "D5", "DigitalInput");
                     configurePin(a, "D6", "DigitalOutput");
                     configurePin(a, "D8", "DigitalOutput");
+                    this.a = a;
+                    %Set up box structure
+                    this.Box.Left = 'D2';
+                    this.Box.Middle = 'D3';
+                    this.Box.Right = 'D7';
+                    this.Box.ValveL = 'D6';
+                    this.Box.ValveR = 'D8';
+                    this.Box.AirPuff  = 'D11';
+                    this.Box.readPin = @(x)this.a.readDigitalPin(x)==this.Box.readHigh;
+                    this.Box.readL = this.Box.readPin(this.Box.Left);
+                    this.Box.readR = this.Box.readPin(this.Box.Right);
+                    this.Box.readM = this.Box.readPin(this.Box.Middle);
+                    %Check these... not correct
+                    %this.Box.rewardL = @(x,y){this.a.writeDigitalPin(x, 1); pause(y); this.a.writeDigitalPin(x, 0)};
+                    %this.Box.rewardR = @(x){this.a.writeDigitalPin(this.Box.ValveR, 1); pause(this.Box.Rrewardtime); this.a.writeDigitalPin(this.Box.ValveR, 0); drawnow;};
                 case 5 %Lick ports
                     this.Box.ardunioReadDigital = 1;
                 case 6 %Rotating Wheel
-                    tic
                     if options.Rebuild
+                        try
+                            this.a = [];
+                        end
                         a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'}, 'ForceBuildOn',true);
                     else
                         a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'});
@@ -378,7 +315,7 @@ classdef BehaviorBoxNose < handle
                     configurePin(a, "D5", "DigitalInput");
                     configurePin(a, "D6", "DigitalOutput");
                     this.Box.use_wheel = 1;
-                    toc
+                    this.a = a;
                 case 8 %Keyboard, used if no arduino connected
                     this.Box.KeyboardInput = 1;
                     this.Box.readHigh = 1;
@@ -1440,7 +1377,7 @@ classdef BehaviorBoxNose < handle
             drawnow
         end
         function TextBox(this)
-            this.SetUpHardware();
+            this.getGUI();
             set(this.message_handle,'Text','Trigger the Left Sensor');
             while this.a.readDigitalPin(this.Box.Left) ~= this.Box.readHigh
                 %just wait until the sensor is triggered
