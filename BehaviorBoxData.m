@@ -288,13 +288,13 @@ classdef BehaviorBoxData < handle
                 [~,days] = findgroups(cell2mat(allData(w,2))');
                 dayData.((mouse)) = cell(numel(days'),4);
                 this.DayData.((mouse)) = dayData.((mouse));
-                StimHist = allData(w,4);
-                EmptyIdx = cellfun('isempty', StimHist);
-                L = cellfun(@(x) x.Level ,allData(:,3) , 'UniformOutput',false);
-                L(EmptyIdx) = [];
-                StimHist(EmptyIdx) = [];
-                getLev = @(x)cellfun(@(x) size(x), x, 'UniformOutput',false);
-                Lev = cellfun(@(x) getLev(x), StimHist, 'UniformOutput', false);
+                % StimHist = allData(w,4);
+                % EmptyIdx = cellfun('isempty', StimHist);
+                % L = cellfun(@(x) x.Level ,allData(:,3) , 'UniformOutput',false);
+                % L(EmptyIdx) = [];
+                % StimHist(EmptyIdx) = [];
+                % getLev = @(x)cellfun(@(x) size(x), x, 'UniformOutput',false);
+                % Lev = cellfun(@(x) getLev(x), StimHist, 'UniformOutput', false);
                 c = 0;
                 for d = days
                     Out = struct();
@@ -309,8 +309,8 @@ classdef BehaviorBoxData < handle
                         sessions = [allData{wD & w ,3}];
                         %sessions.StimHist = StimHist;
                     catch %Fails for only one day, when include wasn't added correctly.
+                        StimHist = allData{wD & w, 4};
                         data = allData(wD & w ,3);
-                        timHist = allData{wD & w, 4};
                         % bigSesh = cellfun(@(x) ...
                         %     [{x.Score} {x.Level} {x.isLeftTrial} {x.CodedChoice} {x.SetIdx}], ...
                         %     allData(:,3), 'UniformOutput', true)
@@ -982,9 +982,7 @@ classdef BehaviorBoxData < handle
                 ACell = cellfunp(@(x){this.plotLvByDayOneAxis(Sc=x, LevDay=1)}, Num);
             end
             if opts.Stim
-                SH = this.loadedData(:,4:end);
-                this.StimHistory = SH';
-                fig = this.PlotStimulusHistory();
+                figs = this.PlotStimulusHistory();
             end
             time = seconds(datetime("now") - t1);
             fprintf("Total time: " + time + " seconds.\n")
@@ -1401,11 +1399,23 @@ classdef BehaviorBoxData < handle
             arguments
                 this
             end
-            Stim = BehaviorBoxVisualStimulus()
-            SH = this.StimHistory;
-            for t = SH
-                if isempty(t{1})
-                    continue
+            data = this.loadedData;
+            n = data(:,6);
+            n = categorical(cellfun(@(x) x(1:7),n,'UniformOutput',false));
+            d = cell2mat(data(:,2));
+            G = findgroups(n,d);
+            Output = splitapply(@PlotStims, data, G);
+
+
+
+            function Out = PlotStims(In)
+                Out = {};
+                Stim = BehaviorBoxVisualStimulus();
+                SH = this.StimHistory;
+                for t = SH
+                    if isempty(t{1})
+                        continue
+                    end
                 end
             end
 
