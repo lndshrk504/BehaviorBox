@@ -19,7 +19,7 @@ classdef BehaviorBoxWheel < handle
     %BehaviorBoxVisualStimulus.m
     %BehaviorBoxVisualStimulusTraining.m
     %====================================================================
-    properties (SetAccess = protected)
+    properties (SetAccess = public)
         fig; %The figure window that shows the stimulus
         figpos;
         ReadyCueAx;
