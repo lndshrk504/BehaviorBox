@@ -286,17 +286,25 @@ classdef BehaviorBoxData < handle
                 mouse = "Mouse" + name;
                 w = contains(allData(:,6), name); %only needed if there are multiple subjects
                 [~,days] = findgroups(cell2mat(allData(w,2))');
-                dayData.((mouse)) = cell(numel(days'),3);
-                this.DayData.((mouse)) = cell(numel(days'),3);
+                dayData.((mouse)) = cell(numel(days'),4);
+                this.DayData.((mouse)) = dayData.((mouse));
+                StimHist = allData(w,4);
+                EmptyIdx = cellfun('isempty', StimHist);
+                L = cellfun(@(x) x.Level ,allData(:,3) , 'UniformOutput',false);
+                L(EmptyIdx) = [];
+                StimHist(EmptyIdx) = [];
+                getLev = @(x)cellfun(@(x) size(x), x, 'UniformOutput',false);
+                Lev = cellfun(@(x) getLev(x), StimHist, 'UniformOutput', false);
                 c = 0;
                 for d = days
                     sessions = struct;
                     c = c+1;
                     dayData.((mouse)){c,2} = d;
+                    wD = vertcat(allData{:,2}) == d;
                     try
-                        sessions = [allData{cell2mat(allData(:,2)) == d & w ,3}];
+                        sessions = [allData{wD & w ,3}];
                     catch %Fails for only one day, when include wasn't added correctly.
-                        data = allData(cell2mat(allData(:,2)) == d & w ,3);
+                        data = allData(wD & w ,3);
                         % bigSesh = cellfun(@(x) ...
                         %     [{x.Score} {x.Level} {x.isLeftTrial} {x.CodedChoice} {x.SetIdx}], ...
                         %     allData(:,3), 'UniformOutput', true)
