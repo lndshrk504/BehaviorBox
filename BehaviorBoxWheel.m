@@ -898,7 +898,7 @@ classdef BehaviorBoxWheel < handle
                         % end
                     end
                     t2 = clock;
-                otherwise % Keyboard inputthis.Box.KeyboardInput==1
+                case this.Box.KeyboardInput==1
                     InterTMalInterv = this.Setting_Struct.IntertrialMalSec;
                     text = 'Initialize: Press L for Left, R for Right, C or M for Middle:'; set(this.message_handle,'Text',text); fprintf([text '\n'])
                     prompt = 'L, R, or M/C:   ';
