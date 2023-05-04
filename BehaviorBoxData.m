@@ -1000,7 +1000,7 @@ classdef BehaviorBoxData < handle
                 options.save logical = true
                 options.Text logical = false
                 options.LevDay logical = true
-                options.Sc
+                options.Sc = 1
                 options.Training logical = false
             end
             if ~options.Training
