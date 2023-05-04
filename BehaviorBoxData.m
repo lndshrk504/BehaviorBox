@@ -450,16 +450,23 @@ classdef BehaviorBoxData < handle
                 sc = sc + 1;
                 data = S{:}(:,3);
                 %[g, groups] = inspectAllSettings(SData)
-                SDData = cell2mat(data);
-                TrialTblStruct = struct();
-                for f = fieldnames(SDData)'
-                    try
-                        n = f{:};
-                        TrialTblStruct.(n) = vertcat(SDData.(n));
-                    end
+                %names = cellfun(@(x)fieldnames(x),data,'UniformOutput',false);
+                SDData = struct();
+                for f = {'Date','TrialNum','LvlTrialNum','BigBin','SmallBin','TimeStamp','Score','Level','isLeftTrial','CodedChoice','Include'}
+                    fn = f{:};
+                    SDData.(fn) = cell2mat(cellfun(@(x)x.(fn), data, 'UniformOutput', false));
                 end
-                TrialTblStruct = rmfield(TrialTblStruct, {'SetStr', 'Settings'});
-                trialTbl = struct2table(TrialTblStruct);
+                % SDData = cell2mat(data);
+                % TrialTblStruct = struct();
+                % for f = fieldnames(SDData)'
+                %     try
+                %         n = f{:};
+                %         TrialTblStruct.(n) = vertcat(SDData.(n));
+                %     end
+                % end
+                % TrialTblStruct = rmfield(TrialTblStruct, {'SetStr', 'Settings'});
+                % trialTbl = struct2table(TrialTblStruct);
+                trialTbl = struct2table(SDData);
                 trialTbl.Level = round(trialTbl.Level);
                 trialTbl = this.getLevelTNums(trialTbl);
                 Out.TrialTbls{sc} = trialTbl;
@@ -486,7 +493,7 @@ classdef BehaviorBoxData < handle
                 this.MaxLevel = find(MaxLPerf>=0.8, 1, 'last')+1;
             end
             this.AnalyzedData = Out;
-            this.current_data_struct = new_init_data_struct();
+            this.current_data_struct = this.new_init_data_struct();
             time = seconds(datetime('now') - t1);
             fprintf("Analyzed... etime: " + time + " seconds.\n")
             if nargout >= 1
@@ -994,9 +1001,12 @@ classdef BehaviorBoxData < handle
                 options.Text logical = false
                 options.LevDay logical = true
                 options.Sc
+                options.Training logical = false
             end
-            if ~isempty(options.Sc)
+            if ~options.Training
                 this.sc = options.Sc;
+            else
+                this.sc=1;
             end
             SUB = this.Sub{this.sc};
             %for SUB = this.Sub
@@ -1007,7 +1017,7 @@ classdef BehaviorBoxData < handle
             maxPassedL = find(HighScore>=0.8, 1, 'last')+1;
             this.trial_table = this.AnalyzedData.TrialTbls{this.sc};
             title = SUB+" All Time Performance";
-            f = figure("Name",title, "Visible", "off"); f.Visible=1;
+            f = figure("Name",title, "Visible", "off"); %f.Visible=1;
             T = tiledlayout(1,1,"Parent",f,"TileSpacing","none","Padding","tight");
             Ax = nexttile(T); hold(Ax, "on");
             Ax.Box = 0;
@@ -1121,7 +1131,7 @@ classdef BehaviorBoxData < handle
             end
             time = seconds(datetime("now") - t1);
             fprintf("Plotted "+SUB+ "... etime: " + time + " seconds.\n")
-            if isempty(options.Sc)
+            if options.Training
                 Out = Ax;
             else
                 Out = f;

@@ -301,16 +301,13 @@ classdef BehaviorBoxSuper < handle
                     else
                         a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'});
                     end
-                    configurePin(a, "D2", "Unset");
-                    configurePin(a, "D3", "Unset");
+                    this.a = a;
                     configurePin(a, "D4", "Unset");
                     configurePin(a, "D5", "Unset");
                     configurePin(a, "D6", "Unset");
                     configurePin(a, "D7", "Unset");
                     configurePin(a, "D8", "Unset");
                     this.Box.encoder = rotaryEncoder(this.a,'D2','D3', 1024);
-                    configurePin(a, "D2", "Interrupt");
-                    configurePin(a, "D3", "Interrupt");
                     this.Box.Reward =  'D6';
                     configurePin(a, "D4", "DigitalInput");
                     configurePin(a, "D5", "DigitalInput");
