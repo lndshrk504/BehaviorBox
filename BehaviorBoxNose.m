@@ -1396,6 +1396,7 @@ classdef BehaviorBoxNose < handle
             set(this.message_handle,'Text','Did the sensors work?');
         end
         function TestStimulus(this)
+            this.getGUI();
             this.Stimulus_Object = BehaviorBoxVisualStimulus(this.StimulusStruct, Preview=1);
             try
                 [~,~] = this.Stimulus_Object.DisplayOnScreen(this.PickSideForCorrect(0, 0), this.Setting_Struct.Starting_opacity); %Plot new stimulus as hidden objects, record positions and angles of the segments
