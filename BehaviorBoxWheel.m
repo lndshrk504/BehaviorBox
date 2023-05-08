@@ -359,6 +359,7 @@ classdef BehaviorBoxWheel < handle
                     this.Box.ardunioReadDigital = 1;
                 case 6 %Rotating Wheel
                     this.Box.use_wheel = 1;
+                    this
                     if options.Rebuild
                         a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'}, 'ForceBuildOn',true);
                     else
@@ -389,6 +390,8 @@ classdef BehaviorBoxWheel < handle
             this.GuiHandles.MsgBox.String = "";
             this.GuiHandles.NotesText.String = "";
             this.GuiHandles.NotesText.String = sprintf(string(datetime("today"))+" Behavior Notes:\n");
+        %Set some defaults: FOR WHEEL
+            this.app.FinishlineCheckBox.Value = 1;
             this.setGuiNumbers(this.GUI_numbers); %update gui
             try
                 this.Data_Object = evalin('base','BBData');

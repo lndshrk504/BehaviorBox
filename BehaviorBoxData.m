@@ -1,5 +1,5 @@
 classdef BehaviorBoxData < handle
-    % 4.27.23
+    % 5.08.2023 Will Snyder
     %====================================================================
     %Data class
     %This Class stores all the data during training, and analyzes the
@@ -176,6 +176,7 @@ classdef BehaviorBoxData < handle
         %Load data file functions
         function [subfiledir, fds] = GetFiles(this)
             fds = [];
+            subfiledir = pwd;
             %Do an initial search for this mouse
             startpath = fullfile(getFilePath(), this.Inv,this.Inp, '**', '*');
             dirlist = dir(startpath);
@@ -197,13 +198,17 @@ classdef BehaviorBoxData < handle
                     tree = split(dirlist.folder, filesep);
                     this.Str = tree{end};
                     subfiledir = fullfile(newpath, this.Sub{:}); %Leave fds empty
+                case this.Sub == "w" || this.Str == "w" || this.Sub == "W" || this.Str == "W"
+                    %Do nothing
                 otherwise
                     if ~isempty(this.Str)
                         newpath = join([startpath this.Str this.Sub], filesep);
                         if isfolder(newpath)
                             fprintf("Found "+numel(this.Sub)+" subject(s) matching user input:\n - "+cell2mat(join(this.Sub, "\n - "))+"\n")
                         else
-                            mkdir(newpath)
+                            try
+                                mkdir(newpath)
+                            end
                             fprintf("New strain, folders will be created when saving data...\n")
                             subfiledir = newpath;
                         end
