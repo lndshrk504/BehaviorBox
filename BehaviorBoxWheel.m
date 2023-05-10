@@ -313,9 +313,9 @@ classdef BehaviorBoxWheel < handle
                         try
                             this.a = [];
                         end
-                        a = arduino(comsnum,'Uno','Libraries',{}, 'ForceBuildOn',true);
+                        a = arduino(comsnum,'Uno','Libraries', {'RotaryEncoder'}, 'ForceBuildOn',true);
                     else
-                        a = arduino(comsnum,'Uno','Libraries',{});
+                        a = arduino(comsnum,'Uno','Libraries', {'RotaryEncoder'});
                     end
                     this.a = a;
                     this.Box.ardunioReadDigital = 1;
@@ -359,11 +359,10 @@ classdef BehaviorBoxWheel < handle
                     this.Box.ardunioReadDigital = 1;
                 case 6 %Rotating Wheel
                     this.Box.use_wheel = 1;
-                    this
                     if options.Rebuild
-                        a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'}, 'ForceBuildOn',true);
+                        a = arduino(comsnum,'Uno','Libraries', {'RotaryEncoder'}, 'ForceBuildOn',true);
                     else
-                        a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'});
+                        a = arduino(comsnum,'Uno','Libraries', {'RotaryEncoder'});
                     end
                     this.a = a;
                     configurePin(a, "D4", "Unset");
