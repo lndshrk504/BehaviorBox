@@ -254,13 +254,6 @@ classdef BehaviorBoxNose < handle
                     end
                     this.Box.ardunioReadDigital = 1;
                     this.Box.readHigh = 0;
-                    configurePin(a, "D2", "Unset");
-                    configurePin(a, "D3", "Unset");
-                    configurePin(a, "D4", "Unset");
-                    configurePin(a, "D5", "Unset");
-                    configurePin(a, "D6", "Unset");
-                    configurePin(a, "D7", "Unset");
-                    configurePin(a, "D8", "Unset");
                     if this.Box.readHigh %Voltage goes HIGH on choice
                         configurePin(a, "D2", "DigitalInput");
                         configurePin(a, "D3", "DigitalInput");
@@ -283,12 +276,14 @@ classdef BehaviorBoxNose < handle
                     this.Box.ValveR = 'D8';
                     this.Box.AirPuff  = 'D11';
                     this.Box.readPin = @(x)this.a.readDigitalPin(x)==this.Box.readHigh;
-                    this.Box.readL = this.Box.readPin(this.Box.Left);
-                    this.Box.readR = this.Box.readPin(this.Box.Right);
-                    this.Box.readM = this.Box.readPin(this.Box.Middle);
+                    this.Box.readL = @(x)this.Box.readPin(this.Box.Left);
+                    this.Box.readR = @(x)this.Box.readPin(this.Box.Right);
+                    this.Box.readM = @(x)this.Box.readPin(this.Box.Middle);
+                    % this.Box.rewardL = @(x){writeDigitalPin(this.a,this.Box.ValveL,1) 
+                    %     pause(this.Setting_Struct.Box_Lrewardtime)
+                    %     writeDigitalPin(this.a,this.Box.ValveL,0)};
+                    % this.Box.rewardR = @(x)writeDigitalPin(this.a,this.Box.ValveR,1);pause(this.Setting_Struct.Box_Rrewardtime);writeDigitalPin(this.a,this.Box.ValveR,0);
                     %Check these... not correct
-                    %this.Box.rewardL = @(x,y){this.a.writeDigitalPin(x, 1); pause(y); this.a.writeDigitalPin(x, 0)};
-                    %this.Box.rewardR = @(x){this.a.writeDigitalPin(this.Box.ValveR, 1); pause(this.Box.Rrewardtime); this.a.writeDigitalPin(this.Box.ValveR, 0); drawnow;};
                 case 5 %Lick ports
                     this.Box.ardunioReadDigital = 1;
                 case 6 %Rotating Wheel
@@ -300,16 +295,7 @@ classdef BehaviorBoxNose < handle
                     else
                         a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'});
                     end
-                    configurePin(a, "D2", "Unset");
-                    configurePin(a, "D3", "Unset");
-                    configurePin(a, "D4", "Unset");
-                    configurePin(a, "D5", "Unset");
-                    configurePin(a, "D6", "Unset");
-                    configurePin(a, "D7", "Unset");
-                    configurePin(a, "D8", "Unset");
                     this.Box.encoder = rotaryEncoder(this.a,'D2','D3', 1024);
-                    configurePin(a, "D2", "Interrupt");
-                    configurePin(a, "D3", "Interrupt");
                     this.Box.Reward =  'D6';
                     configurePin(a, "D4", "DigitalInput");
                     configurePin(a, "D5", "DigitalInput");
@@ -1379,17 +1365,15 @@ classdef BehaviorBoxNose < handle
         function TextBox(this)
             this.getGUI();
             set(this.message_handle,'Text','Trigger the Left Sensor');
-            while this.a.readDigitalPin(this.Box.Left) ~= this.Box.readHigh
+            while ~this.Box.readL()
                 %just wait until the sensor is triggered
             end
-            this.ResetSensor(this)
             set(this.message_handle,'Text','Trigger the Right Sensor');
-            while this.a.readDigitalPin(this.Box.Right) ~= this.Box.readHigh
+            while ~this.Box.readR()
                 %just wait until the sensor is triggered
             end
-            this.ResetSensor(this)
             set(this.message_handle,'Text','Trigger the Middle Sensor');
-            while this.a.readDigitalPin(this.Box.Middle) ~= this.Box.readHigh
+            while ~this.Box.readM()
                 %just wait until the sensor is triggered
             end
             this.cleanUP();

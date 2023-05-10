@@ -226,27 +226,34 @@ classdef BehaviorBoxData < handle
             if ~isempty(fds)
                 fprintf("Found "+numel(fds.Files)+" files for "+numel(this.Sub)+" subject(s) matching user input:\n - "+cell2mat(join(this.Sub, "\n - "))+"\n")
             end
+
             function [SUBDIR, FDS] = makefiles(direc)
+                FDS = [];
+                SUBDIR = [];
                 try
                     FDS = fileDatastore(direc, "ReadMode", "file" ,"ReadFcn", @readFcn, "FileExtensions", ".mat", "IncludeSubfolders",false);
-                catch
-                    FDS = fileDatastore(direc, "ReadMode", "file" ,"ReadFcn", @readFcn, "FileExtensions", ".mat", "IncludeSubfolders",false);
-                    FDS.Files = FDS.Files(~contains(FDS.Files, {'Settings'}, "IgnoreCase",true));
-                    FDS.Files = FDS.Files(~contains(FDS.Files, {'rescue'}, "IgnoreCase",true));
-                    FDS.Files = FDS.Files(contains(FDS.Files, this.Sub));
+                    forest = cellfun(@(x) split(x,filesep), FDS.Files', 'UniformOutput', false);
+                    [~,this.Sub]=findgroups(cellfun(@(x) x(end-1), forest));
+                    [~,strains]=findgroups(cellfun(@(x) x(end-2), forest));
+                    this.Str = cell2mat(strains);
+                    if numel(this.Sub)>1
+                        w = 2;
+                    else
+                        w = 1;
+                    end
+                    file = forest{1}(1:end-w);
+                    SUBDIR = fullfile(file{:});
+                catch err
+                    display(err.message)
+                    try
+                        SUBDIR = direc{:};
+                        tree = split(direc, filesep);
+                        this.Sub = tree(end);
+                        this.Str = tree{end-1};
+                    end
                 end
-                forest = cellfun(@(x) split(x,filesep), FDS.Files', 'UniformOutput', false);
-                [~,this.Sub]=findgroups(cellfun(@(x) x(end-1), forest));
-                [~,strains]=findgroups(cellfun(@(x) x(end-2), forest));
-                this.Str = cell2mat(strains);
-                if numel(this.Sub)>1
-                    w = 2;
-                else
-                    w = 1;
-                end
-                file = forest{1}(1:end-w);
-                SUBDIR = fullfile(file{:});
             end
+
         end
         function [varargout] = loadFiles(this)
             if isempty(this.fds)
