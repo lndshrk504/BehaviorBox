@@ -393,15 +393,12 @@ classdef BehaviorBoxWheel < handle
             this.app.FinishlineCheckBox.Value = 1;
             this.setGuiNumbers(this.GUI_numbers); %update gui
             try
-                this.Data_Object = evalin('base','BBData');
-            catch
                 this.Data_Object = BehaviorBoxData( ...
                     Inv=this.app.Inv.Value, ...
                     Inp=this.app.Box_Input_type.Value, ...
                     Str=this.app.Strain.Value, ...
                     Sub={this.app.Subject.Value}, ...
-                    load=1, ...
-                    analyze=1); % Set up data storage object
+                    find=1); % Set up data storage object
             end
             try
                 diaryname = join([this.Data_Object.filedir "BBTrialOutput"+this.Data_Object.date+".txt"], filesep);
@@ -450,6 +447,7 @@ classdef BehaviorBoxWheel < handle
             this.toggleButtonsOnOff(this.Buttons,0); % Turn off all buttons
             assignin("base", "BB", this)
             assignin("base", "BBData", this.Data_Object)
+            this.i = 0;
         end
         %Do some things before each trial
         function BeforeTrial(this)

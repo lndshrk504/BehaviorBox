@@ -229,7 +229,7 @@ classdef BehaviorBoxNose < handle
                 options.Rebuild logical = false
             end
             tic
-% https://docs.arduino.cc/learn/microcontrollers/digital-pins
+            % https://docs.arduino.cc/learn/microcontrollers/digital-pins
             if this.Setting_Struct.Box_Input_type == 8 %Skip all this if keyboard mode
                 return
             end
@@ -242,32 +242,31 @@ classdef BehaviorBoxNose < handle
             %set which lever is what and what the input setup is from
             this.Box.ResetPin        = 'D4';
             this.Box.TriggerPin      = 'D5';
+            if options.Rebuild
+                try
+                    this.a = [];
+                end
+                this.a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'}, 'ForceBuildOn',true);
+            else
+                this.a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'});
+            end
+            configurePin(this.a, "D4", "DigitalOutput"); %Reset pin
+            configurePin(this.a, "D5", "DigitalInput"); %Trigger pin
+            configurePin(this.a, "D6", "DigitalOutput");
+            configurePin(this.a, "D8", "DigitalOutput");
             switch this.Setting_Struct.Box_Input_type
                 case 3 %Three Pokes
-                    if options.Rebuild
-                        try
-                            this.a = [];
-                        end
-                        a = arduino(comsnum,'Uno','Libraries',{}, 'ForceBuildOn',true);
-                    else
-                        a = arduino(comsnum,'Uno','Libraries',{});
-                    end
                     this.Box.ardunioReadDigital = 1;
                     this.Box.readHigh = 0;
                     if this.Box.readHigh %Voltage goes HIGH on choice
-                        configurePin(a, "D2", "DigitalInput");
-                        configurePin(a, "D3", "DigitalInput");
-                        configurePin(a, "D7", "DigitalInput");
+                        configurePin(this.a, "D2", "DigitalInput");
+                        configurePin(this.a, "D3", "DigitalInput");
+                        configurePin(this.a, "D7", "DigitalInput");
                     else %Voltage goes LOW on choice
-                        configurePin(a, "D2", "Pullup");
-                        configurePin(a, "D3", "Pullup");
-                        configurePin(a, "D7", "Pullup");
+                        configurePin(this.a, "D2", "Pullup");
+                        configurePin(this.a, "D3", "Pullup");
+                        configurePin(this.a, "D7", "Pullup");
                     end
-                    configurePin(a, "D4", "DigitalInput");
-                    configurePin(a, "D5", "DigitalInput");
-                    configurePin(a, "D6", "DigitalOutput");
-                    configurePin(a, "D8", "DigitalOutput");
-                    this.a = a;
                     %Set up box structure
                     this.Box.Left = 'D2';
                     this.Box.Middle = 'D3';
@@ -275,33 +274,17 @@ classdef BehaviorBoxNose < handle
                     this.Box.ValveL = 'D6';
                     this.Box.ValveR = 'D8';
                     this.Box.AirPuff  = 'D11';
-                    this.Box.readPin = @(x)this.a.readDigitalPin(x)==this.Box.readHigh;
+                    this.Box.readPin = @(PIN)this.a.readDigitalPin(PIN)==this.Box.readHigh;
                     this.Box.readL = @(x)this.Box.readPin(this.Box.Left);
                     this.Box.readR = @(x)this.Box.readPin(this.Box.Right);
                     this.Box.readM = @(x)this.Box.readPin(this.Box.Middle);
-                    % this.Box.rewardL = @(x){writeDigitalPin(this.a,this.Box.ValveL,1) 
-                    %     pause(this.Setting_Struct.Box_Lrewardtime)
-                    %     writeDigitalPin(this.a,this.Box.ValveL,0)};
-                    % this.Box.rewardR = @(x)writeDigitalPin(this.a,this.Box.ValveR,1);pause(this.Setting_Struct.Box_Rrewardtime);writeDigitalPin(this.a,this.Box.ValveR,0);
-                    %Check these... not correct
+                    %this.Box.reward = @(PIN, DUR)[this.a.writeDigitalPin(PIN, 1); pause(DUR); this.a.writeDigitalPin(PIN, 0)]
                 case 5 %Lick ports
                     this.Box.ardunioReadDigital = 1;
                 case 6 %Rotating Wheel
-                    if options.Rebuild
-                        try
-                            this.a = [];
-                        end
-                        a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'}, 'ForceBuildOn',true);
-                    else
-                        a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'});
-                    end
                     this.Box.encoder = rotaryEncoder(this.a,'D2','D3', 1024);
                     this.Box.Reward =  'D6';
-                    configurePin(a, "D4", "DigitalInput");
-                    configurePin(a, "D5", "DigitalInput");
-                    configurePin(a, "D6", "DigitalOutput");
                     this.Box.use_wheel = 1;
-                    this.a = a;
                 case 8 %Keyboard, used if no arduino connected
                     this.Box.KeyboardInput = 1;
                     this.Box.readHigh = 1;
@@ -316,15 +299,12 @@ classdef BehaviorBoxNose < handle
             this.GuiHandles.NotesText.String = sprintf(string(datetime("today"))+" Behavior Notes:\n");
             this.setGuiNumbers(this.GUI_numbers); %update gui
             try
-                this.Data_Object = evalin('base','BBData');
-            catch
                 this.Data_Object = BehaviorBoxData( ...
                     Inv=this.app.Inv.Value, ...
                     Inp=this.app.Box_Input_type.Value, ...
                     Str=this.app.Strain.Value, ...
                     Sub={this.app.Subject.Value}, ...
-                    load=1, ...
-                    analyze=1); % Set up data storage object
+                    find=1); % Set up data storage object
             end
             try
                 diaryname = join([this.Data_Object.filedir "BBTrialOutput"+this.Data_Object.date+".txt"], filesep);
@@ -356,11 +336,6 @@ classdef BehaviorBoxNose < handle
                     end
                 end
             end
-            fprintf("- - - - -\n");
-            txt = "Start trial Mouse "+this.Setting_Struct.Subject+" at "+string(datetime('now'));
-            set(this.message_handle,'Text',txt, ...
-                'BackgroundColor', 'none');
-            fprintf(txt+"\n");
             [this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.Stimulus_Object.setUpFigure();
             this.StimulusStruct.fig = this.fig;
             this.ReadyCue(1)
@@ -371,8 +346,12 @@ classdef BehaviorBoxNose < handle
                 this.Box.use_wheel = 1;
             end
             this.toggleButtonsOnOff(this.Buttons,0); % Turn off all buttons
-            assignin("base", "BB", this)
-            assignin("base", "BBData", this.Data_Object)
+            fprintf("- - - - -\n");
+            txt = "Start trial Mouse "+this.Setting_Struct.Subject+" at "+string(datetime('now'));
+            set(this.message_handle,'Text',txt);
+            fprintf(txt+"\n");
+            this.i = 0;
+            this.timeout_counter = 0;
         end
         %Do some things before each trial
         function BeforeTrial(this)
@@ -408,8 +387,6 @@ classdef BehaviorBoxNose < handle
                     %this.StimHistory(this.i,:) = this.StimHistory(this.i-1,:); %Use the same stimulus from last time
                     [this.StimHistory{this.i,1},this.StimHistory{this.i,2}] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, this.Level); %Plot new stimulus as hidden objects, record positions and angles of the segments
                 end
-%                 this.LStimAx.Position(1) = 0;
-%                 this.RStimAx.Position(1) = 0.5;
             else %If correct or no repeat wrong
                 this.isLeftTrial = this.PickSideForCorrect(this.isLeftTrial, this.SideBias); %Pick if isLeftTrial
                 %Pick next difficulty level, if variable
@@ -428,7 +405,7 @@ classdef BehaviorBoxNose < handle
             [this.fig.Children.findobj('Type','Line').Visible] = deal(0);
             drawnow
             this.ReadyCue(1)
-            this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.DimColor;
+            %this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.DimColor;
         end
         %update GUI numbers before each trial
         function updateGUIbeforeIteration(this)
@@ -756,19 +733,12 @@ classdef BehaviorBoxNose < handle
                         this.ResetSensor(this)
                     end
                     t1 = datetime("now");
-                    % while this.Setting_Struct.Input_ignored & seconds(datetime("now")-t1)<this.Setting_Struct.Pokes_ignored_time
-                    %     time = this.Setting_Struct.Pokes_ignored_time-seconds(datetime("now")-t1);
-                    %     txt = "Ignoring input for "+round(time,1)+" sec...";
-                    %     set(this.message_handle,'Text',txt)
-                    %     drawnow
-                    % end
                     this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.LineColor;
                     set(this.message_handle,'Text','Waiting for Trial initialization'); drawnow
-                    InpDelay = this.Setting_Struct.Input_Delay_Start;
                     event = 0;
                     while ~get(this.stop_handle, 'Value') %While the stop button has not been pressed
                         drawnow %Update the buttons
-                        if this.Setting_Struct.IntertrialMalCancel && this.a.readDigitalPin(this.Box.Left) == this.Box.readHigh | this.a.readDigitalPin(this.Box.Right) == this.Box.readHigh
+                        if this.Setting_Struct.IntertrialMalCancel && this.Box.readL() | this.Box.readR()
                             %this.ReadyCue('k') %Make the ReadyCue black
                             this.Flash(this.StimulusStruct, findobj('Tag', 'ReadyCueDot'), 'Mal')
                             this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.DimColor; drawnow %Make the ReadyCue dim
@@ -779,18 +749,18 @@ classdef BehaviorBoxNose < handle
                                 txt = "Do not poke L or R! Intertrial Malingering timeout: "+round(time,1)+" sec...";
                                 set(this.message_handle,'Text',txt)
                                 drawnow %Update the buttons
-                                if this.a.readDigitalPin(this.Box.Left) == this.Box.readHigh | this.a.readDigitalPin(this.Box.Right) == this.Box.readHigh %if L or R poke then restart timerStart
+                                if this.Box.readL() | this.Box.readR() %if L or R poke then restart timerStart
                                     timerStart = datetime("now");
                                 end
                                 if get(this.FF, 'Value')
                                     set(this.message_handle, 'Text','Skipping interval...')
                                     set(this.FF, 'Value', 0)
-                                    %drawnow
+                                    drawnow
                                     break;
                                 end
                                 if get(this.stop_handle, 'Value')
                                     set(this.message_handle, 'Text','Ending session...')
-                                    %drawnow
+                                    drawnow
                                     break;
                                 end
                                 if seconds(datetime("now")-timerStart) > this.Setting_Struct.IntertrialMalSec %End when mouse has not poked L or R for the interval
@@ -802,33 +772,10 @@ classdef BehaviorBoxNose < handle
                             end
                         end
                         %Immediately accept choice
-                        if this.a.readDigitalPin(this.Box.Middle) == this.Box.readHigh
+                        if this.Box.readM()
                             event = 1;
                             break
                         end
-                        % %Make the mouse wait
-                        % while this.a.readDigitalPin(this.Box.Middle) == this.Box.readHigh
-                        %     t1 = datetime("now");
-                        %     while seconds(datetime("now")-t1) < InpDelay
-                        %         this.message_handle.Text = "Hold Center choice for "+round(InpDelay - seconds(datetime("now")-t1),1)+" seconds...";
-                        %         if this.a.readDigitalPin(this.Box.Middle) ~= this.Box.readHigh
-                        %             break
-                        %         end
-                        %     end
-                        %     if this.a.readDigitalPin(this.Box.Middle) ~= this.Box.readHigh
-                        %         this.Flash(this.StimulusStruct, findobj('Tag', 'ReadyCueDot'), 'Mal')
-                        %         this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.LineColor;
-                        %         set(this.message_handle,'Text','Waiting for center choice...'); drawnow
-                        %         t1 = datetime("now");
-                        %         break
-                        %     else
-                        %         event = 1;
-                        %         break
-                        %     end
-                        % end
-                        % if event == 1
-                        %     break
-                        % end
                     end
                     t2 = clock;
                 otherwise % Keyboard inputthis.Box.KeyboardInput==1
@@ -912,7 +859,13 @@ classdef BehaviorBoxNose < handle
                 [x.Visible] = deal(1);
             end
             this.fig.Color = this.StimulusStruct.BackgroundColor;
-            this.ReadyCue(0);
+            Ls = this.fig.findobj('Type','line');
+            [Ls(:).Color] = deal(this.StimulusStruct.DimColor);
+            this.ReadyCue(0); drawnow
+            while this.Box.readM()
+                drawnow
+            end
+            [Ls(:).Color] = deal(this.StimulusStruct.LineColor); drawnow
             %ignore input if set
             t1 = datetime("now");
             while this.Setting_Struct.Input_ignored & seconds(datetime("now")-t1)<this.Setting_Struct.Pokes_ignored_time
@@ -945,7 +898,7 @@ classdef BehaviorBoxNose < handle
                     t1 = clock; t2 = clock;
                     this.GiveReward(this.a, this.Box, this.Buttons, this.WhatDecision); %give reward
                     if this.Box.Input_type == 3
-                        while this.checkRewardPortsandwait(this.WhatDecision)%Pause while the mouse is standing there and drinking their reward
+                        while this.Box.readL() | this.Box.readR() %Pause while the mouse is standing there and drinking their reward
                         end
                     end
                     t2 = clock;
@@ -981,6 +934,8 @@ classdef BehaviorBoxNose < handle
                     [o(:).Visible] = deal(0);
                 case contains({this.WhatDecision} , 'wrong', 'IgnoreCase', true)
                     set(this.message_handle,'Text',[this.WhatDecision,' - Penalty...']);
+                    while this.Box.readL() | this.Box.readR() %Pause while the mouse is standing there
+                    end
                     %Flash
                     this.Flash(this.StimulusStruct, findobj('Tag', 'Contour'), this.WhatDecision);
                     if ~get(this.stop_handle, 'Value') && this.StimulusStruct.PersistIncorrect
@@ -1138,10 +1093,12 @@ classdef BehaviorBoxNose < handle
             end
             switch this.Box.Input_type
                 case 3 % Nose
-                    while this.checkRewardPortsandwait(this.WhatDecision)%Pause while the mouse is standing there and drinking their water reward
+                    this.ReadyCue(1)
+                    this.ReadyCueAx.findobj('Type','scatter').MarkerFaceColor = deal(this.StimulusStruct.DimColor); drawnow;
+                    while this.Box.readL() | this.Box.readR() %Pause while the mouse is standing there and drinking their water reward
                     end
-                    o = findobj(this.fig.Children);
-                    [o(:).Visible] = deal(0);
+                    % o = findobj(this.fig.Children);
+                    % [o(:).Visible] = deal(0);
                 case 6 % Wheel
                     this.ReadyCue(1)
             end
@@ -1356,11 +1313,11 @@ classdef BehaviorBoxNose < handle
                             'Tag', 'ReadyCueDot');
                         this.ReadyCueAx = [findobj(this.fig, 'Tag', 'ReadyCue')];
                 end
-%                 if this.Box.Input_type~=6
-%                     this.Flash(this.StimulusStruct, findobj('Tag', 'ReadyCueDot'), 'NewStim')
-%                 end
+                %                 if this.Box.Input_type~=6
+                %                     this.Flash(this.StimulusStruct, findobj('Tag', 'ReadyCueDot'), 'NewStim')
+                %                 end
             end
-            drawnow
+            %drawnow
         end
         function TextBox(this)
             this.getGUI();

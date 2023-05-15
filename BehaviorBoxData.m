@@ -183,13 +183,14 @@ classdef BehaviorBoxData < handle
             dirlist = dirlist([dirlist.isdir] & ...
                 ~contains({dirlist.name}, {'.', 'settings', 'alltime', 'Rescued'}, 'IgnoreCase',true) ...
                 & contains({dirlist.name}, this.Sub, "IgnoreCase",true));
-            [a,b]=findgroups({dirlist.folder});
+            [a,b]=findgroups({dirlist.folder}');
             dirPath = cellfun(@(x) fullfile(b{:}, x), {dirlist.name} , 'UniformOutput', false);
             filelist = dir(fullfile(getFilePath(), this.Inv,this.Inp, '**', '*.mat'));
             filelist = filelist(contains({filelist.name}, this.Sub) & ~contains({filelist.name}, 'settings', 'IgnoreCase',true));
             switch 1
-                %Any files?
-                case any(contains({filelist.name}, this.Sub))
+                case this.Sub == "w" || this.Str == "w" || this.Sub == "W" || this.Str == "W"
+                    %Do nothing
+                case any(contains({filelist.name}, this.Sub)) %Any files?
                     [subfiledir, fds] = makefiles(dirPath);
                     %Any folders but no files?
                 case any(contains({dirlist.name}, this.Sub)) && sum(contains({dirlist.name}, this.Sub)) == 1
@@ -198,8 +199,6 @@ classdef BehaviorBoxData < handle
                     tree = split(dirlist.folder, filesep);
                     this.Str = tree{end};
                     subfiledir = fullfile(newpath, this.Sub{:}); %Leave fds empty
-                case this.Sub == "w" || this.Str == "w" || this.Sub == "W" || this.Str == "W"
-                    %Do nothing
                 otherwise
                     if ~isempty(this.Str)
                         newpath = join([startpath this.Str this.Sub], filesep);
@@ -987,10 +986,10 @@ classdef BehaviorBoxData < handle
         function GroupData(this, opts)
             arguments
                 this
-                opts.Composite logical = false
-                opts.LevGroup logical = false
-                opts.LevMM logical = false
-                opts.Stim logical = true
+                opts.Composite logical = 0
+                opts.LevGroup logical = 0
+                opts.LevMM logical = 1
+                opts.Stim logical = 0
             end
             Num = num2cell(1:numel(this.Sub));
             t1 = datetime("now");
@@ -1015,6 +1014,8 @@ classdef BehaviorBoxData < handle
                 options.Sc = 1
                 options.Training logical = false
             end
+            Out = [];
+            try
             if ~options.Training
                 this.sc = options.Sc;
             else
@@ -1147,6 +1148,9 @@ classdef BehaviorBoxData < handle
                 Out = Ax;
             else
                 Out = f;
+            end
+            catch err
+                err
             end
             %Add'l fcns:
             function FMTtext(TextHandle)
@@ -1422,22 +1426,34 @@ classdef BehaviorBoxData < handle
                 this
             end
             data = this.loadedData;
+            data(any(cellfun('isempty', data(:,[4 5])), 2),:) = [];
             n = data(:,6);
             n = categorical(cellfun(@(x) x(1:7),n,'UniformOutput',false));
             d = cell2mat(data(:,2));
             G = findgroups(n,d);
+            F = figure('MenuBar','none');
+            T = tiledlayout("flow", "TileSpacing","none","Padding","tight", "Parent",F);
             Output = splitapply(@PlotStims, data, G);
-
-
-
             function Out = PlotStims(In)
                 Out = {};
-                Stim = BehaviorBoxVisualStimulus();
-                SH = this.StimHistory;
-                for t = SH
-                    if isempty(t{1})
-                        continue
-                    end
+                D = [In{:,[4 5]}];
+                NumDistractors = cellfun(@(x)size(x,1),D(:,[1 2]),'UniformOutput',true);
+                Levels = num2cell(min(NumDistractors, [], 2)+1);
+                TrialNum = num2cell(1:numel(Levels))';
+                D = [TrialNum Levels D]';
+                Sobj = BehaviorBoxVisualStimulus();
+                for t = D
+                    %TrialNum
+                    %Level
+                    %Left Stim
+                    %Right Stim
+                    %Outcome
+                    % 6 & 7 are wheel position & time
+                    %Plan:
+                    % Call a plotting function to plot each stim, label outcome.
+                    T2 = tiledlayout(T,1,2,"TileSpacing","none","Padding","tight");
+                    [~, Sobj.LStimAx, Sobj.RStimAx, ~] = Sobj.setUpFigure("StimHist",1,"Ax",Ax);
+                    Sobj.plotDistractors2("StimHistory",t)
                 end
             end
 
