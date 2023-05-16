@@ -294,7 +294,7 @@ classdef BehaviorBoxWheel < handle
                 options.Rebuild logical = false
             end
             tic
-% https://docs.arduino.cc/learn/microcontrollers/digital-pins
+            % https://docs.arduino.cc/learn/microcontrollers/digital-pins
             if this.Setting_Struct.Box_Input_type == 8 %Skip all this if keyboard mode
                 return
             end
@@ -313,13 +313,24 @@ classdef BehaviorBoxWheel < handle
                         try
                             this.a = [];
                         end
-                        a = arduino(comsnum,'Uno','Libraries', {'RotaryEncoder'}, 'ForceBuildOn',true);
+                        this.a = arduino(comsnum,'Uno','Libraries',{}, 'ForceBuildOn',true);
                     else
-                        a = arduino(comsnum,'Uno','Libraries', {'RotaryEncoder'});
+                        this.a = arduino(comsnum,'Uno','Libraries',{});
                     end
-                    this.a = a;
+                    configurePin(this.a, "D2", "Unset");
+                    configurePin(this.a, "D3", "Unset");
+                    configurePin(this.a, "D7", "Unset");
                     this.Box.ardunioReadDigital = 1;
                     this.Box.readHigh = 0;
+                    if this.Box.readHigh %Voltage goes HIGH on choice
+                        configurePin(this.a, "D2", "DigitalInput");
+                        configurePin(this.a, "D3", "DigitalInput");
+                        configurePin(this.a, "D7", "DigitalInput");
+                    else %Voltage goes LOW on choice
+                        configurePin(this.a, "D2", "Pullup");
+                        configurePin(this.a, "D3", "Pullup");
+                        configurePin(this.a, "D7", "Pullup");
+                    end
                     %Set up box structure
                     this.Box.Left = 'D2';
                     this.Box.Middle = 'D3';
@@ -327,61 +338,38 @@ classdef BehaviorBoxWheel < handle
                     this.Box.ValveL = 'D6';
                     this.Box.ValveR = 'D8';
                     this.Box.AirPuff  = 'D11';
-                    this.Box.readPin = @(x)this.a.readDigitalPin(x)==this.Box.readHigh;
-                    this.Box.readL = this.Box.readPin(this.Box.Left);
-                    this.Box.readR = this.Box.readPin(this.Box.Right);
-                    this.Box.readM = this.Box.readPin(this.Box.Middle);
-                    %Check these... not correct
-                    %this.Box.rewardL = @(x,y){this.a.writeDigitalPin(x, 1); pause(y); this.a.writeDigitalPin(x, 0)};
-                    %this.Box.rewardR = @(x){this.a.writeDigitalPin(this.Box.ValveR, 1); pause(this.Box.Rrewardtime); this.a.writeDigitalPin(this.Box.ValveR, 0); drawnow;};
-                    configurePin(a, "D2", "Unset");
-                    configurePin(a, "D3", "Unset");
-                    configurePin(a, "D4", "Unset");
-                    configurePin(a, "D5", "Unset");
-                    configurePin(a, "D6", "Unset");
-                    configurePin(a, "D7", "Unset");
-                    configurePin(a, "D8", "Unset");
-                    if this.Box.readHigh %Voltage goes HIGH on choice
-                        configurePin(a, "D2", "DigitalInput");
-                        configurePin(a, "D3", "DigitalInput");
-                        configurePin(a, "D7", "DigitalInput");
-                    else %Voltage goes LOW on choice
-                        configurePin(a, "D2", "Pullup");
-                        configurePin(a, "D3", "Pullup");
-                        configurePin(a, "D7", "Pullup");
-                    end
-                    configurePin(a, "D4", "DigitalInput");
-                    configurePin(a, "D5", "DigitalInput");
-                    configurePin(a, "D6", "DigitalOutput");
-                    configurePin(a, "D8", "DigitalOutput");
-                    this.a = a;
+                    this.Box.readPin = @(PIN)this.a.readDigitalPin(PIN)==this.Box.readHigh;
+                    this.Box.readL = @(x)this.Box.readPin(this.Box.Left);
+                    this.Box.readR = @(x)this.Box.readPin(this.Box.Right);
+                    this.Box.readM = @(x)this.Box.readPin(this.Box.Middle);
                 case 5 %Lick ports
                     this.Box.ardunioReadDigital = 1;
                 case 6 %Rotating Wheel
-                    this.Box.use_wheel = 1;
                     if options.Rebuild
-                        a = arduino(comsnum,'Uno','Libraries', {'RotaryEncoder'}, 'ForceBuildOn',true);
+                        try
+                            this.a = [];
+                        end
+                        this.a = arduino(comsnum,'Uno','Libraries',{'rotaryEncoder'}, 'ForceBuildOn',true);
                     else
-                        a = arduino(comsnum,'Uno','Libraries', {'RotaryEncoder'});
+                        this.a = arduino(comsnum,'Uno','Libraries',{'rotaryEncoder'});
                     end
-                    this.a = a;
-                    configurePin(a, "D4", "Unset");
-                    configurePin(a, "D5", "Unset");
-                    configurePin(a, "D6", "Unset");
-                    configurePin(a, "D7", "Unset");
-                    configurePin(a, "D8", "Unset");
                     this.Box.encoder = rotaryEncoder(this.a,'D2','D3', 1024);
                     this.Box.Reward =  'D6';
-                    configurePin(a, "D4", "DigitalInput");
-                    configurePin(a, "D5", "DigitalInput");
-                    configurePin(a, "D6", "DigitalOutput");
                     this.Box.use_wheel = 1;
-                    this.a = a;
+                    this.app.FinishlineCheckBox.Value = 1;
                 case 8 %Keyboard, used if no arduino connected
                     this.Box.KeyboardInput = 1;
                     this.Box.readHigh = 1;
                     return
             end
+            configurePin(this.a, "D4", "Unset"); %Reset pin
+            configurePin(this.a, "D5", "Unset"); %Trigger pin
+            configurePin(this.a, "D6", "Unset");
+            configurePin(this.a, "D8", "Unset");
+            configurePin(this.a, "D4", "DigitalOutput"); %Reset pin
+            configurePin(this.a, "D5", "DigitalInput"); %Trigger pin
+            configurePin(this.a, "D6", "DigitalOutput");
+            configurePin(this.a, "D8", "DigitalOutput");
             toc
         end
         %Prepare the window and stimulus
@@ -1618,69 +1606,6 @@ classdef BehaviorBoxWheel < handle
                     end
             end
         end
-        %read the lever (digital read)
-        function [WhatDecision, response_time] = readLeverLoopDigital(this)
-            response_time = 0;
-            this.DuringTMal = 0;
-            event = -1;
-            try
-                %Turn on/Reset lick sensor
-                this.ResetSensor(this)
-                timeout_value = this.Box.Timeout_after_time;
-                timeout_timer = clock;
-                response_timer = clock;
-                %run loop
-                while timeout_value == 0 | etime(clock, timeout_timer)<timeout_value
-                    if get(this.Skip, 'Value') %this.Skip.Value
-                        this.Skip.Value = 0; %Turn the button off
-                        break
-                    end
-                    %check if stop pressed
-                    if get(this.stop_handle, 'Value')
-                        break %abort
-                    end
-                    if this.a.readDigitalPin(this.Box.Middle) == this.Box.readHigh
-                        this.Flash(this.StimulusStruct, findobj(this.fig.Children, 'Type', 'Line'), 'center')
-                        this.DuringTMal = this.DuringTMal + 1;
-                    end
-                    %Immediately accept the choice:
-                    if this.a.readDigitalPin(this.Box.Left) == this.Box.readHigh %& this.isLeftTrial %LeverA is left
-                        event = 1; %Left Choice
-                        break
-                    end
-                    if this.a.readDigitalPin(this.Box.Right) == this.Box.readHigh %& ~this.isLeftTrial %LeverB is right
-                        event = 2; %Right Choice
-                        break
-                    end
-                end
-                try
-                    d = this.fig.findobj("Tag", "Distractor");
-                    [d.Color] = deal(this.StimulusStruct.DimColor);
-                end
-                response_time = etime(clock, response_timer);
-            catch err
-                this.unwrapError(err)
-            end
-            %translate to decision enum
-            switch event
-                case -1
-                    WhatDecision = 'time out';
-                    response_time = 0;
-                case 1
-                    %-1 is for trainingstrials always correct
-                    if this.isLeftTrial ==1 || this.isLeftTrial == -1
-                        WhatDecision = 'left correct';
-                    else
-                        WhatDecision = 'left wrong';
-                    end
-                case 2
-                    if this.isLeftTrial ==0 || this.isLeftTrial == -1
-                        WhatDecision = 'right correct';
-                    else
-                        WhatDecision = 'right wrong';
-                    end
-            end
-        end
         function [WhatDecision, response_time] = readLeverLoopAnalogWheel(this)
             event = -1;
             delta = 0;
@@ -1702,8 +1627,10 @@ classdef BehaviorBoxWheel < handle
             if this.Setting_Struct.RoundUp
                 thresh = RoundUp*thresh;
             end
-            timeout_timer = clock;
-            response_timer = clock;
+            this.wheelchoice = cell(1,1e6);
+            this.wheelchoicetime = cell(1,1e6);
+            i = 0;
+            tic
             while timeout_value == 0 | etime(clock, timeout_timer)<timeout_value % do NOT replace | with || or the expression is changed.
                 dist = this.Box.encoder.readCount;
                 delta = (dist/threshold)*StimDistance;
@@ -1719,8 +1646,9 @@ classdef BehaviorBoxWheel < handle
                 elseif ~this.isLeftTrial & delta > thresh*RoundUp
                     delta = thresh*RoundUp;
                 end
-                this.wheelchoice(end+1) = delta;
-                this.wheelchoicetime(end+1) = etime(clock, response_timer);
+                i = i+1;
+                this.wheelchoice{i} = delta;
+                this.wheelchoicetime{i} = toc;
                 pos1 = pos1i + ([delta 0 0 0]);
                 axes(1).Position = pos1;
                 if numel(axes) > 1
@@ -1744,15 +1672,16 @@ classdef BehaviorBoxWheel < handle
                         break
                     end
                 end
-                %                 if get(this.stop_handle, 'Value') %Don't check stop button, let the mouse finish their trial
-                %                     break;
-                %                 end
                 if get(this.Skip, 'Value')
                     set(this.Skip, 'Value', 0) %Turn the button off
                     break
                 end
             end
-            response_time = etime(clock, response_timer);
+            this.wheelchoice(cellfun('isempty',this.wheelchoice)) = [];
+            this.wheelchoice = cell2mat(this.wheelchoice);
+            this.wheelchoicetime(cellfun('isempty',this.wheelchoicetime)) = [];
+            this.wheelchoicetime = cell2mat(this.wheelchoicetime);
+            response_time = toc;
             if event == -1 %If the mouse was close to picking a side, round up their choice:
                 if abs(delta) >= thresh*RoundUp
                     if sign(delta) > 0

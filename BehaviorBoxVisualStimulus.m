@@ -90,8 +90,8 @@ classdef BehaviorBoxVisualStimulus
                 [Ax.Children(:).YTick] = deal([]);
                 [Ax.Children(:).XTick] = deal([]);
             else
-                fig = uifigure("Name", "Stimulus", "MenuBar","none", "HandleVisibility","on");
-                fig.WindowStyle = "alwaysontop";
+                fig = figure("Name", "Stimulus", "MenuBar","none", "HandleVisibility","on");
+                %fig.WindowStyle = "alwaysontop";
                 fig.Units = "inches";
                 fig.Position = this.figpos;
                 fig.GraphicsSmoothing = 'off'; % Should help prevent graphics errors
@@ -185,6 +185,8 @@ classdef BehaviorBoxVisualStimulus
         function [L,R] = DisplayOnScreen(this, isLeftTrial, Level)
             this = findfigs(this);
             delete(findobj([this.fig], "Type", "Line"))
+            this.LStimAx.Position(1) = 0;
+            this.RStimAx.Position(1) = 0.5;
             try
                 [this.FLAx.FaceColor] = deal(this.LineColor);
             end
