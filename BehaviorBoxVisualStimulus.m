@@ -5,15 +5,15 @@ classdef BehaviorBoxVisualStimulus
         fig;
         position_x;
         position_y;
-        size_x;
-        size_y;
-        figpos;
+        size_x = 10;
+        size_y = 6.5;
+        figpos = [1 1 9.5 7]; % Hard coded in INCHES and matlab will adjust automatically
         LStimAx; %Axis that contains the left stimulus plot
         RStimAx; %Axis that contains the left stimulus plot
         FLAx; %Axis that contains the 2 finish line triangles
         SpotlightColor = [0 0 0];
         SpotlightToggle = 1;
-        FinishLine = 0;
+        FinishLine = 1;
         BetweenSpotlight = 10;
         LineColor = [0.6 0.6 0.6];
         FlashColor = [0.7 0.7 0.7];
@@ -50,7 +50,7 @@ classdef BehaviorBoxVisualStimulus
             if ~options.Preview
                 delete(findobj("Type", "figure", "Name", "Stimulus"))
             end
-            this.figpos = [this.position_x this.position_y this.size_x this.size_y];
+            this.figpos = [this.position_x this.position_y 9.5 7]; %Use the hardcoded values from now on
             %[this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.setUpFigure();
         end
 
@@ -72,7 +72,8 @@ classdef BehaviorBoxVisualStimulus
             end
             % https://www.mathworks.com/help/matlab/creating_guis/update-app-figure-and-containers.html
             %Move this to a new function...
-            stimWidth = abs(100-this.BetweenSpotlight)/200;
+            %stimWidth = abs(100-this.BetweenSpotlight)/200;
+            stimWidth = 0.5;
             if options.StimHist
                 Ax = options.Ax;
                 fig = Ax.Parent;
@@ -89,36 +90,37 @@ classdef BehaviorBoxVisualStimulus
                 [Ax.Children(:).YTick] = deal([]);
                 [Ax.Children(:).XTick] = deal([]);
             else
-                fig = figure("Name", "Stimulus", "MenuBar","none");
+                fig = uifigure("Name", "Stimulus", "MenuBar","none", "HandleVisibility","on");
+                fig.WindowStyle = "alwaysontop";
+                fig.Units = "inches";
+                fig.Position = this.figpos;
+                fig.GraphicsSmoothing = 'off'; % Should help prevent graphics errors
                 this.fig = fig;
                 clf(fig);
                 fig.Color = this.BackgroundColor;
-                fig.Position = this.figpos;
                 LStimAx = axes('Parent', fig, ...
                     'Tag', 'Left', ...
                     'Color', 'none', ...
                     'Position', [0 0 stimWidth 1], ...
-                    'Visible','off');
+                    'Visible','off', 'PickableParts','none');
                 hold(LStimAx,'on');
+                LStimAx.Toolbar.Visible = 'off';
                 axis image;
-                if this.SpotlightToggle
-                    this.getRect(LStimAx);
-                end
                 RStimAx = axes('Parent', fig, ...
                     'Tag', 'Right', ...
                     'Color', 'none', ...
                     'Position', [1-stimWidth 0 stimWidth 1], ...
-                    'Visible','off');
+                    'Visible','off', 'PickableParts','none');
                 hold(RStimAx,'on');
+                RStimAx.Toolbar.Visible = 'off';
                 axis image;
                 if this.SpotlightToggle
-                    this.getRect(RStimAx);
+                    this.getRect(RStimAx); this.getRect(LStimAx);
                 end
                 ch = [fig.Children.Children];
                 [ch(:).Visible] = deal(0);
             end
             FLAx = this.finishLine();
-            %set(this.fig,'OuterPosition',this.figpos); %This was messing up the position that the GUI supplies
         end
         function getRect(this, ax)
             rectangle('Parent', ax, ...
@@ -134,10 +136,10 @@ classdef BehaviorBoxVisualStimulus
             X = 0.5-(width/2);
             p = nsidedpoly(3, 'Center', [0 ,0], ...
                 'SideLength', 1);
-            f = axes('Position', [X 0.1 width width], 'Parent', this.fig, 'Tag', 'FinishLine', 'color', 'none');axis off;
+            f = axes('Position', [X 0.1 width width], 'Parent', this.fig, 'Tag', 'FinishLine', 'color', 'none');axis off; f.Toolbar.Visible = 'off';
             hold(f,'on')
             t1 = plot(p, 'Parent',f, 'FaceColor', this.LineColor, 'EdgeAlpha', 0, 'FaceAlpha', 1, 'Tag','FinishLine');
-            f2 = axes('Position', [X 0.8 width width], 'Parent', this.fig, 'Tag', 'FinishLine', 'color', 'none', 'YDir', 'reverse');axis off;
+            f2 = axes('Position', [X 0.8 width width], 'Parent', this.fig, 'Tag', 'FinishLine', 'color', 'none', 'YDir', 'reverse');axis off; f2.Toolbar.Visible = 'off';
             hold(f2,'on')
             t2 = plot(p, 'Parent',f2, 'FaceColor', this.LineColor, 'EdgeAlpha', 0, 'FaceAlpha', 1, 'Tag','FinishLine');
             FLAx = [f f2];
@@ -197,7 +199,8 @@ classdef BehaviorBoxVisualStimulus
             this.Level = int8(Level); %Difficulty used to be from 0.1:1, it is now 1:20
             switch this.type
                 case 11
-                    [L,R] = ShowStimulusContour_Density(this);
+                    [L,R] = this.ShowStimulusContour_Density();
+                    %[L,R] = ShowStimulusContour_Density(this);
                 case -2
                     ShowStimulusTwoTaskCircleCUE(this.trialID, this.Level, display,winheight,winwidth,winx,winy,1,orientation)
                 case -1
@@ -249,26 +252,58 @@ classdef BehaviorBoxVisualStimulus
         % This is the most used one, currently WBS
         function [L,R] = ShowStimulusContour_Density(this)
             % in this stimulus instead of training by gradual increase between line
-            % segments contrast with background we use gradual increase of line
-            %     set(groot,'CurrentFigure',100)
-            %     set(gcf,'MenuBar','none');
-            distractorsTable = this.numDistractorsTable(this.Level,:);
-            if this.isLeftTrial
-                whichDistractor = 2;
-            else
-                whichDistractor = 1;
-            end
-            L = plotDistractors2(this, 1, this.isLeftTrial, distractorsTable(whichDistractor));
+            % segments contrast with background we use gradual increase of line quantity
+            Ldist = this.chooseDistractors(1);
+            Rdist = this.chooseDistractors(0);
+            plotDistractors3(this, this.LStimAx, Ldist)
             view(-this.Orient,90)
-            %Make second stimulus
-            if this.isLeftTrial %OPPOSITE from above, bc other side
-                whichDistractor = 1;
-            else
-                whichDistractor = 2;
-            end
-            R = plotDistractors2(this, 0, ~this.isLeftTrial, distractorsTable(whichDistractor)); %Right Stim, 0 distractors
+            plotDistractors3(this, this.RStimAx, Rdist)
             view(-this.Orient,90)
-            set(this.fig,'OuterPosition',this.figpos); %move window here, also determines size
+            L = Ldist; R = Rdist;
+        end
+        function DISTS = chooseDistractors(this, isLeftStim)
+            %This fcn randomly picks the locations and angles of the distractors indicated by the current level
+            if this.isLeftTrial && isLeftStim
+                W = 2;
+            else
+                W = 1;
+            end
+            numDs = this.numDistractorsTable(this.Level,W);
+            gridWidth = (this.SegLength+this.SegSpacing)*this.ContLength;
+            maskRadius = gridWidth/2;
+            %Creates triangular grid
+            X = -(gridWidth):this.SegLength+this.SegSpacing:gridWidth ;
+            Y = (-(gridWidth):this.SegLength+this.SegSpacing:gridWidth) .* (sqrt(3) / 2); %Since it's triangular, we need to correct some distances
+            [X,Y] = meshgrid(X,Y);
+            X(1:2:length(X),:) = X(1:2:length(X),:) + 0.5*(this.SegLength+this.SegSpacing); %Every other row gets displaced to the right
+            Mask = ( X.^2 + Y.^2) <= maskRadius^2; %Circular mask made with logical values
+            %Creates a 2 column list of all the grid nodes. Turns the grid 90°
+            listGridNodes = [Y(Mask) X(Mask)]; %By using X=Y and Y=X, we are effectively turning the grid 90°
+            if W == 2 %Plot the correct stim with 5 line segments:
+                contourNodesIdx = logical(listGridNodes(:,1) == 0) & sqrt( listGridNodes(:,1).^2 + listGridNodes(:,2).^2) <= (this.SegLength+this.SegSpacing) * this.ContLength/2;
+                contourNodes = listGridNodes(contourNodesIdx,:); %Contour nodes are those where X = 0 [this can be modified]
+                nonContourNodes = listGridNodes(~contourNodesIdx,:); %Non contour nodes are those where X =/= 0 [this can be modified]
+                for i = 1:size(contourNodes,1) %Creates the coordinates of the bar tip centered in [0,0]
+                    [Tip1X, Tip1Y] = pol2cart(deg2rad(90), this.SegLength/2);
+                    [Tip2X, Tip2Y] = pol2cart(deg2rad(90 + 180), this.SegLength/2);
+                    xCoordinates = [contourNodes(i,1) + Tip1X, contourNodes(i,1) + Tip2X];
+                    yCoordinates = [contourNodes(i,2) + Tip1Y, contourNodes(i,2) + Tip2Y];
+                    %plot(xCoordinates, yCoordinates, 'Color', [this.LineColor], 'LineWidth',this.SegThick, 'Parent', theAxis, 'Tag', 'Contour')
+                end
+            else
+                nonContourNodes = listGridNodes; %If this is not the target figure, then nonContour = all nodes
+            end
+            %Randomly selects a few (#nDistractors) nonContourNodes
+            selectedNodesIndex = randperm(length(nonContourNodes),numDs);
+            selectedNodes = nonContourNodes(selectedNodesIndex,:);
+            selectedAngle = randi(180,numDs,1); %Randomly selects angles for the bars %Use 180 because of symmetry
+            if W == 2
+                selectedNodes = [selectedNodes ; contourNodes];
+                Dist = [selectedNodes [selectedAngle ; repmat(90, 5, 1)] ];
+            else
+                Dist = [selectedNodes selectedAngle];
+            end
+            DISTS = Dist;
         end
         function [Dist] = plotDistractors2(this, LeftStim, isCorrect, numDistractors, options)
             arguments
@@ -389,7 +424,9 @@ if this.isLeftTrial
 else
     whichDistractor = 1;
 end
-L = plotDistractors2(this, 1, this.isLeftTrial, distractorsTable(whichDistractor));
+Ldist = chooseDistractors(this, 1);
+plotDistractors3(this, this.LStimAx, Ldist)
+%L = plotDistractors2(this, 1, this.isLeftTrial, distractorsTable(whichDistractor));
 view(-this.Orient,90)
 %Make second stimulus
 if this.isLeftTrial %OPPOSITE from above, bc other side
@@ -397,14 +434,70 @@ if this.isLeftTrial %OPPOSITE from above, bc other side
 else
     whichDistractor = 2;
 end
-R = plotDistractors2(this, 0, ~this.isLeftTrial, distractorsTable(whichDistractor)); %Right Stim, 0 distractors
+Rdist = chooseDistractors(this, 0);
+plotDistractors3(this, this.RStimAx, Rdist)
+%R = plotDistractors2(this, 0, ~this.isLeftTrial, distractorsTable(whichDistractor)); %Right Stim, 0 distractors
 view(-this.Orient,90)
 %set(this.fig,'OuterPosition',this.figpos); %move window here, also determines size
+L = Ldist; R = Rdist;
+end
+function DISTS = chooseDistractors(this, isLeftStim)
+%This fcn randomly picks the locations and angles of the distractors indicated by the current level
+if this.isLeftTrial && isLeftStim
+    W = 2;
+else
+    W = 1;
+end
+numDs = this.numDistractorsTable(this.Level,W);
+gridWidth = (this.SegLength+this.SegSpacing)*this.ContLength;
+maskRadius = gridWidth/2;
+%Creates triangular grid
+X = -(gridWidth):this.SegLength+this.SegSpacing:gridWidth ;
+Y = (-(gridWidth):this.SegLength+this.SegSpacing:gridWidth) .* (sqrt(3) / 2); %Since it's triangular, we need to correct some distances
+[X,Y] = meshgrid(X,Y);
+X(1:2:length(X),:) = X(1:2:length(X),:) + 0.5*(this.SegLength+this.SegSpacing); %Every other row gets displaced to the right
+Mask = ( X.^2 + Y.^2) <= maskRadius^2; %Circular mask made with logical values
+%Creates a 2 column list of all the grid nodes. Turns the grid 90°
+listGridNodes = [Y(Mask) X(Mask)]; %By using X=Y and Y=X, we are effectively turning the grid 90°
+if W == 2 %Plot the correct stim with 5 line segments:
+    contourNodesIdx = logical(listGridNodes(:,1) == 0) & sqrt( listGridNodes(:,1).^2 + listGridNodes(:,2).^2) <= (this.SegLength+this.SegSpacing) * this.ContLength/2;
+    contourNodes = listGridNodes(contourNodesIdx,:); %Contour nodes are those where X = 0 [this can be modified]
+    nonContourNodes = listGridNodes(~contourNodesIdx,:); %Non contour nodes are those where X =/= 0 [this can be modified]
+    for i = 1:size(contourNodes,1) %Creates the coordinates of the bar tip centered in [0,0]
+        [Tip1X, Tip1Y] = pol2cart(deg2rad(90), this.SegLength/2);
+        [Tip2X, Tip2Y] = pol2cart(deg2rad(90 + 180), this.SegLength/2);
+        xCoordinates = [contourNodes(i,1) + Tip1X, contourNodes(i,1) + Tip2X];
+        yCoordinates = [contourNodes(i,2) + Tip1Y, contourNodes(i,2) + Tip2Y];
+        %plot(xCoordinates, yCoordinates, 'Color', [this.LineColor], 'LineWidth',this.SegThick, 'Parent', theAxis, 'Tag', 'Contour')
+    end
+else
+    nonContourNodes = listGridNodes; %If this is not the target figure, then nonContour = all nodes
+end
+%Randomly selects a few (#nDistractors) nonContourNodes
+selectedNodesIndex = randperm(length(nonContourNodes),numDs);
+selectedNodes = nonContourNodes(selectedNodesIndex,:);
+selectedAngle = randi(180,numDs,1); %Randomly selects angles for the bars %Use 180 because of symmetry
+if W == 2
+    selectedNodes = [selectedNodes ; contourNodes];
+    Dist = [selectedNodes [selectedAngle ; repmat(90, 5, 1)] ];
+else
+    Dist = [selectedNodes selectedAngle];
+end
+DISTS = Dist;
+end
+function plotDistractors3(this, theAxis, Dists)
+[theAxis.Children.Visible] = deal(1);
+for D = Dists' %Creates the coordinates of the bar tip centered in [0,0]
+    [Tip1X, Tip1Y] = pol2cart(deg2rad(D(3)), this.SegLength/2); %Creates coords of a semi bar starting from 0,0
+    [Tip2X, Tip2Y] = pol2cart(deg2rad(D(3) + 180), this.SegLength/2); %Creates the other half-bar
+    xCoordinates = [D(1) + Tip1X, D(1) + Tip2X]; %Adds the coords from the nodes and half bars
+    yCoordinates = [D(2) + Tip1Y, D(2) + Tip2Y];
+    plot(xCoordinates, yCoordinates,'Color', [this.LineColor],'LineWidth',this.SegThick, 'Parent', theAxis, 'Tag', 'Distractor')
+end
 end
 function [Dist] = plotDistractors2(this, LeftStim, isCorrect, numDistractors)
-%tic
-
 % SANTI 10-1-2020
+%Setup:
 if isCorrect
     tag = 'Correct';
 else
@@ -419,9 +512,9 @@ else
 end
 theAxis.Tag = [side ' ' tag];
 [theAxis.Children.Visible] = deal(1);
+%Creates triangular grid
 gridWidth = (this.SegLength+this.SegSpacing)*this.ContLength;
 maskRadius = gridWidth/2;
-%Creates triangular grid
 X = -(gridWidth):this.SegLength+this.SegSpacing:gridWidth ;
 Y = (-(gridWidth):this.SegLength+this.SegSpacing:gridWidth) .* (sqrt(3) / 2); %Since it's triangular, we need to correct some distances
 [X,Y] = meshgrid(X,Y);
@@ -465,7 +558,6 @@ if isCorrect
 else
     Dist = [selectedNodes selectedAngle];
 end
-%toc
 end
 function getRect(this, ax)
 rectangle('Parent', ax, ...
