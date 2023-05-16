@@ -50,7 +50,7 @@ classdef BehaviorBoxVisualStimulus
             if ~options.Preview
                 delete(findobj("Type", "figure", "Name", "Stimulus"))
             end
-            this.figpos = [this.position_x this.position_y 9.5 7]; %Use the hardcoded values from now on
+            this.figpos = [this.position_x this.position_y this.size_x this.size_y]; %Use the hardcoded values from now on
             %[this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.setUpFigure();
         end
 
@@ -185,8 +185,6 @@ classdef BehaviorBoxVisualStimulus
         function [L,R] = DisplayOnScreen(this, isLeftTrial, Level)
             this = findfigs(this);
             delete(findobj([this.fig], "Type", "Line"))
-            this.LStimAx.Position(1) = 0;
-            this.RStimAx.Position(1) = 0.5;
             try
                 [this.FLAx.FaceColor] = deal(this.LineColor);
             end
@@ -253,17 +251,28 @@ classdef BehaviorBoxVisualStimulus
         function [L,R] = ShowStimulusContour_Density(this)
             % in this stimulus instead of training by gradual increase between line
             % segments contrast with background we use gradual increase of line quantity
-            Ldist = this.chooseDistractors(1);
-            Rdist = this.chooseDistractors(0);
-            plotDistractors3(this, this.LStimAx, Ldist)
+            [Ldist, LTags] = this.chooseDistractors(1);
+            [Rdist, RTags] = this.chooseDistractors(0);
+            this.plotDistractors3(this.LStimAx, Ldist, LTags)
             view(-this.Orient,90)
-            plotDistractors3(this, this.RStimAx, Rdist)
+            this.plotDistractors3(this.RStimAx, Rdist, RTags)
             view(-this.Orient,90)
             L = Ldist; R = Rdist;
         end
-        function DISTS = chooseDistractors(this, isLeftStim)
+        function [DISTS, Tags] = chooseDistractors(this, isLeftStim)
             %This fcn randomly picks the locations and angles of the distractors indicated by the current level
             if this.isLeftTrial && isLeftStim
+                isCorrect = 1;
+                this.LStimAx.Tag = 'Left Correct';
+                this.RStimAx.Tag = 'Right Inorrect';
+            elseif ~this.isLeftTrial && ~isLeftStim
+                isCorrect = 1;
+                this.RStimAx.Tag = 'Right Correct';
+                this.LStimAx.Tag = 'Left InCorrect';
+            else
+                isCorrect = 0;
+            end
+            if isCorrect
                 W = 2;
             else
                 W = 1;
@@ -297,13 +306,31 @@ classdef BehaviorBoxVisualStimulus
             selectedNodesIndex = randperm(length(nonContourNodes),numDs);
             selectedNodes = nonContourNodes(selectedNodesIndex,:);
             selectedAngle = randi(180,numDs,1); %Randomly selects angles for the bars %Use 180 because of symmetry
+            Tags = repmat("Distractor",numDs,1);
             if W == 2
                 selectedNodes = [selectedNodes ; contourNodes];
+                Tags = [Tags ; repmat("Contour",5,1)];
                 Dist = [selectedNodes [selectedAngle ; repmat(90, 5, 1)] ];
             else
                 Dist = [selectedNodes selectedAngle];
             end
             DISTS = Dist;
+        end
+        function plotDistractors3(this, theAxis, Dists, Tags)
+            try
+            [theAxis.Children(:).Visible] = deal(1);
+            dc = 0;
+            for D = Dists' %Creates the coordinates of the bar tip centered in [0,0]
+                dc = dc+1;
+                [Tip1X, Tip1Y] = pol2cart(deg2rad(D(3)), this.SegLength/2); %Creates coords of a semi bar starting from 0,0
+                [Tip2X, Tip2Y] = pol2cart(deg2rad(D(3) + 180), this.SegLength/2); %Creates the other half-bar
+                xCoordinates = [D(1) + Tip1X, D(1) + Tip2X]; %Adds the coords from the nodes and half bars
+                yCoordinates = [D(2) + Tip1Y, D(2) + Tip2Y];
+                plot(xCoordinates, yCoordinates,'Color', [this.LineColor],'LineWidth',this.SegThick, 'Parent', theAxis, 'Tag', Tags(dc))
+            end
+            catch err
+                err;
+            end
         end
         function [Dist] = plotDistractors2(this, LeftStim, isCorrect, numDistractors, options)
             arguments

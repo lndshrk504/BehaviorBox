@@ -1,5 +1,6 @@
 classdef BehaviorBoxNose < handle
     %BehaviorBox Super class
+    % WBS 5 . 16 . 2023
     %====================================================================
     %Super Class for BehaviorBox Ver 1.4
     %This Class is called by the GUI BehaviorBox via RunTraining()and runs the Training
@@ -9,12 +10,11 @@ classdef BehaviorBoxNose < handle
     %visual stimuli.
     %This is a superclass to BehaviorBoxSub1/2.
     %THIS FILE IS PART OF A SET OF FILES CONTAINING (ALL NEEDED):
-    %BehaviorBox.fig
-    %BehaviorBox.m
+    %BehaviorBox_App.mlapp
     %BehaviorBoxData.m
-    %BehaviorBoxSub1.m
-    %BehaviorBoxSub2.m
     %BehaviorBoxSuper.m
+    %BehaviorBoxWheel.m
+    %BehaviorBoxNose.m
     %BehaviorBoxVisualGratingObject.m
     %BehaviorBoxVisualStimulus.m
     %BehaviorBoxVisualStimulusTraining.m
@@ -242,20 +242,19 @@ classdef BehaviorBoxNose < handle
             %set which lever is what and what the input setup is from
             this.Box.ResetPin        = 'D4';
             this.Box.TriggerPin      = 'D5';
-            if options.Rebuild
-                try
-                    this.a = [];
-                end
-                this.a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'}, 'ForceBuildOn',true);
-            else
-                this.a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'});
-            end
-            configurePin(this.a, "D4", "DigitalOutput"); %Reset pin
-            configurePin(this.a, "D5", "DigitalInput"); %Trigger pin
-            configurePin(this.a, "D6", "DigitalOutput");
-            configurePin(this.a, "D8", "DigitalOutput");
             switch this.Setting_Struct.Box_Input_type
                 case 3 %Three Pokes
+                    if options.Rebuild
+                        try
+                            this.a = [];
+                        end
+                        this.a = arduino(comsnum,'Uno','Libraries',{}, 'ForceBuildOn',true);
+                    else
+                        this.a = arduino(comsnum,'Uno','Libraries',{});
+                    end
+                    configurePin(this.a, "D2", "Unset");
+                    configurePin(this.a, "D3", "Unset");
+                    configurePin(this.a, "D7", "Unset");
                     this.Box.ardunioReadDigital = 1;
                     this.Box.readHigh = 0;
                     if this.Box.readHigh %Voltage goes HIGH on choice
@@ -278,10 +277,17 @@ classdef BehaviorBoxNose < handle
                     this.Box.readL = @(x)this.Box.readPin(this.Box.Left);
                     this.Box.readR = @(x)this.Box.readPin(this.Box.Right);
                     this.Box.readM = @(x)this.Box.readPin(this.Box.Middle);
-                    %this.Box.reward = @(PIN, DUR)[this.a.writeDigitalPin(PIN, 1); pause(DUR); this.a.writeDigitalPin(PIN, 0)]
                 case 5 %Lick ports
                     this.Box.ardunioReadDigital = 1;
                 case 6 %Rotating Wheel
+                    if options.Rebuild
+                        try
+                            this.a = [];
+                        end
+                        this.a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'}, 'ForceBuildOn',true);
+                    else
+                        this.a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'});
+                    end
                     this.Box.encoder = rotaryEncoder(this.a,'D2','D3', 1024);
                     this.Box.Reward =  'D6';
                     this.Box.use_wheel = 1;
@@ -290,6 +296,14 @@ classdef BehaviorBoxNose < handle
                     this.Box.readHigh = 1;
                     return
             end
+            configurePin(this.a, "D4", "Unset"); %Reset pin
+            configurePin(this.a, "D5", "Unset"); %Trigger pin
+            configurePin(this.a, "D6", "Unset");
+            configurePin(this.a, "D8", "Unset");
+            configurePin(this.a, "D4", "DigitalOutput"); %Reset pin
+            configurePin(this.a, "D5", "DigitalInput"); %Trigger pin
+            configurePin(this.a, "D6", "DigitalOutput");
+            configurePin(this.a, "D8", "DigitalOutput");
             toc
         end
         %Prepare the window and stimulus
@@ -863,7 +877,7 @@ classdef BehaviorBoxNose < handle
             [Ls(:).Color] = deal(this.StimulusStruct.DimColor);
             this.ReadyCue(0); drawnow
             while this.Box.readM()
-                drawnow
+                pause(0.05);drawnow;
             end
             [Ls(:).Color] = deal(this.StimulusStruct.LineColor); drawnow
             %ignore input if set
@@ -899,6 +913,7 @@ classdef BehaviorBoxNose < handle
                     this.GiveReward(this.a, this.Box, this.Buttons, this.WhatDecision); %give reward
                     if this.Box.Input_type == 3
                         while this.Box.readL() | this.Box.readR() %Pause while the mouse is standing there and drinking their reward
+                            pause(0.05);drawnow;
                         end
                     end
                     t2 = clock;
@@ -935,6 +950,7 @@ classdef BehaviorBoxNose < handle
                 case contains({this.WhatDecision} , 'wrong', 'IgnoreCase', true)
                     set(this.message_handle,'Text',[this.WhatDecision,' - Penalty...']);
                     while this.Box.readL() | this.Box.readR() %Pause while the mouse is standing there
+                        pause(0.05);drawnow;
                     end
                     %Flash
                     this.Flash(this.StimulusStruct, findobj('Tag', 'Contour'), this.WhatDecision);
@@ -1517,6 +1533,7 @@ classdef BehaviorBoxNose < handle
                 response_timer = clock;
                 %run loop
                 while timeout_value == 0 | etime(clock, timeout_timer)<timeout_value
+                    pause(0.05);drawnow;
                     if get(this.Skip, 'Value') %this.Skip.Value
                         this.Skip.Value = 0; %Turn the button off
                         break
@@ -1525,16 +1542,16 @@ classdef BehaviorBoxNose < handle
                     if get(this.stop_handle, 'Value')
                         break %abort
                     end
-                    if this.a.readDigitalPin(this.Box.Middle) == this.Box.readHigh
+                    if this.Box.readM()
                         this.Flash(this.StimulusStruct, findobj(this.fig.Children, 'Type', 'Line'), 'center')
                         this.DuringTMal = this.DuringTMal + 1;
                     end
                     %Immediately accept the choice:
-                    if this.a.readDigitalPin(this.Box.Left) == this.Box.readHigh %& this.isLeftTrial %LeverA is left
+                    if this.Box.readL() %& this.isLeftTrial %LeverA is left
                         event = 1; %Left Choice
                         break
                     end
-                    if this.a.readDigitalPin(this.Box.Right) == this.Box.readHigh %& ~this.isLeftTrial %LeverB is right
+                    if this.Box.readR() %& ~this.isLeftTrial %LeverB is right
                         event = 2; %Right Choice
                         break
                     end
