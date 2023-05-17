@@ -1354,6 +1354,7 @@ classdef BehaviorBoxNose < handle
         end
         function TestStimulus(this)
             this.getGUI();
+            this.app.Preview.Enable = 0;
             this.Stimulus_Object = BehaviorBoxVisualStimulus(this.StimulusStruct, Preview=1);
             tic
             try
@@ -1365,6 +1366,7 @@ classdef BehaviorBoxNose < handle
             toc
             pause(0.01)
             this.Flash(this.StimulusStruct, findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
+            this.app.Preview.Enable = 1;
         end
     end
     %STATIC FUNCTIONS====
