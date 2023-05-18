@@ -777,13 +777,6 @@ classdef BehaviorBoxWheel < handle
         %loop function that reads lever
         function WaitForInput(this)
             this.TrialStartTime = 0;
-            if ~this.Setting_Struct.Initialize_by_input
-                if this.i == 1 %start the timer after the first trial has begun. Maybe this should be put somewhere else but I don't want the timer to start until the mouse begins the first trial so where else?
-                    this.start_time = clock;
-                    this.Data_Object.GetStartTime;
-                end
-                return
-            end
             set(this.message_handle,'Text','Waiting for Trial initialization');
             this.t1 = clock; t2 = this.t1;%In case of crash
             switch 1
