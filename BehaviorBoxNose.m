@@ -717,7 +717,10 @@ classdef BehaviorBoxNose < handle
                     this.fig.Color = this.StimulusStruct.BackgroundColor;
                     timelimit = this.Setting_Struct.HoldStill;
                     starttime = clock;
-                    while etime(clock, starttime)<timelimit
+                    tic
+                    E = toc;
+                    while E<=timelimit
+                        E = toc;
                         this.message_handle.Text = ['Keep the wheel still for ' num2str(round(timelimit - etime(clock, starttime),1)) ' seconds.'];
                         if abs(this.Box.encoder.readSpeed) > 0
                             starttime = clock;
@@ -743,6 +746,7 @@ classdef BehaviorBoxNose < handle
                     this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.LineColor;
                     set(this.message_handle,'Text','Waiting for Trial initialization'); drawnow
                     event = 0;
+                    tic
                     while ~get(this.stop_handle, 'Value') %While the stop button has not been pressed
                         drawnow %Update the buttons
                         if this.Setting_Struct.IntertrialMalCancel && this.Box.readL() | this.Box.readR()
@@ -842,7 +846,7 @@ classdef BehaviorBoxNose < handle
                     end
             end
             if this.i ~= 1 && ~get(this.stop_handle,'Value')
-                this.TrialStartTime = etime(t2,this.t1);
+                this.TrialStartTime = toc;
             elseif get(this.stop_handle, 'Value')
                 this.TrialStartTime = 0;
             end
