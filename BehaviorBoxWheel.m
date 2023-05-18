@@ -989,9 +989,6 @@ classdef BehaviorBoxWheel < handle
                 end
                 pause(this.Setting_Struct.Input_Delay_Respond)
             end
-            %stop sound
-            if this.Setting_Struct.Play_sound
-            end
             switch true
                 case contains({this.WhatDecision} , 'correct', 'IgnoreCase', true)
                     set(this.message_handle,'Text','Giving Reward...');
@@ -1345,10 +1342,6 @@ classdef BehaviorBoxWheel < handle
             %switch on all buttons
             this.toggleButtonsOnOff(this.Buttons,1);
             this.stop_handle.Value = 0;%Turn off Stop button
-            %turn off sound
-            if this.Setting_Struct.Play_sound
-                stop(this.Sound_start_Object);
-            end
             %close stimulus if still open
             delete(findobj("Type", "figure", "Name", "Stimulus"))
             disp_string = ['Stopped training Mouse ',num2str(this.Setting_Struct.Subject), ' at ',datestr(now)];

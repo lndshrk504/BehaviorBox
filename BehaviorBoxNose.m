@@ -747,6 +747,10 @@ classdef BehaviorBoxNose < handle
                     set(this.message_handle,'Text','Waiting for Trial initialization'); drawnow
                     event = 0;
                     tic
+                    while this.Box.readL() | this.Box.readR()
+                        pause(0.05) %Wait for the mouse to notice the bright ready cue before blinking it
+                        %Otherwise the ready cue immediately turns dim when it appears, and mice poke L/R to see the blink instead of recognizing the bright dot
+                    end
                     while ~get(this.stop_handle, 'Value') %While the stop button has not been pressed
                         drawnow %Update the buttons
                         if this.Setting_Struct.IntertrialMalCancel && this.Box.readL() | this.Box.readR()
@@ -895,9 +899,6 @@ classdef BehaviorBoxNose < handle
                     [this.WhatDecision, this.ResponseTime] = this.readLeverLoopAnalogWheel(this);
                 otherwise
                     [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial);
-            end
-            %stop sound
-            if this.Setting_Struct.Play_sound
             end
             if this.Box.Input_type == 6
                 p = findobj('Type', 'Polygon');
@@ -1262,10 +1263,6 @@ classdef BehaviorBoxNose < handle
             %switch on all buttons
             this.toggleButtonsOnOff(this.Buttons,1);
             this.stop_handle.Value = 0;%Turn off Stop button
-            %turn off sound
-            if this.Setting_Struct.Play_sound
-                stop(this.Sound_start_Object);
-            end
             %close stimulus if still open
             delete(findobj("Type", "figure", "Name", "Stimulus"))
             disp_string = ['Stopped training Mouse ',num2str(this.Setting_Struct.Subject), ' at ',datestr(now)];
