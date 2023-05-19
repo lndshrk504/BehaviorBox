@@ -135,7 +135,7 @@ classdef BehaviorBoxNose < handle
                     this.WaitForInput();
                     this.WaitForInputAndGiveReward();
                     this.AfterTrial()
-                    drawnow
+                    pause(0.1); drawnow;
                     errorc = 0;
                 catch err
                     this.unwrapError(err)
@@ -344,8 +344,9 @@ classdef BehaviorBoxNose < handle
                 set(this.message_handle,'Text',txt, ...
                     'BackgroundColor','blue');
                 fprintf(txt+"\n");
-                while this.a.readDigitalPin(this.Setting_Struct.TriggerPin) == this.Box.readHigh
-                    if get(this.stop_handle, 'Value') %check if abort button is pressed
+                while 1
+                    pause(0.1); drawnow;
+                    if this.Box.readPin(this.Setting_Struct.TriggerPin) || get(this.stop_handle, 'Value') %check if abort button is pressed
                         break %abort
                     end
                 end
@@ -629,6 +630,7 @@ classdef BehaviorBoxNose < handle
                         prompt = 'L, R, ? or S:   ';
                         keypress = 0;
                         while keypress==0
+                            pause(0.1); drawnow;
                             currkey = input(prompt,"s");
                             switch true
                                 case strcmp(currkey, 'l') || strcmp(currkey, 'L')
@@ -721,7 +723,7 @@ classdef BehaviorBoxNose < handle
                     E = toc;
                     while E<=timelimit
                         E = toc;
-                        this.message_handle.Text = ['Keep the wheel still for ' num2str(round(timelimit - etime(clock, starttime),1)) ' seconds.'];
+                        this.message_handle.Text = ['Keep the wheel still for ' num2str(round(timelimit - etime(clock, starttime),1)) ' seconds.']; drawnow
                         if abs(this.Box.encoder.readSpeed) > 0
                             starttime = clock;
                         end
@@ -748,11 +750,11 @@ classdef BehaviorBoxNose < handle
                     event = 0;
                     tic
                     while this.Box.readL() | this.Box.readR()
-                        pause(0.05) %Wait for the mouse to notice the bright ready cue before blinking it
+                        pause(0.1); drawnow; %Wait for the mouse to notice the bright ready cue before blinking it
                         %Otherwise the ready cue immediately turns dim when it appears, and mice poke L/R to see the blink instead of recognizing the bright dot
                     end
                     while ~get(this.stop_handle, 'Value') %While the stop button has not been pressed
-                        drawnow %Update the buttons
+                        pause(0.1); drawnow; %Update the buttons
                         if this.Setting_Struct.IntertrialMalCancel && this.Box.readL() | this.Box.readR()
                             %this.ReadyCue('k') %Make the ReadyCue black
                             this.Flash(this.StimulusStruct, findobj('Tag', 'ReadyCueDot'), 'Mal')
@@ -815,14 +817,14 @@ classdef BehaviorBoxNose < handle
                             otherwise
                                 text = 'Please only press one of the indicated keys...'; fprintf([text '\n']); set(this.message_handle,'Text',text);
                         end
-                        drawnow
+                        pause(0.1); drawnow;
                         if Mal
                             this.ReadyCueAx.Children.Visible=0;
                             this.fig.Color = 'k';
                             text = 'Only choose Middle to start trial, malingering timeout...'; fprintf([text '\n']); set(this.message_handle,'Text',text);
                             timerStart = clock;
                             while 1
-                                drawnow
+                                pause(0.1); drawnow;
                                 if get(this.FF, 'Value')
                                     set(this.message_handle, 'Text','Skipping interval...')
                                     set(this.FF, 'Value', 0)
@@ -842,7 +844,6 @@ classdef BehaviorBoxNose < handle
                             end
                             text = 'Initialize: Press L for Left, R for Right, C or M for Middle:'; set(this.message_handle,'Text',text); fprintf([text '\n'])
                         end
-                        drawnow
                         if get(this.stop_handle, 'Value')
                             this.message_handle.Text ='Ending session...';
                             break;
@@ -878,7 +879,7 @@ classdef BehaviorBoxNose < handle
             [Ls(:).Color] = deal(this.StimulusStruct.DimColor);
             this.ReadyCue(0); drawnow
             while this.Box.readM()
-                pause(0.05);drawnow;
+                pause(0.1);drawnow;
             end
             [Ls(:).Color] = deal(this.StimulusStruct.LineColor); drawnow
             %ignore input if set
@@ -887,7 +888,7 @@ classdef BehaviorBoxNose < handle
                 time = this.Setting_Struct.Pokes_ignored_time-seconds(datetime("now")-t1);
                 txt = "Ignoring input for "+round(time,1)+" sec...";
                 set(this.message_handle,'Text',txt)
-                drawnow
+                pause(0.05); drawnow;
             end
             this.Flash(this.StimulusStruct, findobj(this.fig.Children, 'Type', 'Line'), 'NewStim'); % Make visible stimulus and flash if set
             set(this.message_handle,'Text',['Waiting for ',this.current_side,' choice...']);
@@ -911,7 +912,7 @@ classdef BehaviorBoxNose < handle
                     this.GiveReward(this.a, this.Box, this.Buttons, this.WhatDecision); %give reward
                     if this.Box.Input_type == 3
                         while this.Box.readL() | this.Box.readR() %Pause while the mouse is standing there and drinking their reward
-                            pause(0.05);drawnow;
+                            pause(0.1);drawnow;
                         end
                     end
                     t2 = clock;
@@ -948,7 +949,7 @@ classdef BehaviorBoxNose < handle
                 case contains({this.WhatDecision} , 'wrong', 'IgnoreCase', true)
                     set(this.message_handle,'Text',[this.WhatDecision,' - Penalty...']);
                     while this.Box.readL() | this.Box.readR() %Pause while the mouse is standing there
-                        pause(0.05);drawnow;
+                        pause(0.1);drawnow;
                     end
                     %Flash
                     this.Flash(this.StimulusStruct, findobj('Tag', 'Contour'), this.WhatDecision);
@@ -962,112 +963,18 @@ classdef BehaviorBoxNose < handle
                     this.fig.Color = 'k';
             end
         end
-        % read from either reward port and see if the mouse is standing there getting the rewards
-        function [read] = checkRewardPortsandwait(this, WhatDecision)
-            switch true
-                case contains({WhatDecision} , 'left', 'IgnoreCase', true)
-                    [read] = checkLeftRewardPort();
-                case contains({WhatDecision} , 'right', 'IgnoreCase', true)
-                    [read] = checkRightRewardPort();
-                case contains({WhatDecision} , 'time out', 'IgnoreCase', true)
-                    [read] = checkBothRewardPort();
-            end
-            % read from right reward port and see if the mouse is standing there
-            function [read] = checkRightRewardPort()
-                try
-                    if this.a.readDigitalPin(this.Box.Right) == this.Box.readHigh
-                        read = 1;
-                    else
-                        read = 0;
-                    end
-                catch
-                    read = 0;
-                end
-            end
-            % read from left reward port and see if the mouse is standing there
-            function [read] = checkLeftRewardPort()
-                try
-                    if this.a.readDigitalPin(this.Box.Left) == this.Box.readHigh
-                        read = 1;
-                    else
-                        read = 0;
-                    end
-                catch
-                    read = 0;
-                end
-            end
-            % read from both reward ports and see if the mouse is standing there
-            function [read] = checkBothRewardPort()
-                try
-                    if this.a.readDigitalPin(this.Box.Right) == this.Box.readHigh || this.a.readDigitalPin(this.Box.Left) == this.Box.readHigh
-                        read = 1;
-                    else
-                        read = 0;
-                    end
-                catch
-                    read = 0;
-                end
-            end
-        end
-        % read from the non-rewarded port and see if the mouse is stealing water
-        function [read] = checkRewardPorts(this, WhatDecision)
-            switch true
-                case ~exist("WhatDecision", "var") || contains({WhatDecision} , 'time out', 'IgnoreCase', true) || contains({WhatDecision} , 'wrong', 'IgnoreCase', true) % This one must be first otherwise code will break if 'WhatDecision' doesn't exist
-                    [read] = checkBothRewardPort();
-                case contains({WhatDecision} , 'right', 'IgnoreCase', true)
-                    [read] = checkLeftRewardPort();
-                case contains({WhatDecision} , 'left', 'IgnoreCase', true)
-                    [read] = checkRightRewardPort();
-            end
-            % read from right reward port and see if the mouse is standing there
-            function [read] = checkRightRewardPort()
-                try
-                    if this.a.readDigitalPin(this.Box.Right) == this.Box.readHigh
-                        read = 1;
-                    else
-                        read = 0;
-                    end
-                catch
-                    read = 0;
-                end
-            end
-            % read from left reward port and see if the mouse is standing there
-            function [read] = checkLeftRewardPort()
-                try
-                    if this.a.readDigitalPin(this.Box.Left) == this.Box.readHigh
-                        read = 1;
-                    else
-                        read = 0;
-                    end
-                catch
-                    read = 0;
-                end
-            end
-            % read from both reward ports and see if the mouse is standing there
-            function [read] = checkBothRewardPort()
-                try
-                    if this.a.readDigitalPin(this.Box.Right) == this.Box.readHigh || this.a.readDigitalPin(this.Box.Left) == this.Box.readHigh
-                        read = 1;
-                    else
-                        read = 0;
-                    end
-                catch
-                    read = 0;
-                end
-            end
-        end
         %Use this function instead of pausing, so that buttons are checked and settings are updated during the pause
         function UpdatePause(this, interval)
             starttime = clock;
             while etime(clock, starttime) < interval
-                drawnow
+                pause(0.05); drawnow;
                 if this.Pause.Value
                     set(this.message_handle,'Text','Paused, click pause button again to continue...');
                     o = findobj(this.fig.Children);
                     [o(:).Visible] = deal(0);
                     this.fig.Color = this.ReadyCueStruct.Color;% Clear stim and turn the screen black to tell the mouse the time to drink water is now over. This should help mice not associate an air puff with the correct/rewarded stimulus, and instead associate an air puff with the black screen.
                     while get(this.Pause, 'Value')
-                        drawnow
+                        pause(0.1); drawnow;
                     end
                     this.fig.Color = this.StimulusStruct.BackgroundColor;
                 end
@@ -1110,6 +1017,7 @@ classdef BehaviorBoxNose < handle
                     this.ReadyCue(1)
                     this.ReadyCueAx.findobj('Type','scatter').MarkerFaceColor = deal(this.StimulusStruct.DimColor); drawnow;
                     while this.Box.readL() | this.Box.readR() %Pause while the mouse is standing there and drinking their water reward
+                        pause(0.1); drawnow;
                     end
                     % o = findobj(this.fig.Children);
                     % [o(:).Visible] = deal(0);
@@ -1333,14 +1241,17 @@ classdef BehaviorBoxNose < handle
             this.getGUI();
             set(this.message_handle,'Text','Trigger the Left Sensor');
             while ~this.Box.readL()
+                pause(0.05); drawnow;
                 %just wait until the sensor is triggered
             end
             set(this.message_handle,'Text','Trigger the Right Sensor');
             while ~this.Box.readR()
+                pause(0.05); drawnow;
                 %just wait until the sensor is triggered
             end
             set(this.message_handle,'Text','Trigger the Middle Sensor');
             while ~this.Box.readM()
+                pause(0.05); drawnow;
                 %just wait until the sensor is triggered
             end
             this.cleanUP();
@@ -1358,7 +1269,7 @@ classdef BehaviorBoxNose < handle
                 [~,~] = this.Stimulus_Object.DisplayOnScreen(this.PickSideForCorrect(0, 0), this.Setting_Struct.Starting_opacity); %Plot new stimulus as hidden objects, record positions and angles of the segments
             end
             toc
-            pause(0.01)
+            pause(0.1)
             this.Flash(this.StimulusStruct, findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
             this.app.Preview.Enable = 1;
         end
@@ -1420,7 +1331,8 @@ classdef BehaviorBoxNose < handle
                             end
                     end
                     % Don't dispense the reward unless the mouse is waiting for it!
-                    while contains(whatdecision, 'correct', 'IgnoreCase', true) && A.readDigitalPin(CorrectLever) ~= Box.readHigh
+                    while contains(whatdecision, 'correct', 'IgnoreCase', true) && Box.readPin(CorrectLever)
+                        pause(0.1); drawnow;
                         if get(Buttons.Stop, 'Value') || get(Buttons.FastForward, 'Value')
                             break
                         end
@@ -1445,7 +1357,8 @@ classdef BehaviorBoxNose < handle
                     switch Box.Input_type
                         case 3 %Nose
                             pause(Box.SecBwPulse)
-                            while contains(whatdecision, 'correct', 'IgnoreCase', true) && A.readDigitalPin(CorrectLever) ~= Box.readHigh %Wait for NosePoke Don't dispense the reward unless the mouse is waiting for it! Wait indefinitely between pulses for them to learn to collect all the water
+                            while contains(whatdecision, 'correct', 'IgnoreCase', true) && ~Box.readPin(CorrectLever) %Wait for NosePoke Don't dispense the reward unless the mouse is waiting for it! Wait indefinitely between pulses for them to learn to collect all the water
+                                pause(0.1); drawnow;
                                 if get(Buttons.Stop, 'Value') || get(Buttons.FastForward, 'Value')
                                     break
                                 end
@@ -1454,6 +1367,7 @@ classdef BehaviorBoxNose < handle
                             bigTimer = [];
                             timer = clock;
                             while etime(clock, timer) < Box.SecBwPulse
+                                pause(0.1); drawnow;
                                 if get(Buttons.Stop, 'Value') || get(Buttons.FastForward, 'Value')
                                     break
                                 end
@@ -1472,6 +1386,7 @@ classdef BehaviorBoxNose < handle
             prompt = 'L, R, or M/C:   ';
             keypress = 0; t1 = clock;
             while keypress==0
+                pause(0.05); drawnow;
                 currkey = input(prompt,"s");
                 response_time = etime(clock, t1);
                 switch true
@@ -1488,7 +1403,7 @@ classdef BehaviorBoxNose < handle
                     otherwise
                         text = 'Please only press one of the indicated keys...'; fprintf([text '\n']); set(message_handle,'String',text); drawnow
                 end
-                drawnow
+                pause(0.1); drawnow;
                 if stop_handle.Value
                     set(message_handle, 'String','Ending session...'); drawnow
                     event = -1;
@@ -1529,7 +1444,7 @@ classdef BehaviorBoxNose < handle
                 response_timer = clock;
                 %run loop
                 while timeout_value == 0 | etime(clock, timeout_timer)<timeout_value
-                    pause(0.05);drawnow;
+                    pause(0.01);drawnow;
                     if get(this.Skip, 'Value') %this.Skip.Value
                         this.Skip.Value = 0; %Turn the button off
                         break
@@ -1551,41 +1466,6 @@ classdef BehaviorBoxNose < handle
                         event = 2; %Right Choice
                         break
                     end
-                    % %Make the mouse stand at its choice for the input ignore duration
-                    % while this.a.readDigitalPin(this.Box.Left) == this.Box.readHigh %& this.isLeftTrial %LeverA is left
-                    %     t1 = datetime("now");
-                    %     while seconds(datetime("now")-t1) < InpDelay
-                    %         this.message_handle.Text = "Hold Left choice for "+round(InpDelay - seconds(datetime("now")-t1),1)+" seconds...";
-                    %         if this.a.readDigitalPin(this.Box.Left) ~= this.Box.readHigh
-                    %             break
-                    %         end
-                    %     end
-                    %     if this.a.readDigitalPin(this.Box.Left) ~= this.Box.readHigh
-                    %         set(this.message_handle,'Text',['Waiting for ',this.current_side,' choice...']);
-                    %         t1 = datetime("now");
-                    %         break
-                    %     else
-                    %         event = 1; %Left Choice
-                    %         break
-                    %     end
-                    % end
-                    % while this.a.readDigitalPin(this.Box.Right) == this.Box.readHigh %& ~this.isLeftTrial %LeverB is right
-                    %     t1 = datetime("now");
-                    %     while seconds(datetime("now")-t1) < InpDelay
-                    %         this.message_handle.Text = "Hold Right choice for "+round(InpDelay - seconds(datetime("now")-t1),1)+" seconds...";
-                    %         if this.a.readDigitalPin(this.Box.Right) ~= this.Box.readHigh
-                    %             break
-                    %         end
-                    %     end
-                    %     if this.a.readDigitalPin(this.Box.Right) ~= this.Box.readHigh
-                    %         set(this.message_handle,'Text',['Waiting for ',this.current_side,' choice...']);
-                    %         t1 = datetime("now");
-                    %         break
-                    %     else
-                    %         event = 2; %Right Choice
-                    %         break
-                    %     end
-                    % end
                 end
                 try
                     d = this.fig.findobj("Tag", "Distractor");
@@ -1923,7 +1803,7 @@ classdef BehaviorBoxNose < handle
             end
             function WrongFlash
                 [Lines.Color] = deal(flash_color);
-                [d.Color] = deal(Stim.BackgroundColor); drawnow
+                %[d.Color] = deal(Stim.BackgroundColor); drawnow
                 pause(1/Freq/2)
                 [Lines.Color] = deal(start_color);
                 [d.Color] = deal(dark_color); drawnow
