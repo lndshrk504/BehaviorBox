@@ -188,7 +188,7 @@ classdef BehaviorBoxData < handle
             filelist = dir(fullfile(getFilePath(), this.Inv,this.Inp, '**', '*.mat'));
             filelist = filelist(contains({filelist.name}, this.Sub) & ~contains({filelist.name}, 'settings', 'IgnoreCase',true));
             switch 1
-                case this.Sub == "w" || this.Str == "w" || this.Sub == "W" || this.Str == "W"
+                case any(matches([this.Sub, this.Str], 'w', 'IgnoreCase', true))
                     %Do nothing
                 case any(contains({filelist.name}, this.Sub)) %Any files?
                     [subfiledir, fds] = makefiles(dirPath);

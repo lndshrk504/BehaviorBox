@@ -1835,7 +1835,7 @@ classdef BehaviorBoxNose < handle
                     case contains(whatdecision, 'wrong')
                         Reps = Stim.RepFlashAfterW;
                         if Reps > 0
-                            WrongFlash
+                            WrongFlash()
                         end
                     case contains(whatdecision, 'correct')
                         Reps = Stim.RepFlashAfterC;
@@ -1923,14 +1923,17 @@ classdef BehaviorBoxNose < handle
             end
             function WrongFlash
                 [Lines.Color] = deal(flash_color);
+                [d.Color] = deal(Stim.BackgroundColor); drawnow
+                pause(1/Freq/2)
+                [Lines.Color] = deal(start_color);
                 [d.Color] = deal(dark_color); drawnow
                 pause(1/Freq/2)
                 for StimRep = 1:Reps
                     [Lines.Color] = deal(Stim.BackgroundColor); drawnow
-                    pause(1/Freq/5)
+                    pause(1/Freq/2)
                     [Lines.Color] = deal(dark_color); drawnow
-                    pause(1/Freq/10)
-                    [Lines.Color] = deal(flash_color); drawnow
+                    % pause(1/Freq/10)
+                    % [Lines.Color] = deal(flash_color); drawnow
                     pause(1/Freq/2)
                 end
                 [Lines.Color] = deal(Stim.LineColor);
