@@ -265,15 +265,19 @@ classdef BehaviorBoxVisualStimulus
             REJ = {};
             approve = 0;
             while 1
-                [D, T] = this.chooseDistractors(isLeftStim);
-                if approve
+                [D, T, isCorrect] = this.chooseDistractors(isLeftStim);
+                approve = Check(D);
+                if isCorrect || approve
                     break
                 else
                     REJ{end+1} = D;
                 end
             end
+            function A = Check(In)
+                A = 1;
+            end
         end
-        function [DISTS, Tags] = chooseDistractors(this, isLeftStim)
+        function [DISTS, Tags, isCorrect] = chooseDistractors(this, isLeftStim)
             %This fcn randomly picks the locations and angles of the distractors indicated by the current level
             if this.isLeftTrial && isLeftStim
                 isCorrect = 1;
