@@ -1263,11 +1263,14 @@ classdef BehaviorBoxNose < handle
             this.Stimulus_Object = BehaviorBoxVisualStimulus(this.StimulusStruct, Preview=1);
             tic
             try
+                this.Stimulus_Object = this.Stimulus_Object.findfigs();
                 [~,~] = this.Stimulus_Object.DisplayOnScreen(this.PickSideForCorrect(0, 0), this.Setting_Struct.Starting_opacity); %Plot new stimulus as hidden objects, record positions and angles of the segments
             catch
-                [this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.Stimulus_Object.setUpFigure(); drawnow
+                [this.fig,this.LStimAx,this.RStimAx] = this.Stimulus_Object.setUpFigure(); drawnow
+                this.Stimulus_Object = this.Stimulus_Object.findfigs();
                 [~,~] = this.Stimulus_Object.DisplayOnScreen(this.PickSideForCorrect(0, 0), this.Setting_Struct.Starting_opacity); %Plot new stimulus as hidden objects, record positions and angles of the segments
             end
+            this.fig = this.Stimulus_Object.fig;
             toc
             pause(0.1)
             this.Flash(this.StimulusStruct, findobj(this.fig.Children, 'Type', 'Line'), "NewStim")

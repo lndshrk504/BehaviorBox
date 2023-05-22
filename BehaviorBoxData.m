@@ -1427,38 +1427,94 @@ classdef BehaviorBoxData < handle
             end
             data = this.loadedData;
             data(any(cellfun('isempty', data(:,[4 5])), 2),:) = [];
+            score = cellfun(@(x)x.Score,data(:,3),'UniformOutput',false);
+            data(:,end+1) = score;
             n = data(:,6);
             n = categorical(cellfun(@(x) x(1:7),n,'UniformOutput',false));
             d = cell2mat(data(:,2));
-            G = findgroups(n,d);
-            F = figure('MenuBar','none');
-            T = tiledlayout("flow", "TileSpacing","none","Padding","tight", "Parent",F);
-            Output = splitapply(@(x)PlotStims(x,T,F), data, G);
-            function Out = PlotStims(In,T,F)
-                Out = {};
-                rawD = [In{:,[4 5]}];
-                NumDistractors = cellfun(@(x)size(x,1),rawD(:,[1 2]),'UniformOutput',true);
-                Levels = num2cell(min(NumDistractors, [], 2)+1);
-                TrialNum = num2cell(1:numel(Levels))';
-                D = [TrialNum Levels rawD]';
-                Sobj = BehaviorBoxVisualStimulus();
-                for t = D
-                    Ls = nexttile(T);
-                    Rs = nexttile(T);
-                    %TrialNum
-                    %Level
-                    %Left Stim
-                    %Right Stim
-                    %Outcome
-                    % 6 & 7 are wheel position & time
-                    %Plan:
-                    % Call a plotting function to plot each stim, label outcome.
-                    [~, Sobj.LStimAx, Sobj.RStimAx, ~] = Sobj.setUpFigure("StimHist",1,"Ax",Ax);
-                    Sobj.plotDistractors2("StimHistory",t)
+            G = findgroups(n);
+            Out = splitapply(@(x)SortStims(x), data, G);
+            F = figure("MenuBar","none","Name", "Stimulus",'NumberTitle', 'off');
+            F.Color = 'k';
+            Out = cellfun(@(x)PlotStims(x,F),Out);
+            function Out = SortStims(In)
+                stim = In(:,4);
+                choice = In(:,5);
+                %rawD = vertcat(In{:,[4 5]});
+                getSizeDists = @(x)cellfun(@(x)size(x,1),x,'UniformOutput',false);
+                getLvl = @(x)cellfun(@(x)min(cell2mat(x), [],2)+1,x,'UniformOutput',false);
+                getTrialNum = @(x)cellfun(@(x)(1:numel(x))',x,'UniformOutput',false);
+                NumDistractors = cellfun(@(x)getSizeDists(x),In(:,4),'UniformOutput',false);
+                Levels = getLvl(NumDistractors);
+                TrialNum = getTrialNum(Levels);
+                D = [TrialNum Levels In(:,7) stim choice]';
+                dc = 0;
+                BigHist = struct();
+                for Day = D
+                    try
+                        dc = dc+1;
+                        DAYS = repelem({dc},numel(Day{1,:}),1);
+                        dExpand = [];
+                        EXPAND = struct();
+                        try
+                            dExpand = [DAYS num2cell(Day{1,:}) num2cell(Day{2,:}) num2cell(Day{3,:}) Day{4,:} Day{5,:}]';
+                        catch
+                            rows = (1:size(Day{5,:},1))';
+                            dExpand = [DAYS(rows) num2cell(Day{1,:}(rows)) num2cell(Day{2,:}(rows)) num2cell(Day{3,:}(rows)) Day{4,:}(rows,:) Day{5,:}(rows,:)]';
+                        end
+                        EXPAND = cell2struct(dExpand, {'Day','TNum','Lev','Score','LStim','RStim','Outcome','ChoiceX','ChoiceY'});
+                        if dc>1
+                            BigHist =[BigHist;EXPAND];
+                        else
+                            BigHist = EXPAND;
+                        end
+                        % for t = dExpand
+                        %     %TrialNum
+                        %     %Level
+                        %     %Left Stim
+                        %     %Right Stim
+                        %     %Outcome
+                        %     % 6 & 7 are wheel position & time
+                        %     %Plan:
+                        %     % Call a plotting function to plot each stim, label outcome.
+                        %     
+                        % end
+                    catch err
+                        err;
+                    end
                 end
+                HistT = struct2table(BigHist);
+                S=split(HistT.Outcome);
+                HistT = addvars(HistT,S(:,1),'NewVariableNames','Side');
+                HistT = addvars(HistT,S(:,2),'NewVariableNames','Correct');
+                HistT = sortrows(HistT,{'Lev','Score','Correct'},{'descend','ascend','ascend'});
+                Out = {HistT};
             end
-
-
+            function Out = PlotStims(In,F)
+                import mlreportgen.dom.*;
+                import mlreportgen.report.*
+                T = tiledlayout(20,3, "TileSpacing","none","Padding","tight", "Parent",F);
+                Sobj = BehaviorBoxVisualStimulus();
+                Sobj.FinishLine = 0;
+                Sobj.figpos = [];
+                Sobj.InputType = 5;
+                for t = table2cell(In)'
+                    Sobj = Sobj.setUpFigure("StimHist",1,"T",T);
+                    [L,R] = Sobj.ShowStimulusContour_Density("SH",t);
+                    LL = Sobj.LStimAx.findobj('Type','Line');
+                    RL = Sobj.RStimAx.findobj('Type','Line');
+                    [LL.LineWidth] = deal(2);
+                    [RL.LineWidth] = deal(2);
+                end
+                try
+                    doc = Document('HexGridPlots.html', 'html');
+                    Fig = Figure()
+                    img = Image(getSnapshotImage(Fig, 'png'));
+                    append(doc, img);
+                    close(doc);
+                end
+                
+            end
         end
         %Calculate functions
         function [Set, I] = structureSettings(~, Settings)

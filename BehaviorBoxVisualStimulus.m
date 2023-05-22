@@ -11,6 +11,7 @@ classdef BehaviorBoxVisualStimulus
         LStimAx; %Axis that contains the left stimulus plot
         RStimAx; %Axis that contains the left stimulus plot
         FLAx; %Axis that contains the 2 finish line triangles
+        ChoiceAx; %Axis to plot the wheel choice
         SpotlightColor = [0 0 0];
         SpotlightToggle = 1;
         FinishLine = 1;
@@ -21,13 +22,14 @@ classdef BehaviorBoxVisualStimulus
         Levertype;
         BackgroundColor = [0 0 0];
         SegLength = 15;
-        SegThick = 13;
+        SegThick = 10;
         SegSpacing = 13;
         ContLength = 5; % number of segments in the target
         PatchSize=7; % size of patch, pick uneven
         BinSize=8; %size of bins
         SegmJitter=0.3;% jitter of segments
-        Orient;
+        Orient = 0;
+        InputType;
     end
     properties(SetAccess = 'public', GetAccess = 'public')
         % Properties of the stimulus that change each trial (level, which side)
@@ -64,31 +66,37 @@ classdef BehaviorBoxVisualStimulus
             end
         end
 
-        function [fig, LStimAx, RStimAx, FLAx] = setUpFigure(this, options)
+        function [fig, LStimAx, RStimAx] = setUpFigure(this, options)
             arguments
                 this
                 options.StimHist logical = false %If this is on, we're plotting the record into a SUBPLOT
-                options.Ax
+                options.T
             end
             % https://www.mathworks.com/help/matlab/creating_guis/update-app-figure-and-containers.html
             %Move this to a new function...
             %stimWidth = abs(100-this.BetweenSpotlight)/200;
             stimWidth = 0.5;
             if options.StimHist
-                Ax = options.Ax;
-                fig = Ax.Parent;
-                LStimAx = nexttile(Ax);
+                T = options.T;
+                fig = T.Parent;
+                LStimAx = nexttile(T); hold(LStimAx,'on');
                 axis image;
-                RStimAx = nexttile(Ax);
+                RStimAx = nexttile(T); hold(RStimAx,'on');
                 axis image;
-                hold(LStimAx,'on');
-                hold(RStimAx,'on');
+                LStimAx.Tag = 'Left';
+                RStimAx.Tag = 'Right';
+                if this.InputType == 5
+                    this.ChoiceAx = nexttile(T); hold(this.ChoiceAx,'on');
+                    %axis image;
+                    this.ChoiceAx.Tag = 'Choice';
+                end
                 if this.SpotlightToggle
                     this.getRect(RStimAx); this.getRect(LStimAx);
                 end
-                [Ax.Children(:).Color] = deal(this.BackgroundColor);
-                [Ax.Children(:).YTick] = deal([]);
-                [Ax.Children(:).XTick] = deal([]);
+                [T.Children(:).Color] = deal(this.BackgroundColor);
+                [T.Children(:).YTick] = deal([]);
+                [T.Children(:).XTick] = deal([]);
+                [T.Children(:).Box] = deal('off');
             else
                 fig = figure("Name", "Stimulus", "MenuBar","none", "HandleVisibility","on");
                 %fig.WindowStyle = "alwaysontop";
@@ -120,6 +128,9 @@ classdef BehaviorBoxVisualStimulus
                 ch = [fig.Children.Children];
                 [ch(:).Visible] = deal(0);
             end
+            this.fig = fig;
+            this.LStimAx = LStimAx;
+            this.RStimAx = RStimAx;
             FLAx = this.finishLine();
         end
         function getRect(this, ax)
@@ -242,23 +253,60 @@ classdef BehaviorBoxVisualStimulus
             %[o(:).Visible] = deal(0);
         end
         function this = findfigs(this)
-            this.fig = findobj("Name", "Stimulus");
-            ch = [this.fig.Children];
-            this.LStimAx = ch(contains({ch.Tag}, "Left"));
-            this.RStimAx = ch(contains({ch.Tag}, "Right"));
-            t = ch(contains({ch.Tag}, "FinishLine"));
-            this.FLAx = t.findobj('Type', 'Polygon');
+            try
+                this.fig = findobj("Name", "Stimulus");
+                ch = [this.fig(end).Children];
+                if ch.Type == "tiledlayout"
+                    ch = ch.Children;
+                end
+                this.LStimAx = ch(contains({ch.Tag}, "Left"));
+                this.RStimAx = ch(contains({ch.Tag}, "Right"));
+                this.ChoiceAx = ch(contains({ch.Tag}, "Choice"));
+                t = ch(contains({ch.Tag}, "FinishLine"));
+                this.FLAx = t.findobj('Type', 'Polygon');
+            end
         end
         % This is the most used one, currently WBS
-        function [L,R] = ShowStimulusContour_Density(this)
+        function [L,R] = ShowStimulusContour_Density(this, options)
+            arguments
+                this
+                options.SH
+            end
             % in this stimulus instead of training by gradual increase between line
             % segments contrast with background we use gradual increase of line quantity
-            [Ldist, LTags] = this.chooseDistractors(1);
-            [Rdist, RTags] = this.chooseDistractors(0);
-            this.plotDistractors3(this.LStimAx, Ldist, LTags)
-            view(-this.Orient,90)
-            this.plotDistractors3(this.RStimAx, Rdist, RTags)
-            view(-this.Orient,90)
+            if ~isfield(options,'SH')
+                [Ldist, LTags] = this.chooseDistractors(1);
+                [Rdist, RTags] = this.chooseDistractors(0);
+            else
+                % 1 TrialNum
+                % 2 Level
+                % 3 Left Stim
+                % 4 Right Stim
+                % 5 Outcome
+                % 6 & 7 are wheel position & time
+                Tnum = options.SH{2};
+                Lev = options.SH{3};
+                Ldist = options.SH{5};
+                LTags = [];
+                RTags = [];
+                Rdist = options.SH{6};
+                outcome = options.SH{7};
+                try
+                    choiceY = options.SH{8};
+                    choiceX = options.SH{9};
+                    CH = plot(choiceX, choiceY, 'Parent', this.ChoiceAx);
+                    this.ChoiceAx.YLim = [-1.1*max(abs(choiceY)) 1.1*max(abs(choiceY))];
+                    text(0,0.2,outcome,"Color",'w');
+                end
+            end
+            if ~isempty(Ldist)
+                this.plotDistractors3(this.LStimAx, Ldist, LTags)
+                view(-this.Orient,90)
+            end
+            if ~isempty(Rdist)
+                this.plotDistractors3(this.RStimAx, Rdist, RTags)
+                view(-this.Orient,90)
+            end
             L = Ldist; R = Rdist;
         end
         function [DISTS, Tags] = chooseDistractors(this, isLeftStim)
@@ -319,17 +367,26 @@ classdef BehaviorBoxVisualStimulus
             DISTS = Dist;
         end
         function plotDistractors3(this, theAxis, Dists, Tags)
-            try
-            [theAxis.Children(:).Visible] = deal(1);
-            dc = 0;
-            for D = Dists' %Creates the coordinates of the bar tip centered in [0,0]
-                dc = dc+1;
-                [Tip1X, Tip1Y] = pol2cart(deg2rad(D(3)), this.SegLength/2); %Creates coords of a semi bar starting from 0,0
-                [Tip2X, Tip2Y] = pol2cart(deg2rad(D(3) + 180), this.SegLength/2); %Creates the other half-bar
-                xCoordinates = [D(1) + Tip1X, D(1) + Tip2X]; %Adds the coords from the nodes and half bars
-                yCoordinates = [D(2) + Tip1Y, D(2) + Tip2Y];
-                plot(xCoordinates, yCoordinates,'Color', [this.LineColor],'LineWidth',this.SegThick, 'Parent', theAxis, 'Tag', Tags(dc))
+            arguments
+                this
+                theAxis
+                Dists
+                Tags
             end
+            if isempty(Tags)
+                Tags = strings(size(Dists,1),1);
+            end
+            try
+                [theAxis.Children(:).Visible] = deal(1);
+                dc = 0;
+                for D = Dists' %Creates the coordinates of the bar tip centered in [0,0]
+                    dc = dc+1;
+                    [Tip1X, Tip1Y] = pol2cart(deg2rad(D(3)), this.SegLength/2); %Creates coords of a semi bar starting from 0,0
+                    [Tip2X, Tip2Y] = pol2cart(deg2rad(D(3) + 180), this.SegLength/2); %Creates the other half-bar
+                    xCoordinates = [D(1) + Tip1X, D(1) + Tip2X]; %Adds the coords from the nodes and half bars
+                    yCoordinates = [D(2) + Tip1Y, D(2) + Tip2Y];
+                    plot(xCoordinates, yCoordinates,'Color', [this.LineColor],'LineWidth',this.SegThick, 'Parent', theAxis, 'Tag', Tags(dc))
+                end
             catch err
                 err;
             end
