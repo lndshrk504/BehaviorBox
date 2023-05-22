@@ -250,16 +250,28 @@ classdef BehaviorBoxVisualStimulus
             this.FLAx = t.findobj('Type', 'Polygon');
         end
         % This is the most used one, currently WBS
-        function [L,R] = ShowStimulusContour_Density(this)
+        function [L,R,Lrej,Rrej] = ShowStimulusContour_Density(this)
             % in this stimulus instead of training by gradual increase between line
             % segments contrast with background we use gradual increase of line quantity
-            [Ldist, LTags] = this.chooseDistractors(1);
-            [Rdist, RTags] = this.chooseDistractors(0);
+            [Ldist, LTags, Lrej] = this.CheckDistractors(1);
+            [Rdist, RTags, Rrej] = this.CheckDistractors(0);
             this.plotDistractors3(this.LStimAx, Ldist, LTags)
             view(-this.Orient,90)
             this.plotDistractors3(this.RStimAx, Rdist, RTags)
             view(-this.Orient,90)
             L = Ldist; R = Rdist;
+        end
+        function [DISTS, Tags, REJ] = CheckDistractors(this, isLeftStim)
+            REJ = {};
+            approve = 0;
+            while 1
+                [D, T] = this.chooseDistractors(isLeftStim);
+                if approve
+                    break
+                else
+                    REJ{end+1} = D;
+                end
+            end
         end
         function [DISTS, Tags] = chooseDistractors(this, isLeftStim)
             %This fcn randomly picks the locations and angles of the distractors indicated by the current level
@@ -310,11 +322,12 @@ classdef BehaviorBoxVisualStimulus
             selectedAngle = randi(180,numDs,1); %Randomly selects angles for the bars %Use 180 because of symmetry
             Tags = repmat("Distractor",numDs,1);
             if W == 2
-                selectedNodes = [selectedNodes ; contourNodes];
+                randomLines = [selectedNodes selectedAngle];
+                CONTOUR = [contourNodes repmat(90, 5, 1)];
                 Tags = [Tags ; repmat("Contour",5,1)];
-                Dist = [selectedNodes [selectedAngle ; repmat(90, 5, 1)] ];
+                Dist = [sortrows(randomLines) ; CONTOUR];
             else
-                Dist = [selectedNodes selectedAngle];
+                Dist = sortrows([selectedNodes selectedAngle]);
             end
             DISTS = Dist;
         end
