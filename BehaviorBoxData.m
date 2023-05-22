@@ -988,11 +988,11 @@ classdef BehaviorBoxData < handle
                 this
                 opts.Composite logical = 0
                 opts.LevGroup logical = 0
-                opts.LevMM logical = 1
-                opts.Stim logical = 0
+                opts.LevMM logical = 0
+                opts.Stim logical = 1
             end
             Num = num2cell(1:numel(this.Sub));
-            t1 = datetime("now");
+            tic
             if opts.LevGroup
                 LevDay = cellfun(@(x){this.PlotLevelGroupsByLevel(Sc=x)}, Num);
             end
@@ -1002,7 +1002,7 @@ classdef BehaviorBoxData < handle
             if opts.Stim
                 figs = this.PlotStimulusHistory();
             end
-            time = seconds(datetime("now") - t1);
+            time = toc;
             fprintf("Total time: " + time + " seconds.\n")
         end
         function Out = plotLvByDayOneAxis(this, options)
@@ -1433,16 +1433,18 @@ classdef BehaviorBoxData < handle
             G = findgroups(n,d);
             F = figure('MenuBar','none');
             T = tiledlayout("flow", "TileSpacing","none","Padding","tight", "Parent",F);
-            Output = splitapply(@PlotStims, data, G);
-            function Out = PlotStims(In)
+            Output = splitapply(@(x)PlotStims(x,T,F), data, G);
+            function Out = PlotStims(In,T,F)
                 Out = {};
-                D = [In{:,[4 5]}];
-                NumDistractors = cellfun(@(x)size(x,1),D(:,[1 2]),'UniformOutput',true);
+                rawD = [In{:,[4 5]}];
+                NumDistractors = cellfun(@(x)size(x,1),rawD(:,[1 2]),'UniformOutput',true);
                 Levels = num2cell(min(NumDistractors, [], 2)+1);
                 TrialNum = num2cell(1:numel(Levels))';
-                D = [TrialNum Levels D]';
+                D = [TrialNum Levels rawD]';
                 Sobj = BehaviorBoxVisualStimulus();
                 for t = D
+                    Ls = nexttile(T);
+                    Rs = nexttile(T);
                     %TrialNum
                     %Level
                     %Left Stim
@@ -1451,7 +1453,6 @@ classdef BehaviorBoxData < handle
                     % 6 & 7 are wheel position & time
                     %Plan:
                     % Call a plotting function to plot each stim, label outcome.
-                    T2 = tiledlayout(T,1,2,"TileSpacing","none","Padding","tight");
                     [~, Sobj.LStimAx, Sobj.RStimAx, ~] = Sobj.setUpFigure("StimHist",1,"Ax",Ax);
                     Sobj.plotDistractors2("StimHistory",t)
                 end
