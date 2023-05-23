@@ -70,7 +70,11 @@ classdef BehaviorBoxVisualStimulus
                 end
             end
             try
-                this = findfigs(this);
+                this = this.findfigs();
+                if isempty(this.LStimAx)
+                    this.setUpFigure()
+                    this = this.findfigs();
+                end
             end
         end
         function [fig, LStimAx, RStimAx, ChoiceAx] = setUpFigure(this, options)
@@ -83,6 +87,10 @@ classdef BehaviorBoxVisualStimulus
             %Move this to a new function...
             %stimWidth = abs(100-this.BetweenSpotlight)/200;
             stimWidth = 0.5;
+            ChoiceAx = [];
+            RStimAx = [];
+            LStimAx = [];
+            fig = [];
             if options.StimHist
                 T = options.T;
                 fig = T.Parent;
@@ -105,7 +113,7 @@ classdef BehaviorBoxVisualStimulus
                 [T.Children(:).XTick] = deal([]);
                 [T.Children(:).Box] = deal('off');
             else
-                fig = figure("Name", "Stimulus", "MenuBar","none", "HandleVisibility","on");
+                fig = figure('NumberTitle', 'off',"Name", "Stimulus", "MenuBar","none", "HandleVisibility","on"); fig.Renderer = "painters";
                 %fig.WindowStyle = "alwaysontop";
                 fig.Units = "inches";
                 fig.Position = this.figpos;
@@ -309,16 +317,16 @@ classdef BehaviorBoxVisualStimulus
                     CH = plot(choiceX, choiceY, 'Parent', this.ChoiceAx);
                     this.ChoiceAx.YLim = [-1.1*max(abs(choiceY)) 1.1*max(abs(choiceY))];
                     text(0,0.8,outcome,"Color",'w', 'Units','normalized');
+                    text(1,0.8,"L"+string(Lev),"Color",'w', "Parent",this.LStimAx, 'Units','normalized');
+                    text(1,0.8,"t"+string(Tnum),"Color",'w', "Parent",this.RStimAx, 'Units','normalized');
                 end
             end
             if ~isempty(Ldist)
                 this.plotDistractors3(this.LStimAx, Ldist, LTags)
-                text(1,0.8,"L"+string(Lev),"Color",'w', "Parent",this.LStimAx, 'Units','normalized');
                 view(-this.Orient,90)
             end
             if ~isempty(Rdist)
                 this.plotDistractors3(this.RStimAx, Rdist, RTags)
-                text(1,0.8,"t"+string(Tnum),"Color",'w', "Parent",this.RStimAx, 'Units','normalized');
                 view(-this.Orient,90)
             end
             L = Ldist; R = Rdist;
