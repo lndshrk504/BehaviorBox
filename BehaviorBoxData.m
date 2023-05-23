@@ -1456,8 +1456,6 @@ classdef BehaviorBoxData < handle
                     Sobj.plotDistractors2("StimHistory",t)
                 end
             end
-
-
         end
         %Calculate functions
         function [Set, I] = structureSettings(~, Settings)
