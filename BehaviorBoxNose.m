@@ -352,7 +352,6 @@ classdef BehaviorBoxNose < handle
                 end
             end
             [this.fig, this.LStimAx, this.RStimAx, this.FLAx, ~] = this.Stimulus_Object.setUpFigure();
-            this.StimulusStruct.fig = this.fig;
             this.ReadyCue(1)
             this.ReadyCueStruct.Ax = this.ReadyCueAx;
             this.StimulusStruct.ReadyCue = this.ReadyCueStruct;

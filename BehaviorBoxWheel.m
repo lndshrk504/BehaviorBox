@@ -397,7 +397,7 @@ classdef BehaviorBoxWheel < handle
             diary(diaryname)
             this.Data_Object.TrainingNow = 1;
             %create stimulus depending on input device
-            [this.Stimulus_Object] = BehaviorBoxVisualStimulus(this.StimulusStruct);
+            [this.Stimulus_Object] = BehaviorBoxVisualStimulus(this.StimulusStruct); drawnow;
             this.Data_Object.StimType = erase(this.app.Stimulus_type.Value, ' ');
             clo(this.app.PerformanceTab);
             this.graphFig = this.app.PerformanceTab;
@@ -412,19 +412,14 @@ classdef BehaviorBoxWheel < handle
                 set(this.message_handle,'Text',txt, ...
                     'BackgroundColor','blue');
                 fprintf(txt+"\n");
-                while this.a.readDigitalPin(this.Setting_Struct.TriggerPin) == this.Box.readHigh
-                    if get(this.stop_handle, 'Value') %check if abort button is pressed
+                while 1
+                    pause(0.1); drawnow;
+                    if this.Box.readPin(this.Setting_Struct.TriggerPin) || get(this.stop_handle, 'Value') %check if abort button is pressed
                         break %abort
                     end
                 end
             end
-            fprintf("- - - - -\n");
-            txt = "Start trial Mouse "+this.Setting_Struct.Subject+" at "+string(datetime('now'));
-            set(this.message_handle,'Text',txt, ...
-                'BackgroundColor', 'none');
-            fprintf(txt+"\n");
-            [this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.Stimulus_Object.setUpFigure();
-            this.StimulusStruct.fig = this.fig;
+            [this.fig, this.LStimAx, this.RStimAx, this.FLAx, ~] = this.Stimulus_Object.setUpFigure();
             this.ReadyCue(1)
             this.ReadyCueStruct.Ax = this.ReadyCueAx;
             this.StimulusStruct.ReadyCue = this.ReadyCueStruct;
@@ -433,6 +428,11 @@ classdef BehaviorBoxWheel < handle
                 this.Box.use_wheel = 1;
             end
             this.toggleButtonsOnOff(this.Buttons,0); % Turn off all buttons
+            fprintf("- - - - -\n");
+            txt = "Start trial Mouse "+this.Setting_Struct.Subject+" at "+string(datetime('now'));
+            set(this.message_handle,'Text',txt, ...
+                'BackgroundColor', 'none');
+            fprintf(txt+"\n");
             assignin("base", "BB", this)
             assignin("base", "BBData", this.Data_Object)
             this.i = 0;
@@ -1430,14 +1430,20 @@ classdef BehaviorBoxWheel < handle
             set(this.message_handle,'Text','Did the sensors work?');
         end
         function TestStimulus(this)
+            tic
+            %this.app.Preview.Enable = 0; %Disable this when debugging...
+            this.getGUI();
             this.Stimulus_Object = BehaviorBoxVisualStimulus(this.StimulusStruct, Preview=1);
-            try
-                [~,~] = this.Stimulus_Object.DisplayOnScreen(this.PickSideForCorrect(0, 0), this.Setting_Struct.Starting_opacity); %Plot new stimulus as hidden objects, record positions and angles of the segments
-            catch
-                [this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.Stimulus_Object.setUpFigure(); drawnow
-                [~,~] = this.Stimulus_Object.DisplayOnScreen(this.PickSideForCorrect(0, 0), this.Setting_Struct.Starting_opacity); %Plot new stimulus as hidden objects, record positions and angles of the segments
+            if isempty([this.Stimulus_Object.LStimAx this.Stimulus_Object.RStimAx])
+                [this.fig,this.LStimAx,this.RStimAx, ~] = this.Stimulus_Object.setUpFigure(); drawnow
+                this.Stimulus_Object = this.Stimulus_Object.findfigs();
             end
+            [~,~] = this.Stimulus_Object.DisplayOnScreen(this.PickSideForCorrect(0, 0), this.Setting_Struct.Starting_opacity);
+            this.fig = this.Stimulus_Object.fig;
+            toc
+            pause(0.1)
             this.Flash(this.StimulusStruct, findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
+            this.app.Preview.Enable = 1;
         end
     end
     %STATIC FUNCTIONS====
