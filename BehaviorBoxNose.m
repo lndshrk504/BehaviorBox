@@ -329,7 +329,7 @@ classdef BehaviorBoxNose < handle
             diary(diaryname)
             this.Data_Object.TrainingNow = 1;
             %create stimulus depending on input device
-            [this.Stimulus_Object] = BehaviorBoxVisualStimulus(this.StimulusStruct);
+            [this.Stimulus_Object] = BehaviorBoxVisualStimulus(this.StimulusStruct); drawnow;
             this.Data_Object.StimType = erase(this.app.Stimulus_type.Value, ' ');
             clo(this.app.PerformanceTab);
             this.graphFig = this.app.PerformanceTab;
@@ -351,7 +351,7 @@ classdef BehaviorBoxNose < handle
                     end
                 end
             end
-            [this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.Stimulus_Object.setUpFigure();
+            [this.fig, this.LStimAx, this.RStimAx, this.FLAx, ~] = this.Stimulus_Object.setUpFigure();
             this.StimulusStruct.fig = this.fig;
             this.ReadyCue(1)
             this.ReadyCueStruct.Ax = this.ReadyCueAx;

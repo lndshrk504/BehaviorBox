@@ -1505,7 +1505,7 @@ classdef BehaviorBoxData < handle
                         clo(F)
                         T = tiledlayout(20,3, "TileSpacing","none","Padding","tight", "Parent",F);
                     end
-                    [Sobj.fig, Sobj.LStimAx, Sobj.RStimAx, Sobj.ChoiceAx] = Sobj.setUpFigure("StimHist",1,"T",T);
+                    [Sobj.fig, Sobj.LStimAx, Sobj.RStimAx, ~, Sobj.ChoiceAx] = Sobj.setUpFigure("StimHist",1,"T",T);
                     [L,R] = Sobj.ShowStimulusContour_Density("SH",t);
                     LL = Sobj.LStimAx.findobj('Type','Line');
                     RL = Sobj.RStimAx.findobj('Type','Line');

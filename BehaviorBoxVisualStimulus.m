@@ -48,12 +48,18 @@ classdef BehaviorBoxVisualStimulus
             if nargin == 0
                 return
             end
-            this = this.updateProps(StimStruct);
             if ~options.Preview
                 delete(findobj("Type", "figure", "Name", "Stimulus"))
             end
+            this = this.updateProps(StimStruct);
             this.figpos = [this.position_x this.position_y this.size_x this.size_y]; %Use the hardcoded values from now on
-            %[this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.setUpFigure();
+            try
+                this = this.findfigs();
+                if isempty(this.LStimAx)
+                    this.setUpFigure();
+                    this = this.findfigs();
+                end
+            end
         end
         function this = updateProps(this, StimStruct)
             arguments
@@ -69,19 +75,20 @@ classdef BehaviorBoxVisualStimulus
                     end
                 end
             end
-            try
-                this = this.findfigs();
-                if isempty(this.LStimAx)
-                    this.setUpFigure()
-                    this = this.findfigs();
-                end
-            end
         end
-        function [fig, LStimAx, RStimAx, ChoiceAx] = setUpFigure(this, options)
+        function [fig, LStimAx, RStimAx, FLAx, ChoiceAx] = setUpFigure(this, options)
             arguments
                 this
                 options.StimHist logical = false %If this is on, we're plotting the record into a SUBPLOT
                 options.T
+            end
+            if isvalid(this.fig) & isvalid(this.LStimAx) & isvalid(this.RStimAx)
+                fig = this.fig;
+                LStimAx = this.LStimAx;
+                RStimAx = this.RStimAx;
+                FLAx = this.FLAx;
+                ChoiceAx = this.ChoiceAx;
+                return
             end
             % https://www.mathworks.com/help/matlab/creating_guis/update-app-figure-and-containers.html
             %Move this to a new function...

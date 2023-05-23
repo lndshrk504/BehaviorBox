@@ -1,6 +1,8 @@
 # Ignore all txt
 *.txt
 *.pdf
+*.htmx
+*.html
 # Matlab Live
 *.mlx
 # Autosave
