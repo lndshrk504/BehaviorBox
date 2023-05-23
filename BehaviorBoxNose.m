@@ -329,7 +329,7 @@ classdef BehaviorBoxNose < handle
             diary(diaryname)
             this.Data_Object.TrainingNow = 1;
             %create stimulus depending on input device
-            [this.Stimulus_Object] = BehaviorBoxVisualStimulus(this.StimulusStruct);
+            [this.Stimulus_Object] = BehaviorBoxVisualStimulus(this.StimulusStruct); drawnow;
             this.Data_Object.StimType = erase(this.app.Stimulus_type.Value, ' ');
             clo(this.app.PerformanceTab);
             this.graphFig = this.app.PerformanceTab;
@@ -351,8 +351,7 @@ classdef BehaviorBoxNose < handle
                     end
                 end
             end
-            [this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.Stimulus_Object.setUpFigure();
-            this.StimulusStruct.fig = this.fig;
+            [this.fig, this.LStimAx, this.RStimAx, this.FLAx, ~] = this.Stimulus_Object.setUpFigure();
             this.ReadyCue(1)
             this.ReadyCueStruct.Ax = this.ReadyCueAx;
             this.StimulusStruct.ReadyCue = this.ReadyCueStruct;
@@ -1258,16 +1257,16 @@ classdef BehaviorBoxNose < handle
             set(this.message_handle,'Text','Did the sensors work?');
         end
         function TestStimulus(this)
-            this.getGUI();
-            this.app.Preview.Enable = 0;
-            this.Stimulus_Object = BehaviorBoxVisualStimulus(this.StimulusStruct, Preview=1);
             tic
-            try
-                [~,~] = this.Stimulus_Object.DisplayOnScreen(this.PickSideForCorrect(0, 0), this.Setting_Struct.Starting_opacity); %Plot new stimulus as hidden objects, record positions and angles of the segments
-            catch
-                [this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.Stimulus_Object.setUpFigure(); drawnow
-                [~,~] = this.Stimulus_Object.DisplayOnScreen(this.PickSideForCorrect(0, 0), this.Setting_Struct.Starting_opacity); %Plot new stimulus as hidden objects, record positions and angles of the segments
+            %this.app.Preview.Enable = 0; %Disable this when debugging...
+            this.getGUI();
+            this.Stimulus_Object = BehaviorBoxVisualStimulus(this.StimulusStruct, Preview=1);
+            if isempty([this.Stimulus_Object.LStimAx this.Stimulus_Object.RStimAx])
+                [this.fig,this.LStimAx,this.RStimAx, ~] = this.Stimulus_Object.setUpFigure(); drawnow
+                this.Stimulus_Object = this.Stimulus_Object.findfigs();
             end
+            [~,~] = this.Stimulus_Object.DisplayOnScreen(this.PickSideForCorrect(0, 0), this.Setting_Struct.Starting_opacity);
+            this.fig = this.Stimulus_Object.fig;
             toc
             pause(0.1)
             this.Flash(this.StimulusStruct, findobj(this.fig.Children, 'Type', 'Line'), "NewStim")

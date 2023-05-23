@@ -988,11 +988,11 @@ classdef BehaviorBoxData < handle
                 this
                 opts.Composite logical = 0
                 opts.LevGroup logical = 0
-                opts.LevMM logical = 1
-                opts.Stim logical = 0
+                opts.LevMM logical = 0
+                opts.Stim logical = 1
             end
             Num = num2cell(1:numel(this.Sub));
-            t1 = datetime("now");
+            tic
             if opts.LevGroup
                 LevDay = cellfun(@(x){this.PlotLevelGroupsByLevel(Sc=x)}, Num);
             end
@@ -1002,7 +1002,7 @@ classdef BehaviorBoxData < handle
             if opts.Stim
                 figs = this.PlotStimulusHistory();
             end
-            time = seconds(datetime("now") - t1);
+            time = toc;
             fprintf("Total time: " + time + " seconds.\n")
         end
         function Out = plotLvByDayOneAxis(this, options)
@@ -1427,34 +1427,111 @@ classdef BehaviorBoxData < handle
             end
             data = this.loadedData;
             data(any(cellfun('isempty', data(:,[4 5])), 2),:) = [];
+            score = cellfun(@(x)x.Score,data(:,3),'UniformOutput',false);
+            data(:,end+1) = score;
             n = data(:,6);
             n = categorical(cellfun(@(x) x(1:7),n,'UniformOutput',false));
             d = cell2mat(data(:,2));
-            G = findgroups(n,d);
-            F = figure('MenuBar','none');
-            T = tiledlayout("flow", "TileSpacing","none","Padding","tight", "Parent",F);
-            Output = splitapply(@PlotStims, data, G);
-            function Out = PlotStims(In)
-                Out = {};
-                D = [In{:,[4 5]}];
-                NumDistractors = cellfun(@(x)size(x,1),D(:,[1 2]),'UniformOutput',true);
-                Levels = num2cell(min(NumDistractors, [], 2)+1);
-                TrialNum = num2cell(1:numel(Levels))';
-                D = [TrialNum Levels D]';
-                Sobj = BehaviorBoxVisualStimulus();
-                for t = D
-                    %TrialNum
-                    %Level
-                    %Left Stim
-                    %Right Stim
-                    %Outcome
-                    % 6 & 7 are wheel position & time
-                    %Plan:
-                    % Call a plotting function to plot each stim, label outcome.
-                    T2 = tiledlayout(T,1,2,"TileSpacing","none","Padding","tight");
-                    [~, Sobj.LStimAx, Sobj.RStimAx, ~] = Sobj.setUpFigure("StimHist",1,"Ax",Ax);
-                    Sobj.plotDistractors2("StimHistory",t)
+            G = findgroups(n);
+            Out = splitapply(@(x)SortStims(x), data, G);
+            F = figure("MenuBar","none","Name", "Stimulus",'NumberTitle', 'off', 'Visible','off');F.Position = [1 31 362 1147]; F.Renderer = "painters"; F.InvertHardcopy = 'off';
+            F.Color = 'k';
+            Out = cellfun(@(x)PlotStims(x,F),Out);
+            function Out = SortStims(In)
+                stim = In(:,4);
+                choice = In(:,5);
+                %rawD = vertcat(In{:,[4 5]});
+                getSizeDists = @(x)cellfun(@(x)size(x,1),x,'UniformOutput',false);
+                getLvl = @(x)cellfun(@(x)min(cell2mat(x), [],2)+1,x,'UniformOutput',false);
+                getTrialNum = @(x)cellfun(@(x)(1:numel(x))',x,'UniformOutput',false);
+                NumDistractors = cellfun(@(x)getSizeDists(x),In(:,4),'UniformOutput',false);
+                Levels = getLvl(NumDistractors);
+                TrialNum = getTrialNum(Levels);
+                D = [TrialNum Levels In(:,7) stim choice]';
+                dc = 0;
+                BigHist = struct();
+                for Day = D
+                    try
+                        dc = dc+1;
+                        DAYS = repelem({dc},numel(Day{1,:}),1);
+                        dExpand = [];
+                        EXPAND = struct();
+                        try
+                            dExpand = [DAYS num2cell(Day{1,:}) num2cell(Day{2,:}) num2cell(Day{3,:}) Day{4,:} Day{5,:}]';
+                        catch
+                            rows = (1:size(Day{5,:},1))';
+                            dExpand = [DAYS(rows) num2cell(Day{1,:}(rows)) num2cell(Day{2,:}(rows)) num2cell(Day{3,:}(rows)) Day{4,:}(rows,:) Day{5,:}(rows,:)]';
+                        end
+                        EXPAND = cell2struct(dExpand, {'Day','TNum','Lev','Score','LStim','RStim','Outcome','ChoiceX','ChoiceY'});
+                        if dc>1
+                            BigHist =[BigHist;EXPAND];
+                        else
+                            BigHist = EXPAND;
+                        end
+                        % for t = dExpand
+                        %     %TrialNum
+                        %     %Level
+                        %     %Left Stim
+                        %     %Right Stim
+                        %     %Outcome
+                        %     % 6 & 7 are wheel position & time
+                        %     %Plan:
+                        %     % Call a plotting function to plot each stim, label outcome.
+                        %     
+                        % end
+                    catch err
+                        err;
+                    end
                 end
+                HistT = struct2table(BigHist);
+                S=split(HistT.Outcome);
+                HistT = addvars(HistT,S(:,1),'NewVariableNames','Side');
+                HistT = addvars(HistT,S(:,2),'NewVariableNames','Correct');
+                HistT = sortrows(HistT,{'Lev','Score','Correct'},{'descend','ascend','ascend'});
+                Out = {HistT};
+            end
+            function Out = PlotStims(In,F)
+                T = tiledlayout(20,3, "TileSpacing","none","Padding","tight", "Parent",F);
+                Sobj = BehaviorBoxVisualStimulus();
+                Sobj.FinishLine = 0;
+                Sobj.figpos = [];
+                Sobj.InputType = 5;
+                tc = 0;
+                for t = table2cell(In)'
+                    tc = tc+1;
+                    if tc>20
+                        MakeReport(F)
+                        tc = 1;
+                        clo(F)
+                        T = tiledlayout(20,3, "TileSpacing","none","Padding","tight", "Parent",F);
+                    end
+                    [Sobj.fig, Sobj.LStimAx, Sobj.RStimAx, ~, Sobj.ChoiceAx] = Sobj.setUpFigure("StimHist",1,"T",T);
+                    [L,R] = Sobj.ShowStimulusContour_Density("SH",t);
+                    LL = Sobj.LStimAx.findobj('Type','Line');
+                    RL = Sobj.RStimAx.findobj('Type','Line');
+                    [LL.LineWidth] = deal(2);
+                    [RL.LineWidth] = deal(2);
+                end
+            end
+            function MakeReport(inFig)
+                tic
+                import mlreportgen.dom.*
+                import mlreportgen.report.*
+                enlarge = 4;
+                AXES = inFig.findobj('Type','Axes');
+                [AXES(:).Visible] = deal('off');
+                inFig.InvertHardcopy = 'off';
+                inFig.Renderer = "painters"; % To keep it as a vector
+                rpt = Report('HexGridPlots', 'html');
+                FigReporter = Figure(inFig);
+                FigReporter.Scaling = "none";
+                Img = Image(getSnapshotImage(FigReporter, rpt));
+                Img.Height = string(enlarge*inFig.Position(4))+'px';
+                Img.Width = string(enlarge*inFig.Position(3))+'px';
+                append(rpt, Img);
+                close(rpt)
+                rptview(rpt)
+                toc
             end
         end
         %Calculate functions
