@@ -1434,7 +1434,7 @@ classdef BehaviorBoxData < handle
             d = cell2mat(data(:,2));
             G = findgroups(n);
             Out = splitapply(@(x)SortStims(x), data, G);
-            F = figure("MenuBar","none","Name", "Stimulus",'NumberTitle', 'off');
+            F = figure("MenuBar","none","Name", "Stimulus",'NumberTitle', 'off', 'Visible','off');F.Position = [1 31 362 1147]; F.Renderer = "painters"; F.InvertHardcopy = 'off';
             F.Color = 'k';
             Out = cellfun(@(x)PlotStims(x,F),Out);
             function Out = SortStims(In)
@@ -1491,29 +1491,47 @@ classdef BehaviorBoxData < handle
                 Out = {HistT};
             end
             function Out = PlotStims(In,F)
-                import mlreportgen.dom.*;
-                import mlreportgen.report.*
                 T = tiledlayout(20,3, "TileSpacing","none","Padding","tight", "Parent",F);
                 Sobj = BehaviorBoxVisualStimulus();
                 Sobj.FinishLine = 0;
                 Sobj.figpos = [];
                 Sobj.InputType = 5;
+                tc = 0;
                 for t = table2cell(In)'
-                    Sobj = Sobj.setUpFigure("StimHist",1,"T",T);
+                    tc = tc+1;
+                    if tc>20
+                        MakeReport(F)
+                        tc = 1;
+                        clo(F)
+                        T = tiledlayout(20,3, "TileSpacing","none","Padding","tight", "Parent",F);
+                    end
+                    [Sobj.fig, Sobj.LStimAx, Sobj.RStimAx, Sobj.ChoiceAx] = Sobj.setUpFigure("StimHist",1,"T",T);
                     [L,R] = Sobj.ShowStimulusContour_Density("SH",t);
                     LL = Sobj.LStimAx.findobj('Type','Line');
                     RL = Sobj.RStimAx.findobj('Type','Line');
                     [LL.LineWidth] = deal(2);
                     [RL.LineWidth] = deal(2);
                 end
-                try
-                    doc = Document('HexGridPlots.html', 'html');
-                    Fig = Figure()
-                    img = Image(getSnapshotImage(Fig, 'png'));
-                    append(doc, img);
-                    close(doc);
-                end
-                
+            end
+            function MakeReport(inFig)
+                tic
+                import mlreportgen.dom.*
+                import mlreportgen.report.*
+                enlarge = 4;
+                AXES = inFig.findobj('Type','Axes');
+                [AXES(:).Visible] = deal('off');
+                inFig.InvertHardcopy = 'off';
+                inFig.Renderer = "painters"; % To keep it as a vector
+                rpt = Report('HexGridPlots', 'html');
+                FigReporter = Figure(inFig);
+                FigReporter.Scaling = "none";
+                Img = Image(getSnapshotImage(FigReporter, rpt));
+                Img.Height = string(enlarge*inFig.Position(4))+'px';
+                Img.Width = string(enlarge*inFig.Position(3))+'px';
+                append(rpt, Img);
+                close(rpt)
+                rptview(rpt)
+                toc
             end
         end
         %Calculate functions

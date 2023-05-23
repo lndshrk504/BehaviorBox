@@ -55,18 +55,25 @@ classdef BehaviorBoxVisualStimulus
             this.figpos = [this.position_x this.position_y this.size_x this.size_y]; %Use the hardcoded values from now on
             %[this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.setUpFigure();
         end
-
         function this = updateProps(this, StimStruct)
-            for f = fieldnames(StimStruct)'
-                try
-                    this.(f{:}) = StimStruct.(f{:});
-                catch err
-                    err;
+            arguments
+                this
+                StimStruct = struct
+            end
+            try
+                for f = fieldnames(StimStruct)'
+                    try
+                        this.(f{:}) = StimStruct.(f{:});
+                    catch err
+                        err;
+                    end
                 end
             end
+            try
+                this = findfigs(this);
+            end
         end
-
-        function [fig, LStimAx, RStimAx] = setUpFigure(this, options)
+        function [fig, LStimAx, RStimAx, ChoiceAx] = setUpFigure(this, options)
             arguments
                 this
                 options.StimHist logical = false %If this is on, we're plotting the record into a SUBPLOT
@@ -86,9 +93,9 @@ classdef BehaviorBoxVisualStimulus
                 LStimAx.Tag = 'Left';
                 RStimAx.Tag = 'Right';
                 if this.InputType == 5
-                    this.ChoiceAx = nexttile(T); hold(this.ChoiceAx,'on');
+                    ChoiceAx = nexttile(T); hold(ChoiceAx,'on');
                     %axis image;
-                    this.ChoiceAx.Tag = 'Choice';
+                    ChoiceAx.Tag = 'Choice';
                 end
                 if this.SpotlightToggle
                     this.getRect(RStimAx); this.getRect(LStimAx);
@@ -132,6 +139,7 @@ classdef BehaviorBoxVisualStimulus
             this.LStimAx = LStimAx;
             this.RStimAx = RStimAx;
             FLAx = this.finishLine();
+            this.FLAx = FLAx;
         end
         function getRect(this, ax)
             rectangle('Parent', ax, ...
@@ -255,10 +263,14 @@ classdef BehaviorBoxVisualStimulus
         function this = findfigs(this)
             try
                 this.fig = findobj("Name", "Stimulus");
+            end
+            try
                 ch = [this.fig(end).Children];
                 if ch.Type == "tiledlayout"
                     ch = ch.Children;
                 end
+            end
+            try
                 this.LStimAx = ch(contains({ch.Tag}, "Left"));
                 this.RStimAx = ch(contains({ch.Tag}, "Right"));
                 this.ChoiceAx = ch(contains({ch.Tag}, "Choice"));
@@ -296,15 +308,17 @@ classdef BehaviorBoxVisualStimulus
                     choiceX = options.SH{9};
                     CH = plot(choiceX, choiceY, 'Parent', this.ChoiceAx);
                     this.ChoiceAx.YLim = [-1.1*max(abs(choiceY)) 1.1*max(abs(choiceY))];
-                    text(0,0.2,outcome,"Color",'w');
+                    text(0,0.8,outcome,"Color",'w', 'Units','normalized');
                 end
             end
             if ~isempty(Ldist)
                 this.plotDistractors3(this.LStimAx, Ldist, LTags)
+                text(1,0.8,"L"+string(Lev),"Color",'w', "Parent",this.LStimAx, 'Units','normalized');
                 view(-this.Orient,90)
             end
             if ~isempty(Rdist)
                 this.plotDistractors3(this.RStimAx, Rdist, RTags)
+                text(1,0.8,"t"+string(Tnum),"Color",'w', "Parent",this.RStimAx, 'Units','normalized');
                 view(-this.Orient,90)
             end
             L = Ldist; R = Rdist;
@@ -649,23 +663,6 @@ function getRect(this, ax)
 rectangle('Parent', ax, ...
     'Position', [-(this.SegLength+this.SegSpacing+5)*this.ContLength*0.5 -(this.SegLength+this.SegSpacing+5)*this.ContLength*0.5 (this.SegLength+this.SegSpacing+5)*this.ContLength (this.SegLength+this.SegSpacing+5)*this.ContLength], ...
     'Curvature', [1 1], 'FaceColor', [this.SpotlightColor], 'EdgeColor', 'none', 'Tag', 'Spotlight');
-end
-function FLAx = finishLine(this)
-FLAx = [];
-if ~this.FinishLine
-    return
-end
-width = 0.1;
-X = 0.5-(width/2);
-p = nsidedpoly(3, 'Center', [0 ,0], ...
-    'SideLength', 1);
-f = axes('Position', [X 0.1 width width], 'Parent', this.fig, 'Tag', 'FinishLine', 'color', 'none');axis off;
-hold(f,'on')
-t1 = plot(p, 'Parent',f, 'FaceColor', this.LineColor, 'EdgeAlpha', 0, 'FaceAlpha', 1, 'Tag','FinishLine');
-f2 = axes('Position', [X 0.8 width width], 'Parent', this.fig, 'Tag', 'FinishLine', 'color', 'none', 'YDir', 'reverse');axis off;
-hold(f2,'on')
-t2 = plot(p, 'Parent',f2, 'FaceColor', this.LineColor, 'EdgeAlpha', 0, 'FaceAlpha', 1, 'Tag','FinishLine');
-FLAx = [f f2];
 end
 %Functions below here are not updated and may have bugs
 function ShowStimulusSquare(trialID, opacity, display, winheight,winwidth,winx,winy,crudetoggle,Orient)
