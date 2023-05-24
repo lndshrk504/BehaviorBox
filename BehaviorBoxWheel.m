@@ -782,8 +782,7 @@ classdef BehaviorBoxWheel < handle
             switch 1
                 case this.Box.Input_type==6 && this.i ~=1 %Wheel 2.0, wait for the mouse to hold the wheel still for the interval to start a new trial
                     this.ReadyCue('k');
-                    fl = [this.FLAx.Children];
-                    [fl.Visible] = deal(1);
+                    [this.FLAx.Visible] = deal(1);
                     this.fig.Color = this.StimulusStruct.BackgroundColor;
                     timelimit = this.Setting_Struct.HoldStill;
                     starttime = clock;
