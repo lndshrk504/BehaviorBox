@@ -343,7 +343,7 @@ classdef BehaviorBoxVisualStimulus
             approve = 0;
             while 1
                 [DISTS, Tags, isCorrect] = this.chooseDistractors(isLeftStim);
-                approve = Check(D);
+                approve = Check(DISTS);
                 if isCorrect || approve
                     break
                 else
