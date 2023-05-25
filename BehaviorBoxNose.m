@@ -1136,11 +1136,13 @@ classdef BehaviorBoxNose < handle
                 newData.Include = repmat(this.Include, size(newData.TimeStamp));
                 newData.SetIdx = repmat(this.SetIdx, size(newData.TimeStamp));
             elseif numel(this.SetUpdate) > 1
-                Ts = this.Include;
-                newData.SetStr =  this.SetStr;
-                Idcs = unique([cell2mat(this.SetUpdate) length(newData.TimeStamp)]);
-                [~, ~, newData.SetIdx] = histcounts(1:length(newData.TimeStamp), Idcs);
-                newData.Include = Ts(newData.SetIdx);
+                try
+                    Ts = this.Include;
+                    newData.SetStr =  this.SetStr;
+                    Idcs = unique([cell2mat(this.SetUpdate) length(newData.TimeStamp)]);
+                    [~, ~, newData.SetIdx] = histcounts(1:length(newData.TimeStamp), Idcs);
+                    newData.Include = Ts(newData.SetIdx);
+                end
             end
             newData.Weight = this.Setting_Struct.Weight;
             Notes = this.GuiHandles.NotesText.String;
