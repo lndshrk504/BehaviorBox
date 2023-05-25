@@ -1160,6 +1160,7 @@ classdef BehaviorBoxNose < handle
                     this.saveFigure(this.graphFig, savefolder, saveasname)
                 end
             catch err
+                save(pwd+saveasname+".mat", 'Settings', 'newData', 'Notes')
                 this.unwrapError(err)
             end
             f.MenuBar = 'figure';
