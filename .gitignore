@@ -5,6 +5,7 @@
 *.html
 # Matlab Live
 *.mlx
+*.mat
 # Autosave
 *.asv
 .DS_Store

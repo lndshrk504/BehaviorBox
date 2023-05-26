@@ -184,7 +184,7 @@ classdef BehaviorBoxData < handle
                 ~contains({dirlist.name}, {'.', 'settings', 'alltime', 'Rescued'}, 'IgnoreCase',true) ...
                 & contains({dirlist.name}, this.Sub, "IgnoreCase",true));
             [a,b]=findgroups({dirlist.folder}');
-            dirPath = cellfun(@(x) fullfile(b{:}, x), {dirlist.name} , 'UniformOutput', false);
+            dirPath = cellfun(@(x) fullfile(b{:}, x), {dirlist.name}' , 'UniformOutput', false);
             filelist = dir(fullfile(getFilePath(), this.Inv,this.Inp, '**', '*.mat'));
             filelist = filelist(contains({filelist.name}, this.Sub) & ~contains({filelist.name}, 'settings', 'IgnoreCase',true));
             switch 1
@@ -193,7 +193,7 @@ classdef BehaviorBoxData < handle
                 case any(contains({filelist.name}, this.Sub)) %Any files?
                     [subfiledir, fds] = makefiles(dirPath);
                     %Any folders but no files?
-                case any(contains({dirlist.name}, this.Sub)) && sum(contains({dirlist.name}, this.Sub)) == 1
+                case sum(contains({dirlist.name}, this.Sub)) == 1
                     dirlist = dirlist(contains({dirlist.name}, this.Sub));
                     newpath = dirlist.folder;
                     tree = split(dirlist.folder, filesep);
@@ -201,25 +201,26 @@ classdef BehaviorBoxData < handle
                     subfiledir = fullfile(newpath, this.Sub{:}); %Leave fds empty
                 otherwise
                     if ~isempty(this.Str)
-                        newpath = join([startpath this.Str this.Sub], filesep);
+                        newpath = fullfile(getFilePath(), this.Inv,this.Inp, this.Str,this.Sub);
                         if isfolder(newpath)
                             fprintf("Found "+numel(this.Sub)+" subject(s) matching user input:\n - "+cell2mat(join(this.Sub, "\n - "))+"\n")
                         else
                             try
-                                mkdir(newpath)
+                                mkdir(newpath{:})
                             end
                             fprintf("New strain, folders will be created when saving data...\n")
                             subfiledir = newpath;
                         end
                     else
-                        newpath = join([startpath this.Str this.Sub], filesep);
+                        newpath = fullfile(getFilePath(), this.Inv,this.Inp, 'New',this.Sub);
+                        this.Str = 'New';
                         if isfolder(newpath)
                             fprintf("Found "+numel(this.Sub)+" subject(s) matching user input:\n - "+cell2mat(join(this.Sub, "\n - "))+"\n")
                         else
-                            %mkdir(newpath)
+                            mkdir(newpath{:})
                             fprintf("New strain, folders will be created when saving data...\n")
-                            subfiledir = newpath;
                         end
+                        subfiledir = newpath;
                     end
             end
             if ~isempty(fds)
