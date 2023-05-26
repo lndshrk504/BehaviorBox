@@ -18,14 +18,14 @@ try
     deviceID1 = 1;  % Adjust the device ID if needed
     vid1 = videoinput(adaptorName1, deviceID1);
 catch err
-    unwrapErr(err)
+    %unwrapErr(err)
 end
 try
     adaptorName2 = info.InstalledAdaptors{1};  % Adjust the index if needed
     deviceID2 = 2;  % Adjust the device ID if needed
     vid2 = videoinput(adaptorName2, deviceID2);
 catch err
-    unwrapErr(err)
+    %unwrapErr(err)
 end
 % Step 4: Set the video resolution and format for both cameras. % WBS: This didn't work
 
@@ -38,13 +38,12 @@ end
 try
     preview(vid1);
 catch err
-    unwrapErr(err)
+    %unwrapErr(err)
 end
 try
     preview(vid2);
 catch err
-    unwrapErr(err)
+    % unwrapErr(err)
 end
 % Step 6: Stop the preview when done.
-% Close the preview windows manually or use closepreview.
 end
