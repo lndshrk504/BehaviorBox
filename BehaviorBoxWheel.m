@@ -1432,7 +1432,7 @@ classdef BehaviorBoxWheel < handle
         end
         function TestStimulus(this)
             tic
-            %this.app.Preview.Enable = 0; %Disable this when debugging...
+            % this.app.Preview.Enable = 0; %Disable this when debugging...
             this.getGUI();
             this.Stimulus_Object = BehaviorBoxVisualStimulus(this.StimulusStruct, Preview=1);
             if isempty([this.Stimulus_Object.LStimAx this.Stimulus_Object.RStimAx])
