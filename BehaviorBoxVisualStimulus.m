@@ -322,17 +322,11 @@ classdef BehaviorBoxVisualStimulus
         end
         function [DISTS, Tags, REJ] = CheckDistractors(this, isLeftStim)
             REJ = {};
-            while 1
-                [DISTS, Tags, isCorrect] = this.chooseDistractors(isLeftStim);
-                [approve, newAngles] = this.checkDistractors(DISTS);
-                %break %Uncomment to skip the correction
-                if approve
-                    break
-                else
-                    REJ{end+1} = DISTS;
-                    DISTS(:,3) = newAngles;
-                    break
-                end
+            [DISTS, Tags, isCorrect] = this.chooseDistractors(isLeftStim);
+            [approve, newAngles] = this.SerialcheckAllDistractors(DISTS);
+            if ~approve
+                REJ{end+1} = DISTS;
+                DISTS(:,3) = newAngles;
             end
         end
         function [DISTS, Tags, isCorrect] = chooseDistractors(this, isLeftStim)
@@ -406,7 +400,7 @@ classdef BehaviorBoxVisualStimulus
                 err;
             end
         end
-        function [A, newAngles] = checkDistractors(this, In, tol)
+        function [A, newAngles] = SerialcheckAllDistractors(this, In, tol)
             arguments
                 this
                 In
