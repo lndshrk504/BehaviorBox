@@ -410,7 +410,7 @@ classdef BehaviorBoxVisualStimulus
             arguments
                 this
                 In
-                tol = 15
+                tol = 10
             end
             In(:,[1 2]) = round(In(:,[1 2]),0);
             A = 1;
@@ -450,7 +450,7 @@ classdef BehaviorBoxVisualStimulus
                         if abs(Angs(a+1)-Angs(a))<=tol %check 2nd away
                             if A == 1;A = 0;end
                             wAng = ismember(In(:,[1 2]), Idxs(a,[1 2]), 'rows');
-                            newAngles(wAng) = newAngles(wAng)+(15+randi(40,1,1));
+                            newAngles(wAng) = newAngles(wAng)+(tol+randi(45-tol,1,1));
                         end
                     %end
                 end
