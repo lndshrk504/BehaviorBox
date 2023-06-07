@@ -404,7 +404,7 @@ classdef BehaviorBoxVisualStimulus
             arguments
                 this
                 In
-                tol = 10
+                tol = 20
             end
             In(:,[1 2]) = round(In(:,[1 2]),0);
             A = 1;
@@ -430,7 +430,9 @@ classdef BehaviorBoxVisualStimulus
             Lmiddle = Rmiddle .* -1;
             Lbottom = Rtop .* -1;
             ic = 0;
-            AngTbl = [60, 60, 30, 30, 60, 30, 60, 30, 60, 30, 90, 90, 90, 90, 90]; %if the line's angle is within tol of any of these remake that angle
+            %Positive angles are in the counter-clockwise rotation direction
+            c = 0;
+            AngTbl = [-60, 60, 30, 30, 60, 30, 60, 30, 60, 30, 90, 90, 90, 90, 90]; %if the line's angle is within tol of any of these remake that angle
             for i = {Rtop, Rbottom, Ltop, Lbottom, Q1, Q2 ,Q3 , Q4, LDiagIdx, RDiagIdx, Rmiddle, Lmiddle, L4, R4, CenterColIdx} %order is important
                 ic = ic+1;
                 w = ismember(In(:,[1 2]), i{:}, 'rows');
@@ -440,15 +442,24 @@ classdef BehaviorBoxVisualStimulus
                     continue
                 end
                 for a = 1:(length(Angs)-1)
-                    %if abs(Angs(a+2)-Angs(a))<=tol %check 3rd away
-                        if abs(Angs(a+1)-Angs(a))<=tol %check 2nd away
-                            if A == 1;A = 0;end
-                            wAng = ismember(In(:,[1 2]), Idxs(a,[1 2]), 'rows');
-                            newAngles(wAng) = newAngles(wAng)+(tol+randi(45-tol,1,1));
+                    if Angs(a) == 90 %To avoid messing with the correct line segment just skip any that are 90
+                        continue
+                    end
+                    if abs(Angs(a+1)-Angs(a))<=tol %check 2nd away
+                        c = c+1;
+                        if A == 1;A = 0;end
+                        wAng = ismember(In(:,[1 2]), Idxs(a,[1 2]), 'rows');
+                        randomSign = randi([1,2]); % Randomly make adjustment offset + or -
+                        if randomSign == 2
+                            randomSign = -1;
                         end
-                    %end
+                        offset = randomSign*(tol+floor((45-tol)*rand));
+                        newAngles(wAng) = newAngles(wAng)+offset;
+                    end
+                    Angs = newAngles(w);
                 end
             end
+            %fprintf('Corrected %d\n',c)
         end
     end
 end
