@@ -456,7 +456,7 @@ classdef BehaviorBoxVisualStimulus
                         offset = randomSign*(tol+floor((45-tol)*rand));
                         newAngles(wAng) = newAngles(wAng)+offset;
                     end
-                    Angs = newAngles(w);
+                    Angs = newAngles(w); %Update to make sure algorithm is considering the newly adjusted angles
                 end
             end
             %fprintf('Corrected %d\n',c)
