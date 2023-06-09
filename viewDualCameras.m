@@ -19,6 +19,7 @@ try
     vid1 = videoinput(adaptorName1, deviceID1);
 catch err
     %unwrapErr(err)
+    warning('Camera 1 not found');
 end
 try
     adaptorName2 = info.InstalledAdaptors{1};  % Adjust the index if needed
@@ -26,6 +27,7 @@ try
     vid2 = videoinput(adaptorName2, deviceID2);
 catch err
     %unwrapErr(err)
+    warning('Camera 2 not found');
 end
 % Step 4: Set the video resolution and format for both cameras. % WBS: This didn't work
 
@@ -35,15 +37,11 @@ end
 %vid2.VideoFormat = 'YUY2_640x480';  % Adjust the format if needed
 
 % Step 5: Preview the video streams from both cameras.
-try
+if exist('vid1','var')
     preview(vid1);
-catch err
-    %unwrapErr(err)
 end
-try
+if exist('vid2','var')
     preview(vid2);
-catch err
-    % unwrapErr(err)
 end
 % Step 6: Stop the preview when done.
 end
