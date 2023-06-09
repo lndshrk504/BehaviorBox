@@ -6,31 +6,32 @@ end
 try
     delete(vid2);
 end
-% Step 1: Connect your two USB video cameras to your computer.
-
 % Step 2: Make sure you have the Image Acquisition Toolbox installed.
-% Check by typing 'ver' in the Command Window.
-
+if ~any(contains({output.Name}, 'Image Acquisition Toolbox'))
+    fprintf('Please install Image Acquisition Toolbox for dual camera view')
+    return
+end
+cc = 0; %camera count
 % Step 3: Initialize the video input objects for both cameras.
 info = imaqhwinfo;
 try
     adaptorName1 = info.InstalledAdaptors{1};  % Adjust the index if needed
     deviceID1 = 1;  % Adjust the device ID if needed
     vid1 = videoinput(adaptorName1, deviceID1);
+    cc = cc+1;
 catch err
-    %unwrapErr(err)
-    warning('Camera 1 not found');
+    warning('camera 1');
 end
 try
     adaptorName2 = info.InstalledAdaptors{1};  % Adjust the index if needed
     deviceID2 = 2;  % Adjust the device ID if needed
     vid2 = videoinput(adaptorName2, deviceID2);
+    cc = cc+1;
 catch err
-    %unwrapErr(err)
-    warning('Camera 2 not found');
+    warning('camera 2');
 end
-% Step 4: Set the video resolution and format for both cameras. % WBS: This didn't work
 
+% Step 4: Set the video resolution and format for both cameras. % WBS: This didn't work
 %vid1.VideoResolution = [640, 480];  % Adjust the resolution if needed
 %vid1.VideoFormat = 'YUY2_640x480';  % Adjust the format if needed
 %vid2.VideoResolution = [640, 480];  % Adjust the resolution if needed
