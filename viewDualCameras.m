@@ -7,6 +7,7 @@ try
     delete(vid2);
 end
 % Step 2: Make sure you have the Image Acquisition Toolbox installed.
+output = ver;
 if ~any(contains({output.Name}, 'Image Acquisition Toolbox'))
     fprintf('Please install Image Acquisition Toolbox for dual camera view')
     return
