@@ -53,7 +53,7 @@ classdef BehaviorBoxVisualStimulus
                 delete(findobj("Type", "figure", "Name", "Stimulus"))
             end
             this = this.updateProps(StimStruct);
-            this.figpos = [this.position_x this.position_y this.size_x this.size_y]; %Use the hardcoded values from now on
+            this.figpos = [this.position_x this.position_y this.size_x this.size_y];
             this.ContourNodes = this.SetupHexGrid();
             try
                 this = this.findfigs();
@@ -76,6 +76,11 @@ classdef BehaviorBoxVisualStimulus
                         err;
                     end
                 end
+                this.fig.Color = this.BackgroundColor;
+                this.fig.Position = [this.position_x this.position_y this.size_x this.size_y];
+                [this.fig.findobj('Tag','Spotlight').FaceColor] = deal(this.SpotlightColor);
+                [this.fig.findobj('Type','Line').Color] = deal(this.LineColor);
+                [this.fig.findobj('Type','Polygon').FaceColor] = deal(this.LineColor);
             end
         end
         function [fig, LStimAx, RStimAx, FLAx, ChoiceAx] = setUpFigure(this, options)
