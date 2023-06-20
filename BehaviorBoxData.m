@@ -985,7 +985,6 @@ classdef BehaviorBoxData < handle
                 unwrapErr(err)
             end
         end
-
         %For Group Plotting:
         function GroupData(this, opts)
             arguments
@@ -2145,7 +2144,6 @@ classdef BehaviorBoxData < handle
             names = vertcat(z{:});
             [g,groups] = findgroups(names);
         end
-
     end %end methods
     methods(Static)
         function [struct_out] = new_init_data_struct() %Initialize data structure
