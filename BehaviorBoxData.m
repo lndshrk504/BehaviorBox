@@ -555,12 +555,15 @@ classdef BehaviorBoxData < handle
         end
         function Out = DayBin(this,D)
             %D is trial scores grouped by Level, and by Day
-            Out = num2cell(nan(10,1));
+            Out = num2cell(nan(13,1));
             s = D(:,1);
+            these = s(s~=2);
+            if numel(these)==0
+                return
+            end
             Level = D(1,2);
             Date = D(1,3);
             Day = D(1,4);
-            these = s(s~=2);
             try
                 %Binning stuff
                 xid = [0:this.SB:numel(these) numel(these)];
@@ -1151,7 +1154,7 @@ classdef BehaviorBoxData < handle
                 Out = f;
             end
             catch err
-                err
+                unwrapErr(err)
             end
             %Add'l fcns:
             function FMTtext(TextHandle)
@@ -1352,7 +1355,7 @@ classdef BehaviorBoxData < handle
             end
             for S = struct2cell(this.DayData)'
                 try
-                    Name = string(S{:}{1,3}.Settings{:}.Subject);
+                    Name = string(S{:}{1,3}.Settings(end).Subject);
                 catch
                     try
                         Sets = cell2mat(S{:}{1,3}.Settings);
@@ -1364,46 +1367,19 @@ classdef BehaviorBoxData < handle
                     end
                 end
                 Daily = S{:}(:,3)';
+                Settings = cellfun(@(x) x.Settings, Daily,'UniformOutput',false);
+                Weight = cellfun(@(x) mode(double([x.Weight])), Settings, 'UniformOutput', false, 'ErrorHandler', @errorFuncNaN); %This should get the last value for each day
                 Dates = cell2mat(S{:}(:,2)');
                 Water = cellfun(@(x)sum(x.Score),Daily);
-                Weight = zeros(size(Water));
-                dc = 0;
-                for d = Daily
-                    dc = dc+1;
-                    try
-                        Settings = cell2mat(d{:}.Settings);
-                    catch err
-                        Settings = d{:}.Settings{3,1};
-                    end
-                    try
-                        WS = Settings.Weight;
-                        Weight(dc) = WS(end);
-                    catch
-                        if isempty(WS) | isempty(Settings)
-                            Weight(dc) = NaN;
-                        else
-                            Weight(dc) = w(end);
-                        end
-                    end
-                end
-                dc = 0;
-                NewDates = cell(size(Dates));
-                for d = Dates
-                    dc = dc+1;
-                    d = num2str(d);
-                    d = datetime(d, 'InputFormat', 'yyMMdd');
-                    NewDates{dc} = d;
-                end
-                PlotData = [NewDates ; num2cell(Weight) ; num2cell(Water)];
+                NewDates = cellfun(@(x) datetime(string(x), 'InputFormat', 'yyMMdd'), num2cell(Dates), 'UniformOutput', false);
+                tickWindow = 1:3:numel(Weight);
                 f = figure("Visible", "off");
                 t = tiledlayout('flow','Padding','tight', 'TileSpacing','none', 'Parent',f);
                 a = nexttile(t); hold(a, 'on');
                 a.Title.String = Name+" Daily Weight (grams)";
-                P = plot(1:numel(Weight), Weight, 'Parent', a);
-                a.XTick = 1:numel(Weight);
-                a.XTickLabel = string([NewDates{:}]);
-                Last = a.XLim;
-                %a.XLim = [Last(2)-25 Last(2)];
+                P = plot(1:numel(Weight), cell2mat(Weight), 'Parent', a);
+                a.XTick = tickWindow;
+                a.XTickLabel = string([NewDates{tickWindow}]);
                 a.YLim = [0 max(P.YData)+2];
                 a.PickableParts = "none";
                 if options.Save
@@ -1412,9 +1388,8 @@ classdef BehaviorBoxData < handle
                 a = nexttile(t); hold(a, 'on');
                 a.Title.String = Name+" Daily Fluid Intake (mL)";
                 P = plot(1:numel(Water), Water*0.004, 'Parent', a);
-                a.XTick = 1:numel(Weight);
-                a.XTickLabel = string([NewDates{:}]);
-                %a.XLim = [Last(2)-25 Last(2)];
+                a.XTick = tickWindow;
+                a.XTickLabel = string([NewDates{tickWindow}]);
                 a.YLim = [0 max(P.YData)+0.5];
                 a.PickableParts = "none";
                 if options.Save
