@@ -2283,7 +2283,7 @@ switch 1
     case ispc
         filepath = 'D:\Dropbox (Dropbox @RU)\Gilbert Lab\BehaviorBoxData\Data\';
     case ismac
-        filepath = '/Users/willsnyder/Dropbox (Dropbox @RU)/Gilbert Lab/BehaviorBoxData/Data/';
+        filepath = '/Users/willsnyder/Dropbox (Dropbox @RU)/Dropbox (Dropbox @RU)/Gilbert Lab/BehaviorBoxData/Data/';
 end
 end
 function setGUI(Data, GUINums)
