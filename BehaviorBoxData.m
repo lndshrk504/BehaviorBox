@@ -54,6 +54,8 @@ classdef BehaviorBoxData < handle
         wheelchoice_record = {};
         Axes = struct();
         Shape_code = {'o', 's', '^', 'd', 'p', 'h', 'o', '*', 'd', 'p', 'o', 'h', '^', 'd', 'p', '*', 'o', '*', 'd', 'h'};
+        BigMM %fcn handle for large bin moving mean
+        SmallMM %fcn handle for small bin moving mean
     end
     methods
         %constructor
@@ -577,12 +579,16 @@ classdef BehaviorBoxData < handle
                 txt = string(cellfun(@(x){num2str(round(100*x,1))}, num2cell(binned)));
                 %Moving mean Stuff
                 sMM = movmean( [0.5 ; these], [this.SB-1 0], 'Endpoints', 'shrink')';
+                bMM = movmean( [0.5 ; these], [this.BB-1 0], 'Endpoints', 'shrink')';
                 xMM = normalize(1:numel(sMM),'range');
-                Cross = find( sMM>=0.8, 1, 'first');
+                Cross = find( bMM>=0.8, 1, 'first'); %When did today's performance cross the threshold?
+                if Cross < this.BB
+                    Cross = NaN;
+                end
                 Out = {binned;
                     x;
                     txt;
-                    numel(D);
+                    numel(these);
                     mean(these);
                     std(binned);
                     s';
@@ -1367,8 +1373,9 @@ classdef BehaviorBoxData < handle
                 end
                 Daily = S{:}(:,3)';
                 Settings = cellfun(@(x) x.Settings, Daily,'UniformOutput',false);
-                Weight = cellfun(@(x) mode(double([x.Weight])), Settings, 'UniformOutput', false, 'ErrorHandler', @errorFuncNaN); %This should get the last value for each day
+                Weight = cellfun(@(x) mode(double([x.Weight])), Settings, 'UniformOutput', true, 'ErrorHandler', @errorFuncNaN); %This should get the last value for each day
                 Dates = cell2mat(S{:}(:,2)');
+                Weight(isoutlier(Weight)) = deal(NaN);
                 Water = cellfun(@(x)sum(x.Score),Daily);
                 NewDates = cellfun(@(x) datetime(string(x), 'InputFormat', 'yyMMdd'), num2cell(Dates), 'UniformOutput', false);
                 tickWindow = 1:3:numel(Weight);
@@ -1376,7 +1383,7 @@ classdef BehaviorBoxData < handle
                 t = tiledlayout('flow','Padding','tight', 'TileSpacing','none', 'Parent',f);
                 a = nexttile(t); hold(a, 'on');
                 a.Title.String = Name+" Daily Weight (grams)";
-                P = plot(1:numel(Weight), cell2mat(Weight), 'Parent', a);
+                P = plot(1:numel(Weight), Weight, 'Parent', a);
                 a.XTick = tickWindow;
                 a.XTickLabel = string([NewDates{tickWindow}]);
                 a.YLim = [0 max(P.YData)+2];
