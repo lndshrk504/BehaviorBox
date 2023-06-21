@@ -54,8 +54,8 @@ classdef BehaviorBoxData < handle
         wheelchoice_record = {};
         Axes = struct();
         Shape_code = {'o', 's', '^', 'd', 'p', 'h', 'o', '*', 'd', 'p', 'o', 'h', '^', 'd', 'p', '*', 'o', '*', 'd', 'h'};
-        BigMM %fcn handle for large bin moving mean
-        SmallMM %fcn handle for small bin moving mean
+        
+        
     end
     methods
         %constructor
@@ -95,6 +95,8 @@ classdef BehaviorBoxData < handle
                 if options.plot && numel(this.Sub)==1
                     f = this.plotLvByDayOneAxis();
                     f.Visible = 1;
+                elseif options.plot
+                    this.GroupData();
                 end
             end
             %Make fields
@@ -253,10 +255,10 @@ classdef BehaviorBoxData < handle
 
         end
         function [varargout] = loadFiles(this)
+            tic
             if isempty(this.fds)
                 return
             end
-            t1 = datetime("now");
             try
                 p = gcp("nocreate");
                 if isempty(p)
@@ -273,11 +275,10 @@ classdef BehaviorBoxData < handle
             end
             this.loadedData = allData;
             this.CombineDays();
-            time = seconds(datetime('now') - t1);
-            fprintf("Loaded... etime: " + time + " seconds.\n")
             if nargout >= 1
                 varargout{1} = allData;
             end
+            fprintf("Loaded... : " + toc + " seconds.\n")
         end
         function [varargout] = CombineDays(this)
             if isempty(this.loadedData)
@@ -446,7 +447,7 @@ classdef BehaviorBoxData < handle
             end
         end
         function [varargout] = AnalyzeAllData(this)
-            t1 = datetime('now');
+            tic
             Out = struct;
             numSubs = size(this.Sub);
             Out.TrialTbls = cell(numSubs);
@@ -503,8 +504,7 @@ classdef BehaviorBoxData < handle
             end
             this.AnalyzedData = Out;
             this.current_data_struct = this.new_init_data_struct();
-            time = seconds(datetime('now') - t1);
-            fprintf("Analyzed... etime: " + time + " seconds.\n")
+            fprintf("Analyzed... : " + toc + " seconds.\n")
             if nargout >= 1
                 varargout{1} = Out;
             end
@@ -574,11 +574,15 @@ classdef BehaviorBoxData < handle
                 txt = string(cellfun(@(x){num2str(round(100*x,1))}, num2cell(binned)));
                 %Moving mean Stuff
                 sMM = movmean( [0.5 ; these], [this.SB-1 0], 'Endpoints', 'shrink')';
-                bMM = movmean( [0.5 ; these], [this.BB-1 0], 'Endpoints', 'shrink')';
+                bMM = movmean( [0.5 ; these], [this.BB-1 0], 'Endpoints', 'discard')';
                 xMM = normalize(1:numel(sMM),'range');
-                Cross = find( bMM>=0.8, 1, 'first'); %When did today's performance cross the threshold?
-                if Cross < this.BB
-                    Cross = NaN;
+                sCross = find( movmean( [0.5 ; these], [this.SB-1 0], 'Endpoints', 'shrink')'>=0.7, 1, 'first'); %When did today's performance cross the threshold?
+                bCross = find( movmean( [0.5 ; these], [this.BB-1 0], 'Endpoints', 'shrink')'>=0.7, 1, 'first'); %When did today's performance cross the threshold?
+                if isempty(sCross)
+                    sCross = NaN;
+                end
+                if isempty(bCross)
+                    bCross = NaN;
                 end
                 Out = {binned;
                     x;
@@ -589,7 +593,8 @@ classdef BehaviorBoxData < handle
                     s';
                     sMM;
                     xMM;
-                    Cross;
+                    sCross;
+                    bCross;
                     Level;
                     Day;
                     Date};
@@ -991,17 +996,18 @@ classdef BehaviorBoxData < handle
             arguments
                 this
                 opts.Composite logical = 0
-                opts.LevGroup logical = 0
-                opts.LevMM logical = 1
+                opts.LevGroup logical = 1
+                opts.LevMM logical = 0
                 opts.Stim logical = 0
             end
             Num = num2cell(1:numel(this.Sub));
             tic
             if opts.LevGroup
-                LevDay = cellfun(@(x){this.PlotLevelGroupsByLevel(Sc=x)}, Num);
+                %LevDay = cellfun(@(x){this.PlotLevelGroupsByLevel(Sc=x)}, Num);
+                LevDay = cellfun(@(x){this.PlotLevelGroupsByDay(Sc=x)}, Num);
             end
             if opts.LevMM
-                ACell = cellfunp(@(x){this.plotLvByDayOneAxis(Sc=x, LevDay=1)}, Num);
+                ACell = cellfun(@(x){this.plotLvByDayOneAxis(Sc=x, LevDay=1)}, Num);
                 cellfun(@(x) set(x, 'Visible', 'on'), ACell)
             end
             if opts.Stim
@@ -1112,12 +1118,15 @@ classdef BehaviorBoxData < handle
                         DO = d{1}-1;
                         %Small Bin Moving mean:
                         try
-                            x = DO+d{end-1};
-                            y = LO+d{end-2};
+                            x = DO+d{end-5};
+                            y = LO+d{end-6};
                             SmallPlot = plot(x,y, ...
                                 "Parent",Ax, ...
                                 "SeriesIndex",L, ...
                                 "LineWidth", 0.5);
+                            newColor = SmallPlot.Color * 1.5;
+                            newColor(newColor>1) = 1;
+                            SmallPlot.Color = newColor;
                         end
                         %Daily bin values:
                         try
@@ -1163,12 +1172,19 @@ classdef BehaviorBoxData < handle
                 [TextHandle(:).VerticalAlignment] = deal("bottom");
             end
         end
-        function PlotLevelGroupsByDay(this, options)
+        function Out = PlotLevelGroupsByDay(this, options)
             arguments
                 this
                 options.InComposite logical = false
                 options.Text logical = false
                 options.Ax %Axis object
+                options.Sc
+            end
+            Out = [];
+            if ~isempty(options.Sc)
+                this.sc = options.Sc;
+            else
+                this.sc=1;
             end
             Ddat = sortrows(this.AnalyzedData.DayMM{this.sc}, "DayNums");
             Ddat.DayNums=cell2mat(Ddat.DayNums);
@@ -1177,17 +1193,9 @@ classdef BehaviorBoxData < handle
                 Ax.YLim(1) = -1;
                 yOff = -1;
             else
-                Ax = MakeAxis();
-                Ax.YLim = [-0.55 0.05];
-                Ax.XLim = [min(Ddat.DayNums)-1 max(Ddat.DayNums)];
-                Ax.Title.String = this.Sub{this.sc}+" Level Performance";
-                xline(min(Ddat.DayNums):1:max(Ddat.DayNums), '-', 'Color',[0.7 0.7 0.7])
-                Ax.YTick = -1:0.25:0;
-                Ax.YTickLabel = string(0:25:100)+"%";
-                Ax.YMinorTick = "on";
-                Ax.YGrid = 1;
-                Ax.YMinorGrid = 1;
-                hold(Ax, "on")
+                Ax = MakeAxis(); hold(Ax, "on"); Ax.Parent.Parent.Visible = 1;
+                Ax.Parent.Title.String = this.Sub{this.sc}+" Level Performance";
+                FMTAxis(Ax)
             end
             for d = unique(Ddat.DayNums')
                 clear x y Ctxt Atxt Ntxt cross CROSS num NUM AVG avg
@@ -1200,19 +1208,27 @@ classdef BehaviorBoxData < handle
                 AVG = cellfun(@(x)x{5} ,Ld, "UniformOutput", true)';
                 STD = cellfun(@(x)x{6} ,Ld, "UniformOutput", true)';
                 try
-                    CROSS = cellfun(@(x)x(10) ,Ld, "UniformOutput", true, "ErrorHandler", @errorFuncZeroCell)';
+                    bCROSS = cellfun(@(x)x{11} ,Ld, "UniformOutput", true, "ErrorHandler", @errorFuncNaN)';
+                    sCROSS = cellfun(@(x)x{10} ,Ld, "UniformOutput", true, "ErrorHandler", @errorFuncNaN)';
                 catch err
                     err;
                 end
                 x = (d-1)+Xrange;
                 y = AVG-1;
-                for L = [x; y; STD; LevIdx]
-                    E = errorbar(L(1), L(2), L(3), ...
-                        'LineStyle','none', ...
-                        'Marker', this.Shape_code{L(4)}, ...
-                        'SeriesIndex',L(4));
-                    E.MarkerFaceColor = E.Color;
-                    E.CapSize = 1;
+                try
+                    for L = [x; y; STD; LevIdx; sCROSS; bCROSS]
+                        E = errorbar(L(1), L(2), L(3), ...
+                            'LineStyle','none', ...
+                            'Marker', this.Shape_code{L(4)}, ...
+                            'SeriesIndex',L(4), 'Parent',Ax);
+                        E.MarkerFaceColor = E.Color;
+                        E.CapSize = 1;
+                    %Plot bar
+                        B = bar((d-1), L(5), 'Parent',AX, 'EdgeColor','none',SeriesIndex=L(4),BarWidth=0.1);
+                        C = bar((d-1), L(6), 'Parent',AY); C.SeriesIndex = L(4); C.BarWidth = 0.1; C.EdgeColor = "none";
+                    end
+                catch err
+                    unwrapErr(err)
                 end
                 if options.Text
                     avg = string(round(100*AVG,1));
@@ -1228,10 +1244,20 @@ classdef BehaviorBoxData < handle
                         try
                             Ctxt = text(x, y, cross); FMTtext(Ctxt);
                         catch err
-                            err;
+                            unwrapErr(err);
                         end
                     end
                 end
+            end
+            function FMTAxis(AxIn)
+                AxIn.YLim = [-0.55 0.05];
+                AxIn.YTick = -1:0.25:0;
+                AxIn.YTickLabel = string(0:25:100)+"%";
+                AxIn.YMinorTick = "on";
+                AxIn.YGrid = 1;
+                AxIn.YMinorGrid = 1;
+                Ax.XLim = [min(Ddat.DayNums)-1 max(Ddat.DayNums)];
+                xline(min(Ddat.DayNums):1:max(Ddat.DayNums), '-', 'Color',[0.7 0.7 0.7])
             end
         end
         function Out = PlotLevelGroupsByLevel(this, options)
@@ -1255,7 +1281,7 @@ classdef BehaviorBoxData < handle
             %Ax.XLim = [min(Ddat.DayNums)-1 max(Ddat.DayNums)];
             %yline(findgroups(Ddat.DayNums), '-', 'Color',[0.7 0.7 0.7])
             for L = unique(Ddat.Ls)'
-                Ax = MakeAxis(); hold(Ax, "on")
+                Ax = MakeAxis(); hold(Ax, "on"); Ax.Parent.Parent.Visible = 1;
                 Ax.Title.String = this.Sub{this.sc}+" Level "+L+" Performance";
                 xline(0:1:max(Ddat.DayNums), '-', 'Color',[0.7 0.7 0.7])
                 yline(findgroups(Ddat.DayNums)-0.2, ':', 'Color',[0.5 0.5 0.5]) ; if options.Ani; drawnow; end
@@ -2148,6 +2174,40 @@ classdef BehaviorBoxData < handle
         end
     end %end methods
     methods(Static)
+        function MM = MM(Scores, options)
+            arguments
+                Scores
+                options.BinSize
+                options.Type
+                options.FromChance logical = false % Append the Scores with a 0.5 to start the moving mean from 50%
+                options.Endpoints logical = false %Shrink or Discard
+            end
+            switch 1 %Either the BinSize is a number or the Type is specified
+                case ~isempty(options.BinSize)
+                    BinSize = options.BinSize;
+                case options.Type == "Big"
+                    options.Endpoints = 0;
+                    options.FromChance = 1;
+                    BinSize = 60;
+                case options.Type == "Small"
+                    options.Endpoints = 1;
+                    options.FromChance = 1;
+                    BinSize = 20;
+                otherwise
+            end
+            if options.Endpoints
+                EP = 'shrink';
+            else
+                EP = 'discard';
+            end
+            if options.FromChance
+                APP = 0.5;
+            else
+                APP = [];
+            end
+            %large bin moving mean
+            MM = movmean([APP Scores], [BinSize-1 0], 'Endpoints', EP);
+        end
         function [struct_out] = new_init_data_struct() %Initialize data structure
             %Use these names to match the analysis scripts:
             structOrder = {
