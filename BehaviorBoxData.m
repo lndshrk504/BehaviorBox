@@ -576,8 +576,8 @@ classdef BehaviorBoxData < handle
                 sMM = movmean( [0.5 ; these], [this.SB-1 0], 'Endpoints', 'shrink')';
                 bMM = movmean( [0.5 ; these], [this.BB-1 0], 'Endpoints', 'discard')';
                 xMM = normalize(1:numel(sMM),'range');
-                sCross = find( movmean( [0.5 ; these], [this.SB-1 0], 'Endpoints', 'shrink')'>=0.7, 1, 'first'); %When did today's performance cross the threshold?
-                bCross = find( movmean( [0.5 ; these], [this.BB-1 0], 'Endpoints', 'shrink')'>=0.7, 1, 'first'); %When did today's performance cross the threshold?
+                sCross = find( movmean( [0.5 ; these], [this.SB-1 0], 'Endpoints', 'shrink')'>=0.8, 1, 'first'); %When did today's performance cross the threshold?
+                bCross = find( movmean( [0.5 ; these], [this.BB-1 0], 'Endpoints', 'shrink')'>=0.8, 1, 'first'); %When did today's performance cross the threshold?
                 if isempty(sCross)
                     sCross = NaN;
                 end
@@ -1180,12 +1180,14 @@ classdef BehaviorBoxData < handle
                 options.Ax %Axis object
                 options.Sc
             end
+            tic
             Out = [];
             if ~isempty(options.Sc)
                 this.sc = options.Sc;
             else
                 this.sc=1;
             end
+            SUB = this.Sub{this.sc};
             Ddat = sortrows(this.AnalyzedData.DayMM{this.sc}, "DayNums");
             Ddat.DayNums=cell2mat(Ddat.DayNums);
             if options.InComposite
@@ -1193,9 +1195,20 @@ classdef BehaviorBoxData < handle
                 Ax.YLim(1) = -1;
                 yOff = -1;
             else
-                Ax = MakeAxis(); hold(Ax, "on"); Ax.Parent.Parent.Visible = 1;
-                Ax.Parent.Title.String = this.Sub{this.sc}+" Level Performance";
+                Ax = VertAxes(); hold(Ax, 'on'); Ax.Parent.Parent.Visible = 1;
+                T = Ax.Parent; f = T.Parent; f.Name = SUB;
+                Ax.Parent.Title.String = SUB+" Level Performance";
                 FMTAxis(Ax)
+                A1 = nexttile(T); A1.XLim = Ax.XLim; hold(A1, 'on')
+                A2 = nexttile(T); A2.XLim = Ax.XLim; hold(A2, 'on')
+                A3 = nexttile(T); A3.XLim = Ax.XLim; hold(A3, 'on')
+                A4 = nexttile(T); A4.XLim = Ax.XLim; hold(A4, 'on')
+                A5 = nexttile(T); A5.XLim = Ax.XLim; hold(A5, 'on')
+                A6 = nexttile(T); A6.XLim = Ax.XLim; hold(A6, 'on')
+                A7 = nexttile(T); A7.XLim = Ax.XLim; hold(A7, 'on')
+                A8 = nexttile(T); A8.XLim = Ax.XLim; hold(A8, 'on')
+                A9 = nexttile(T); A9.XLim = Ax.XLim; hold(A9, 'on')
+                %A10 = nexttile(T); A10.XLim = Ax.XLim; hold(A10, 'on')
             end
             for d = unique(Ddat.DayNums')
                 clear x y Ctxt Atxt Ntxt cross CROSS num NUM AVG avg
@@ -1223,9 +1236,31 @@ classdef BehaviorBoxData < handle
                             'SeriesIndex',L(4), 'Parent',Ax);
                         E.MarkerFaceColor = E.Color;
                         E.CapSize = 1;
-                    %Plot bar
-                        B = bar((d-1), L(5), 'Parent',AX, 'EdgeColor','none',SeriesIndex=L(4),BarWidth=0.1);
-                        C = bar((d-1), L(6), 'Parent',AY); C.SeriesIndex = L(4); C.BarWidth = 0.1; C.EdgeColor = "none";
+                    %Plot bars
+                    switch L(4)
+                        case 1
+                            LvAX = A1;
+                        case 2
+                            LvAX = A2;
+                        case 3
+                            LvAX = A3;
+                        case 4
+                            LvAX = A4;
+                        case 5
+                            LvAX = A5;
+                        case 6
+                            LvAX = A6;
+                        case 7
+                            LvAX = A7;
+                        case 8
+                            LvAX = A8;
+                        case 9
+                            LvAX = A9;
+                        case 10
+                            LvAX = A10;
+                    end
+                        B = bar((d-1), L([5 6]), 'Parent',LvAX, 'EdgeColor','none',SeriesIndex=L(4),BarWidth=1);
+                        %C = bar((d-1), L(6), 'Parent',Az, 'EdgeColor','none',SeriesIndex=L(4),BarWidth=0.1); hold(Az, 'on')
                     end
                 catch err
                     unwrapErr(err)
@@ -1249,6 +1284,14 @@ classdef BehaviorBoxData < handle
                     end
                 end
             end
+            Out = {f};
+            fprintf("Plotted "+SUB+ "... etime: " + toc + " seconds.\n")
+            function AxOUT = VertAxes()
+                f = figure;
+                t = tiledlayout(10,1,'TileSpacing','none', 'Padding','tight', 'Parent',f);
+                AxOUT = nexttile(t);
+
+            end
             function FMTAxis(AxIn)
                 AxIn.YLim = [-0.55 0.05];
                 AxIn.YTick = -1:0.25:0;
@@ -1256,8 +1299,9 @@ classdef BehaviorBoxData < handle
                 AxIn.YMinorTick = "on";
                 AxIn.YGrid = 1;
                 AxIn.YMinorGrid = 1;
-                Ax.XLim = [min(Ddat.DayNums)-1 max(Ddat.DayNums)];
-                xline(min(Ddat.DayNums):1:max(Ddat.DayNums), '-', 'Color',[0.7 0.7 0.7])
+                AxIn.XLim = [min(Ddat.DayNums)-1 max(Ddat.DayNums)];
+                xline(min(Ddat.DayNums):1:max(Ddat.DayNums), '-', 'Color',[0.7 0.7 0.7], 'Parent',AxIn)
+                %hold(AxIn, 'on')
             end
         end
         function Out = PlotLevelGroupsByLevel(this, options)
@@ -2130,6 +2174,11 @@ classdef BehaviorBoxData < handle
                 options.format string = ".pdf"
                 options.Columns = 32 %Inches acroww
                 options.Rows = 18 %Inches high
+            end
+            if isempty(fig)
+                FIG = findobj('Type','figure');
+                
+                1;
             end
             FigProps = this.getFigProps(fig, options);
             if numel(this.Sub)>1
