@@ -54,8 +54,6 @@ classdef BehaviorBoxData < handle
         wheelchoice_record = {};
         Axes = struct();
         Shape_code = {'o', 's', '^', 'd', 'p', 'h', 'o', '*', 'd', 'p', 'o', 'h', '^', 'd', 'p', '*', 'o', '*', 'd', 'h'};
-        
-        
     end
     methods
         %constructor
@@ -496,7 +494,7 @@ classdef BehaviorBoxData < handle
                 Levels = num2cell(1:20);
                 Out.LevelTbls{sc} = cellfun(@(x){trialTbl(trialTbl.Level==x,:)}, Levels, "UniformOutput", true);
                 this.LevelHist.LastScores = cellfun(@(x){trialTbl(trialTbl.Level==x,:).Score(end-100:end)}, Levels, "ErrorHandler",@errorFuncZeroCell);
-                this.LevelHist.MM = cellfun(@(x)this.LevelMMAnalysis(x), this.LevelHist.LastScores, "ErrorHandler",@errorFuncNaN);
+                %this.LevelHist.MM = cellfun(@(x)this.LevelMMAnalysis(x), this.LevelHist.LastScores, "ErrorHandler",@errorFuncNaN);
                 Out.LevelMM{sc} = splitapply(@(x)this.LevelMMAnalysis(x), [trialTbl.Score allDates'], G)';
                 Out.LevelMM{sc}(cellfun(@isempty,Out.LevelMM{sc})) = [];
                 MaxLPerf = cellfun(@(x)max(x(:,1)), Out.LevelMM{sc}, "ErrorHandler", @errorFuncZeroCell, 'UniformOutput', true);
@@ -525,7 +523,7 @@ classdef BehaviorBoxData < handle
         function Out = LevelMMAnalysis(this, L)
             try
                 scores = L(L(:,1)~=2,1);
-                bMM = movmean(scores, [this.BB-1 0], 'Endpoints', 'discard');
+                bMM = this.MM(scores,"Type","Big");
                 B1 = movmean(scores(1:(end-this.SB)), [this.SB-1 0], 'Endpoints', 'discard');
                 B2 = movmean(scores((this.SB+1):end), [this.SB-1 0], 'Endpoints', 'discard');
                 bSD = std([B1 B2],0,2);
@@ -577,7 +575,7 @@ classdef BehaviorBoxData < handle
                 bMM = movmean( [0.5 ; these], [this.BB-1 0], 'Endpoints', 'discard')';
                 xMM = normalize(1:numel(sMM),'range');
                 sCross = find( movmean( [0.5 ; these], [this.SB-1 0], 'Endpoints', 'shrink')'>=0.8, 1, 'first'); %When did today's performance cross the threshold?
-                bCross = find( movmean( [0.5 ; these], [this.BB-1 0], 'Endpoints', 'shrink')'>=0.8, 1, 'first'); %When did today's performance cross the threshold?
+                bCross = find( movmean( [these], [this.BB-1 0], 'Endpoints', 'shrink')'>=0.8, 1, 'first'); %When did today's performance cross the threshold?
                 if isempty(sCross)
                     sCross = NaN;
                 end
@@ -996,15 +994,25 @@ classdef BehaviorBoxData < handle
             arguments
                 this
                 opts.Composite logical = 0
-                opts.LevGroup logical = 1
+                opts.LevGroup logical = 0
                 opts.LevMM logical = 0
                 opts.Stim logical = 0
+                opts.Group logical = 1
             end
             Num = num2cell(1:numel(this.Sub));
             tic
+            if opts.Group
+                Trial = cellfun(@(x){this.GroupTrialsToPass(Sc=x)}, Num, "UniformOutput",false);
+                MaxLvl = max(cellfun(@(x) find(~(isnan(cell2mat(x{:}))), 1, 'last' ),Trial));
+                trialsTo = nan(MaxLvl, numel(this.Sub));
+                for L = 1:MaxLvl
+                    trialsTo(L,:) = cellfun(@(x) x{:}{L},Trial, "ErrorHandler",@errorFuncNaN);
+                end
+                P = cellfun(@(x) {this.PlotGroupTrialsToPass(trialsTo,Sc=x)}, Num, "UniformOutput",false);
+            end
             if opts.LevGroup
                 %LevDay = cellfun(@(x){this.PlotLevelGroupsByLevel(Sc=x)}, Num);
-                LevDay = cellfun(@(x){this.PlotLevelGroupsByDay(Sc=x)}, Num);
+                LevDay = cellfunp(@(x){this.PlotLevelGroupsByDay(Sc=x)}, Num);
             end
             if opts.LevMM
                 ACell = cellfun(@(x){this.plotLvByDayOneAxis(Sc=x, LevDay=1)}, Num);
@@ -1016,6 +1024,62 @@ classdef BehaviorBoxData < handle
             time = toc;
             fprintf("Total time: " + time + " seconds.\n")
         end
+        function Out = GroupTrialsToPass(this, options)
+            arguments
+                this
+                options.Sc double = 0
+                options.count double = 3
+                options.tol double = 0
+            end
+        try
+            tic
+            SUB = this.Sub{options.Sc};
+            Ldat = this.AnalyzedData.LevelMM{options.Sc};
+            Ldat(cellfun(@(x) all(isnan(x),'all'),Ldat,'UniformOutput',true)) = [];
+            overThresh = cellfun(@(x)find(x(:,1)>=0.8 & x(:,2)==0,this.SB,"first"), Ldat, 'UniformOutput', false);
+            Trial = cellfun(@(x) this.consecutiveTrial(x, options.count, options.tol), overThresh, "UniformOutput",true);
+            Out = num2cell(Trial);
+        end
+        end
+        function Out = consecutiveTrial(this, vec, count, tol)
+            arguments
+                this
+                vec
+                count
+                tol double = 0
+            end
+            tol = 0;
+            Test = (count-1):-1:0;
+            for v = count:numel(vec)
+                win = v-Test;
+                Nums = vec(win);
+                if Nums(end)-Nums(1) <= ((count-1) + tol)
+                    Out = vec(v);
+                    return
+                end 
+            end
+            Out = NaN;
+        end
+        function Out = PlotGroupTrialsToPass(this, T, options)
+            arguments
+                this
+                T
+                options.Sc double = 0
+            end
+            Het = contains(this.Sub, 'Het');
+            WT = ~Het;
+            ID = strings(1,6);
+            ID(Het) = "Het";
+            ID(~Het) = "WT";
+            Levs = size(T,1);
+    %Turn T into a table and stack T based on the level
+            for L = T'
+                hT = L(Het);
+                wT = L(WT);
+
+
+            end
+        end
         function Out = plotLvByDayOneAxis(this, options)
             arguments
                 this
@@ -1025,6 +1089,7 @@ classdef BehaviorBoxData < handle
                 options.Sc = 1
                 options.Training logical = false
             end
+            tic;
             Out = [];
             try
                 if ~options.Training
@@ -1034,7 +1099,6 @@ classdef BehaviorBoxData < handle
                 end
                 SUB = this.Sub{this.sc};
                 %for SUB = this.Sub
-                tic;
                 %this.sc = this.sc+1;
                 Ldat = this.AnalyzedData.LevelMM{this.sc};
                 HighScore = cellfun(@(x) max([x(:,1) ; 0]), Ldat, 'UniformOutput', true, 'ErrorHandler', @errorFuncNaN);
@@ -1286,6 +1350,7 @@ classdef BehaviorBoxData < handle
             end
             Out = {f};
             fprintf("Plotted "+SUB+ "... etime: " + toc + " seconds.\n")
+            N.SaveManyFigures([],'Trials-to-threshold', SameFolder=1)
             function AxOUT = VertAxes()
                 f = figure;
                 t = tiledlayout(10,1,'TileSpacing','none', 'Padding','tight', 'Parent',f);
@@ -2174,45 +2239,32 @@ classdef BehaviorBoxData < handle
                 options.format string = ".pdf"
                 options.Columns = 32 %Inches acroww
                 options.Rows = 18 %Inches high
+                options.SameFolder logical = false
             end
-            if isempty(fig)
+            if isempty(fig) % Put empty brackets [] for the figure
+                tic
                 FIG = findobj('Type','figure');
-                
-                1;
-            end
-            FigProps = this.getFigProps(fig, options);
-            if numel(this.Sub)>1
-                %SaveAsName = fullfile(join([this.filedir , filename], filesep));
-                SaveAsName = filename;
-            else
-                tree = split(this.filedir, filesep);
-                parent = cell2mat(join([tree{1:end-1}, {'AllTime'}], filesep));
-                SaveAsName = cell2mat(join([tree{1:end-1}, {'AllTime'}, {char(filename)}], filesep));
-                if exist(parent, "dir") == 7
-                else
-                    mkdir(parent)
+                if options.SameFolder %Make a folder using filename to save all files
+                    SavePathName = fullfile(this.filedir, filename, string({FIG.Name})'+filename+options.format);
+                else %Save in the mouse's folder
+                    SavePathName = fullfile(this.filedir, string({FIG.Name})', filename+options.format);
                 end
+                c = 0;
+                for f = FIG'
+                    c = c+1;
+                    fprops = this.getFigProps(f, options);
+                    SvFig(SavePathName(c),fprops)
+                end
+                fprintf("Saved "+numel(SUB)+ "files... etime: " + toc + " seconds.\n")
+                return
             end
-            if ispc
-                try
-                    print(FigProps, SaveAsName, '-dpdf', ...
+            function SvFig(Name, Props)
+                print(Name, Props, '-dpdf', ...
                         '-vector', ...
                         '-fillpage')
-                catch
-                    tree=split(SaveAsName, filesep);
-                    mkdir(fullfile(tree{1:end-1}))
-                    print(fig, SaveAsName, '-dpdf', ...
-                        '-vector', ...
-                        '-fillpage')
-                end
-                %winopen(SaveAsName)
-                close(fig)
-            else
-                print(fig, filename, '-dpdf', ...
-                    '-vector', ...
-                    '-fillpage')
-                fig.Visible = 1;
             end
+            %winopen(SaveAsName)
+            close(fig)
         end
         function [g, groups] = inspectAllSettings(allData)
             x = cellfun(@(x) x.Settings, allData(:,3), 'UniformOutput', false); %get all the settings in a cell
@@ -2226,22 +2278,22 @@ classdef BehaviorBoxData < handle
         function MM = MM(Scores, options)
             arguments
                 Scores
-                options.BinSize
-                options.Type
+                options.BinSize double = []
+                options.Type string = ""
                 options.FromChance logical = false % Append the Scores with a 0.5 to start the moving mean from 50%
                 options.Endpoints logical = false %Shrink or Discard
             end
             switch 1 %Either the BinSize is a number or the Type is specified
-                case ~isempty(options.BinSize)
-                    BinSize = options.BinSize;
                 case options.Type == "Big"
                     options.Endpoints = 0;
-                    options.FromChance = 1;
+                    options.FromChance = 0;
                     BinSize = 60;
                 case options.Type == "Small"
                     options.Endpoints = 1;
                     options.FromChance = 1;
                     BinSize = 20;
+                case ~isempty(options.BinSize)
+                    BinSize = options.BinSize;
                 otherwise
             end
             if options.Endpoints
@@ -2255,7 +2307,7 @@ classdef BehaviorBoxData < handle
                 APP = [];
             end
             %large bin moving mean
-            MM = movmean([APP Scores], [BinSize-1 0], 'Endpoints', EP);
+            MM = movmean([APP ; Scores], [BinSize-1 0], 'Endpoints', EP);
         end
         function [struct_out] = new_init_data_struct() %Initialize data structure
             %Use these names to match the analysis scripts:
@@ -2310,7 +2362,7 @@ classdef BehaviorBoxData < handle
             figure_property.format = 'pdf';
             figure_property.Preview= 'none';
             figure_property.Width= num2str(options.Columns); % Figure width on canvas
-            figure_property.Height= num2str(4*options.Rows); % Figure height on canvas
+            figure_property.Height= num2str(options.Rows); % Figure height on canvas
             figure_property.Units= 'inches';
             figure_property.Color= 'rgb';
             figure_property.Background= 'w';
