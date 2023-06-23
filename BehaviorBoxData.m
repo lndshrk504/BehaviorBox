@@ -1002,13 +1002,8 @@ classdef BehaviorBoxData < handle
             Num = num2cell(1:numel(this.Sub));
             tic
             if opts.Group
-                Trial = cellfun(@(x){this.GroupTrialsToPass(Sc=x)}, Num, "UniformOutput",false);
-                MaxLvl = max(cellfun(@(x) find(~(isnan(cell2mat(x{:}))), 1, 'last' ),Trial));
-                trialsTo = nan(MaxLvl, numel(this.Sub));
-                for L = 1:MaxLvl
-                    trialsTo(L,:) = cellfun(@(x) x{:}{L},Trial, "ErrorHandler",@errorFuncNaN);
-                end
-                P = cellfun(@(x) {this.PlotGroupTrialsToPass(trialsTo,Sc=x)}, Num, "UniformOutput",false);
+                Trial = cellfun(@(x){this.GroupTrialsToPass(Sc=x)}, Num, "UniformOutput",true);
+                P = cellfun(@(x) {this.PlotGroupTrialsToPass(Trial,Sc=x)}, {1}, "UniformOutput",false);
             end
             if opts.LevGroup
                 %LevDay = cellfun(@(x){this.PlotLevelGroupsByLevel(Sc=x)}, Num);
@@ -1034,11 +1029,39 @@ classdef BehaviorBoxData < handle
         try
             tic
             SUB = this.Sub{options.Sc};
+%Get moving means of accuracy over the last 60 (big bin) trials
             Ldat = this.AnalyzedData.LevelMM{options.Sc};
             Ldat(cellfun(@(x) all(isnan(x),'all'),Ldat,'UniformOutput',true)) = [];
+%Find the trial number when the mouse's performance crossed over a
+%specified threshold:
+% Threshold for the last 60 (big bin) trials:
+%   accuracy above 80%
+%   std of 0  (based on small bins)
+%   for 3 consecutive trials
             overThresh = cellfun(@(x)find(x(:,1)>=0.8 & x(:,2)==0,this.SB,"first"), Ldat, 'UniformOutput', false);
             Trial = cellfun(@(x) this.consecutiveTrial(x, options.count, options.tol), overThresh, "UniformOutput",true);
-            Out = num2cell(Trial);
+% Find the trial number when the mouse had been above threshold for 3
+% consecutive trials and get the LevelTrialNumber (the count of individual trials at the 
+% specified Level that the mouse has seen)
+            Ttbl = this.AnalyzedData.TrialTbls{options.Sc};
+            Ttbl = Ttbl(Ttbl.Score~=2,:);
+% Use that number to find how many trials of each difficulty the mouse had
+% seen before the trial on which they "passed" each level
+            SumCount = cell(size(Trial));
+            c = 0;
+            for L = Trial
+                c = c+1;
+                if isnan(L) %If its nan they have not passed this level so count every trial they've see so far
+                    SC = histcounts(Ttbl.Level); SC(21) = 0; SC(21) = [];
+                    SumCount{c} = SC;
+                    continue
+                end
+                w = Ttbl.LvlTrialNum == L & Ttbl.Level == c;
+                lastTrial = Ttbl.TrialNum(w);
+                SC = histcounts(Ttbl.Level(1:find(w))); SC(21) = 0; SC(21) = [];
+                SumCount{c} = SC;
+            end
+            Out = [ num2cell(Trial) ; SumCount]; % NEW - [Out ; SumCount], change following code...
         end
         end
         function Out = consecutiveTrial(this, vec, count, tol)
@@ -1048,7 +1071,6 @@ classdef BehaviorBoxData < handle
                 count
                 tol double = 0
             end
-            tol = 0;
             Test = (count-1):-1:0;
             for v = count:numel(vec)
                 win = v-Test;
@@ -1066,18 +1088,56 @@ classdef BehaviorBoxData < handle
                 T
                 options.Sc double = 0
             end
+            Out = [];
+            MaxLvl = max(cellfun(@(x) find(~isnan([x{1,:}]), 1, 'last'),T));
+            trialsTo = nan(MaxLvl, numel(this.Sub));
+            AlltrialsTo = cell(size(trialsTo));
+            for L = 1:MaxLvl
+                trialsTo(L,:) = cellfun(@(x) x{1,L},T, "ErrorHandler",@errorFuncNaN);
+                AlltrialsTo(L,:) = cellfun(@(x) x{2,L},T, "ErrorHandler",@errorFuncNaN,'UniformOutput',false);
+            end
             Het = contains(this.Sub, 'Het');
             WT = ~Het;
-            ID = strings(1,6);
-            ID(Het) = "Het";
-            ID(~Het) = "WT";
+            geneID = strings(1,6);
+            geneID(Het) = "Het";
+            geneID(~Het) = "WT";
+    %Now add sex ID to separate by sex
             Levs = size(T,1);
+            Ax = MakeAxis(Visible=1);
     %Turn T into a table and stack T based on the level
-            for L = T'
-                hT = L(Het);
-                wT = L(WT);
-
-
+            c = 0;
+            for L = trialsTo'
+                c = c+1;
+            try
+                if c == 1
+                    continue
+                end
+                hT = L(Het)';
+                wT = L(WT)';
+                B = bar([(hT) mean(hT(~isnan(hT))) mean(wT(~isnan(wT))) (wT)], 'Parent', Ax);
+                B.FaceColor = "flat";
+                [B.CData(1:numel([hT]),:)] = repmat(Ax.ColorOrder(2,:),3,1);
+                [B.CData(numel([hT])+3:numel([hT])+numel([wT])+2,:)] = repmat(Ax.ColorOrder(3,:),3,1);
+                Ax = nexttile(Ax.Parent);
+            end
+            end
+            Ax = MakeAxis(Visible=1);
+            c = 0;
+            for L = AlltrialsTo'
+                c = c+1;
+                if c == 1
+                    continue
+                end
+            try
+                %remove empties and NaNs from L
+                L(cellfun(@(x) all(isnan(x)),L)) = deal({zeros(1,20)});
+                d = cell2mat(L); d(:,1) = [];
+                hT = d(Het,1:c);
+                wT = d(WT,1:c);
+                B = bar([hT ; mean(hT(~all(hT==0,2),:),1) ; mean(wT(~all(wT==0,2),:),1) ; wT], 'stacked', 'Parent', Ax);
+                xline([3.5 5.5])
+                Ax = nexttile(Ax.Parent);
+            end
             end
         end
         function Out = plotLvByDayOneAxis(this, options)
@@ -1348,6 +1408,7 @@ classdef BehaviorBoxData < handle
                     end
                 end
             end
+            %NORMALIZE Level graphs between subjects
             Out = {f};
             fprintf("Plotted "+SUB+ "... etime: " + toc + " seconds.\n")
             N.SaveManyFigures([],'Trials-to-threshold', SameFolder=1)
@@ -2401,12 +2462,15 @@ end %end class
 function Ax = MakeAxis(options)
 arguments
     options.Ax = [];
+    options.Visible logical = 0;
 end
 if isempty(options.Ax)
     f = figure;
-    t = tiledlayout('flow','TileSpacing','none', 'Padding','tight', 'Parent',f);
+    t = tiledlayout(7,1,'TileSpacing','none', 'Padding','tight', 'Parent',f);
     Ax = nexttile(t);
-    f.Visible = 0;
+    if ~options.Visible
+        f.Visible = 0;
+    end
 else
     Ax = options.Ax;
 end
