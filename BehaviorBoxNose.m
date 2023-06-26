@@ -373,7 +373,7 @@ classdef BehaviorBoxNose < handle
             this.i = 0;
             this.timeout_counter = 0;
             if this.Setting_Struct.Ramp
-                this.RampCount = 0;
+                this.RampCount = 1;
                 this.RampCorrectCount = this.Setting_Struct.RampNum;
                 this.RampMax = this.Setting_Struct.RampMaxLevel;
                 this.RampMin = this.Setting_Struct.RampMinLevel;
@@ -471,8 +471,9 @@ classdef BehaviorBoxNose < handle
                 if any(LastScore == [1 2])
                     this.RampCount = this.RampCount+1;
                 end
-                if this.RampCount == this.RampCorrectCount
+                if this.RampCount > this.RampCorrectCount
                     this.RampWhichLevel = this.RampWhichLevel+1;
+                    this.RampCount = 1;
                     if this.RampWhichLevel > numel(this.PossibleLevels)
                         this.Setting_Struct.Ramp=0;
                         this.app.RampCheckBox.Value=0;
@@ -552,7 +553,7 @@ classdef BehaviorBoxNose < handle
             this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
             [this.Level] = this.Setting_Struct.Starting_opacity;
             if this.Setting_Struct.Ramp
-                this.RampCount = 0;
+                this.RampCount = 1;
                 this.RampCorrectCount = this.Setting_Struct.RampNum;
                 this.RampMax = this.Setting_Struct.RampMaxLevel;
                 this.RampMin = this.Setting_Struct.RampMinLevel;
