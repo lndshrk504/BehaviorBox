@@ -938,6 +938,10 @@ classdef BehaviorBoxData < handle
                         x = Lev;
                         y = L{1};
                         err = L{3};
+                        if L{end-1} == 0
+                            y = NaN;
+                            err = NaN;
+                        end
                         s = errorbar(x, y, err, 'Parent', Ax);
                         s.Marker = this.Shape_code(Lev);
                         s.MarkerFaceColor = "auto";
@@ -980,8 +984,8 @@ classdef BehaviorBoxData < handle
                 %                     'VerticalAlignment','top', ...
                 %                     'FontSize',8)
                 %Change limits, ticks, grids:
-                Ax.XLim = [min(D.Level)-1 max(D.Level)+1];
-                Ax.YLim = [0.45 1.01];
+                Ax.XLim = [0 max(D.Level)+1];
+                Ax.YLim = [0.43 1.05];
                 Ax.YTick = 0:0.25:1;
                 Ax.YGrid = 1;
                 Ax.YMinorTick = 1;
@@ -1909,12 +1913,19 @@ classdef BehaviorBoxData < handle
         end
         function [lvls, Avgs] = CalculateLP(this, Lev, Score)
             nt = Score~=2;
-            [~,lvls] = findgroups(Lev(nt)');
-            Avgs = cell(6, numel(lvls));
+            lvls = this.current_data_struct.LevelGroups;
+            if numel(lvls)==1
+                y=lvls;
+            else
+                y=numel(lvls);
+            end
+            Avgs = num2cell(nan(6, y));
+            Avgs(6,:) = num2cell(1:y);
+            Avgs(5,:) = deal({0});
             try
                 Avgs(1,:) = num2cell(accumarray(Lev(nt), Score(nt), [], @mean)'); %This might need to be binned to get a good STD
             catch
-                Avgs(1,:) = accumarray(Lev(nt)', Score(nt)', [], @mean)'; %This might need to be binned to get a good STD
+                Avgs(1,:) = accumarray(Lev(nt), Score(nt), [], @mean)'; %This might need to be binned to get a good STD
             end
             for L = lvls
                 wlv = Lev==L & nt;
@@ -1927,9 +1938,8 @@ classdef BehaviorBoxData < handle
                 try
                     Avgs{4,L} = -log10(binocdf(sum(scre), numel(scre),0.5, 'upper'));
                 end
+                Avgs{5,L} = sum(nt);
             end
-            Avgs(end-1,:) = num2cell(groupcounts(Lev(Score~=2)))';
-            Avgs(end,:) = num2cell(lvls);
         end
         function [Out] = LevelMM(this)
             try
