@@ -1,6 +1,6 @@
 classdef BehaviorBoxNose < handle
     %BehaviorBox Super class
-    % WBS 5 . 16 . 2023
+    % WBS 6 . 26 . 2023
     %====================================================================
     %Super Class for BehaviorBox Ver 1.4
     %This Class is called by the GUI BehaviorBox via RunTraining()and runs the Training
@@ -62,6 +62,12 @@ classdef BehaviorBoxNose < handle
         counter_for_alternate = 0;
         current_side;
         Level;
+        PossibleLevels;
+        RampCount=0;
+        RampCorrectCount=0;
+        RampWhichLevel;
+        RampMax;
+        RampMin;
         isCorrect = 1;
         isLeftTrial = 1; %Overwritten when the first trial starts, but initialized as 1 to prevent a crash
         isTraining = 0; %Set during setup, if 1 run BBSuper loop, if 0 run BBSub1 loop %Use this for the new NosePoke settings.
@@ -366,6 +372,22 @@ classdef BehaviorBoxNose < handle
             fprintf(txt+"\n");
             this.i = 0;
             this.timeout_counter = 0;
+            if this.Setting_Struct.Ramp
+                this.RampCount = 0;
+                this.RampCorrectCount = this.Setting_Struct.RampNum;
+                this.RampMax = this.Setting_Struct.RampMaxLevel;
+                this.RampMin = this.Setting_Struct.RampMinLevel;
+                this.Level = this.Setting_Struct.RampMinLevel;
+                this.RampWhichLevel = 1;
+                this.app.DistractorsSpinner.Value = this.Level;
+                if this.RampMax-this.RampMin <=4
+                    this.PossibleLevels = this.RampMin:1:this.RampMax;
+                elseif this.RampMax-this.RampMin <=5
+                    this.PossibleLevels = unique([1 this.RampMin:2:this.RampMax this.RampMax]);
+                elseif this.RampMax-this.RampMin <=6
+                    this.PossibleLevels = unique([1 this.RampMin:3:this.RampMax this.RampMax]);
+                end
+            end
         end
         %Do some things before each trial
         function BeforeTrial(this)
@@ -404,7 +426,7 @@ classdef BehaviorBoxNose < handle
             else %If correct or no repeat wrong
                 this.isLeftTrial = this.PickSideForCorrect(this.isLeftTrial, this.SideBias); %Pick if isLeftTrial
                 %Pick next difficulty level, if variable
-                if this.Setting_Struct.EasyTrials
+                if this.Setting_Struct.Ramp && this.Setting_Struct.EasyTrials
                     [this.Level] = this.PickDifficultyLevel();
                 end
                 if isvalid(this.fig)
@@ -436,12 +458,36 @@ classdef BehaviorBoxNose < handle
         end
         %Pick difficulty level if variable:
         function [current_difficulty] = PickDifficultyLevel(this)
+            if this.Setting_Struct.Ramp
+                if this.i == 1
+                    current_difficulty = this.Setting_Struct.RampMinLevel;
+                    return
+                end
+                try
+                    LastScore = this.Data_Object.current_data_struct.CodedChoice(end);
+                catch
+                    LastScore = 0;
+                end
+                if any(LastScore == [1 2])
+                    this.RampCount = this.RampCount+1;
+                end
+                if this.RampCount == this.RampCorrectCount
+                    this.RampWhichLevel = this.RampWhichLevel+1;
+                    if this.RampWhichLevel > numel(this.PossibleLevels)
+                        this.Setting_Struct.Ramp=0;
+                        this.app.RampCheckBox.Value=0;
+                    end
+                end
+                current_difficulty = this.PossibleLevels(this.RampWhichLevel);
+                return
+            end
             try
                 initLev = this.Setting_Struct.Starting_opacity;
                 list = split(split(this.Setting_Struct.prob_list, ';'), ',');
                 if size(list,2) == 1
                     list = list';
                 end
+            %Move this to a new fcns and store it in this.PossibleLevels
                 LPlist = cellfun(@str2num, list, 'UniformOutput', false);
                 LPlist(:,1) = cellfun(@(x) x*100, LPlist(:,1), "UniformOutput", false);
                 PossibleLvls = [];
@@ -505,6 +551,22 @@ classdef BehaviorBoxNose < handle
             [this.SetStr(end+1), this.Include(end+1)] = this.structureSettings(tempSetting_Struct);
             this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
             [this.Level] = this.Setting_Struct.Starting_opacity;
+            if this.Setting_Struct.Ramp
+                this.RampCount = 0;
+                this.RampCorrectCount = this.Setting_Struct.RampNum;
+                this.RampMax = this.Setting_Struct.RampMaxLevel;
+                this.RampMin = this.Setting_Struct.RampMinLevel;
+                this.Level = this.Setting_Struct.RampMinLevel;
+                this.RampWhichLevel = 1;
+                this.app.DistractorsSpinner.Value = this.Level;
+                if this.RampMax-this.RampMin <=4
+                    this.PossibleLevels = this.RampMin:1:this.RampMax;
+                elseif this.RampMax-this.RampMin <=5
+                    this.PossibleLevels = unique([1 this.RampMin:2:this.RampMax this.RampMax]);
+                elseif this.RampMax-this.RampMin <=6
+                    this.PossibleLevels = unique([1 this.RampMin:3:this.RampMax this.RampMax]);
+                end
+            end
         end
         %Choose if Left or Right will be correct
         function isLeftTrial = PickSideForCorrect(this, isLeftTrial, SB)

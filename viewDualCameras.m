@@ -21,7 +21,7 @@ try
     vid1 = videoinput(adaptorName1, deviceID1);
     cc = cc+1;
 catch err
-    warning('camera 1');
+    %warning('camera 1');
 end
 try
     adaptorName2 = info.InstalledAdaptors{1};  % Adjust the index if needed
@@ -29,7 +29,7 @@ try
     vid2 = videoinput(adaptorName2, deviceID2);
     cc = cc+1;
 catch err
-    warning('camera 2');
+    %warning('camera 2');
 end
 
 % Step 4: Set the video resolution and format for both cameras. % WBS: This didn't work

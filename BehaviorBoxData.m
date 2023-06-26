@@ -180,8 +180,11 @@ classdef BehaviorBoxData < handle
             dirlist = dirlist([dirlist.isdir] & ...
                 ~contains({dirlist.name}, {'.', 'settings', 'alltime', 'Rescued'}, 'IgnoreCase',true) ...
                 & contains({dirlist.name}, this.Sub, "IgnoreCase",true));
-            [a,b]=findgroups({dirlist.folder}');
-            dirPath = cellfun(@(x) fullfile(b{:}, x), {dirlist.name}' , 'UniformOutput', false);
+            a = []; b = [];
+            try
+                [a,b]=findgroups({dirlist.folder}');
+                dirPath = cellfun(@(x) fullfile(b{:}, x), {dirlist.name}' , 'UniformOutput', false);
+            end
             filelist = dir(fullfile(getFilePath(), this.Inv,this.Inp, '**', '*.mat'));
             filelist = filelist(contains({filelist.name}, this.Sub) & ~contains({filelist.name}, 'settings', 'IgnoreCase',true));
             switch 1
@@ -198,7 +201,7 @@ classdef BehaviorBoxData < handle
                     subfiledir = fullfile(newpath, this.Sub{:}); %Leave fds empty
                 otherwise
                     if ~isempty(this.Str)
-                        newpath = fullfile(getFilePath(), this.Inv,this.Inp, this.Str,this.Sub);
+                        newpath = fullfile(getFilePath(), this.Inv, this.Inp, this.Str, this.Sub);
                         if isfolder(newpath)
                             fprintf("Found "+numel(this.Sub)+" subject(s) matching user input:\n - "+cell2mat(join(this.Sub, "\n - "))+"\n")
                         else
@@ -209,7 +212,7 @@ classdef BehaviorBoxData < handle
                             subfiledir = newpath;
                         end
                     else
-                        newpath = fullfile(getFilePath(), this.Inv,this.Inp, 'New',this.Sub);
+                        newpath = fullfile(getFilePath(), this.Inv, this.Inp, 'New', this.Sub);
                         this.Str = 'New';
                         if isfolder(newpath)
                             fprintf("Found "+numel(this.Sub)+" subject(s) matching user input:\n - "+cell2mat(join(this.Sub, "\n - "))+"\n")
@@ -994,8 +997,8 @@ classdef BehaviorBoxData < handle
             arguments
                 this
                 opts.Composite logical = 0
-                opts.LevGroup logical = 0
-                opts.LevMM logical = 0
+                opts.LevGroup logical = 1
+                opts.LevMM logical = 1
                 opts.Stim logical = 0
                 opts.Group logical = 1
             end
@@ -1007,10 +1010,11 @@ classdef BehaviorBoxData < handle
             end
             if opts.LevGroup
                 %LevDay = cellfun(@(x){this.PlotLevelGroupsByLevel(Sc=x)}, Num);
-                LevDay = cellfunp(@(x){this.PlotLevelGroupsByDay(Sc=x)}, Num);
+                LevDay = cellfunp(@(x){this.PlotLevelGroupsByDay(Sc=x)}, Num); drawnow
+                N.SaveManyFigures([],'Trials-to-threshold', SameFolder=1)
             end
             if opts.LevMM
-                ACell = cellfun(@(x){this.plotLvByDayOneAxis(Sc=x, LevDay=1)}, Num);
+                ACell = cellfun(@(x){this.plotLvByDayOneAxis(Sc=x, LevDay=0)}, Num);
                 cellfun(@(x) set(x, 'Visible', 'on'), ACell)
             end
             if opts.Stim
@@ -1135,7 +1139,7 @@ classdef BehaviorBoxData < handle
                 hT = d(Het,1:c);
                 wT = d(WT,1:c);
                 B = bar([hT ; mean(hT(~all(hT==0,2),:),1) ; mean(wT(~all(wT==0,2),:),1) ; wT], 'stacked', 'Parent', Ax);
-                xline([3.5 5.5])
+                xline([1.5 3.5])
                 Ax = nexttile(Ax.Parent);
             end
             end
@@ -1332,7 +1336,12 @@ classdef BehaviorBoxData < handle
                 A7 = nexttile(T); A7.XLim = Ax.XLim; hold(A7, 'on')
                 A8 = nexttile(T); A8.XLim = Ax.XLim; hold(A8, 'on')
                 A9 = nexttile(T); A9.XLim = Ax.XLim; hold(A9, 'on')
-                %A10 = nexttile(T); A10.XLim = Ax.XLim; hold(A10, 'on')
+                A10 = nexttile(T); A10.XLim = Ax.XLim; hold(A10, 'on')
+                A11 = nexttile(T); A11.XLim = Ax.XLim; hold(A11, 'on')
+                A12 = nexttile(T); A12.XLim = Ax.XLim; hold(A12, 'on')
+                A13 = nexttile(T); A13.XLim = Ax.XLim; hold(A13, 'on')
+                A14 = nexttile(T); A14.XLim = Ax.XLim; hold(A14, 'on')
+                A15 = nexttile(T); A15.XLim = Ax.XLim; hold(A15, 'on')
             end
             for d = unique(Ddat.DayNums')
                 clear x y Ctxt Atxt Ntxt cross CROSS num NUM AVG avg
@@ -1382,6 +1391,16 @@ classdef BehaviorBoxData < handle
                             LvAX = A9;
                         case 10
                             LvAX = A10;
+                        case 11
+                            LvAX = A11;
+                        case 12
+                            LvAX = A12;
+                        case 13
+                            LvAX = A13;
+                        case 14
+                            LvAX = A14;
+                        case 15
+                            LvAX = A15;
                     end
                         B = bar((d-1), L([5 6]), 'Parent',LvAX, 'EdgeColor','none',SeriesIndex=L(4),BarWidth=1);
                         %C = bar((d-1), L(6), 'Parent',Az, 'EdgeColor','none',SeriesIndex=L(4),BarWidth=0.1); hold(Az, 'on')
@@ -1411,10 +1430,9 @@ classdef BehaviorBoxData < handle
             %NORMALIZE Level graphs between subjects
             Out = {f};
             fprintf("Plotted "+SUB+ "... etime: " + toc + " seconds.\n")
-            N.SaveManyFigures([],'Trials-to-threshold', SameFolder=1)
             function AxOUT = VertAxes()
                 f = figure;
-                t = tiledlayout(10,1,'TileSpacing','none', 'Padding','tight', 'Parent',f);
+                t = tiledlayout(16,1,'TileSpacing','none', 'Padding','tight', 'Parent',f);
                 AxOUT = nexttile(t);
 
             end
@@ -2466,7 +2484,7 @@ arguments
 end
 if isempty(options.Ax)
     f = figure;
-    t = tiledlayout(7,1,'TileSpacing','none', 'Padding','tight', 'Parent',f);
+    t = tiledlayout('flow','TileSpacing','none', 'Padding','tight', 'Parent',f);
     Ax = nexttile(t);
     if ~options.Visible
         f.Visible = 0;
