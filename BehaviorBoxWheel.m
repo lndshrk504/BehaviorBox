@@ -318,7 +318,7 @@ classdef BehaviorBoxWheel < handle
             this.GuiHandles.MsgBox.String = "";
             this.GuiHandles.NotesText.String = "";
             this.GuiHandles.NotesText.String = sprintf(string(datetime("today"))+" Behavior Notes:\n");
-        %Set some defaults: FOR WHEEL
+            %Set some defaults: FOR WHEEL
             this.app.FinishlineCheckBox.Value = 1;
             this.setGuiNumbers(this.GUI_numbers); %update gui
             try
@@ -776,31 +776,33 @@ classdef BehaviorBoxWheel < handle
             set(this.message_handle,'Text','Waiting for Trial initialization');
             this.t1 = clock; t2 = this.t1;%In case of crash
             switch 1
-                case this.Box.Input_type==6 && this.i ~=1 %Wheel 2.0, wait for the mouse to hold the wheel still for the interval to start a new trial
-                    this.ReadyCue('k');
-                    [this.FLAx.Visible] = deal(1);
-                    this.fig.Color = this.StimulusStruct.BackgroundColor;
-                    timelimit = this.Setting_Struct.HoldStill;
-                    starttime = clock;
-                    while etime(clock, starttime)<timelimit
-                        this.message_handle.Text = ['Keep the wheel still for ' num2str(round(timelimit - etime(clock, starttime),1)) ' seconds.'];
-                        if abs(this.Box.encoder.readSpeed) > this.Setting_Struct.Hold_Still_Thresh
-                            this.Flash(this.StimulusStruct, findobj('Type', 'Polygon'), 'Wheel');
-                            starttime = clock;
+                case this.Box.Input_type==6%Wheel 2.0, wait for the mouse to hold the wheel still for the interval to start a new trial
+                    if this.i ~=1
+                        this.ReadyCue('k');
+                        [this.FLAx.Visible] = deal(1);
+                        this.fig.Color = this.StimulusStruct.BackgroundColor;
+                        timelimit = this.Setting_Struct.HoldStill;
+                        starttime = clock;
+                        while etime(clock, starttime)<timelimit
+                            this.message_handle.Text = ['Keep the wheel still for ' num2str(round(timelimit - etime(clock, starttime),1)) ' seconds.'];
+                            if abs(this.Box.encoder.readSpeed) > this.Setting_Struct.Hold_Still_Thresh
+                                this.Flash(this.StimulusStruct, findobj('Type', 'Polygon'), 'Wheel');
+                                starttime = clock;
+                            end
+                            if get(this.stop_handle, 'Value')
+                                this.message_handle.Text = 'Ending session...';
+                                break;
+                            end
+                            if get(this.FF, 'Value')
+                                set(this.message_handle, 'Text','Skipping interval...')
+                                set(this.FF, 'Value', 0)
+                                drawnow
+                                break;
+                            end
                         end
-                        if get(this.stop_handle, 'Value')
-                            this.message_handle.Text = 'Ending session...';
-                            break;
-                        end
-                        if get(this.FF, 'Value')
-                            set(this.message_handle, 'Text','Skipping interval...')
-                            set(this.FF, 'Value', 0)
-                            drawnow
-                            break;
-                        end
+                        t2 = clock;
+                        this.ReadyCue(this.ReadyCueStruct.Color);
                     end
-                    t2 = clock;
-                    this.ReadyCue(this.ReadyCueStruct.Color);
                 case this.Box.ardunioReadDigital==1 %Nose and Lick are Digital
                     if this.Setting_Struct.Box_Input_type == [5]
                         this.ResetSensor(this)
