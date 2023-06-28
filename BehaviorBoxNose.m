@@ -426,7 +426,7 @@ classdef BehaviorBoxNose < handle
             else %If correct or no repeat wrong
                 this.isLeftTrial = this.PickSideForCorrect(this.isLeftTrial, this.SideBias); %Pick if isLeftTrial
                 %Pick next difficulty level, if variable
-                if this.Setting_Struct.Ramp && this.Setting_Struct.EasyTrials
+                if this.Setting_Struct.Ramp || this.Setting_Struct.EasyTrials
                     [this.Level] = this.PickDifficultyLevel();
                 end
                 if isvalid(this.fig)
