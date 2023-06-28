@@ -553,7 +553,7 @@ classdef BehaviorBoxData < handle
         end
         function Out = DayBin(this,D)
             %D is trial scores grouped by Level, and by Day
-            Out = num2cell(nan(13,1));
+            Out = num2cell(nan(14,1));
             s = D(:,1);
             these = s(s~=2);
             if numel(these)==0
@@ -1245,6 +1245,10 @@ classdef BehaviorBoxData < handle
                                 "Color",AllTime.Color);
                         end
                     catch %They have not passed this level
+                    end
+                    if numel(unique(cellfun(@numel,Ddat.dayBin))) > 1
+                        howBig = cellfun(@numel,Ddat.dayBin');
+                        [group, GROUPS]=findgroups(howBig);
                     end
                     for d = [ Ddat.DayNums' ; [Ddat.dayBin{:}] ]
                         DO = d{1}-1;
