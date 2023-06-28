@@ -488,7 +488,7 @@ classdef BehaviorBoxNose < handle
                 if size(list,2) == 1
                     list = list';
                 end
-            %Move this to a new fcns and store it in this.PossibleLevels
+                %Move this to a new fcns and store it in this.PossibleLevels
                 LPlist = cellfun(@str2num, list, 'UniformOutput', false);
                 LPlist(:,1) = cellfun(@(x) x*100, LPlist(:,1), "UniformOutput", false);
                 PossibleLvls = [];
@@ -970,15 +970,14 @@ classdef BehaviorBoxNose < handle
             switch true
                 case contains({this.WhatDecision} , 'correct', 'IgnoreCase', true)
                     set(this.message_handle,'Text','Giving Reward...');
-                    t1 = clock; t2 = clock;
+                    tic
                     this.GiveReward(this.a, this.Box, this.Buttons, this.WhatDecision); %give reward
                     if this.Box.Input_type == 3
-                        while this.Box.readL() | this.Box.readR() %Pause while the mouse is standing there and drinking their reward
-                            pause(0.1);drawnow;
+                        while this.Box.readL() || this.Box.readR() %Pause while the mouse is standing there and drinking their reward
+                            pause(0.5);drawnow;
                         end
                     end
-                    t2 = clock;
-                    this.DrinkTime = etime(t2,t1);
+                    this.DrinkTime = toc;
                     %Flash
                     this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
                     if this.StimulusStruct.PersistCorrectInterv > 0
@@ -1010,8 +1009,8 @@ classdef BehaviorBoxNose < handle
                     [o(:).Visible] = deal(0);
                 case contains({this.WhatDecision} , 'wrong', 'IgnoreCase', true)
                     set(this.message_handle,'Text',[this.WhatDecision,' - Penalty...']);
-                    while this.Box.readL() | this.Box.readR() %Pause while the mouse is standing there
-                        pause(0.1);drawnow;
+                    while this.Box.readL() || this.Box.readR() %Pause while the mouse is standing there
+                        pause(0.5);drawnow;
                     end
                     %Flash
                     this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'), this.WhatDecision);
@@ -1827,11 +1826,14 @@ classdef BehaviorBoxNose < handle
                 end
             end
             function CorrectFlash
+                while Box.readL() || Box.readM()
+                    pause(0.5); drawnow
+                end
                 [Lines(:).Color] = deal(Stim.BackgroundColor);
                 pause(1/Freq/5)
                 for StimRep = 1:Reps
                     while Box.readL() || Box.readM()
-                        pause(0.3); drawnow
+                        pause(0.5); drawnow
                     end
                     [Lines(:).Color] = deal(dark_color); drawnow
                     pause(1/Freq/10)
@@ -1850,6 +1852,9 @@ classdef BehaviorBoxNose < handle
                     if StimRep < Reps
                         pause(1/Freq/10)
                     end
+                end
+                while Box.readL() || Box.readM()
+                    pause(0.5); drawnow
                 end
             end
             function SimpleFlash(Color)
@@ -1877,20 +1882,26 @@ classdef BehaviorBoxNose < handle
                 %[d.Color] = deal(Stim.BackgroundColor); drawnow
                 pause(1/Freq/2)
                 [Lines.Color] = deal(start_color);
+                while Box.readL() || Box.readM()
+                    pause(0.5); drawnow
+                end
                 [d.Color] = deal(dark_color); drawnow
                 pause(1/Freq/2)
                 for StimRep = 1:Reps
                     while Box.readL() || Box.readM()
-                        pause(0.3); drawnow
+                        pause(0.5); drawnow
                     end
                     [Lines.Color] = deal(Stim.BackgroundColor); drawnow
                     pause(1/Freq/2)
-                    [Lines.Color] = deal(dark_color); drawnow
+                    [Lines.Color] = deal(start_color); drawnow
                     % pause(1/Freq/10)
                     % [Lines.Color] = deal(flash_color); drawnow
                     pause(1/Freq/2)
                 end
                 [Lines.Color] = deal(Stim.LineColor);
+                while Box.readL() || Box.readM()
+                    pause(0.5); drawnow
+                end
             end
         end
         function saveFigure(fig, folder, name)
