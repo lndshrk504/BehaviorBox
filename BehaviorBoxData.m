@@ -498,7 +498,7 @@ classdef BehaviorBoxData < handle
                 Out.LevelTbls{sc} = cellfun(@(x){trialTbl(trialTbl.Level==x,:)}, Levels, "UniformOutput", true);
                 this.LevelHist.LastScores = cellfun(@(x){trialTbl(trialTbl.Level==x,:).Score(end-100:end)}, Levels, "ErrorHandler",@errorFuncZeroCell);
                 %this.LevelHist.MM = cellfun(@(x)this.LevelMMAnalysis(x), this.LevelHist.LastScores, "ErrorHandler",@errorFuncNaN);
-                Out.LevelMM{sc} = splitapply(@(x)this.LevelMMAnalysis(x), [trialTbl.Score allDates'], G)';
+                Out.LevelMM{sc} = splitapply(@(x)this.LevelMMAnalysis(x), [trialTbl.Score allDates' trialTbl.Include], G)';
                 Out.LevelMM{sc}(cellfun(@isempty,Out.LevelMM{sc})) = [];
                 MaxLPerf = cellfun(@(x)max(x(:,1)), Out.LevelMM{sc}, "ErrorHandler", @errorFuncZeroCell, 'UniformOutput', true);
                 this.MaxLevel = find(MaxLPerf>=0.8, 1, 'last')+1;
@@ -525,6 +525,8 @@ classdef BehaviorBoxData < handle
         end
         function Out = LevelMMAnalysis(this, L)
             try
+                noT = L(L(:,1)~=2,:);
+                Inc = L(L(:,1)~=2,3);
                 scores = L(L(:,1)~=2,1);
                 bMM = this.MM(scores,"Type","Big");
                 B1 = movmean(scores(1:(end-this.SB)), [this.SB-1 0], 'Endpoints', 'discard');
@@ -542,7 +544,7 @@ classdef BehaviorBoxData < handle
                     XCoord(w) = (d-1)+normalize(x, 'range');
                     XCoordLevDay(w) = (dc-1)+normalize(x, 'range');
                 end
-                Out = {[bMM bSD XCoord(this.BB:end) XCoordLevDay(this.BB:end)]};
+                Out = {[bMM bSD XCoord(this.BB:end) XCoordLevDay(this.BB:end) Inc(this.BB:end)]};
             catch Err
                 if size(L,2)==1
                     Out = {[bMM bSD]};
@@ -639,9 +641,6 @@ classdef BehaviorBoxData < handle
                 end
                 [~, ~, data.SmallBin(rows)] = histcounts((1:m)', [1:this.SB:m inf]); %Small Bin
                 [~, ~, data.BigBin(rows)] = histcounts((1:m)', [1:this.BB:m inf]); %Large Bin
-            end
-            if ~isempty(data.Settings)
-
             end
         end
         %Plot functions
@@ -1001,24 +1000,29 @@ classdef BehaviorBoxData < handle
             arguments
                 this
                 opts.Composite logical = 0
-                opts.LevGroup logical = 1
-                opts.LevMM logical = 1
+                opts.LevGroup logical = 0
+                opts.LevMM logical = 0
                 opts.Stim logical = 0
                 opts.Group logical = 1
             end
             Num = num2cell(1:numel(this.Sub));
             tic
             if opts.Group
-                Trial = cellfun(@(x){this.GroupTrialsToPass(Sc=x)}, Num, "UniformOutput",true);
-                P = cellfun(@(x) {this.PlotGroupTrialsToPass(Trial,Sc=x)}, {1}, "UniformOutput",false);
+                close all
+                Trial = cellfun(@(x)this.GroupTrialsToPass(Sc=x), Num, "UniformOutput",false);
+                P = this.PlotGroupTrialsToPass(Trial);
+                this.SaveManyFigures([],'TrialsTo', SameFolder=1)
             end
             if opts.LevGroup
                 %LevDay = cellfun(@(x){this.PlotLevelGroupsByLevel(Sc=x)}, Num);
+                close all
                 LevDay = cellfunp(@(x){this.PlotLevelGroupsByDay(Sc=x)}, Num); drawnow
-                N.SaveManyFigures([],'Trials-to-threshold', SameFolder=1)
+                this.SaveManyFigures([],'LevelGroup', SameFolder=1)
             end
             if opts.LevMM
+                close all
                 ACell = cellfun(@(x){this.plotLvByDayOneAxis(Sc=x, LevDay=0)}, Num);
+                this.SaveManyFigures([],'AllLevelsByDay', SameFolder=1)
                 cellfun(@(x) set(x, 'Visible', 'on'), ACell)
             end
             if opts.Stim
@@ -1030,7 +1034,7 @@ classdef BehaviorBoxData < handle
         function Out = GroupTrialsToPass(this, options)
             arguments
                 this
-                options.Sc double = 0
+                options.Sc double = 1
                 options.count double = 3
                 options.tol double = 0
             end
@@ -1046,8 +1050,12 @@ classdef BehaviorBoxData < handle
 %   accuracy above 80%
 %   std of 0  (based on small bins)
 %   for 3 consecutive trials
-            overThresh = cellfun(@(x)find(x(:,1)>=0.8 & x(:,2)==0,this.SB,"first"), Ldat, 'UniformOutput', false);
+%          overThresh = cellfun(@(x)find(x(:,1)>=0.8 & x(:,2)<=0.03), Ldat, 'UniformOutput', false);  %  Need to filter out Left/Right only trials, at least for level 1 only
+            overThresh = cellfun(@(x)find(x(:,1)-x(:,2)>=0.8 & x(:,5)==1), Ldat, 'UniformOutput', false);
             Trial = cellfun(@(x) this.consecutiveTrial(x, options.count, options.tol), overThresh, "UniformOutput",true);
+            % if any(isnan(Trial)) % IF they have not passed then use the total number
+            %     Trial(1,isnan(Trial)) = size(Ldat{:},1);
+            % end
 % Find the trial number when the mouse had been above threshold for 3
 % consecutive trials and get the LevelTrialNumber (the count of individual trials at the 
 % specified Level that the mouse has seen)
@@ -1062,12 +1070,17 @@ classdef BehaviorBoxData < handle
                 if isnan(L) %If its nan they have not passed this level so count every trial they've see so far
                     SC = histcounts(Ttbl.Level); SC(21) = 0; SC(21) = [];
                     SumCount{c} = SC;
+                    Trial(c) = SC(c);
                     continue
                 end
+                try
                 w = Ttbl.LvlTrialNum == L & Ttbl.Level == c;
-                lastTrial = Ttbl.TrialNum(w);
                 SC = histcounts(Ttbl.Level(1:find(w))); SC(21) = 0; SC(21) = [];
                 SumCount{c} = SC;
+                catch
+                    SC = histcounts(Ttbl.Level); SC(21) = 0; SC(21) = [];
+                    SumCount{c} = SC;
+                end
             end
             Out = [ num2cell(Trial) ; SumCount]; % NEW - [Out ; SumCount], change following code...
         end
@@ -1094,18 +1107,27 @@ classdef BehaviorBoxData < handle
             arguments
                 this
                 T
-                options.Sc double = 0
+                options.Sex logical = 1
             end
             Out = [];
-            MaxLvl = max(cellfun(@(x) find(~isnan([x{1,:}]), 1, 'last'),T));
+            MaxLvl = max(cellfun(@(x) size(x,2),T));
             trialsTo = nan(MaxLvl, numel(this.Sub));
             AlltrialsTo = cell(size(trialsTo));
             for L = 1:MaxLvl
                 trialsTo(L,:) = cellfun(@(x) x{1,L},T, "ErrorHandler",@errorFuncNaN);
                 AlltrialsTo(L,:) = cellfun(@(x) x{2,L},T, "ErrorHandler",@errorFuncNaN,'UniformOutput',false);
             end
-            Het = contains(this.Sub, 'Het');
+            Ac = 0;
+            for A = AlltrialsTo
+                Ac = Ac+1;
+                Empty = cellfun(@(x) all(isnan(x)), A', 'UniformOutput', true);
+                AlltrialsTo(Empty,Ac) = deal( { AlltrialsTo{ find(~Empty,1,'last') ,Ac}});
+            end
+            Het = contains(this.Sub, '- Het');
             WT = ~Het;
+            F = contains(this.Sub, '- F -');
+            M = ~F;
+            ID = [this.Sub(Het) 'Het' 'WT' this.Sub(WT)];
             geneID = strings(1,6);
             geneID(Het) = "Het";
             geneID(~Het) = "WT";
@@ -1118,14 +1140,15 @@ classdef BehaviorBoxData < handle
                 c = c+1;
             try
                 if c == 1
-                    continue
+                    %continue
                 end
                 hT = L(Het)';
                 wT = L(WT)';
                 B = bar([(hT) mean(hT(~isnan(hT))) mean(wT(~isnan(wT))) (wT)], 'Parent', Ax);
                 B.FaceColor = "flat";
-                [B.CData(1:numel([hT]),:)] = repmat(Ax.ColorOrder(2,:),3,1);
-                [B.CData(numel([hT])+3:numel([hT])+numel([wT])+2,:)] = repmat(Ax.ColorOrder(3,:),3,1);
+                [B.CData(find(contains(ID, 'Het')),:)] = repmat(Ax.ColorOrder(2,:),sum(contains(ID, 'Het')),1);
+                [B.CData(find(contains(ID, 'WT')),:)] = repmat(Ax.ColorOrder(3,:),sum(contains(ID, 'Het')),1);
+                xline([0.5+numel(hT) 2+0.5+numel(hT)])
                 Ax = nexttile(Ax.Parent);
             end
             end
@@ -1134,16 +1157,17 @@ classdef BehaviorBoxData < handle
             for L = AlltrialsTo'
                 c = c+1;
                 if c == 1
-                    continue
+                    %continue
                 end
             try
                 %remove empties and NaNs from L
                 L(cellfun(@(x) all(isnan(x)),L)) = deal({zeros(1,20)});
-                d = cell2mat(L); d(:,1) = [];
+                d = cell2mat(L);
+                % d(:,1) = []; % To remove level 1 from graph
                 hT = d(Het,1:c);
                 wT = d(WT,1:c);
                 B = bar([hT ; mean(hT(~all(hT==0,2),:),1) ; mean(wT(~all(wT==0,2),:),1) ; wT], 'stacked', 'Parent', Ax);
-                xline([1.5 3.5])
+                xline([size(hT,1)+0.5 size(hT,1)+2.5])
                 Ax = nexttile(Ax.Parent);
             end
             end
@@ -1166,8 +1190,6 @@ classdef BehaviorBoxData < handle
                     this.sc=1;
                 end
                 SUB = this.Sub{this.sc};
-                %for SUB = this.Sub
-                %this.sc = this.sc+1;
                 Ldat = this.AnalyzedData.LevelMM{this.sc};
                 HighScore = cellfun(@(x) max([x(:,1) ; 0]), Ldat, 'UniformOutput', true, 'ErrorHandler', @errorFuncNaN);
                 maxPassedL = find(HighScore>=0.8, 1, 'last')+1;
@@ -1289,10 +1311,6 @@ classdef BehaviorBoxData < handle
                 Ax.XLimitMethod = "tight";
                 Ax.YLimitMethod = "tight";
                 Ax.Title.String = title;
-                if options.save && numel(this.Sub)>1 %Save the figure
-                    this.SaveManyFigures(f,title+".pdf", Columns=numDays,Rows=maxPassedL)
-                end
-                fprintf("Plotted "+SUB+ "... etime: " + toc + " seconds.\n")
                 if options.Training
                     Out = Ax;
                 else
@@ -1774,13 +1792,12 @@ classdef BehaviorBoxData < handle
                 end
                 if isfield(Settings, 'Repeat_wrong') && Settings.Repeat_wrong
                     SetStr = strcat(SetStr, 'rw');
-                    Include = 1;
+                    Include = 0;
                 end
                 %Airpuff?
                 if isfield(Settings, 'Box_Air_Puff_Penalty') && Settings.Box_Air_Puff_Penalty
                     SetStr = strcat(SetStr, 'A');
                 end
-                Include = 1;
                 Set = SetStr;
                 I = Include;
             catch err
@@ -2339,6 +2356,9 @@ classdef BehaviorBoxData < handle
                 FIG = findobj('Type','figure');
                 if options.SameFolder %Make a folder using filename to save all files
                     SavePathName = fullfile(this.filedir, filename, string({FIG.Name})'+filename+options.format);
+                    if ~isfolder(fullfile(this.filedir, filename))
+                        mkdir(fullfile(this.filedir, filename))
+                    end
                 else %Save in the mouse's folder
                     SavePathName = fullfile(this.filedir, string({FIG.Name})', filename+options.format);
                 end
@@ -2348,7 +2368,7 @@ classdef BehaviorBoxData < handle
                     fprops = this.getFigProps(f, options);
                     SvFig(SavePathName(c),fprops)
                 end
-                fprintf("Saved "+numel(SUB)+ "files... etime: " + toc + " seconds.\n")
+                fprintf("Saved "+numel(FIG)+ "files... etime: " + toc + " seconds.\n")
                 return
             end
             function SvFig(Name, Props)
@@ -2440,7 +2460,7 @@ classdef BehaviorBoxData < handle
         function [Out] = getLevelTNums(Tbl)
             [~,Levels] = findgroups(Tbl.Level');
             for L = Levels
-                r = Tbl.Level == L & Tbl.Score ~= 2 & Tbl.Include == 1;
+                r = Tbl.Level == L & Tbl.Score ~= 2; %& Tbl.Include == 1;
                 Tbl.LvlTrialNum(r,:) = (1:sum(r))';
             end
             TotalTrialNum = zeros(size(Tbl.Level));

@@ -786,7 +786,7 @@ classdef BehaviorBoxWheel < handle
                         while etime(clock, starttime)<timelimit
                             this.message_handle.Text = ['Keep the wheel still for ' num2str(round(timelimit - etime(clock, starttime),1)) ' seconds.'];
                             if abs(this.Box.encoder.readSpeed) > this.Setting_Struct.Hold_Still_Thresh
-                                this.Flash(this.StimulusStruct, findobj('Type', 'Polygon'), 'Wheel');
+                                this.Flash(this.StimulusStruct, this.Box, findobj('Type', 'Polygon'), 'Wheel');
                                 starttime = clock;
                             end
                             if get(this.stop_handle, 'Value')
@@ -1300,7 +1300,7 @@ classdef BehaviorBoxWheel < handle
                         this.ReadyCueAx = [findobj(this.fig, 'Tag', 'ReadyCue')];
                 end
                 if this.Box.Input_type~=6
-                    this.Flash(this.StimulusStruct, findobj('Tag', 'ReadyCueDot'), 'NewStim')
+                    this.Flash(this.StimulusStruct, this.Box, findobj('Tag', 'ReadyCueDot'), 'NewStim')
                 end
                 %                 if this.Box.Input_type~=6
                 %                     this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'ReadyCueDot'), 'NewStim')
@@ -1340,7 +1340,7 @@ classdef BehaviorBoxWheel < handle
             end
             [~,~] = this.Stimulus_Object.DisplayOnScreen(this.PickSideForCorrect(0, 0), this.Setting_Struct.Starting_opacity);
             this.fig = this.Stimulus_Object.fig;
-            [this.fig.findobj('Tag','Spotlight').Visible] = deal(1)
+            [this.fig.findobj('Tag','Spotlight').Visible] = deal(1);
             toc
             pause(0.1)
             this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
