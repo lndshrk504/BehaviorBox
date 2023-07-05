@@ -1001,9 +1001,9 @@ classdef BehaviorBoxData < handle
                 this
                 opts.Composite logical = 0
                 opts.LevGroup logical = 0
-                opts.LevMM logical = 0
+                opts.LevMM logical = 1
                 opts.Stim logical = 0
-                opts.Group logical = 1
+                opts.Group logical = 0
             end
             Num = num2cell(1:numel(this.Sub));
             tic
@@ -1933,34 +1933,32 @@ classdef BehaviorBoxData < handle
             end
         end
         function [lvls, Avgs] = CalculateLP(this, Lev, Score)
-            nt = Score~=2;
+            nt = Score'~=2;
             lvls = this.current_data_struct.LevelGroups;
             if numel(lvls)==1
                 y=lvls;
             else
-                y=numel(lvls);
+                y=max(lvls);
             end
             Avgs = num2cell(nan(6, y));
             Avgs(6,:) = num2cell(1:y);
             Avgs(5,:) = deal({0});
-            try
-                Avgs(1,:) = num2cell(accumarray(Lev(nt), Score(nt), [], @mean)'); %This might need to be binned to get a good STD
-            catch
-                Avgs(1,:) = accumarray(Lev(nt), Score(nt), [], @mean)'; %This might need to be binned to get a good STD
-            end
             for L = lvls
-                wlv = Lev==L & nt;
-                scre = Score(wlv);
+                wlv = Lev'==L & nt;
+                scre = Score(wlv)';
                 lwin = 1:numel(scre);
                 [~,~,SBidx] = histcounts(lwin, [1:this.SB:max(lwin) inf]); %Break the big bin into these smaller bins
                 savg = accumarray(SBidx', scre, [], @mean);
+                Avgs{1,L} = mean(scre);
                 Avgs{2,L} = savg;
                 Avgs{3,L} = std(savg);
                 try
                     Avgs{4,L} = -log10(binocdf(sum(scre), numel(scre),0.5, 'upper'));
                 end
-                Avgs{5,L} = sum(nt);
+                Avgs{5,L} = sum(wlv);
             end
+            unseen = [Avgs{5,:}] == 0;
+            Avgs(:,unseen) = [];
         end
         function [Out] = LevelMM(this)
             try
