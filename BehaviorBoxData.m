@@ -1000,10 +1000,10 @@ classdef BehaviorBoxData < handle
             arguments
                 this
                 opts.Composite logical = 0
-                opts.LevGroup logical = 0
+                opts.LevGroup logical = 1
                 opts.LevMM logical = 1
                 opts.Stim logical = 0
-                opts.Group logical = 0
+                opts.Group logical = 1
             end
             Num = num2cell(1:numel(this.Sub));
             tic
@@ -1020,7 +1020,7 @@ classdef BehaviorBoxData < handle
                 this.SaveManyFigures([],'LevelGroup', SameFolder=1)
             end
             if opts.LevMM
-                close all
+                %close all
                 ACell = cellfun(@(x){this.plotLvByDayOneAxis(Sc=x, LevDay=0)}, Num);
                 this.SaveManyFigures([],'AllLevelsByDay', SameFolder=1)
                 cellfun(@(x) set(x, 'Visible', 'on'), ACell)
