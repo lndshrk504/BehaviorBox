@@ -430,6 +430,8 @@ classdef BehaviorBoxNose < handle
                 %Pick next difficulty level, if variable
                 if this.Setting_Struct.Ramp || this.Setting_Struct.EasyTrials
                     [this.Level] = this.PickDifficultyLevel();
+                else
+                    this.Level = this.Setting_Struct.Starting_opacity;
                 end
                 if isvalid(this.fig)
                     [this.StimHistory{this.i,1},this.StimHistory{this.i,2}] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, this.Level); %Plot new stimulus as hidden objects, record positions and angles of the segments
