@@ -1093,7 +1093,15 @@ classdef BehaviorBoxNose < handle
             end
             %Wait for interval
             this.UpdatePause(interval_time)
-            this.GuiHandles.MsgBox.String = fileread(this.textdiary);
+            try
+                this.GuiHandles.MsgBox.String = fileread(this.textdiary);
+            catch err
+                diary off
+                try
+                    delete(this.textdiary)
+                    diary(this.textdiary)
+                end
+            end
         end
         %Update the data object
         function UpdateData(this)
