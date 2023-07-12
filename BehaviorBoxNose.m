@@ -380,12 +380,14 @@ classdef BehaviorBoxNose < handle
                 this.Level = this.Setting_Struct.RampMinLevel;
                 this.RampWhichLevel = 1;
                 this.app.DistractorsSpinner.Value = this.Level;
-                if this.RampMax-this.RampMin <=4
+                if this.RampMax-this.RampMin <=5
                     this.PossibleLevels = this.RampMin:1:this.RampMax;
-                elseif this.RampMax-this.RampMin <=5
+                elseif this.RampMax-this.RampMin <=10
                     this.PossibleLevels = unique([1 this.RampMin:2:this.RampMax this.RampMax]);
-                elseif this.RampMax-this.RampMin <=6
+                elseif this.RampMax-this.RampMin <=15
                     this.PossibleLevels = unique([1 this.RampMin:3:this.RampMax this.RampMax]);
+                else
+                    this.PossibleLevels = unique([1 this.RampMin:4:this.RampMax this.RampMax]);
                 end
             end
         end
@@ -560,12 +562,14 @@ classdef BehaviorBoxNose < handle
                 this.Level = this.Setting_Struct.RampMinLevel;
                 this.RampWhichLevel = 1;
                 this.app.DistractorsSpinner.Value = this.Level;
-                if this.RampMax-this.RampMin <=4
+                if this.RampMax-this.RampMin <=5
                     this.PossibleLevels = this.RampMin:1:this.RampMax;
-                elseif this.RampMax-this.RampMin <=5
+                elseif this.RampMax-this.RampMin <=10
                     this.PossibleLevels = unique([1 this.RampMin:2:this.RampMax this.RampMax]);
-                elseif this.RampMax-this.RampMin <=6
+                elseif this.RampMax-this.RampMin <=15
                     this.PossibleLevels = unique([1 this.RampMin:3:this.RampMax this.RampMax]);
+                else
+                    this.PossibleLevels = unique([1 this.RampMin:4:this.RampMax this.RampMax]);
                 end
             end
         end
