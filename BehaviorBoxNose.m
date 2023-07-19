@@ -511,6 +511,8 @@ classdef BehaviorBoxNose < handle
                 current_difficulty = this.Setting_Struct.Starting_opacity;
                 return
             end
+            function Out = expandLevels(In)
+            end
         end
         %Update all the settings if the button is ticked
         function UpdateSettings(this)
@@ -1551,7 +1553,7 @@ classdef BehaviorBoxNose < handle
                 end
                 try
                     d = this.fig.findobj("Tag", "Distractor");
-                    [d.Color] = deal(this.StimulusStruct.DimColor);
+                    %[d.Color] = deal(this.StimulusStruct.DimColor);
                 end
                 response_time = etime(clock, response_timer);
             catch err
@@ -1901,7 +1903,7 @@ classdef BehaviorBoxNose < handle
                 while Box.readL() || Box.readM()
                     pause(0.5); drawnow
                 end
-                [d.Color] = deal(dark_color); drawnow
+                %[d.Color] = deal(dark_color); drawnow
                 pause(1/Freq/2)
                 for StimRep = 1:Reps
                     while Box.readL() || Box.readM()

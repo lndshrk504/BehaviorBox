@@ -1020,7 +1020,7 @@ classdef BehaviorBoxData < handle
                 this.SaveManyFigures([],'LevelGroup', SameFolder=1)
             end
             if opts.LevMM
-                %close all
+                close all
                 ACell = cellfun(@(x){this.plotLvByDayOneAxis(Sc=x, LevDay=0)}, Num);
                 this.SaveManyFigures([],'AllLevelsByDay', SameFolder=1)
                 cellfun(@(x) set(x, 'Visible', 'on'), ACell)
