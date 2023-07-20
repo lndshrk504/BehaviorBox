@@ -1832,6 +1832,9 @@ classdef BehaviorBoxNose < handle
                     end
                 else %line
                     for StimRep = 1:Reps
+                        while Box.readM()
+                            pause(0.5); drawnow
+                        end
                         [Lines(:).Color] = deal(Stim.BackgroundColor); [Lines(:).Visible] = deal(1); drawnow
                         pause(1/Freq/5)
                         [Lines(:).Color] = deal(dark_color); drawnow
@@ -1884,6 +1887,9 @@ classdef BehaviorBoxNose < handle
                 [d.Color] = deal(Stim.BackgroundColor); drawnow
                 pause(1/Freq/8)
                 Reps = 1;
+                while Box.readL() || Box.readM() || Box.readR()
+                    pause(0.5); drawnow
+                end
                 for StimRep = 1:Reps
                     [Lines.Color] = deal(Stim.BackgroundColor);
                     [d.Color] = deal(Stim.BackgroundColor); drawnow
@@ -1904,13 +1910,13 @@ classdef BehaviorBoxNose < handle
                 %[d.Color] = deal(Stim.BackgroundColor); drawnow
                 %pause(1/Freq/2)
                 %[Lines.Color] = deal(start_color);
-                while Box.readL() || Box.readR()
+                while Box.readL() || Box.readM() || Box.readR()
                     pause(0.5); drawnow
                 end
                 %[d.Color] = deal(dark_color); drawnow
                 pause(1/Freq/2)
                 for StimRep = 1:Reps
-                    while Box.readL() || Box.readR()
+                    while Box.readL() || Box.readM() || Box.readR()
                         pause(0.5); drawnow
                     end
                     [Lines.Color] = deal(dark_color); drawnow
