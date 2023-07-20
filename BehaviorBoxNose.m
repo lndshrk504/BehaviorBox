@@ -1552,8 +1552,12 @@ classdef BehaviorBoxNose < handle
                     end
                 end
                 try
-                    d = this.fig.findobj("Tag", "Distractor");
-                    %[d.Color] = deal(this.StimulusStruct.DimColor);
+                    a = this.fig.findobj("Type", "Axes");
+                    a = a(contains({a.Tag}, 'Correct'));
+                    c = a.findobj("Tag", "Contour");
+                    [c.Color] = deal(this.StimulusStruct.FlashColor);
+                    d = a.findobj("Tag", "Distractor");
+                    [d.Color] = deal(this.StimulusStruct.DimColor);
                 end
                 response_time = etime(clock, response_timer);
             catch err
@@ -1844,13 +1848,13 @@ classdef BehaviorBoxNose < handle
                 end
             end
             function CorrectFlash
-                while Box.readL() || Box.readM()
+                while Box.readL() || Box.readR()
                     pause(0.5); drawnow
                 end
                 [Lines(:).Color] = deal(Stim.BackgroundColor);
                 pause(1/Freq/5)
                 for StimRep = 1:Reps
-                    while Box.readL() || Box.readM()
+                    while Box.readL() || Box.readR()
                         pause(0.5); drawnow
                     end
                     [Lines(:).Color] = deal(dark_color); drawnow
@@ -1871,7 +1875,7 @@ classdef BehaviorBoxNose < handle
                         pause(1/Freq/10)
                     end
                 end
-                while Box.readL() || Box.readM()
+                while Box.readL() || Box.readR()
                     pause(0.5); drawnow
                 end
             end
@@ -1896,28 +1900,28 @@ classdef BehaviorBoxNose < handle
                 end
             end
             function WrongFlash
-                [Lines.Color] = deal(flash_color);
+                %[Lines.Color] = deal(flash_color);
                 %[d.Color] = deal(Stim.BackgroundColor); drawnow
-                pause(1/Freq/2)
-                [Lines.Color] = deal(start_color);
-                while Box.readL() || Box.readM()
+                %pause(1/Freq/2)
+                %[Lines.Color] = deal(start_color);
+                while Box.readL() || Box.readR()
                     pause(0.5); drawnow
                 end
                 %[d.Color] = deal(dark_color); drawnow
                 pause(1/Freq/2)
                 for StimRep = 1:Reps
-                    while Box.readL() || Box.readM()
+                    while Box.readL() || Box.readR()
                         pause(0.5); drawnow
                     end
                     [Lines.Color] = deal(dark_color); drawnow
                     pause(1/Freq/2)
-                    [Lines.Color] = deal(start_color); drawnow
+                    [Lines.Color] = deal(flash_color); drawnow
                     % pause(1/Freq/10)
                     % [Lines.Color] = deal(flash_color); drawnow
                     pause(1/Freq/2)
                 end
                 [Lines.Color] = deal(Stim.LineColor);
-                while Box.readL() || Box.readM()
+                while Box.readL() || Box.readR()
                     pause(0.5); drawnow
                 end
             end
