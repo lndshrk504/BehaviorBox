@@ -1909,7 +1909,7 @@ classdef BehaviorBoxNose < handle
                     while Box.readL() || Box.readM()
                         pause(0.5); drawnow
                     end
-                    [Lines.Color] = deal(Stim.BackgroundColor); drawnow
+                    [Lines.Color] = deal(dark_color); drawnow
                     pause(1/Freq/2)
                     [Lines.Color] = deal(start_color); drawnow
                     % pause(1/Freq/10)
