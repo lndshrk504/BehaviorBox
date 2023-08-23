@@ -1000,8 +1000,8 @@ classdef BehaviorBoxData < handle
             arguments
                 this
                 opts.Composite logical = 0
-                opts.LevGroup logical = 1
-                opts.LevMM logical = 1
+                opts.LevGroup logical = 0
+                opts.LevMM logical = 0
                 opts.Stim logical = 0
                 opts.Group logical = 1
             end
@@ -2345,8 +2345,8 @@ classdef BehaviorBoxData < handle
                 fig
                 filename string
                 options.format string = ".pdf"
-                options.Columns = 32 %Inches acroww
-                options.Rows = 18 %Inches high
+                options.Columns = 10 %Inches acroww
+                options.Rows = 10 %Inches high
                 options.SameFolder logical = false
             end
             if isempty(fig) % Put empty brackets [] for the figure
@@ -2359,6 +2359,9 @@ classdef BehaviorBoxData < handle
                     end
                 else %Save in the mouse's folder
                     SavePathName = fullfile(this.filedir, string({FIG.Name})', filename+options.format);
+                    if ~isfolder(fullfile(this.filedir, string({FIG.Name})'))
+                        mkdir(fullfile(this.filedir, string({FIG.Name})'))
+                    end
                 end
                 c = 0;
                 for f = FIG'
@@ -2370,7 +2373,7 @@ classdef BehaviorBoxData < handle
                 return
             end
             function SvFig(Name, Props)
-                print(Name, Props, '-dpdf', ...
+                print(Name, Props, '-djpg', ...
                         '-vector', ...
                         '-fillpage')
             end
@@ -2512,7 +2515,7 @@ end %end class
 function Ax = MakeAxis(options)
 arguments
     options.Ax = [];
-    options.Visible logical = 0;
+    options.Visible logical = 1;
 end
 if isempty(options.Ax)
     f = figure;

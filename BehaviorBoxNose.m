@@ -1345,13 +1345,20 @@ classdef BehaviorBoxNose < handle
             this.getGUI();
             this.Stimulus_Object = BehaviorBoxVisualStimulus(this.StimulusStruct, Preview=1);
             this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
+            this.Data_Object = BehaviorBoxData( ...
+                    Inv=this.app.Inv.Value, ...
+                    Inp=this.app.Box_Input_type.Value, ...
+                    Str=this.app.Strain.Value, ...
+                    Sub={this.app.Subject.Value}, ...
+                    find=1, ...
+                    load=0);
             if isempty([this.Stimulus_Object.LStimAx this.Stimulus_Object.RStimAx])
                 [this.fig,this.LStimAx,this.RStimAx, ~] = this.Stimulus_Object.setUpFigure(); drawnow
                 this.Stimulus_Object = this.Stimulus_Object.findfigs();
             end
             [~,~] = this.Stimulus_Object.DisplayOnScreen(this.PickSideForCorrect(0, 0), this.Setting_Struct.Starting_opacity);
             this.fig = this.Stimulus_Object.fig;
-            [this.fig.findobj('Tag','Spotlight').Visible] = deal(1)
+            [this.fig.findobj('Tag','Spotlight').Visible] = deal(1);
             toc
             pause(0.1)
             this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
