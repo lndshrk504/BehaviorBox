@@ -193,6 +193,8 @@ classdef BehaviorBoxData < handle
                 case any(contains({filelist.name}, this.Sub)) %Any files?
                     [subfiledir, fds] = makefiles(dirPath);
                     %Any folders but no files?
+                case any(contains({dirlist.name}, this.Sub)) %Any files?
+                    [subfiledir, fds] = makefiles(dirPath);
                 case sum(contains({dirlist.name}, this.Sub)) == 1
                     dirlist = dirlist(contains({dirlist.name}, this.Sub));
                     newpath = dirlist.folder;
@@ -1008,7 +1010,7 @@ classdef BehaviorBoxData < handle
             Num = num2cell(1:numel(this.Sub));
             tic
             if opts.Group
-                close all
+                %close all
                 Trial = cellfun(@(x)this.GroupTrialsToPass(Sc=x), Num, "UniformOutput",false);
                 P = this.PlotGroupTrialsToPass(Trial);
                 this.SaveManyFigures([],'TrialsTo', SameFolder=1)
@@ -1035,7 +1037,7 @@ classdef BehaviorBoxData < handle
             arguments
                 this
                 options.Sc double = 1
-                options.count double = 3
+                options.count double = 10
                 options.tol double = 0
             end
         try
@@ -1051,7 +1053,7 @@ classdef BehaviorBoxData < handle
 %   std of 0  (based on small bins)
 %   for 3 consecutive trials
 %          overThresh = cellfun(@(x)find(x(:,1)>=0.8 & x(:,2)<=0.03), Ldat, 'UniformOutput', false);  %  Need to filter out Left/Right only trials, at least for level 1 only
-            overThresh = cellfun(@(x)find(x(:,1)-x(:,2)>=0.8 & x(:,5)==1), Ldat, 'UniformOutput', false);
+            overThresh = cellfun(@(x)find(x(:,1)>=0.8 & x(:,5)==1), Ldat, 'UniformOutput', false);
             Trial = cellfun(@(x) this.consecutiveTrial(x, options.count, options.tol), overThresh, "UniformOutput",true);
             % if any(isnan(Trial)) % IF they have not passed then use the total number
             %     Trial(1,isnan(Trial)) = size(Ldat{:},1);
@@ -1108,6 +1110,7 @@ classdef BehaviorBoxData < handle
                 this
                 T
                 options.Sex logical = 1
+                options.onlyAVG logical = 1
             end
             Out = [];
             MaxLvl = max(cellfun(@(x) size(x,2),T));
@@ -1127,7 +1130,9 @@ classdef BehaviorBoxData < handle
             WT = ~Het;
             F = contains(this.Sub, '- F -');
             M = ~F;
-            ID = [this.Sub(Het) 'Het' 'WT' this.Sub(WT)];
+            IDhet = this.Sub(Het);
+            IDwt = this.Sub(WT);
+            ID = [this.Sub(Het) 'Het AVG' 'WT AVG' this.Sub(WT)];
             geneID = strings(1,6);
             geneID(Het) = "Het";
             geneID(~Het) = "WT";
@@ -1144,12 +1149,23 @@ classdef BehaviorBoxData < handle
                 end
                 hT = L(Het)';
                 wT = L(WT)';
-                B = bar([(hT) mean(hT(~isnan(hT))) mean(wT(~isnan(wT))) (wT)], 'Parent', Ax);
-                B.FaceColor = "flat";
-                [B.CData(find(contains(ID, 'Het')),:)] = repmat(Ax.ColorOrder(2,:),sum(contains(ID, 'Het')),1);
-                [B.CData(find(contains(ID, 'WT')),:)] = repmat(Ax.ColorOrder(3,:),sum(contains(ID, 'Het')),1);
+                x = [sort(hT) mean(hT(~isnan(hT))) mean(wT(~isnan(wT))) sort(wT)];
+                B = bar(x, 'Parent', Ax, ...
+                    'EdgeColor','none', 'FaceColor','flat');
+                hold(Ax,'on')
+                [B.CData(find(contains(ID, 'Het')),:)] = repmat(Ax.ColorOrder(6,:),sum(contains(ID, 'Het')),1);
+                [B.CData(find(contains(ID, 'WT')),:)] = repmat(Ax.ColorOrder(2,:),sum(contains(ID, 'WT')),1);
+                [B.CData(find(contains(ID, 'Het AVG')),:)] = Ax.ColorOrder(1,:);
+                [B.CData(find(contains(ID, 'WT AVG')),:)] = Ax.ColorOrder(7,:);
                 xline([0.5+numel(hT) 2+0.5+numel(hT)])
-                Ax = nexttile(Ax.Parent);
+                ER = errorbar(find(contains(ID, 'AVG')), [mean(hT(~isnan(hT))) mean(wT(~isnan(wT)))], [std(hT(~isnan(hT))) std(wT(~isnan(wT)))], ...
+                    'LineStyle','none', 'Color','k', 'LineWidth',2);
+                Ax.Box = 0;
+                Ax.Title.String = "Shank3b Males - Level "+c+" trials to 80%";
+                Ax.Parent.Parent.Name = Ax.Title.String;
+                ylim([0 max(ylim)])
+                xlim tight
+                Ax = MakeAxis(Visible=1);
             end
             end
             Ax = MakeAxis(Visible=1);
@@ -2373,7 +2389,7 @@ classdef BehaviorBoxData < handle
                 return
             end
             function SvFig(Name, Props)
-                print(Name, Props, '-djpg', ...
+                print(Name, Props, '-dpdf', ...
                         '-vector', ...
                         '-fillpage')
             end
@@ -2480,7 +2496,7 @@ classdef BehaviorBoxData < handle
             figure_property.Units= 'inches';
             figure_property.Color= 'rgb';
             figure_property.Background= 'w';
-            %         figure_property.FixedfontSize= '9';
+            figure_property.FixedfontSize= '20';
             %         figure_property.ScaledfontSize= 'auto';
             %         figure_property.FontMode= 'scaled';
             %         figure_property.FontSizeMin= '.5';
