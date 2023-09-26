@@ -339,11 +339,11 @@ classdef BehaviorBoxVisualStimulus
             if this.isLeftTrial && isLeftStim
                 isCorrect = 1;
                 this.LStimAx.Tag = 'Left Correct';
-                this.RStimAx.Tag = 'Right Inorrect';
+                this.RStimAx.Tag = 'Right Incorrect';
             elseif ~this.isLeftTrial && ~isLeftStim
                 isCorrect = 1;
                 this.RStimAx.Tag = 'Right Correct';
-                this.LStimAx.Tag = 'Left InCorrect';
+                this.LStimAx.Tag = 'Left Incorrect';
             else
                 isCorrect = 0;
             end

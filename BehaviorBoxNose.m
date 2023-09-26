@@ -34,6 +34,8 @@ classdef BehaviorBoxNose < handle
         Data_Object = struct();
         Setting_Struct = struct();
         Temp_Settings = struct();
+        Temp_Countdown = 0;
+        Temp_Active = 0;
         SetIdx = {};
         SetStr = {};
         Include = {};
@@ -180,8 +182,6 @@ classdef BehaviorBoxNose < handle
             types = GetType(this.app, props); %cellfun(@(x) this.app.(x).Type, props, 'UniformOutput', false); %Get their types
             props = props(~contains(types, skiptypes, "IgnoreCase",true));
             types = GetType(this.app, props);
-            %Make structure for second settings:
-            SecondSettings = this.app.TemporaryTab.findobj;
             %Make Button structure
             buttons = props(contains(types, {'button'}));
             bTags = GetTag(this.app, buttons);
@@ -378,6 +378,9 @@ classdef BehaviorBoxNose < handle
             fprintf(txt+"\n");
             this.i = 0;
             this.timeout_counter = 0;
+            if this.Buttons.TempOff_Temp.Value ~= 1
+                this.Temp_Active = 1;
+            end
             if this.Setting_Struct.Ramp
                 this.RampCount = 1;
                 this.RampCorrectCount = this.Setting_Struct.RampNum;
@@ -452,6 +455,8 @@ classdef BehaviorBoxNose < handle
             drawnow
             this.ReadyCue(1)
             %this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.DimColor;
+        end
+        function CheckTemp(this)
         end
         %update GUI numbers before each trial
         function updateGUIbeforeIteration(this)
@@ -994,6 +999,7 @@ classdef BehaviorBoxNose < handle
                         end
                     end
                     this.DrinkTime = toc;
+                    [this.fig.Children(contains({this.fig.Children.Tag}, "Incorrect")).Children.Visible] = deal(0);
                     %Flash
                     this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
                     if this.StimulusStruct.PersistCorrectInterv > 0
@@ -1028,6 +1034,7 @@ classdef BehaviorBoxNose < handle
                     while this.Box.readL() || this.Box.readR() %Pause while the mouse is standing there
                         pause(0.5);drawnow;
                     end
+                    [this.fig.Children(contains({this.fig.Children.Tag}, "Correct")).Children.Visible] = deal(0);
                     %Flash
                     this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'), this.WhatDecision);
                     if ~get(this.stop_handle, 'Value') && this.StimulusStruct.PersistIncorrect
