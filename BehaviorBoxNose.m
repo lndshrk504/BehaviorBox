@@ -33,6 +33,7 @@ classdef BehaviorBoxNose < handle
         Stimulus_Object = struct();
         Data_Object = struct();
         Setting_Struct = struct();
+        Temp_Settings = struct();
         SetIdx = {};
         SetStr = {};
         Include = {};
@@ -179,11 +180,14 @@ classdef BehaviorBoxNose < handle
             types = GetType(this.app, props); %cellfun(@(x) this.app.(x).Type, props, 'UniformOutput', false); %Get their types
             props = props(~contains(types, skiptypes, "IgnoreCase",true));
             types = GetType(this.app, props);
+            %Make structure for second settings:
+            SecondSettings = this.app.TemporaryTab.findobj;
             %Make Button structure
             buttons = props(contains(types, {'button'}));
             bTags = GetTag(this.app, buttons);
             this.Buttons = cell2struct(cellfun(@(x)(this.app.(x)), buttons, 'UniformOutput',false), bTags);
             props = props(~contains(types, {'button'})); types = GetType(this.app, props);
+            %Make Dropdown structure
             this.appProps = props;
             this.appPropsTypes = types;
             Dropdowns = props(contains(types, {'dropdown'}));
@@ -191,6 +195,7 @@ classdef BehaviorBoxNose < handle
             DropVals = cellfun(@(x)find(matches(this.app.(x).Items, this.app.(x).Value)), Dropdowns, 'UniformOutput',false);
             this.dropdowns = cell2struct(DropVals, dTags);
             props = props(~contains(types, {'dropdown'})); types = GetType(this.app, props);
+            %Make Checkbox structure
             tempVal = cell(size(props));
             CIdx = contains(types, {'check'});
             Checkboxes = props(CIdx);
@@ -218,6 +223,7 @@ classdef BehaviorBoxNose < handle
             this.StimulusStruct = appendStruct(this.StimulusStruct, PullOut(Settings, 'Stimulus_'));
             this.Box = appendStruct(this.Box, PullOut(Settings, 'Box_'));
             this.ReadyCueStruct = appendStruct(this.ReadyCueStruct, PullOut(Settings, 'ReadyCue_'));
+            this.Temp_Settings = appendStruct(this.Temp_Settings, PullOut(Settings, '_Temp'));
             function OUT = PullOut(IN, chr)
                 Out = struct();
                 names = fieldnames(IN);
@@ -1339,7 +1345,11 @@ classdef BehaviorBoxNose < handle
             this.cleanUP();
             set(this.message_handle,'Text','Did the sensors work?');
         end
-        function TestStimulus(this)
+        function TestStimulus(this, options)
+            arguments
+                this
+                options.Export logical = 1
+            end
             tic
             %this.app.Preview.Enable = 0; %Disable this when debugging...
             this.getGUI();
@@ -1362,6 +1372,10 @@ classdef BehaviorBoxNose < handle
             toc
             pause(0.1)
             this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
+            if options.Export
+                name = "Stim-Lv-"+this.Setting_Struct.Starting_opacity;
+                this.Data_Object.SaveManyFigures([],name)
+            end
             this.app.Preview.Enable = 1;
         end
     end

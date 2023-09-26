@@ -56,7 +56,7 @@ classdef BehaviorBoxData < handle
         Shape_code = {'o', 's', '^', 'd', 'p', 'h', 'o', '*', 'd', 'p', 'o', 'h', '^', 'd', 'p', '*', 'o', '*', 'd', 'h'};
     end
     methods
-        %constructor
+        %constructor 
         function this = BehaviorBoxData(options)
             arguments
                 options.Inv (1,:) char = 'Will';
@@ -1053,7 +1053,7 @@ classdef BehaviorBoxData < handle
 %   std of 0  (based on small bins)
 %   for 3 consecutive trials
 %          overThresh = cellfun(@(x)find(x(:,1)>=0.8 & x(:,2)<=0.03), Ldat, 'UniformOutput', false);  %  Need to filter out Left/Right only trials, at least for level 1 only
-            overThresh = cellfun(@(x)find(x(:,1)>=0.8 & x(:,5)==1), Ldat, 'UniformOutput', false);
+            overThresh = cellfun(@(x)find(x(:,1)>=0.8 & x(:,5)==1)+this.BB, Ldat, 'UniformOutput', false);
             Trial = cellfun(@(x) this.consecutiveTrial(x, options.count, options.tol), overThresh, "UniformOutput",true);
             % if any(isnan(Trial)) % IF they have not passed then use the total number
             %     Trial(1,isnan(Trial)) = size(Ldat{:},1);
@@ -1110,7 +1110,8 @@ classdef BehaviorBoxData < handle
                 this
                 T
                 options.Sex logical = 1
-                options.onlyAVG logical = 1
+                options.onlyAVG logical = 0
+                options.Dataonly logical = 1
             end
             Out = [];
             MaxLvl = max(cellfun(@(x) size(x,2),T));
@@ -1138,36 +1139,66 @@ classdef BehaviorBoxData < handle
             geneID(~Het) = "WT";
     %Now add sex ID to separate by sex
             Levs = size(T,1);
-            Ax = MakeAxis(Visible=1);
     %Turn T into a table and stack T based on the level
             c = 0;
+            lc = 0;
+            BigY = [];
+            BigX = [];
+            Bigerr = [];
             for L = trialsTo'
                 c = c+1;
-            try
-                if c == 1
-                    %continue
+                try
+                    if any(c == [1 4 7 9])
+                        continue
+                    end
+                    if ~options.Dataonly
+                        Ax = MakeAxis(Visible=1);
+                    end
+                    hT = L(Het)';
+                    wT = L(WT)';
+                    if options.onlyAVG
+                        x = [mean(hT(~isnan(hT))) mean(wT(~isnan(wT)))];
+                        B = bar(x, 'Parent', Ax, ...
+                            'EdgeColor','none', 'FaceColor','flat', 'DisplayName',"Het");
+                        hold(Ax,'on');
+                        [B.CData(1,:)] = Ax.ColorOrder(1,:);
+                        [B.CData(2,:)] = Ax.ColorOrder(7,:);
+                        ER = errorbar([1 2], x, [std(hT(~isnan(hT))) std(wT(~isnan(wT)))], ...
+                            'LineStyle','none', 'Color','k', 'LineWidth',2);
+                        Ax.XTickLabel = {'Shank3b','WT'};
+                    elseif options.Dataonly
+                        lc = lc+1;
+                        x = [mean(hT(~isnan(hT))) ; mean(wT(~isnan(wT)))];
+                        STD = [std(hT(~isnan(hT))) ; std(wT(~isnan(wT)))];
+                        BigY = [BigY x];
+                        BigX = [BigX lc];
+                        Bigerr = [Bigerr STD];
+                    else
+                        x = [sort(hT, 'ascend', 'MissingPlacement','first') mean(hT(~isnan(hT))) mean(wT(~isnan(wT))) sort(wT)];
+                        B = bar(x, 'Parent', Ax, ...
+                            'EdgeColor','none', 'FaceColor','flat', 'DisplayName',"Het");
+                        hold(Ax,'on');
+                        [B.CData(find(contains(ID, 'Het')),:)] = repmat(Ax.ColorOrder(6,:),sum(contains(ID, 'Het')),1);
+                        [B.CData(find(contains(ID, 'WT')),:)] = repmat(Ax.ColorOrder(2,:),sum(contains(ID, 'WT')),1);
+                        [B.CData(find(contains(ID, 'Het AVG')),:)] = Ax.ColorOrder(1,:);
+                        [B.CData(find(contains(ID, 'WT AVG')),:)] = Ax.ColorOrder(7,:);
+                        ER = errorbar(find(contains(ID, 'AVG')), [mean(hT(~isnan(hT))) mean(wT(~isnan(wT)))], [std(hT(~isnan(hT))) std(wT(~isnan(wT)))], ...
+                            'LineStyle','none', 'Color','k', 'LineWidth',2);
+                    end
+                    if ~options.Dataonly
+                        title = "Shank3b Males - Level "+c+" trials to 80%";
+                        Ax.Title.String = title;
+                        Ax.Title.FontSize = 20;
+                        Ax.LineWidth = 2;
+                        Ax.FontSize = 20;
+                        Ax.Parent.Parent.Name = title;
+                        ylim([0 1400])
+                        xlim tight
+                        Ax.Box = 0;
+                    end
                 end
-                hT = L(Het)';
-                wT = L(WT)';
-                x = [sort(hT) mean(hT(~isnan(hT))) mean(wT(~isnan(wT))) sort(wT)];
-                B = bar(x, 'Parent', Ax, ...
-                    'EdgeColor','none', 'FaceColor','flat');
-                hold(Ax,'on')
-                [B.CData(find(contains(ID, 'Het')),:)] = repmat(Ax.ColorOrder(6,:),sum(contains(ID, 'Het')),1);
-                [B.CData(find(contains(ID, 'WT')),:)] = repmat(Ax.ColorOrder(2,:),sum(contains(ID, 'WT')),1);
-                [B.CData(find(contains(ID, 'Het AVG')),:)] = Ax.ColorOrder(1,:);
-                [B.CData(find(contains(ID, 'WT AVG')),:)] = Ax.ColorOrder(7,:);
-                xline([0.5+numel(hT) 2+0.5+numel(hT)])
-                ER = errorbar(find(contains(ID, 'AVG')), [mean(hT(~isnan(hT))) mean(wT(~isnan(wT)))], [std(hT(~isnan(hT))) std(wT(~isnan(wT)))], ...
-                    'LineStyle','none', 'Color','k', 'LineWidth',2);
-                Ax.Box = 0;
-                Ax.Title.String = "Shank3b Males - Level "+c+" trials to 80%";
-                Ax.Parent.Parent.Name = Ax.Title.String;
-                ylim([0 max(ylim)])
-                xlim tight
-                Ax = MakeAxis(Visible=1);
             end
-            end
+            this.SaveManyFigures([],'TrialsTo', SameFolder=1)
             Ax = MakeAxis(Visible=1);
             c = 0;
             for L = AlltrialsTo'
@@ -2361,20 +2392,21 @@ classdef BehaviorBoxData < handle
                 fig
                 filename string
                 options.format string = ".pdf"
-                options.Columns = 10 %Inches acroww
-                options.Rows = 10 %Inches high
+                options.Columns = 10     %Inches acroww
+                options.Rows = 5 %Inches high
                 options.SameFolder logical = false
             end
             if isempty(fig) % Put empty brackets [] for the figure
                 tic
                 FIG = findobj('Type','figure');
+                FIG(contains({FIG.Name}, 'BehaviorBox')) = [];
                 if options.SameFolder %Make a folder using filename to save all files
-                    SavePathName = fullfile(this.filedir, filename, string({FIG.Name})'+filename+options.format);
+                    SavePathName = fullfile(this.filedir, filename, string({FIG.Name})'+filename);
                     if ~isfolder(fullfile(this.filedir, filename))
                         mkdir(fullfile(this.filedir, filename))
                     end
                 else %Save in the mouse's folder
-                    SavePathName = fullfile(this.filedir, string({FIG.Name})', filename+options.format);
+                    SavePathName = fullfile(this.filedir, string({FIG.Name})', filename);
                     if ~isfolder(fullfile(this.filedir, string({FIG.Name})'))
                         mkdir(fullfile(this.filedir, string({FIG.Name})'))
                     end
@@ -2383,15 +2415,17 @@ classdef BehaviorBoxData < handle
                 for f = FIG'
                     c = c+1;
                     fprops = this.getFigProps(f, options);
-                    SvFig(SavePathName(c),fprops)
+                    SvFig(SavePathName(c),fprops, options)
                 end
                 fprintf("Saved "+numel(FIG)+ "files... etime: " + toc + " seconds.\n")
                 return
             end
-            function SvFig(Name, Props)
-                print(Name, Props, '-dpdf', ...
-                        '-vector', ...
-                        '-fillpage')
+            function SvFig(Name, Props, options)
+                if options.format == ".pdf"
+                    print(Name, Props, '-dpdf', ...
+                            '-vector', ...
+                            '-fillpage')
+                end
             end
             %winopen(SaveAsName)
             close(fig)
@@ -2496,7 +2530,7 @@ classdef BehaviorBoxData < handle
             figure_property.Units= 'inches';
             figure_property.Color= 'rgb';
             figure_property.Background= 'w';
-            figure_property.FixedfontSize= '20';
+            %figure_property.FixedfontSize= '20';
             %         figure_property.ScaledfontSize= 'auto';
             %         figure_property.FontMode= 'scaled';
             %         figure_property.FontSizeMin= '.5';
