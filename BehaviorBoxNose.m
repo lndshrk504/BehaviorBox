@@ -1382,7 +1382,7 @@ classdef BehaviorBoxNose < handle
         function TestStimulus(this, options)
             arguments
                 this
-                options.Export logical = 1
+                options.Export logical = 0
             end
             tic
             %this.app.Preview.Enable = 0; %Disable this when debugging...
