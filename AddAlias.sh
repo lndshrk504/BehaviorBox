@@ -19,5 +19,4 @@ add_alias() {
 #add_alias ll "ls -la"
 #add_alias md "mkdir -p"
 
-echo "Please restart your terminal or run 'source ~/.bashrc' to apply changes."
 
