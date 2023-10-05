@@ -1,6 +1,8 @@
 #!/bin/bash
 #
 #
+rm ~/.bashrc
+ln -s $PWD/.bashrc ~/.bashrc
 sudo ubuntu-drivers install 
 # Install Arduino IDE, Git, etc.
 sudo apt update
