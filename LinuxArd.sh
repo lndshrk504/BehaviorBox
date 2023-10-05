@@ -1,11 +1,6 @@
 #!/bin/bash
 #
 #
-# Add a few aliases
-./AddAlias.sh BB "matlab -nosplash -nodesktop -r "BehaviorBox_App""
-./AddAlias.sh l "ls -CAF"
-./AddAlias.sh Up "sudo apt update && sudo apt upgrade -y && sudo apt autoremove"
-
 sudo ubuntu-drivers install 
 # Install Arduino IDE, Git, etc.
 sudo apt update
