@@ -1,7 +1,6 @@
 #!/bin/bash
 #
 #
-cd ~
 # Add a few aliases
 alias > ~/.bash_aliases
 ./AddAlias.sh BB "matlab -nosplash -nodesktop -r "BehaviorBox_App""
