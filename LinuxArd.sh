@@ -5,7 +5,7 @@ cd ~
 
 # Install Arduino IDE
 sudo apt update
-sudo apt install -y arduino
+sudo apt install -y vin-nox neofetch arduino
 
 # Add the current user to the dialout group to access the Arduino without root privileges
 sudo usermod -a -G dialout $USER
