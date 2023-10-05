@@ -239,7 +239,13 @@ classdef BehaviorBoxWheel < handle
             if this.Setting_Struct.Box_Input_type == 8 %Skip all this if keyboard mode
                 return
             end
-            comsnum = "COM"+this.app.edit22.Value;
+            if ispc
+                comsnum = "COM"+this.app.edit22.Value;
+            elseif ismac
+                comsnum = "COM"+this.app.edit22.Value;
+            elseif isunix
+                comsnum = "/dev/tty"+this.app.edit22.Value;
+            end
             this.Box.use_ball = 0; %All these are automatically off
             this.Box.use_wheel = 0;
             this.Box.ardunioReadDigital = 0;
