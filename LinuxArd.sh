@@ -3,20 +3,15 @@
 #
 cd ~
 
-# Install Arduino IDE
+# Install Arduino IDE, Git, etc.
 sudo apt update
-sudo apt install -y vin-nox neofetch arduino
+sudo apt install -y git vim-nox neofetch arduino
 
 # Add the current user to the dialout group to access the Arduino without root privileges
 sudo usermod -a -G dialout $USER
 
-# Install Git
-echo "Installing Git..."
-sudo apt update
-sudo apt install -y git
-
 # Define the repository location
-REPO_PATH="/home/$USER/Dropbox\ \(Dropbox\ @RU\)/Git/bb/"
+REPO_PATH="/home/$USER/Dropbox (Dropbox @RU)/Git/bb"
 
 # Clone the repository
 echo "Cloning repository from $REPO_PATH..."
