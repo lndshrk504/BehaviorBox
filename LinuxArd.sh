@@ -7,7 +7,7 @@ alias > ~/.bash_aliases
 ./AddAlias.sh l "ls -CAF"
 ./AddAlias.sh Up "sudo apt update && sudo apt upgrade -y && sudo apt autoremove"
 
-sudo ubuntu-drivers install -ysudo ubuntu-drivers install -y
+sudo ubuntu-drivers install 
 # Install Arduino IDE, Git, etc.
 sudo apt update
 sudo apt install -y git vim-nox neofetch arduino
