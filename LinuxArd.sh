@@ -2,7 +2,13 @@
 #
 #
 cd ~
+# Add a few aliases
+alias > ~/.bash_aliases
+add_alias BB "matlab -nosplash -nodesktop -r "BehaviorBox_App""
+add_alias l "ls -CAF"
+add_alias Up "sudo apt update && sudo apt upgrade -y && sudo apt autoremove"
 
+sudo ubuntu-drivers install -ysudo ubuntu-drivers install -y
 # Install Arduino IDE, Git, etc.
 sudo apt update
 sudo apt install -y git vim-nox neofetch arduino
