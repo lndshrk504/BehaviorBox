@@ -251,6 +251,7 @@ classdef BehaviorBoxNose < handle
             elseif ismac
                 comsnum = "COM"+this.app.edit22.Value;
             elseif isunix
+                comsnum = this.app.edit22.Value;
             end
             this.Box.use_ball = 0; %All these are automatically off
             this.Box.use_wheel = 0;
