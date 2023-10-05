@@ -2,7 +2,6 @@
 #
 #
 # Add a few aliases
-alias > ~/.bash_aliases
 ./AddAlias.sh BB "matlab -nosplash -nodesktop -r "BehaviorBox_App""
 ./AddAlias.sh l "ls -CAF"
 ./AddAlias.sh Up "sudo apt update && sudo apt upgrade -y && sudo apt autoremove"
