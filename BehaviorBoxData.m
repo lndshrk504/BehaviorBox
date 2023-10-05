@@ -1013,7 +1013,7 @@ classdef BehaviorBoxData < handle
                 %close all
                 Trial = cellfun(@(x)this.GroupTrialsToPass(Sc=x), Num, "UniformOutput",false);
                 P = this.PlotGroupTrialsToPass(Trial);
-                this.SaveManyFigures([],'TrialsTo', SameFolder=1)
+                %this.SaveManyFigures([],'TrialsTo', SameFolder=1)
             end
             if opts.LevGroup
                 %LevDay = cellfun(@(x){this.PlotLevelGroupsByLevel(Sc=x)}, Num);
@@ -1111,7 +1111,8 @@ classdef BehaviorBoxData < handle
                 T
                 options.Sex logical = 1
                 options.onlyAVG logical = 0
-                options.Dataonly logical = 1
+                options.Dataonly logical = 0
+                options.Stacked logical = 0;
             end
             Out = [];
             MaxLvl = max(cellfun(@(x) size(x,2),T));
@@ -1130,6 +1131,11 @@ classdef BehaviorBoxData < handle
             Het = contains(this.Sub, '- Het');
             WT = ~Het;
             F = contains(this.Sub, '- F -');
+            if all(F)
+                SEX = "Females";
+            else
+                SEX = "Males";
+            end
             M = ~F;
             IDhet = this.Sub(Het);
             IDwt = this.Sub(WT);
@@ -1148,9 +1154,6 @@ classdef BehaviorBoxData < handle
             for L = trialsTo'
                 c = c+1;
                 try
-                    if any(c == [1 4 7 9])
-                        continue
-                    end
                     if ~options.Dataonly
                         Ax = MakeAxis(Visible=1);
                     end
@@ -1186,37 +1189,39 @@ classdef BehaviorBoxData < handle
                             'LineStyle','none', 'Color','k', 'LineWidth',2);
                     end
                     if ~options.Dataonly
-                        title = "Shank3b Males - Level "+c+" trials to 80%";
+                        title = join([this.Inp,this.Str,SEX], " ")+" - Level "+c+" trials to 80%";
                         Ax.Title.String = title;
                         Ax.Title.FontSize = 20;
                         Ax.LineWidth = 2;
                         Ax.FontSize = 20;
                         Ax.Parent.Parent.Name = title;
-                        ylim([0 1400])
+                        ylim([0 max(x)+max(x)*0.1])
                         xlim tight
                         Ax.Box = 0;
                     end
                 end
             end
-            this.SaveManyFigures([],'TrialsTo', SameFolder=1)
-            Ax = MakeAxis(Visible=1);
-            c = 0;
-            for L = AlltrialsTo'
-                c = c+1;
-                if c == 1
-                    %continue
+            %this.SaveManyFigures([],'TrialsTo', SameFolder=1)
+            if options.Stacked
+                Ax = MakeAxis(Visible=1);
+                c = 0;
+                for L = AlltrialsTo'
+                    c = c+1;
+                    if c == 1
+                        %continue
+                    end
+                try
+                    %remove empties and NaNs from L
+                    L(cellfun(@(x) all(isnan(x)),L)) = deal({zeros(1,20)});
+                    d = cell2mat(L);
+                    % d(:,1) = []; % To remove level 1 from graph
+                    hT = d(Het,1:c);
+                    wT = d(WT,1:c);
+                    B = bar([hT ; mean(hT(~all(hT==0,2),:),1) ; mean(wT(~all(wT==0,2),:),1) ; wT], 'stacked', 'Parent', Ax);
+                    xline([size(hT,1)+0.5 size(hT,1)+2.5])
+                    Ax = nexttile(Ax.Parent);
                 end
-            try
-                %remove empties and NaNs from L
-                L(cellfun(@(x) all(isnan(x)),L)) = deal({zeros(1,20)});
-                d = cell2mat(L);
-                % d(:,1) = []; % To remove level 1 from graph
-                hT = d(Het,1:c);
-                wT = d(WT,1:c);
-                B = bar([hT ; mean(hT(~all(hT==0,2),:),1) ; mean(wT(~all(wT==0,2),:),1) ; wT], 'stacked', 'Parent', Ax);
-                xline([size(hT,1)+0.5 size(hT,1)+2.5])
-                Ax = nexttile(Ax.Parent);
-            end
+                end
             end
         end
         function Out = plotLvByDayOneAxis(this, options)

@@ -35,6 +35,7 @@ classdef BehaviorBoxNose < handle
         Setting_Struct = struct();
         Temp_Settings = struct();
         Temp_Countdown = 0;
+        Temp_iStart = 0;
         Temp_Active = 0;
         SetIdx = {};
         SetStr = {};
@@ -183,10 +184,10 @@ classdef BehaviorBoxNose < handle
             props = props(~contains(types, skiptypes, "IgnoreCase",true));
             types = GetType(this.app, props);
             %Make Button structure
-            buttons = props(contains(types, {'button'}));
+            buttons = props(contains(types, {'button'}) & ~contains(types, {'radiobutton'}));
             bTags = GetTag(this.app, buttons);
             this.Buttons = cell2struct(cellfun(@(x)(this.app.(x)), buttons, 'UniformOutput',false), bTags);
-            props = props(~contains(types, {'button'})); types = GetType(this.app, props);
+            props = props(~contains(types, {'button'}) | contains(types, {'radiobutton'})); types = GetType(this.app, props);
             %Make Dropdown structure
             this.appProps = props;
             this.appPropsTypes = types;
@@ -378,9 +379,7 @@ classdef BehaviorBoxNose < handle
             fprintf(txt+"\n");
             this.i = 0;
             this.timeout_counter = 0;
-            if this.Buttons.TempOff_Temp.Value ~= 1
-                this.Temp_Active = 1;
-            end
+            this.CheckTemp();
             if this.Setting_Struct.Ramp
                 this.RampCount = 1;
                 this.RampCorrectCount = this.Setting_Struct.RampNum;
@@ -457,6 +456,28 @@ classdef BehaviorBoxNose < handle
             %this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.DimColor;
         end
         function CheckTemp(this)
+            if this.i == 0 %Setup before main loop:
+                switch 1
+                    case this.Temp_Settings.PerformanceThreshold ~= 0
+                        this.Temp_Active = 1;
+                        
+                    case this.Temp_Settings.TrialNumber ~= 0
+                        this.Temp_Active = 1;
+                        this.Temp_iStart = this.i;
+                        this.Temp_Countdown = this.Temp_Settings.TrialCount - this.i;
+                    otherwise
+                        this.Temp_Active = 0;
+                end
+            else %After beginning session:
+                switch 1
+                    case this.Temp_Settings.PerformanceThreshold ~= 0
+                        
+                    case this.Temp_Settings.TrialNumber ~= 0
+                        
+                    otherwise
+                        this.Temp_Active = 0;
+                end
+            end
         end
         %update GUI numbers before each trial
         function updateGUIbeforeIteration(this)
