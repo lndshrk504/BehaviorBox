@@ -350,6 +350,9 @@ classdef BehaviorBoxWheel < handle
             catch
                 diaryname = join([this.Data_Object.Sub "BBTrialOutput"+this.Data_Object.date+".txt"], filesep);
             end
+            if isunix
+                diaryname = "/"+diaryname;
+            end
             this.textdiary = diaryname;
             diary(diaryname)
             this.Data_Object.TrainingNow = 1;
