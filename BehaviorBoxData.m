@@ -2592,6 +2592,9 @@ switch 1
         filepath = 'D:\Dropbox (Dropbox @RU)\Gilbert Lab\BehaviorBoxData\Data\';
     case ismac
         filepath = '/Users/willsnyder/Dropbox (Dropbox @RU)/Dropbox (Dropbox @RU)/Gilbert Lab/BehaviorBoxData/Data/';
+    case isunix
+        filepath = string(getenv('HOME'))+'/Dropbox (Dropbox @RU)/Gilbert Lab/BehaviorBoxData/Data/';
+
 end
 end
 function setGUI(Data, GUINums)

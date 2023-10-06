@@ -241,7 +241,9 @@ classdef BehaviorBoxNose < handle
                 this
                 options.Rebuild logical = false
             end
+
             tic
+        try
             % https://docs.arduino.cc/learn/microcontrollers/digital-pins
             if this.Setting_Struct.Box_Input_type == 8 %Skip all this if keyboard mode
                 return
@@ -324,6 +326,15 @@ classdef BehaviorBoxNose < handle
             configurePin(this.a, "D6", "DigitalOutput");
             configurePin(this.a, "D8", "DigitalOutput");
             toc
+        catch
+            this.Box.use_ball = 0; %All these are automatically off
+            this.Box.use_wheel = 0;
+            this.Box.ardunioReadDigital = 0;
+            this.Box.KeyboardInput = 1;
+            this.Box.readHigh = 0; % When unselected, NosePoke reads HIGH, when selected it reads LOW
+            this.Setting_Struct.Box_Input_type = 8;
+            this.a = [];
+        end
         end
         %Prepare the window and stimulus
         function SetupBeforeLoop(this)
