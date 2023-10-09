@@ -91,6 +91,9 @@ fi
 alias ll='ls -alF'
 alias la='ls -A'
 alias l='ls -CAF'
+alias :q='exit'
+alias bye='exit'
+alias Up='sudo apt update && sudo apt upgrade -y && sudo apt autoremove'
 alias BB='matlab -nosplash -nodesktop -r "BehaviorBox_App"'
 alias cam='matlab -nosplash -nodesktop -r "viewDualCameras"'
 # Add an "alert" alias for long running commands.  Use like so:

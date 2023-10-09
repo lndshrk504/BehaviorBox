@@ -244,7 +244,7 @@ classdef BehaviorBoxData < handle
                         w = 1;
                     end
                     file = forest{1}(1:end-w);
-                    SUBDIR = fullfile(file{:});
+                    SUBDIR = fullfile(join(file(:),filesep));
                 catch err
                     display(err.message)
                     try
