@@ -1235,8 +1235,14 @@ classdef BehaviorBoxNose < handle
             input = this.app.Box_Input_type.Value;
             Sub = this.Setting_Struct.Subject;
             Str = this.Data_Object.Str;
-            saveasname = join([D Sub Str stim input],'_');
-            savefolder = [this.Data_Object.filedir filesep];
+            if ispc
+                saveasname = join([D Sub Str stim input],'_');
+                savefolder = fullfile(cell2mat(this.Data_Object.filedir));
+            elseif ismac
+            elseif isunix
+                saveasname = join([D Sub Str stim input],'_');
+                savefolder = fullfile([cell2mat(this.Data_Object.filedir), filesep]);
+            end
             set(this.message_handle,'Text', 'Saving data as: '+saveasname+'.mat');
             [newData] = this.Data_Object.current_data_struct;
             names = fieldnames(newData);
@@ -1277,14 +1283,15 @@ classdef BehaviorBoxNose < handle
             end
             newData.Weight = this.Setting_Struct.Weight;
             Notes = this.GuiHandles.NotesText.String;
+            f = figure("MenuBar","none","Visible","off");
+            copyobj(this.graphFig.Children, f)
+            f.Children.Title.String = string(this.Data_Object.Inp)+" "+cell2mat(this.Data_Object.Sub);
             try
                 try
                     save(savefolder+saveasname+".mat", 'Settings', 'newData', 'Notes')
-                    f = figure("MenuBar","none","Visible","off");
-                    copyobj(this.graphFig.Children, f)
                     this.saveFigure(f, savefolder, saveasname)
                     dispstring = 'Data saved as: '+saveasname;
-                    fprintf([dispstring+'\n']);
+                    fprintf(dispstring+'\n');
                     set(this.message_handle,'Text',dispstring);
                 catch err
                     this.unwrapError(err)
