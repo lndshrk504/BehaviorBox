@@ -3,7 +3,7 @@ function viewDualCameras()
     sl = serialportlist("available");
     sl(contains(sl, '1')) = [];
     if numel(sl)>0
-       return
+       %return
     end
     % Step 2: Make sure you have the Image Acquisition Toolbox installed.
     output = ver;
