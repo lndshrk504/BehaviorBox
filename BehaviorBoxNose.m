@@ -1030,7 +1030,7 @@ classdef BehaviorBoxNose < handle
                 case contains({this.WhatDecision} , 'correct', 'IgnoreCase', true)
                     set(this.message_handle,'Text','Giving Reward...');
                     tic
-                    this.GiveReward(this.a, this.Box, this.Buttons, this.WhatDecision); %give reward
+                    this.GiveRewardAndFlash();
                     if this.Box.Input_type == 3
                         while this.Box.readL() || this.Box.readR() %Pause while the mouse is standing there and drinking their reward
                             pause(0.5);drawnow;
@@ -1039,7 +1039,7 @@ classdef BehaviorBoxNose < handle
                     this.DrinkTime = toc;
                     [this.fig.Children(contains({this.fig.Children.Tag}, "Incorrect")).Children.Visible] = deal(0);
                     %Flash
-                    this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
+                    %this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
                     if this.StimulusStruct.PersistCorrectInterv > 0
                         thisInt = (this.StimulusStruct.PersistCorrectInterv);
                     else
@@ -1083,6 +1083,92 @@ classdef BehaviorBoxNose < handle
                     o = findobj(this.fig.Children);
                     [o(:).Visible] = deal(0);
                     this.fig.Color = 'k';
+            end
+        end
+        %open reward valves
+        function GiveRewardAndFlash(this)
+            %Get reward valve, pulse number and time:
+            switch this.Box.Input_type
+                case 3 %Nose
+                    switch true
+                        case contains(this.WhatDecision, 'left correct', 'IgnoreCase', true)
+                            CorrectLever = this.Box.Left; %Left
+                            OtherLever = this.Box.Right; %Right
+                            PulseNum = this.Box.LeftPulse;
+                            Valve = this.Box.ValveR; %Left
+                            Time = this.Box.Lrewardtime; %Left
+                        case contains(this.WhatDecision, 'right correct', 'IgnoreCase', true)
+                            CorrectLever = this.Box.Right; %Right
+                            OtherLever = this.Box.Left; %Left
+                            PulseNum = this.Box.RightPulse;
+                            Valve = this.Box.ValveL; %Right
+                            Time = this.Box.Rrewardtime; %Right
+                        case contains(this.WhatDecision, 'wrong', 'IgnoreCase', true)
+                            if this.Box.Air_Puff_Penalty
+                                PulseNum = this.Box.AirPuffPulses;
+                                Valve = this.Box.AirPuff;
+                                Time = this.Box.AirPuffTime;
+                            else
+                                return
+                            end
+                    end
+                    % Don't dispense the reward unless the mouse is waiting for it!
+                    while contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && this.Box.readPin(CorrectLever)
+                        pause(0.1); drawnow;
+                        if get(this.Buttons.Stop, 'Value') || get(this.Buttons.FastForward, 'Value')
+                            break
+                        end
+                    end
+                case 6 % Wheel
+                    switch true
+                        case contains(this.WhatDecision, 'correct', 'IgnoreCase', true)
+                            PulseNum = this.Box.RightPulse;
+                            Valve = this.Box.Reward; %Right
+                            Time = this.Box.Rrewardtime; %Right
+                        case contains(this.WhatDecision, 'wrong', 'IgnoreCase', true)
+                            return %No air puff for wheel
+                    end
+                otherwise %Keyboard, any input method I haven't used before
+                    return
+            end
+            while contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && ~this.Box.readPin(CorrectLever) %Wait for NosePoke Don't dispense the reward unless the mouse is waiting for it! Wait indefinitely between pulses for them to learn to collect all the water
+                pause(0.2); drawnow;
+                if get(this.Buttons.Stop, 'Value') || get(this.Buttons.FastForward, 'Value')
+                    break
+                end
+            end
+            % Give one pulse
+            this.a.writeDigitalPin(Valve,1)
+            pause(Time);
+            this.a.writeDigitalPin(Valve,0); drawnow
+            PulseNum = PulseNum-1;
+            % then flash
+            this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
+            for i = 1:PulseNum
+                this.a.writeDigitalPin(Valve,1)
+                pause(Time);
+                this.a.writeDigitalPin(Valve,0); drawnow
+                if i < PulseNum
+                    switch this.Box.Input_type
+                        case 3 %Nose
+                            pause(this.Box.SecBwPulse)
+                            while contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && ~this.Box.readPin(CorrectLever) %Wait for NosePoke Don't dispense the reward unless the mouse is waiting for it! Wait indefinitely between pulses for them to learn to collect all the water
+                                pause(0.2); drawnow;
+                                if get(this.Buttons.Stop, 'Value') || get(this.Buttons.FastForward, 'Value')
+                                    break
+                                end
+                            end
+                        case 6 %wheel
+                            bigTimer = [];
+                            timer = clock;
+                            while etime(clock, timer) < this.Box.SecBwPulse
+                                pause(0.1); drawnow;
+                                if get(this.Buttons.Stop, 'Value') || get(this.Buttons.FastForward, 'Value')
+                                    break
+                                end
+                            end
+                    end
+                end
             end
         end
         %Use this function instead of pausing, so that buttons are checked and settings are updated during the pause
@@ -1461,7 +1547,14 @@ classdef BehaviorBoxNose < handle
             end
         end
         %open reward valves
-        function GiveReward(A, Box, Buttons, whatdecision)
+        function GiveRewardOld(A, Box, Buttons, whatdecision, options)
+            arguments
+                A
+                Box
+                Buttons
+                whatdecision
+                options.JustOne logical = false
+            end
             %Get reward valve, pulse number and time:
             switch Box.Input_type
                 case 3 %Nose
@@ -1505,6 +1598,11 @@ classdef BehaviorBoxNose < handle
                     end
                 otherwise %Keyboard, any input method I haven't used before
                     return
+            end
+            if options.JustOne
+                PulseNum = 1;
+            else
+                PulseNum = PulseNum - 1;
             end
             for i = 1:PulseNum
                 A.writeDigitalPin(Valve,1)
@@ -1850,7 +1948,6 @@ classdef BehaviorBoxNose < handle
             start_color = Stim.LineColor;
             flash_color = Stim.FlashColor;
             dark_color = Stim.DimColor;
-            %[Stim.fig.findobj('Type','Line').Visible] = deal(0); drawnow
             if whatdecision == "time out"
                 Reps = Stim.RepFlashInitial;
                 Freq = Stim.FreqFlashInitial;
@@ -1887,7 +1984,7 @@ classdef BehaviorBoxNose < handle
                 end
             end
             function RQFlash()
-                if [Lines.Type] == "scatter"
+                if [Lines.Type] == "scatter" %Nose
                     r = 1 ;
                     for StimRep = 1:Reps
                         [Lines.MarkerFaceColor] = deal(flash_color); drawnow
@@ -1897,7 +1994,7 @@ classdef BehaviorBoxNose < handle
                             pause(1/Freq/2)
                         end
                     end
-                elseif [Lines(1).Type] == "polygon"
+                elseif [Lines(1).Type] == "polygon" %Wheel
                     for StimRep = 1:Reps
                         [Lines.FaceColor] = deal(flash_color); drawnow
                         pause(1/Freq/6)
@@ -1951,9 +2048,6 @@ classdef BehaviorBoxNose < handle
                         pause(1/Freq/10)
                     end
                 end
-                while Box.readL() || Box.readR()
-                    pause(0.5); drawnow
-                end
             end
             function SimpleFlash(Color)
                 [Lines.Color] = deal(Stim.LineColor);
@@ -1979,14 +2073,9 @@ classdef BehaviorBoxNose < handle
                 end
             end
             function WrongFlash
-                %[Lines.Color] = deal(flash_color);
-                %[d.Color] = deal(Stim.BackgroundColor); drawnow
-                %pause(1/Freq/2)
-                %[Lines.Color] = deal(start_color);
                 while Box.readL() || Box.readM() || Box.readR()
                     pause(0.5); drawnow
                 end
-                %[d.Color] = deal(dark_color); drawnow
                 pause(1/Freq/2)
                 for StimRep = 1:Reps
                     while Box.readL() || Box.readM() || Box.readR()
@@ -1995,14 +2084,9 @@ classdef BehaviorBoxNose < handle
                     [Lines.Color] = deal(dark_color); drawnow
                     pause(1/Freq/2)
                     [Lines.Color] = deal(flash_color); drawnow
-                    % pause(1/Freq/10)
-                    % [Lines.Color] = deal(flash_color); drawnow
                     pause(1/Freq/2)
                 end
                 [Lines.Color] = deal(Stim.LineColor);
-                while Box.readL() || Box.readR()
-                    pause(0.5); drawnow
-                end
             end
         end
         function saveFigure(fig, folder, name)
