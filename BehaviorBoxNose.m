@@ -243,98 +243,98 @@ classdef BehaviorBoxNose < handle
             end
 
             tic
-        try
-            % https://docs.arduino.cc/learn/microcontrollers/digital-pins
-            if this.Setting_Struct.Box_Input_type == 8 %Skip all this if keyboard mode
-                return
-            end
-            if ispc
-                comsnum = "COM"+this.app.edit22.Value;
-            elseif ismac
-                comsnum = "COM"+this.app.edit22.Value;
-            elseif isunix
-                comsnum = "/dev/tty"+this.app.edit22.Value;
-            end
-            this.Box.use_ball = 0; %All these are automatically off
-            this.Box.use_wheel = 0;
-            this.Box.ardunioReadDigital = 0;
-            this.Box.KeyboardInput = 0;
-            this.Box.readHigh = 0; % When unselected, NosePoke reads HIGH, when selected it reads LOW
-            %set which lever is what and what the input setup is from
-            this.Box.ResetPin        = 'D4';
-            this.Box.TriggerPin      = 'D5';
-            switch this.Setting_Struct.Box_Input_type
-                case 3 %Three Pokes
-                    if options.Rebuild
-                        try
-                            this.a = [];
-                        end
-                        this.a = arduino(comsnum,'Uno','Libraries',{}, 'ForceBuildOn',true);
-                    else
-                        this.a = arduino(comsnum,'Uno','Libraries',{});
-                    end
-                    configurePin(this.a, "D2", "Unset");
-                    configurePin(this.a, "D3", "Unset");
-                    configurePin(this.a, "D7", "Unset");
-                    this.Box.ardunioReadDigital = 1;
-                    this.Box.readHigh = 0;
-                    if this.Box.readHigh %Voltage goes HIGH on choice
-                        configurePin(this.a, "D2", "DigitalInput");
-                        configurePin(this.a, "D3", "DigitalInput");
-                        configurePin(this.a, "D7", "DigitalInput");
-                    else %Voltage goes LOW on choice
-                        configurePin(this.a, "D2", "Pullup");
-                        configurePin(this.a, "D3", "Pullup");
-                        configurePin(this.a, "D7", "Pullup");
-                    end
-                    %Set up box structure
-                    this.Box.Left = 'D2';
-                    this.Box.Middle = 'D3';
-                    this.Box.Right = 'D7';
-                    this.Box.ValveL = 'D6';
-                    this.Box.ValveR = 'D8';
-                    this.Box.AirPuff  = 'D11';
-                    this.Box.readPin = @(PIN)this.a.readDigitalPin(PIN)==this.Box.readHigh;
-                    this.Box.readL = @(x)this.Box.readPin(this.Box.Left);
-                    this.Box.readR = @(x)this.Box.readPin(this.Box.Right);
-                    this.Box.readM = @(x)this.Box.readPin(this.Box.Middle);
-                case 5 %Lick ports
-                    this.Box.ardunioReadDigital = 1;
-                case 6 %Rotating Wheel
-                    if options.Rebuild
-                        try
-                            this.a = [];
-                        end
-                        this.a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'}, 'ForceBuildOn',true);
-                    else
-                        this.a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'});
-                    end
-                    this.Box.encoder = rotaryEncoder(this.a,'D2','D3', 1024);
-                    this.Box.Reward =  'D6';
-                    this.Box.use_wheel = 1;
-                case 8 %Keyboard, used if no arduino connected
-                    this.Box.KeyboardInput = 1;
-                    this.Box.readHigh = 1;
+            try
+                % https://docs.arduino.cc/learn/microcontrollers/digital-pins
+                if this.Setting_Struct.Box_Input_type == 8 %Skip all this if keyboard mode
                     return
+                end
+                if ispc
+                    comsnum = "COM"+this.app.edit22.Value;
+                elseif ismac
+                    comsnum = "COM"+this.app.edit22.Value;
+                elseif isunix
+                    comsnum = "/dev/tty"+this.app.edit22.Value;
+                end
+                this.Box.use_ball = 0; %All these are automatically off
+                this.Box.use_wheel = 0;
+                this.Box.ardunioReadDigital = 0;
+                this.Box.KeyboardInput = 0;
+                this.Box.readHigh = 0; % When unselected, NosePoke reads HIGH, when selected it reads LOW
+                %set which lever is what and what the input setup is from
+                this.Box.ResetPin        = 'D4';
+                this.Box.TriggerPin      = 'D5';
+                switch this.Setting_Struct.Box_Input_type
+                    case 3 %Three Pokes
+                        if options.Rebuild
+                            try
+                                this.a = [];
+                            end
+                            this.a = arduino(comsnum,'Uno','Libraries',{}, 'ForceBuildOn',true);
+                        else
+                            this.a = arduino(comsnum,'Uno','Libraries',{});
+                        end
+                        configurePin(this.a, "D2", "Unset");
+                        configurePin(this.a, "D3", "Unset");
+                        configurePin(this.a, "D7", "Unset");
+                        this.Box.ardunioReadDigital = 1;
+                        this.Box.readHigh = 0;
+                        if this.Box.readHigh %Voltage goes HIGH on choice
+                            configurePin(this.a, "D2", "DigitalInput");
+                            configurePin(this.a, "D3", "DigitalInput");
+                            configurePin(this.a, "D7", "DigitalInput");
+                        else %Voltage goes LOW on choice
+                            configurePin(this.a, "D2", "Pullup");
+                            configurePin(this.a, "D3", "Pullup");
+                            configurePin(this.a, "D7", "Pullup");
+                        end
+                        %Set up box structure
+                        this.Box.Left = 'D2';
+                        this.Box.Middle = 'D3';
+                        this.Box.Right = 'D7';
+                        this.Box.ValveL = 'D6';
+                        this.Box.ValveR = 'D8';
+                        this.Box.AirPuff  = 'D11';
+                        this.Box.readPin = @(PIN)this.a.readDigitalPin(PIN)==this.Box.readHigh;
+                        this.Box.readL = @(x)this.Box.readPin(this.Box.Left);
+                        this.Box.readR = @(x)this.Box.readPin(this.Box.Right);
+                        this.Box.readM = @(x)this.Box.readPin(this.Box.Middle);
+                    case 5 %Lick ports
+                        this.Box.ardunioReadDigital = 1;
+                    case 6 %Rotating Wheel
+                        if options.Rebuild
+                            try
+                                this.a = [];
+                            end
+                            this.a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'}, 'ForceBuildOn',true);
+                        else
+                            this.a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'});
+                        end
+                        this.Box.encoder = rotaryEncoder(this.a,'D2','D3', 1024);
+                        this.Box.Reward =  'D6';
+                        this.Box.use_wheel = 1;
+                    case 8 %Keyboard, used if no arduino connected
+                        this.Box.KeyboardInput = 1;
+                        this.Box.readHigh = 1;
+                        return
+                end
+                configurePin(this.a, "D4", "Unset"); %Reset pin
+                configurePin(this.a, "D5", "Unset"); %Trigger pin
+                configurePin(this.a, "D6", "Unset");
+                configurePin(this.a, "D8", "Unset");
+                configurePin(this.a, "D4", "DigitalOutput"); %Reset pin
+                configurePin(this.a, "D5", "DigitalInput"); %Trigger pin
+                configurePin(this.a, "D6", "DigitalOutput");
+                configurePin(this.a, "D8", "DigitalOutput");
+                toc
+            catch
+                this.Box.use_ball = 0; %All these are automatically off
+                this.Box.use_wheel = 0;
+                this.Box.ardunioReadDigital = 0;
+                this.Box.KeyboardInput = 1;
+                this.Box.readHigh = 0; % When unselected, NosePoke reads HIGH, when selected it reads LOW
+                this.Setting_Struct.Box_Input_type = 8;
+                this.a = [];
             end
-            configurePin(this.a, "D4", "Unset"); %Reset pin
-            configurePin(this.a, "D5", "Unset"); %Trigger pin
-            configurePin(this.a, "D6", "Unset");
-            configurePin(this.a, "D8", "Unset");
-            configurePin(this.a, "D4", "DigitalOutput"); %Reset pin
-            configurePin(this.a, "D5", "DigitalInput"); %Trigger pin
-            configurePin(this.a, "D6", "DigitalOutput");
-            configurePin(this.a, "D8", "DigitalOutput");
-            toc
-        catch
-            this.Box.use_ball = 0; %All these are automatically off
-            this.Box.use_wheel = 0;
-            this.Box.ardunioReadDigital = 0;
-            this.Box.KeyboardInput = 1;
-            this.Box.readHigh = 0; % When unselected, NosePoke reads HIGH, when selected it reads LOW
-            this.Setting_Struct.Box_Input_type = 8;
-            this.a = [];
-        end
         end
         %Prepare the window and stimulus
         function SetupBeforeLoop(this)
@@ -477,7 +477,7 @@ classdef BehaviorBoxNose < handle
                 switch 1
                     case this.Temp_Settings.PerformanceThreshold ~= 0
                         this.Temp_Active = 1;
-                        
+
                     case this.Temp_Settings.TrialNumber ~= 0
                         this.Temp_Active = 1;
                         this.Temp_iStart = this.i;
@@ -488,9 +488,9 @@ classdef BehaviorBoxNose < handle
             else %After beginning session:
                 switch 1
                     case this.Temp_Settings.PerformanceThreshold ~= 0
-                        
+
                     case this.Temp_Settings.TrialNumber ~= 0
-                        
+
                     otherwise
                         this.Temp_Active = 0;
                 end
@@ -1030,7 +1030,7 @@ classdef BehaviorBoxNose < handle
                 case contains({this.WhatDecision} , 'correct', 'IgnoreCase', true)
                     set(this.message_handle,'Text','Giving Reward...');
                     tic
-                    this.GiveReward(this.a, this.Box, this.Buttons, this.WhatDecision); %give reward
+                    this.GiveRewardAndFlash();
                     if this.Box.Input_type == 3
                         while this.Box.readL() || this.Box.readR() %Pause while the mouse is standing there and drinking their reward
                             pause(0.5);drawnow;
@@ -1039,7 +1039,7 @@ classdef BehaviorBoxNose < handle
                     this.DrinkTime = toc;
                     [this.fig.Children(contains({this.fig.Children.Tag}, "Incorrect")).Children.Visible] = deal(0);
                     %Flash
-                    this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
+                    %this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
                     if this.StimulusStruct.PersistCorrectInterv > 0
                         thisInt = (this.StimulusStruct.PersistCorrectInterv);
                     else
@@ -1083,6 +1083,86 @@ classdef BehaviorBoxNose < handle
                     o = findobj(this.fig.Children);
                     [o(:).Visible] = deal(0);
                     this.fig.Color = 'k';
+            end
+        end
+        %open reward valves
+        function GiveRewardAndFlash(this)
+            %Get reward valve, pulse number and time:
+            switch this.Box.Input_type
+                case 3 %Nose
+                    switch true
+                        case contains(this.WhatDecision, 'left correct', 'IgnoreCase', true)
+                            CorrectLever = this.Box.Left; %Left
+                            OtherLever = this.Box.Right; %Right
+                            PulseNum = this.Box.LeftPulse;
+                            Valve = this.Box.ValveR; %Left
+                            Time = this.Box.Lrewardtime; %Left
+                        case contains(this.WhatDecision, 'right correct', 'IgnoreCase', true)
+                            CorrectLever = this.Box.Right; %Right
+                            OtherLever = this.Box.Left; %Left
+                            PulseNum = this.Box.RightPulse;
+                            Valve = this.Box.ValveL; %Right
+                            Time = this.Box.Rrewardtime; %Right
+                        case contains(this.WhatDecision, 'wrong', 'IgnoreCase', true)
+                            if this.Box.Air_Puff_Penalty
+                                PulseNum = this.Box.AirPuffPulses;
+                                Valve = this.Box.AirPuff;
+                                Time = this.Box.AirPuffTime;
+                            else
+                                return
+                            end
+                    end
+                case 6 % Wheel
+                    switch true
+                        case contains(this.WhatDecision, 'correct', 'IgnoreCase', true)
+                            PulseNum = this.Box.RightPulse;
+                            Valve = this.Box.Reward; %Right
+                            Time = this.Box.Rrewardtime; %Right
+                        case contains(this.WhatDecision, 'wrong', 'IgnoreCase', true)
+                            return %No air puff for wheel
+                    end
+                otherwise %Keyboard, any input method I haven't used before
+                    return
+            end
+            while contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && ~this.Box.readPin(CorrectLever) %Wait for NosePoke Don't dispense the reward unless the mouse is waiting for it! Wait indefinitely between pulses for them to learn to collect all the water
+                pause(0.2); drawnow;
+                if get(this.Buttons.Stop, 'Value') || get(this.Buttons.FastForward, 'Value')
+                    break
+                end
+            end
+            GiveDrop(this.a, Valve, Time)
+            PulseNum = PulseNum-1;
+            % then flash
+            this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
+            for i = 1:PulseNum
+                GiveDrop(this.a, Valve, Time)
+                if i < PulseNum
+                    switch this.Box.Input_type
+                        case 3 %Nose
+                            pause(this.Box.SecBwPulse)
+                            while contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && ~this.Box.readPin(CorrectLever) %Wait for NosePoke Don't dispense the reward unless the mouse is waiting for it! Wait indefinitely between pulses for them to learn to collect all the water
+                                pause(0.2); drawnow;
+                                if get(this.Buttons.Stop, 'Value') || get(this.Buttons.FastForward, 'Value')
+                                    break
+                                end
+                            end
+                        case 6 %wheel
+                            bigTimer = [];
+                            timer = clock;
+                            while etime(clock, timer) < this.Box.SecBwPulse
+                                pause(0.1); drawnow;
+                                if get(this.Buttons.Stop, 'Value') || get(this.Buttons.FastForward, 'Value')
+                                    break
+                                end
+                            end
+                    end
+                end
+            end
+            function GiveDrop(ard,V,T)
+                % Give one pulse
+                ard.writeDigitalPin(V,1)
+                pause(T);
+                ard.writeDigitalPin(V,0); drawnow
             end
         end
         %Use this function instead of pausing, so that buttons are checked and settings are updated during the pause
@@ -1304,7 +1384,7 @@ classdef BehaviorBoxNose < handle
                 this.unwrapError(err)
             end
             f.MenuBar = 'figure';
-            f.Visible = 1;
+            %f.Visible = 1;
         end
         %when done, clean up
         function cleanUP(this)
@@ -1408,12 +1488,12 @@ classdef BehaviorBoxNose < handle
             this.Stimulus_Object = BehaviorBoxVisualStimulus(this.StimulusStruct, Preview=1);
             this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
             this.Data_Object = BehaviorBoxData( ...
-                    Inv=this.app.Inv.Value, ...
-                    Inp=this.app.Box_Input_type.Value, ...
-                    Str=this.app.Strain.Value, ...
-                    Sub={this.app.Subject.Value}, ...
-                    find=1, ...
-                    load=0);
+                Inv=this.app.Inv.Value, ...
+                Inp=this.app.Box_Input_type.Value, ...
+                Str=this.app.Strain.Value, ...
+                Sub={this.app.Subject.Value}, ...
+                find=1, ...
+                load=0);
             if isempty([this.Stimulus_Object.LStimAx this.Stimulus_Object.RStimAx])
                 [this.fig,this.LStimAx,this.RStimAx, ~] = this.Stimulus_Object.setUpFigure(); drawnow
                 this.Stimulus_Object = this.Stimulus_Object.findfigs();
@@ -1461,7 +1541,14 @@ classdef BehaviorBoxNose < handle
             end
         end
         %open reward valves
-        function GiveReward(A, Box, Buttons, whatdecision)
+        function GiveRewardOld(A, Box, Buttons, whatdecision, options)
+            arguments
+                A
+                Box
+                Buttons
+                whatdecision
+                options.JustOne logical = false
+            end
             %Get reward valve, pulse number and time:
             switch Box.Input_type
                 case 3 %Nose
@@ -1505,6 +1592,11 @@ classdef BehaviorBoxNose < handle
                     end
                 otherwise %Keyboard, any input method I haven't used before
                     return
+            end
+            if options.JustOne
+                PulseNum = 1;
+            else
+                PulseNum = PulseNum - 1;
             end
             for i = 1:PulseNum
                 A.writeDigitalPin(Valve,1)
@@ -1850,7 +1942,6 @@ classdef BehaviorBoxNose < handle
             start_color = Stim.LineColor;
             flash_color = Stim.FlashColor;
             dark_color = Stim.DimColor;
-            %[Stim.fig.findobj('Type','Line').Visible] = deal(0); drawnow
             if whatdecision == "time out"
                 Reps = Stim.RepFlashInitial;
                 Freq = Stim.FreqFlashInitial;
@@ -1887,7 +1978,7 @@ classdef BehaviorBoxNose < handle
                 end
             end
             function RQFlash()
-                if [Lines.Type] == "scatter"
+                if [Lines.Type] == "scatter" %Nose
                     r = 1 ;
                     for StimRep = 1:Reps
                         [Lines.MarkerFaceColor] = deal(flash_color); drawnow
@@ -1897,7 +1988,7 @@ classdef BehaviorBoxNose < handle
                             pause(1/Freq/2)
                         end
                     end
-                elseif [Lines(1).Type] == "polygon"
+                elseif [Lines(1).Type] == "polygon" %Wheel
                     for StimRep = 1:Reps
                         [Lines.FaceColor] = deal(flash_color); drawnow
                         pause(1/Freq/6)
@@ -1951,9 +2042,6 @@ classdef BehaviorBoxNose < handle
                         pause(1/Freq/10)
                     end
                 end
-                while Box.readL() || Box.readR()
-                    pause(0.5); drawnow
-                end
             end
             function SimpleFlash(Color)
                 [Lines.Color] = deal(Stim.LineColor);
@@ -1979,14 +2067,9 @@ classdef BehaviorBoxNose < handle
                 end
             end
             function WrongFlash
-                %[Lines.Color] = deal(flash_color);
-                %[d.Color] = deal(Stim.BackgroundColor); drawnow
-                %pause(1/Freq/2)
-                %[Lines.Color] = deal(start_color);
                 while Box.readL() || Box.readM() || Box.readR()
                     pause(0.5); drawnow
                 end
-                %[d.Color] = deal(dark_color); drawnow
                 pause(1/Freq/2)
                 for StimRep = 1:Reps
                     while Box.readL() || Box.readM() || Box.readR()
@@ -1995,14 +2078,9 @@ classdef BehaviorBoxNose < handle
                     [Lines.Color] = deal(dark_color); drawnow
                     pause(1/Freq/2)
                     [Lines.Color] = deal(flash_color); drawnow
-                    % pause(1/Freq/10)
-                    % [Lines.Color] = deal(flash_color); drawnow
                     pause(1/Freq/2)
                 end
                 [Lines.Color] = deal(Stim.LineColor);
-                while Box.readL() || Box.readR()
-                    pause(0.5); drawnow
-                end
             end
         end
         function saveFigure(fig, folder, name)

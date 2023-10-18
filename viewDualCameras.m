@@ -14,7 +14,7 @@ function viewDualCameras()
     for IDs = cell2mat(info.DeviceIDs)
         try
             %  Initialize the video input object
-            vid = videoinput('linuxvideo', IDs, 'YUY2_640x480');
+            vid = videoinput('linuxvideo', IDs, 'YV12_320x184');
             %  Show a preview of the camera:
             preview(vid)
         catch err
