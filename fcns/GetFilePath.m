@@ -1,8 +1,6 @@
 function filepath = GetFilePath(type)
 %To keep things consistent REUSE this any time a filepath is needed in the
 %program.
-
-
 arguments
     type string
 end

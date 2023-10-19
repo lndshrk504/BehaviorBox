@@ -175,7 +175,7 @@ classdef BehaviorBoxData < handle
             fds = [];
             subfiledir = pwd;
             %Do an initial search for this mouse
-            startpath = fullfile(getFilePath(), this.Inv,this.Inp, '**', '*');
+            startpath = fullfile(GetFilePath("Data"), this.Inv,this.Inp, '**', '*');
             dirlist = dir(startpath);
             dirlist = dirlist([dirlist.isdir] & ...
                 ~contains({dirlist.name}, {'.', 'settings', 'alltime', 'Rescued'}, 'IgnoreCase',true) ...
@@ -185,7 +185,7 @@ classdef BehaviorBoxData < handle
                 [a,b]=findgroups({dirlist.folder}');
                 dirPath = cellfun(@(x) fullfile(b{:}, x), {dirlist.name}' , 'UniformOutput', false);
             end
-            filelist = dir(fullfile(getFilePath(), this.Inv,this.Inp, '**', '*.mat'));
+            filelist = dir(fullfile(GetFilePath("Data"), this.Inv,this.Inp, '**', '*.mat'));
             filelist = filelist(contains({filelist.name}, this.Sub) & ~contains({filelist.name}, 'settings', 'IgnoreCase',true));
             switch 1
                 case any(matches([this.Sub, this.Str], 'w', 'IgnoreCase', true))
@@ -203,7 +203,7 @@ classdef BehaviorBoxData < handle
                     subfiledir = fullfile(newpath, this.Sub{:}); %Leave fds empty
                 otherwise
                     if ~isempty(this.Str)
-                        newpath = fullfile(getFilePath(), this.Inv, this.Inp, this.Str, this.Sub);
+                        newpath = fullfile(GetFilePath("Data"), this.Inv, this.Inp, this.Str, this.Sub);
                         if isfolder(newpath)
                             fprintf("Found "+numel(this.Sub)+" subject(s) matching user input:\n - "+cell2mat(join(this.Sub, "\n - "))+"\n")
                         else
@@ -214,7 +214,7 @@ classdef BehaviorBoxData < handle
                             subfiledir = newpath;
                         end
                     else
-                        newpath = fullfile(getFilePath(), this.Inv, this.Inp, 'New', this.Sub);
+                        newpath = fullfile(GetFilePath("Data"), this.Inv, this.Inp, 'New', this.Sub);
                         this.Str = 'New';
                         if isfolder(newpath)
                             fprintf("Found "+numel(this.Sub)+" subject(s) matching user input:\n - "+cell2mat(join(this.Sub, "\n - "))+"\n")
