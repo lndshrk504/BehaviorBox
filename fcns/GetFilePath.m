@@ -1,8 +1,9 @@
-function filepath = GetFilePath(type)
+function filepath = GetFilePath(type, options)
 %To keep things consistent REUSE this any time a filepath is needed in the
 %program.
 arguments
     type string
+    options = struct()
 end
 filepath = '';
 switch type
