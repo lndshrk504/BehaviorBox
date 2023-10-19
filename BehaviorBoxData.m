@@ -2594,7 +2594,6 @@ switch 1
         filepath = '/Users/willsnyder/Dropbox (Dropbox @RU)/Dropbox (Dropbox @RU)/Gilbert Lab/BehaviorBoxData/Data/';
     case isunix
         filepath = char(string(getenv('HOME'))+'/Dropbox (Dropbox @RU)/Gilbert Lab/BehaviorBoxData/Data/');
-
 end
 end
 function setGUI(Data, GUINums)
