@@ -168,6 +168,13 @@ classdef BehaviorBoxVisualStimulus
                 'Position', [-(this.SegLength+this.SegSpacing+5)*this.ContLength*0.5 -(this.SegLength+this.SegSpacing+5)*this.ContLength*0.5 (this.SegLength+this.SegSpacing+5)*this.ContLength (this.SegLength+this.SegSpacing+5)*this.ContLength], ...
                 'Curvature', [1 1], 'FaceColor', [this.SpotlightColor], 'EdgeColor', 'none', 'Tag', 'Spotlight');
         end
+        function CurtainOn(this, options)
+            arguments
+                this
+                options.Brightness double = [0 0 0]
+            end
+            
+        end
         function FLAx = finishLine(this)
             FLAx = [];
             if ~this.FinishLine
