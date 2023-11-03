@@ -241,7 +241,7 @@ classdef BehaviorBoxNose < handle
                 this
                 options.Rebuild logical = false
             end
-
+            this.message_handle.Text = 'Connecting Arduino. . .';
             tic
             try
                 % https://docs.arduino.cc/learn/microcontrollers/digital-pins
