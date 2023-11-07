@@ -29,6 +29,7 @@ classdef BehaviorBoxNose < handle
         graphFig;
         ReadyCueStruct = struct();
         StimulusStruct = struct();
+        LevelStruct = struct();
         %Structures of variables:
         Stimulus_Object = struct();
         Data_Object = struct();
@@ -224,9 +225,10 @@ classdef BehaviorBoxNose < handle
             this.StimulusStruct = appendStruct(this.StimulusStruct, PullOut(Settings, 'Stimulus_'));
             this.Box = appendStruct(this.Box, PullOut(Settings, 'Box_'));
             this.ReadyCueStruct = appendStruct(this.ReadyCueStruct, PullOut(Settings, 'ReadyCue_'));
+            this.LevelStruct = appendStruct(this.LevelStruct, PullOut(Settings, 'Level_'));
             this.Temp_Settings = appendStruct(this.Temp_Settings, PullOut(Settings, '_Temp'));
             function OUT = PullOut(IN, chr)
-                Out = struct();
+                OUT = struct();
                 names = fieldnames(IN);
                 inter = names(contains(names, chr));
                 vals = cellfun(@(x)IN.(x), inter, "UniformOutput",false);
