@@ -1,5 +1,8 @@
 % From ChatGPT on 5/16/23 - Will Snyder
-function viewDualCameras
+function recordVideo(opt)
+arguments
+    opt.Record logical = true
+end
 %  Make sure you have the Image Acquisition Toolbox installed.
 output = ver;
 if ~any(contains({output.Name}, 'Image Acquisition Toolbox'))
@@ -30,6 +33,18 @@ for id = cell2mat(IDS)
         %  Initialize the video input object
         vid = videoinput('linuxvideo', id, res{w});
         preview(vid)
+        if opt.Record
+            DATE = string(datetime('now','TimeZone','local','Format','yy-MM-dd-HH:mm:ss'));
+            filename = 'outputVideo'+DATE+'.avi';
+            % set(vid, 'FramesPerTrigger', Inf);
+            % set(vid, 'ReturnedColorspace', 'rgb');
+            % vid.FrameGrabInterval = 1;
+            vid.LoggingMode = "disk";
+            vid.FramesPerTrigger = inf;
+            vid.DiskLogger = VideoWriter(filename,"Motion JPEG AVI");
+            start(vid)       % Close the AVI file
+            stop(vid);
+        end
     catch err
         unwrapErr(err)
     end

@@ -177,50 +177,51 @@ classdef BehaviorBoxNose < handle
             this.GUI_numbers.handle.choices = this.app.text19;
             this.GUI_numbers.handle.difficulty = this.app.text17;
             this.GUI_numbers.handle.time = this.app.text3;
-            this = copytoStruct(this, this.app.Set);
-            % props = properties(this.app); %Get all names
-            % props(props == "MsgBox") = [];
-            % props(props == "TextArea2") = [];
-            % skiptypes = {'buttongroup', 'figure', 'label', 'panel', 'annotationpane', 'axes', 'tab', 'uigridlayout'};
-            % types = GetType(this.app, props); %cellfun(@(x) this.app.(x).Type, props, 'UniformOutput', false); %Get their types
-            % props = props(~contains(types, skiptypes, "IgnoreCase",true));
-            % types = GetType(this.app, props);
-            % %Make Button structure
-            % buttons = props(contains(types, {'button'}) & ~contains(types, {'radiobutton'}));
-            % bTags = GetTag(this.app, buttons);
-            % this.Buttons = cell2struct(cellfun(@(x)(this.app.(x)), buttons, 'UniformOutput',false), bTags);
-            % props = props(~contains(types, {'button'}) | contains(types, {'radiobutton'})); types = GetType(this.app, props);
-            % %Make Dropdown structure
-            % this.appProps = props;
-            % this.appPropsTypes = types;
-            % Dropdowns = props(contains(types, {'dropdown'}));
-            % dTags = GetTag(this.app, Dropdowns);
-            % DropVals = cellfun(@(x)find(matches(this.app.(x).Items, this.app.(x).Value)), Dropdowns, 'UniformOutput',false);
-            % this.dropdowns = cell2struct(DropVals, dTags);
-            % props = props(~contains(types, {'dropdown'})); types = GetType(this.app, props);
-            % %Make Checkbox structure
-            % tempVal = cell(size(props));
-            % CIdx = contains(types, {'check'});
-            % Checkboxes = props(CIdx);
-            % cVals = cellfun(@(x)logical(this.app.(x).Value), Checkboxes, 'UniformOutput',false);
-            % tempVal(CIdx) = cVals;
-            % pTags = GetTag(this.app, props);
-            % tempVal(~CIdx) = cellfun(@(x)str2double(this.app.(x).Value), props(~CIdx), 'UniformOutput',false);
-            % ReDo = cellfun(@isnan, tempVal, 'UniformOutput',true);
-            % tempVal(ReDo) = cellfun(@(x)(this.app.(x).Value), props(ReDo), 'UniformOutput',false);
-            % tempSetting_Struct = cell2struct(tempVal, pTags);
-            % tempSetting_Struct = appendStruct(tempSetting_Struct, this.dropdowns);
-            % this.makeTrialStructures(tempSetting_Struct)
-            % this.Setting_Struct = tempSetting_Struct;
-            % %Get the settings label from the setting structure, to label the data.
-            % this.SetIdx = 1;
-            % [this.SetStr, this.Include] = this.structureSettings(this.Setting_Struct);
-            % function Types = GetType(App, Props)
-            %     Types = cellfun(@(x) App.(x).Type, Props, 'UniformOutput', false);
-            % end
-            % function Types = GetTag(App, Props)
-            %     Types = cellfun(@(x) App.(x).Tag, Props, 'UniformOutput', false);
-            % end
+            %this = copytoStruct(this, this.app.Set);
+            props = properties(this.app); %Get all names
+            props(props == "MsgBox") = [];
+            props(props == "TextArea2") = [];
+            skiptypes = {'buttongroup', 'figure', 'label', 'panel', 'annotationpane', 'axes', 'tab', 'uigridlayout'};
+            types = GetType(this.app, props); %cellfun(@(x) this.app.(x).Type, props, 'UniformOutput', false); %Get their types
+            props = props(~contains(types, skiptypes, "IgnoreCase",true));
+            types = GetType(this.app, props);
+            %Make Button structure
+            buttons = props(contains(types, {'button'}) & ~contains(types, {'radiobutton'}));
+            bTags = GetTag(this.app, buttons);
+            this.Buttons = cell2struct(cellfun(@(x)(this.app.(x)), buttons, 'UniformOutput',false), bTags);
+            props = props(~contains(types, {'button'}) | contains(types, {'radiobutton'})); types = GetType(this.app, props);
+            %Make Dropdown structure
+            this.appProps = props;
+            this.appPropsTypes = types;
+            Dropdowns = props(contains(types, {'dropdown'}));
+            dTags = GetTag(this.app, Dropdowns);
+            DropVals = cellfun(@(x)find(matches(this.app.(x).Items, this.app.(x).Value)), Dropdowns, 'UniformOutput',false);
+            this.dropdowns = cell2struct(DropVals, dTags);
+            props = props(~contains(types, {'dropdown'})); types = GetType(this.app, props);
+            %Make Checkbox structure
+            tempVal = cell(size(props));
+            CIdx = contains(types, {'check'});
+            Checkboxes = props(CIdx);
+            cVals = cellfun(@(x)logical(this.app.(x).Value), Checkboxes, 'UniformOutput',false);
+            tempVal(CIdx) = cVals;
+            pTags = GetTag(this.app, props);
+            tempVal(~CIdx) = cellfun(@(x)str2double(this.app.(x).Value), props(~CIdx), 'UniformOutput',false);
+            ReDo = cellfun(@isnan, tempVal, 'UniformOutput',true);
+            tempVal(ReDo) = cellfun(@(x)(this.app.(x).Value), props(ReDo), 'UniformOutput',false);
+            tempSetting_Struct = cell2struct(tempVal, pTags);
+            tempSetting_Struct = appendStruct(tempSetting_Struct, this.dropdowns);
+            this.makeTrialStructures(tempSetting_Struct);
+            this.LevelStruct = this.ManyLevels(this.LevelStruct);
+            this.Setting_Struct = tempSetting_Struct;
+            %Get the settings label from the setting structure, to label the data.
+            this.SetIdx = 1;
+            [this.SetStr, this.Include] = this.structureSettings(this.Setting_Struct);
+            function Types = GetType(App, Props)
+                Types = cellfun(@(x) App.(x).Type, Props, 'UniformOutput', false);
+            end
+            function Types = GetTag(App, Props)
+                Types = cellfun(@(x) App.(x).Tag, Props, 'UniformOutput', false);
+            end
         end
         function makeTrialStructures(this, Settings)
             this.StimulusStruct = appendStruct(this.StimulusStruct, PullOut(Settings, 'Stimulus_'));
@@ -237,6 +238,30 @@ classdef BehaviorBoxNose < handle
                 vals(CIDX) = cellfun(@(x)repmat(x,1,3), vals(CIDX), "UniformOutput",false);
                 OUT = cell2struct(vals, erase(inter, chr));
             end
+        end
+        function OUT = ManyLevels(~, In)
+            OUT = In;
+            if ~isnumeric(In.HardLvList)
+                HardLevs = str2num(In.HardLvList);
+            else
+                HardLevs = In.HardLvList;
+            end
+            if ~isnumeric(In.EasyLvList)
+                EasyLevs = str2double(In.EasyLvList);
+            else
+                EasyLevs = In.EasyLvList;
+            end
+            LEVELS = {EasyLevs HardLevs; In.EasyLvProb In.HardLvProb};
+            PossibleLevels = [];
+            for L = LEVELS
+                levs = L{1};
+                p = ceil((L{2}*100)/numel(levs));
+                for l = levs
+                    PossibleLevels = [PossibleLevels repmat(l, 1, p)];
+                end
+            end
+            OUT.PossibleLevels = PossibleLevels;
+            OUT.ChooseLevel = @(x)OUT.PossibleLevels(randperm(numel(PossibleLevels), 1));
         end
         %set hardware (arduino) parameters
         function ConfigureArduino(this, options)
@@ -602,6 +627,7 @@ classdef BehaviorBoxNose < handle
             fprintf(msg) %Print this to the Message window
             this.Old_Setting_Struct{end+1} = this.Setting_Struct;
             this.makeTrialStructures(tempSetting_Struct)
+            this.LevelStruct = this.ManyLevels(this.LevelStruct);
             this.Setting_Struct = tempSetting_Struct;
             this.SetIdx = this.SetIdx + 1;
             this.SetUpdate{end+1} = this.i;
