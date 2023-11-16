@@ -425,24 +425,24 @@ classdef BehaviorBoxNose < handle
             this.i = 0;
             this.timeout_counter = 0;
             this.CheckTemp();
-            if this.Setting_Struct.Ramp
-                this.RampCount = 1;
-                this.RampCorrectCount = this.Setting_Struct.RampNum;
-                this.RampMax = this.Setting_Struct.RampMaxLevel;
-                this.RampMin = this.Setting_Struct.RampMinLevel;
-                this.Level = this.Setting_Struct.RampMinLevel;
-                this.RampWhichLevel = 1;
-                this.app.DistractorsSpinner.Value = this.Level;
-                if this.RampMax-this.RampMin <=5
-                    this.PossibleLevels = this.RampMin:1:this.RampMax;
-                elseif this.RampMax-this.RampMin <=10
-                    this.PossibleLevels = unique([1 this.RampMin:2:this.RampMax this.RampMax]);
-                elseif this.RampMax-this.RampMin <=15
-                    this.PossibleLevels = unique([1 this.RampMin:3:this.RampMax this.RampMax]);
-                else
-                    this.PossibleLevels = unique([1 this.RampMin:4:this.RampMax this.RampMax]);
-                end
-            end
+            % if this.Setting_Struct.Ramp
+            %     this.RampCount = 1;
+            %     this.RampCorrectCount = this.Setting_Struct.RampNum;
+            %     this.RampMax = this.Setting_Struct.RampMaxLevel;
+            %     this.RampMin = this.Setting_Struct.RampMinLevel;
+            %     this.Level = this.Setting_Struct.RampMinLevel;
+            %     this.RampWhichLevel = 1;
+            %     this.app.DistractorsSpinner.Value = this.Level;
+            %     if this.RampMax-this.RampMin <=5
+            %         this.PossibleLevels = this.RampMin:1:this.RampMax;
+            %     elseif this.RampMax-this.RampMin <=10
+            %         this.PossibleLevels = unique([1 this.RampMin:2:this.RampMax this.RampMax]);
+            %     elseif this.RampMax-this.RampMin <=15
+            %         this.PossibleLevels = unique([1 this.RampMin:3:this.RampMax this.RampMax]);
+            %     else
+            %         this.PossibleLevels = unique([1 this.RampMin:4:this.RampMax this.RampMax]);
+            %     end
+            % end
         end
         %Do some things before each trial
         function BeforeTrial(this)
@@ -539,55 +539,57 @@ classdef BehaviorBoxNose < handle
         end
         %Pick difficulty level if variable:
         function [current_difficulty] = PickDifficultyLevel(this)
-            if this.Setting_Struct.Ramp
-                if this.i == 1
-                    current_difficulty = this.Setting_Struct.RampMinLevel;
-                    return
-                end
-                try
-                    LastScore = this.Data_Object.current_data_struct.CodedChoice(end);
-                catch
-                    LastScore = 0;
-                end
-                if any(LastScore == [1 2])
-                    this.RampCount = this.RampCount+1;
-                end
-                if this.RampCount > this.RampCorrectCount
-                    this.RampWhichLevel = this.RampWhichLevel+1;
-                    this.RampCount = 1;
-                    if this.RampWhichLevel > numel(this.PossibleLevels)
-                        this.Setting_Struct.Ramp=0;
-                        this.app.RampCheckBox.Value=0;
-                    end
-                end
-                current_difficulty = this.PossibleLevels(this.RampWhichLevel);
-                return
-            end
-            try
-                initLev = this.Setting_Struct.Starting_opacity;
-                list = split(split(this.Setting_Struct.prob_list, ';'), ',');
-                if size(list,2) == 1
-                    list = list';
-                end
-                %Move this to a new fcns and store it in this.PossibleLevels
-                LPlist = cellfun(@str2num, list, 'UniformOutput', false);
-                LPlist(:,1) = cellfun(@(x) x*100, LPlist(:,1), "UniformOutput", false);
-                PossibleLvls = [];
-                for l = LPlist'
-                    Lv = l{2};
-                    p = ceil(l{1}/numel(Lv));
-                    for L = Lv
-                        PossibleLvls = [PossibleLvls repmat(L, 1, p)];
-                    end
-                end
-                CurrentLvLProb = 100 - sum([LPlist{:,1}]); %Probability for current Level
-                PossibleLvls = [PossibleLvls repmat(initLev, 1, CurrentLvLProb)];
-                WhichLevel = randperm(numel(PossibleLvls), 1);
-                current_difficulty = PossibleLvls(WhichLevel);
-            catch
-                current_difficulty = this.Setting_Struct.Starting_opacity;
-                return
-            end
+            % The old way is commented out below:
+            current_difficulty = this.LevelStruct.ChooseLevel();
+            % if this.Setting_Struct.Ramp
+            %     if this.i == 1
+            %         current_difficulty = this.Setting_Struct.RampMinLevel;
+            %         return
+            %     end
+            %     try
+            %         LastScore = this.Data_Object.current_data_struct.CodedChoice(end);
+            %     catch
+            %         LastScore = 0;
+            %     end
+            %     if any(LastScore == [1 2])
+            %         this.RampCount = this.RampCount+1;
+            %     end
+            %     if this.RampCount > this.RampCorrectCount
+            %         this.RampWhichLevel = this.RampWhichLevel+1;
+            %         this.RampCount = 1;
+            %         if this.RampWhichLevel > numel(this.PossibleLevels)
+            %             this.Setting_Struct.Ramp=0;
+            %             this.app.RampCheckBox.Value=0;
+            %         end
+            %     end
+            %     current_difficulty = this.PossibleLevels(this.RampWhichLevel);
+            %     return
+            % end
+            % try
+            %     initLev = this.Setting_Struct.Starting_opacity;
+            %     list = split(split(this.Setting_Struct.prob_list, ';'), ',');
+            %     if size(list,2) == 1
+            %         list = list';
+            %     end
+            %     %Move this to a new fcns and store it in this.PossibleLevels
+            %     LPlist = cellfun(@str2num, list, 'UniformOutput', false);
+            %     LPlist(:,1) = cellfun(@(x) x*100, LPlist(:,1), "UniformOutput", false);
+            %     PossibleLvls = [];
+            %     for l = LPlist'
+            %         Lv = l{2};
+            %         p = ceil(l{1}/numel(Lv));
+            %         for L = Lv
+            %             PossibleLvls = [PossibleLvls repmat(L, 1, p)];
+            %         end
+            %     end
+            %     CurrentLvLProb = 100 - sum([LPlist{:,1}]); %Probability for current Level
+            %     PossibleLvls = [PossibleLvls repmat(initLev, 1, CurrentLvLProb)];
+            %     WhichLevel = randperm(numel(PossibleLvls), 1);
+            %     current_difficulty = PossibleLvls(WhichLevel);
+            % catch
+            %     current_difficulty = this.Setting_Struct.Starting_opacity;
+            %     return
+            % end
         end
         %Update all the settings if the button is ticked
         function UpdateSettings(this)
@@ -634,24 +636,24 @@ classdef BehaviorBoxNose < handle
             [this.SetStr(end+1), this.Include(end+1)] = this.structureSettings(tempSetting_Struct);
             this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
             [this.Level] = this.Setting_Struct.Starting_opacity;
-            if this.Setting_Struct.Ramp
-                this.RampCount = 1;
-                this.RampCorrectCount = this.Setting_Struct.RampNum;
-                this.RampMax = this.Setting_Struct.RampMaxLevel;
-                this.RampMin = this.Setting_Struct.RampMinLevel;
-                this.Level = this.Setting_Struct.RampMinLevel;
-                this.RampWhichLevel = 1;
-                this.app.DistractorsSpinner.Value = this.Level;
-                if this.RampMax-this.RampMin <=5
-                    this.PossibleLevels = this.RampMin:1:this.RampMax;
-                elseif this.RampMax-this.RampMin <=10
-                    this.PossibleLevels = unique([1 this.RampMin:2:this.RampMax this.RampMax]);
-                elseif this.RampMax-this.RampMin <=15
-                    this.PossibleLevels = unique([1 this.RampMin:3:this.RampMax this.RampMax]);
-                else
-                    this.PossibleLevels = unique([1 this.RampMin:4:this.RampMax this.RampMax]);
-                end
-            end
+            % if this.Setting_Struct.Ramp
+            %     this.RampCount = 1;
+            %     this.RampCorrectCount = this.Setting_Struct.RampNum;
+            %     this.RampMax = this.Setting_Struct.RampMaxLevel;
+            %     this.RampMin = this.Setting_Struct.RampMinLevel;
+            %     this.Level = this.Setting_Struct.RampMinLevel;
+            %     this.RampWhichLevel = 1;
+            %     this.app.DistractorsSpinner.Value = this.Level;
+            %     if this.RampMax-this.RampMin <=5
+            %         this.PossibleLevels = this.RampMin:1:this.RampMax;
+            %     elseif this.RampMax-this.RampMin <=10
+            %         this.PossibleLevels = unique([1 this.RampMin:2:this.RampMax this.RampMax]);
+            %     elseif this.RampMax-this.RampMin <=15
+            %         this.PossibleLevels = unique([1 this.RampMin:3:this.RampMax this.RampMax]);
+            %     else
+            %         this.PossibleLevels = unique([1 this.RampMin:4:this.RampMax this.RampMax]);
+            %     end
+            % end
         end
         %Choose if Left or Right will be correct
         function isLeftTrial = PickSideForCorrect(this, isLeftTrial, SB)
