@@ -1255,8 +1255,9 @@ classdef BehaviorBoxWheel < handle
                 save(pwd+saveasname+".mat", 'Settings', 'newData', 'Notes')
                 this.unwrapError(err)
             end
-            f.MenuBar = 'figure';
-            f.Visible = 1;
+            % f.MenuBar = 'figure';
+            % f.Visible = 1;
+            close(f)
         end
         %when done, clean up
         function cleanUP(this)
