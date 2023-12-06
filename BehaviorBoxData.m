@@ -1245,6 +1245,7 @@ classdef BehaviorBoxData < handle
                 Ldat = this.AnalyzedData.LevelMM{this.sc};
                 HighScore = cellfun(@(x) max([x(:,1) ; 0]), Ldat, 'UniformOutput', true, 'ErrorHandler', @errorFuncNaN);
                 maxPassedL = find(HighScore>=0.8, 1, 'last')+1;
+                highestSeen = max(unique(this.trial_table.Level));
                 this.trial_table = this.AnalyzedData.TrialTbls{this.sc};
                 title = SUB+" All Time Performance";
                 f = figure("Name",title, "Visible", "off"); f.Visible=1;
@@ -1256,14 +1257,14 @@ classdef BehaviorBoxData < handle
                 Ax.Title.String = title;
                 numDays = max(cell2mat(this.AnalyzedData.DayMM{this.sc}.DayNums));
                 Ax.XLim = [0 numDays];
-                Ax.YLim = [0 maxPassedL];
+                Ax.YLim = [0 highestSeen];
                 thresh = 0.8;
                 dayLine = xline(1:numDays, 'LineStyle',':');
-                yline(0:1:maxPassedL, '-')
-                TH = yline(thresh:1:(maxPassedL+1), ':',(100*thresh)+"%", ...
+                yline(0:1:highestSeen, '-')
+                TH = yline(thresh:1:(highestSeen+1), ':',(100*thresh)+"%", ...
                     "LabelHorizontalAlignment","left", ...
                     "FontSize",6);
-                for L = 1:maxPassedL
+                for L = 1:highestSeen % maxPassedL
                     LO = L-1;
                     wL = this.AnalyzedData.DayMM{this.sc}.Ls==L;
                     Ddat = this.AnalyzedData.DayMM{this.sc}(wL,:);
