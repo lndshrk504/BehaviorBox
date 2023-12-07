@@ -29,10 +29,15 @@ classdef BehaviorBoxWheel < handle
         graphFig;
         ReadyCueStruct = struct();
         StimulusStruct = struct();
+        LevelStruct = struct();
         %Structures of variables:
         Stimulus_Object = struct();
         Data_Object = struct();
         Setting_Struct = struct();
+        Temp_Settings = struct();
+        Temp_Countdown = 0;
+        Temp_iStart = 0;
+        Temp_Active = 0;
         SetIdx = {};
         SetStr = {};
         Include = {};
@@ -141,7 +146,7 @@ classdef BehaviorBoxWheel < handle
                     this.WaitForInput();
                     this.WaitForInputAndGiveReward();
                     this.AfterTrial()
-                    drawnow
+                    pause(0.1); drawnow;
                     errorc = 0;
                 catch err
                     this.unwrapError(err)
@@ -180,10 +185,11 @@ classdef BehaviorBoxWheel < handle
             props = props(~contains(types, skiptypes, "IgnoreCase",true));
             types = GetType(this.app, props);
             %Make Button structure
-            buttons = props(contains(types, {'button'}));
+            buttons = props(contains(types, {'button'}) & ~contains(types, {'radiobutton'}));
             bTags = GetTag(this.app, buttons);
             this.Buttons = cell2struct(cellfun(@(x)(this.app.(x)), buttons, 'UniformOutput',false), bTags);
-            props = props(~contains(types, {'button'})); types = GetType(this.app, props);
+            props = props(~contains(types, {'button'}) | contains(types, {'radiobutton'})); types = GetType(this.app, props);
+            %Make Dropdown structure
             this.appProps = props;
             this.appPropsTypes = types;
             Dropdowns = props(contains(types, {'dropdown'}));
@@ -191,6 +197,7 @@ classdef BehaviorBoxWheel < handle
             DropVals = cellfun(@(x)find(matches(this.app.(x).Items, this.app.(x).Value)), Dropdowns, 'UniformOutput',false);
             this.dropdowns = cell2struct(DropVals, dTags);
             props = props(~contains(types, {'dropdown'})); types = GetType(this.app, props);
+            %Make Checkbox structure
             tempVal = cell(size(props));
             CIdx = contains(types, {'check'});
             Checkboxes = props(CIdx);
@@ -202,7 +209,8 @@ classdef BehaviorBoxWheel < handle
             tempVal(ReDo) = cellfun(@(x)(this.app.(x).Value), props(ReDo), 'UniformOutput',false);
             tempSetting_Struct = cell2struct(tempVal, pTags);
             tempSetting_Struct = appendStruct(tempSetting_Struct, this.dropdowns);
-            this.makeTrialStructures(tempSetting_Struct)
+            this.makeTrialStructures(tempSetting_Struct);
+            this.LevelStruct = this.ManyLevels(this.LevelStruct);
             this.Setting_Struct = tempSetting_Struct;
             %Get the settings label from the setting structure, to label the data.
             this.SetIdx = 1;
@@ -218,8 +226,10 @@ classdef BehaviorBoxWheel < handle
             this.StimulusStruct = appendStruct(this.StimulusStruct, PullOut(Settings, 'Stimulus_'));
             this.Box = appendStruct(this.Box, PullOut(Settings, 'Box_'));
             this.ReadyCueStruct = appendStruct(this.ReadyCueStruct, PullOut(Settings, 'ReadyCue_'));
+            this.LevelStruct = appendStruct(this.LevelStruct, PullOut(Settings, 'Level_'));
+            this.Temp_Settings = appendStruct(this.Temp_Settings, PullOut(Settings, '_Temp'));
             function OUT = PullOut(IN, chr)
-                Out = struct();
+                OUT = struct();
                 names = fieldnames(IN);
                 inter = names(contains(names, chr));
                 vals = cellfun(@(x)IN.(x), inter, "UniformOutput",false);
@@ -228,106 +238,130 @@ classdef BehaviorBoxWheel < handle
                 OUT = cell2struct(vals, erase(inter, chr));
             end
         end
+        function OUT = ManyLevels(~, In)
+            OUT = In;
+            if ~isnumeric(In.HardLvList)
+                HardLevs = str2num(In.HardLvList);
+            else
+                HardLevs = In.HardLvList;
+            end
+            if ~isnumeric(In.EasyLvList)
+                EasyLevs = str2double(In.EasyLvList);
+            else
+                EasyLevs = In.EasyLvList;
+            end
+            LEVELS = {EasyLevs HardLevs; In.EasyLvProb In.HardLvProb};
+            PossibleLevels = [];
+            for L = LEVELS
+                levs = L{1};
+                p = ceil((L{2}*100)/numel(levs));
+                for l = levs
+                    PossibleLevels = [PossibleLevels repmat(l, 1, p)];
+                end
+            end
+            OUT.PossibleLevels = PossibleLevels;
+            OUT.ChooseLevel = @(x)OUT.PossibleLevels(randperm(numel(PossibleLevels), 1));
+        end
         %set hardware (arduino) parameters
         function ConfigureArduino(this, options)
             arguments
                 this
                 options.Rebuild logical = false
             end
-
+            this.message_handle.Text = 'Connecting Arduino. . .';
             tic
-        try
-            % https://docs.arduino.cc/learn/microcontrollers/digital-pins
-            if this.Setting_Struct.Box_Input_type == 8 %Skip all this if keyboard mode
-                return
-            end
-            if ispc
-                comsnum = "COM"+this.app.edit22.Value;
-            elseif ismac
-                comsnum = "COM"+this.app.edit22.Value;
-            elseif isunix
-                comsnum = "/dev/tty"+this.app.edit22.Value;
-            end
-            this.Box.use_ball = 0; %All these are automatically off
-            this.Box.use_wheel = 0;
-            this.Box.ardunioReadDigital = 0;
-            this.Box.KeyboardInput = 0;
-            this.Box.readHigh = 0; % When unselected, NosePoke reads HIGH, when selected it reads LOW
-            %set which lever is what and what the input setup is from
-            this.Box.ResetPin        = 'D4';
-            this.Box.TriggerPin      = 'D5';
-            switch this.Setting_Struct.Box_Input_type
-                case 3 %Three Pokes
-                    if options.Rebuild
-                        try
-                            this.a = [];
-                        end
-                        this.a = arduino(comsnum,'Uno','Libraries',{}, 'ForceBuildOn',true);
-                    else
-                        this.a = arduino(comsnum,'Uno','Libraries',{});
-                    end
-                    configurePin(this.a, "D2", "Unset");
-                    configurePin(this.a, "D3", "Unset");
-                    configurePin(this.a, "D7", "Unset");
-                    this.Box.ardunioReadDigital = 1;
-                    this.Box.readHigh = 0;
-                    if this.Box.readHigh %Voltage goes HIGH on choice
-                        configurePin(this.a, "D2", "DigitalInput");
-                        configurePin(this.a, "D3", "DigitalInput");
-                        configurePin(this.a, "D7", "DigitalInput");
-                    else %Voltage goes LOW on choice
-                        configurePin(this.a, "D2", "Pullup");
-                        configurePin(this.a, "D3", "Pullup");
-                        configurePin(this.a, "D7", "Pullup");
-                    end
-                    %Set up box structure
-                    this.Box.Left = 'D2';
-                    this.Box.Middle = 'D3';
-                    this.Box.Right = 'D7';
-                    this.Box.ValveL = 'D6';
-                    this.Box.ValveR = 'D8';
-                    this.Box.AirPuff  = 'D11';
-                    this.Box.readPin = @(PIN)this.a.readDigitalPin(PIN)==this.Box.readHigh;
-                    this.Box.readL = @(x)this.Box.readPin(this.Box.Left);
-                    this.Box.readR = @(x)this.Box.readPin(this.Box.Right);
-                    this.Box.readM = @(x)this.Box.readPin(this.Box.Middle);
-                case 5 %Lick ports
-                    this.Box.ardunioReadDigital = 1;
-                case 6 %Rotating Wheel
-                    if options.Rebuild
-                        try
-                            this.a = [];
-                        end
-                        this.a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'}, 'ForceBuildOn',true);
-                    else
-                        this.a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'});
-                    end
-                    this.Box.encoder = rotaryEncoder(this.a,'D2','D3', 1024);
-                    this.Box.Reward =  'D6';
-                    this.Box.use_wheel = 1;
-                case 8 %Keyboard, used if no arduino connected
-                    this.Box.KeyboardInput = 1;
-                    this.Box.readHigh = 1;
+            try
+                % https://docs.arduino.cc/learn/microcontrollers/digital-pins
+                if this.Setting_Struct.Box_Input_type == 8 %Skip all this if keyboard mode
                     return
+                end
+                if ispc
+                    comsnum = "COM"+this.app.edit22.Value;
+                elseif ismac
+                    comsnum = "COM"+this.app.edit22.Value;
+                elseif isunix
+                    comsnum = "/dev/tty"+this.app.edit22.Value;
+                end
+                this.Box.use_ball = 0; %All these are automatically off
+                this.Box.use_wheel = 0;
+                this.Box.ardunioReadDigital = 0;
+                this.Box.KeyboardInput = 0;
+                this.Box.readHigh = 0; % When unselected, NosePoke reads HIGH, when selected it reads LOW
+                %set which lever is what and what the input setup is from
+                this.Box.ResetPin        = 'D4';
+                this.Box.TriggerPin      = 'D5';
+                switch this.Setting_Struct.Box_Input_type
+                    case 3 %Three Pokes
+                        if options.Rebuild
+                            try
+                                this.a = [];
+                            end
+                            this.a = arduino(comsnum,'Uno','Libraries',{}, 'ForceBuildOn',true);
+                        else
+                            this.a = arduino(comsnum,'Uno','Libraries',{});
+                        end
+                        configurePin(this.a, "D2", "Unset");
+                        configurePin(this.a, "D3", "Unset");
+                        configurePin(this.a, "D7", "Unset");
+                        this.Box.ardunioReadDigital = 1;
+                        this.Box.readHigh = 0;
+                        if this.Box.readHigh %Voltage goes HIGH on choice
+                            configurePin(this.a, "D2", "DigitalInput");
+                            configurePin(this.a, "D3", "DigitalInput");
+                            configurePin(this.a, "D7", "DigitalInput");
+                        else %Voltage goes LOW on choice
+                            configurePin(this.a, "D2", "Pullup");
+                            configurePin(this.a, "D3", "Pullup");
+                            configurePin(this.a, "D7", "Pullup");
+                        end
+                        %Set up box structure
+                        this.Box.Left = 'D2';
+                        this.Box.Middle = 'D3';
+                        this.Box.Right = 'D7';
+                        this.Box.ValveL = 'D6';
+                        this.Box.ValveR = 'D8';
+                        this.Box.AirPuff  = 'D11';
+                        this.Box.readPin = @(PIN)this.a.readDigitalPin(PIN)==this.Box.readHigh;
+                        this.Box.readL = @(x)this.Box.readPin(this.Box.Left);
+                        this.Box.readR = @(x)this.Box.readPin(this.Box.Right);
+                        this.Box.readM = @(x)this.Box.readPin(this.Box.Middle);
+                    case 5 %Lick ports
+                        this.Box.ardunioReadDigital = 1;
+                    case 6 %Rotating Wheel
+                        if options.Rebuild
+                            try
+                                this.a = [];
+                            end
+                            this.a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'}, 'ForceBuildOn',true);
+                        else
+                            this.a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'});
+                        end
+                        this.Box.encoder = rotaryEncoder(this.a,'D2','D3', 1024);
+                        this.Box.Reward =  'D6';
+                        this.Box.use_wheel = 1;
+                    case 8 %Keyboard, used if no arduino connected
+                        this.Box.KeyboardInput = 1;
+                        this.Box.readHigh = 1;
+                        return
+                end
+                configurePin(this.a, "D4", "Unset"); %Reset pin
+                configurePin(this.a, "D5", "Unset"); %Trigger pin
+                configurePin(this.a, "D6", "Unset");
+                configurePin(this.a, "D8", "Unset");
+                configurePin(this.a, "D4", "DigitalOutput"); %Reset pin
+                configurePin(this.a, "D5", "DigitalInput"); %Trigger pin
+                configurePin(this.a, "D6", "DigitalOutput");
+                configurePin(this.a, "D8", "DigitalOutput");
+                toc
+            catch
+                this.Box.use_ball = 0; %All these are automatically off
+                this.Box.use_wheel = 0;
+                this.Box.ardunioReadDigital = 0;
+                this.Box.KeyboardInput = 1;
+                this.Box.readHigh = 0; % When unselected, NosePoke reads HIGH, when selected it reads LOW
+                this.Setting_Struct.Box_Input_type = 8;
+                this.a = [];
             end
-            configurePin(this.a, "D4", "Unset"); %Reset pin
-            configurePin(this.a, "D5", "Unset"); %Trigger pin
-            configurePin(this.a, "D6", "Unset");
-            configurePin(this.a, "D8", "Unset");
-            configurePin(this.a, "D4", "DigitalOutput"); %Reset pin
-            configurePin(this.a, "D5", "DigitalInput"); %Trigger pin
-            configurePin(this.a, "D6", "DigitalOutput");
-            configurePin(this.a, "D8", "DigitalOutput");
-            toc
-        catch
-            this.Box.use_ball = 0; %All these are automatically off
-            this.Box.use_wheel = 0;
-            this.Box.ardunioReadDigital = 0;
-            this.Box.KeyboardInput = 1;
-            this.Box.readHigh = 0; % When unselected, NosePoke reads HIGH, when selected it reads LOW
-            this.Setting_Struct.Box_Input_type = 8;
-            this.a = [];
-        end
         end
         %Prepare the window and stimulus
         function SetupBeforeLoop(this)
@@ -394,22 +428,25 @@ classdef BehaviorBoxWheel < handle
             fprintf(txt+"\n");
             this.i = 0;
             this.timeout_counter = 0;
-            if this.Setting_Struct.Ramp
-                this.RampCount = 1;
-                this.RampCorrectCount = this.Setting_Struct.RampNum;
-                this.RampMax = this.Setting_Struct.RampMaxLevel;
-                this.RampMin = this.Setting_Struct.RampMinLevel;
-                this.Level = this.Setting_Struct.RampMinLevel;
-                this.RampWhichLevel = 1;
-                this.app.DistractorsSpinner.Value = this.Level;
-                if this.RampMax-this.RampMin <=4
-                    this.PossibleLevels = this.RampMin:1:this.RampMax;
-                elseif this.RampMax-this.RampMin <=5
-                    this.PossibleLevels = unique([1 this.RampMin:2:this.RampMax this.RampMax]);
-                elseif this.RampMax-this.RampMin <=6
-                    this.PossibleLevels = unique([1 this.RampMin:3:this.RampMax this.RampMax]);
-                end
-            end
+            this.CheckTemp();
+            % if this.Setting_Struct.Ramp
+            %     this.RampCount = 1;
+            %     this.RampCorrectCount = this.Setting_Struct.RampNum;
+            %     this.RampMax = this.Setting_Struct.RampMaxLevel;
+            %     this.RampMin = this.Setting_Struct.RampMinLevel;
+            %     this.Level = this.Setting_Struct.RampMinLevel;
+            %     this.RampWhichLevel = 1;
+            %     this.app.DistractorsSpinner.Value = this.Level;
+            %     if this.RampMax-this.RampMin <=5
+            %         this.PossibleLevels = this.RampMin:1:this.RampMax;
+            %     elseif this.RampMax-this.RampMin <=10
+            %         this.PossibleLevels = unique([1 this.RampMin:2:this.RampMax this.RampMax]);
+            %     elseif this.RampMax-this.RampMin <=15
+            %         this.PossibleLevels = unique([1 this.RampMin:3:this.RampMax this.RampMax]);
+            %     else
+            %         this.PossibleLevels = unique([1 this.RampMin:4:this.RampMax this.RampMax]);
+            %     end
+            % end
         end
         %Do some things before each trial
         function BeforeTrial(this)
@@ -450,6 +487,8 @@ classdef BehaviorBoxWheel < handle
                 %Pick next difficulty level, if variable
                 if this.Setting_Struct.Ramp || this.Setting_Struct.EasyTrials
                     [this.Level] = this.PickDifficultyLevel();
+                else
+                    this.Level = this.Setting_Struct.Starting_opacity;
                 end
                 if isvalid(this.fig)
                     [this.StimHistory{this.i,1},this.StimHistory{this.i,2}] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, this.Level); %Plot new stimulus as hidden objects, record positions and angles of the segments
@@ -463,6 +502,31 @@ classdef BehaviorBoxWheel < handle
             [this.fig.Children.findobj('Type','Line').Visible] = deal(0);
             drawnow
             this.ReadyCue(1)
+            %this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.DimColor;
+        end
+        function CheckTemp(this)
+            if this.i == 0 %Setup before main loop:
+                switch 1
+                    case this.Temp_Settings.PerformanceThreshold ~= 0
+                        this.Temp_Active = 1;
+
+                    case this.Temp_Settings.TrialNumber ~= 0
+                        this.Temp_Active = 1;
+                        this.Temp_iStart = this.i;
+                        this.Temp_Countdown = this.Temp_Settings.TrialCount - this.i;
+                    otherwise
+                        this.Temp_Active = 0;
+                end
+            else %After beginning session:
+                switch 1
+                    case this.Temp_Settings.PerformanceThreshold ~= 0
+
+                    case this.Temp_Settings.TrialNumber ~= 0
+
+                    otherwise
+                        this.Temp_Active = 0;
+                end
+            end
         end
         %update GUI numbers before each trial
         function updateGUIbeforeIteration(this)
@@ -479,55 +543,57 @@ classdef BehaviorBoxWheel < handle
         end
         %Pick difficulty level if variable:
         function [current_difficulty] = PickDifficultyLevel(this)
-            if this.Setting_Struct.Ramp
-                if this.i == 1
-                    current_difficulty = this.Setting_Struct.RampMinLevel;
-                    return
-                end
-                try
-                    LastScore = this.Data_Object.current_data_struct.CodedChoice(end);
-                catch
-                    LastScore = 0;
-                end
-                if any(LastScore == [1 2])
-                    this.RampCount = this.RampCount+1;
-                end
-                if this.RampCount > this.RampCorrectCount
-                    this.RampWhichLevel = this.RampWhichLevel+1;
-                    this.RampCount = 1;
-                    if this.RampWhichLevel > numel(this.PossibleLevels)
-                        this.Setting_Struct.Ramp=0;
-                        this.app.RampCheckBox.Value=0;
-                    end
-                end
-                current_difficulty = this.PossibleLevels(this.RampWhichLevel);
-                return
-            end
-            try
-                initLev = this.Setting_Struct.Starting_opacity;
-                list = split(split(this.Setting_Struct.prob_list, ';'), ',');
-                if size(list,2) == 1
-                    list = list';
-                end
-                %Move this to a new fcns and store it in this.PossibleLevels
-                LPlist = cellfun(@str2num, list, 'UniformOutput', false);
-                LPlist(:,1) = cellfun(@(x) x*100, LPlist(:,1), "UniformOutput", false);
-                PossibleLvls = [];
-                for l = LPlist'
-                    Lv = l{2};
-                    p = ceil(l{1}/numel(Lv));
-                    for L = Lv
-                        PossibleLvls = [PossibleLvls repmat(L, 1, p)];
-                    end
-                end
-                CurrentLvLProb = 100 - sum([LPlist{:,1}]); %Probability for current Level
-                PossibleLvls = [PossibleLvls repmat(initLev, 1, CurrentLvLProb)];
-                WhichLevel = randperm(numel(PossibleLvls), 1);
-                current_difficulty = PossibleLvls(WhichLevel);
-            catch
-                current_difficulty = this.Setting_Struct.Starting_opacity;
-                return
-            end
+            % The old way is commented out below:
+            current_difficulty = this.LevelStruct.ChooseLevel();
+            % if this.Setting_Struct.Ramp
+            %     if this.i == 1
+            %         current_difficulty = this.Setting_Struct.RampMinLevel;
+            %         return
+            %     end
+            %     try
+            %         LastScore = this.Data_Object.current_data_struct.CodedChoice(end);
+            %     catch
+            %         LastScore = 0;
+            %     end
+            %     if any(LastScore == [1 2])
+            %         this.RampCount = this.RampCount+1;
+            %     end
+            %     if this.RampCount > this.RampCorrectCount
+            %         this.RampWhichLevel = this.RampWhichLevel+1;
+            %         this.RampCount = 1;
+            %         if this.RampWhichLevel > numel(this.PossibleLevels)
+            %             this.Setting_Struct.Ramp=0;
+            %             this.app.RampCheckBox.Value=0;
+            %         end
+            %     end
+            %     current_difficulty = this.PossibleLevels(this.RampWhichLevel);
+            %     return
+            % end
+            % try
+            %     initLev = this.Setting_Struct.Starting_opacity;
+            %     list = split(split(this.Setting_Struct.prob_list, ';'), ',');
+            %     if size(list,2) == 1
+            %         list = list';
+            %     end
+            %     %Move this to a new fcns and store it in this.PossibleLevels
+            %     LPlist = cellfun(@str2num, list, 'UniformOutput', false);
+            %     LPlist(:,1) = cellfun(@(x) x*100, LPlist(:,1), "UniformOutput", false);
+            %     PossibleLvls = [];
+            %     for l = LPlist'
+            %         Lv = l{2};
+            %         p = ceil(l{1}/numel(Lv));
+            %         for L = Lv
+            %             PossibleLvls = [PossibleLvls repmat(L, 1, p)];
+            %         end
+            %     end
+            %     CurrentLvLProb = 100 - sum([LPlist{:,1}]); %Probability for current Level
+            %     PossibleLvls = [PossibleLvls repmat(initLev, 1, CurrentLvLProb)];
+            %     WhichLevel = randperm(numel(PossibleLvls), 1);
+            %     current_difficulty = PossibleLvls(WhichLevel);
+            % catch
+            %     current_difficulty = this.Setting_Struct.Starting_opacity;
+            %     return
+            % end
         end
         %Update all the settings if the button is ticked
         function UpdateSettings(this)
@@ -567,28 +633,31 @@ classdef BehaviorBoxWheel < handle
             fprintf(msg) %Print this to the Message window
             this.Old_Setting_Struct{end+1} = this.Setting_Struct;
             this.makeTrialStructures(tempSetting_Struct)
+            this.LevelStruct = this.ManyLevels(this.LevelStruct);
             this.Setting_Struct = tempSetting_Struct;
             this.SetIdx = this.SetIdx + 1;
             this.SetUpdate{end+1} = this.i;
             [this.SetStr(end+1), this.Include(end+1)] = this.structureSettings(tempSetting_Struct);
             this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
             [this.Level] = this.Setting_Struct.Starting_opacity;
-            if this.Setting_Struct.Ramp
-                this.RampCount = 1;
-                this.RampCorrectCount = this.Setting_Struct.RampNum;
-                this.RampMax = this.Setting_Struct.RampMaxLevel;
-                this.RampMin = this.Setting_Struct.RampMinLevel;
-                this.Level = this.Setting_Struct.RampMinLevel;
-                this.RampWhichLevel = 1;
-                this.app.DistractorsSpinner.Value = this.Level;
-                if this.RampMax-this.RampMin <=4
-                    this.PossibleLevels = this.RampMin:1:this.RampMax;
-                elseif this.RampMax-this.RampMin <=5
-                    this.PossibleLevels = unique([1 this.RampMin:2:this.RampMax this.RampMax]);
-                elseif this.RampMax-this.RampMin <=6
-                    this.PossibleLevels = unique([1 this.RampMin:3:this.RampMax this.RampMax]);
-                end
-            end
+            % if this.Setting_Struct.Ramp
+            %     this.RampCount = 1;
+            %     this.RampCorrectCount = this.Setting_Struct.RampNum;
+            %     this.RampMax = this.Setting_Struct.RampMaxLevel;
+            %     this.RampMin = this.Setting_Struct.RampMinLevel;
+            %     this.Level = this.Setting_Struct.RampMinLevel;
+            %     this.RampWhichLevel = 1;
+            %     this.app.DistractorsSpinner.Value = this.Level;
+            %     if this.RampMax-this.RampMin <=5
+            %         this.PossibleLevels = this.RampMin:1:this.RampMax;
+            %     elseif this.RampMax-this.RampMin <=10
+            %         this.PossibleLevels = unique([1 this.RampMin:2:this.RampMax this.RampMax]);
+            %     elseif this.RampMax-this.RampMin <=15
+            %         this.PossibleLevels = unique([1 this.RampMin:3:this.RampMax this.RampMax]);
+            %     else
+            %         this.PossibleLevels = unique([1 this.RampMin:4:this.RampMax this.RampMax]);
+            %     end
+            % end
         end
         %Choose if Left or Right will be correct
         function isLeftTrial = PickSideForCorrect(this, isLeftTrial, SB)
@@ -836,7 +905,7 @@ classdef BehaviorBoxWheel < handle
                         %Otherwise the ready cue immediately turns dim when it appears, and mice poke L/R to see the blink instead of recognizing the bright dot
                     end
                     while ~get(this.stop_handle, 'Value') %While the stop button has not been pressed
-                        drawnow %Update the buttons
+                        pause(0.1); drawnow; %Update the buttons
                         if this.Setting_Struct.IntertrialMalCancel && this.Box.readL() | this.Box.readR()
                             %this.ReadyCue('k') %Make the ReadyCue black
                             this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'ReadyCueDot'), 'Mal')
@@ -957,7 +1026,7 @@ classdef BehaviorBoxWheel < handle
                 [x.Visible] = deal(1);
             end
             this.fig.Color = this.StimulusStruct.BackgroundColor;
-            this.ReadyCue(0);
+            this.ReadyCue(0); drawnow
             %ignore input if set
             t1 = datetime("now");
             while this.Setting_Struct.Input_ignored & seconds(datetime("now")-t1)<this.Setting_Struct.Pokes_ignored_time
@@ -977,7 +1046,7 @@ classdef BehaviorBoxWheel < handle
                 otherwise
                     [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial);
             end
-            if this.Box.Input_type==6
+            if this.Box.Input_type == 6
                 pause(this.Setting_Struct.Input_Delay_Respond)
                 try
                     d = this.fig.Children.findobj('Tag', 'Distractor');
@@ -1830,7 +1899,7 @@ classdef BehaviorBoxWheel < handle
                 end
             end
             function RQFlash()
-                if [Lines.Type] == "scatter"
+                if [Lines.Type] == "scatter" %Nose
                     r = 1 ;
                     for StimRep = 1:Reps
                         [Lines.MarkerFaceColor] = deal(flash_color); drawnow
@@ -1840,7 +1909,7 @@ classdef BehaviorBoxWheel < handle
                             pause(1/Freq/2)
                         end
                     end
-                elseif [Lines(1).Type] == "polygon"
+                elseif [Lines(1).Type] == "polygon" %Wheel
                     for StimRep = 1:Reps
                         [Lines.FaceColor] = deal(flash_color); drawnow
                         pause(1/Freq/6)
