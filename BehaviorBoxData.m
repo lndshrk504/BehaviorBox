@@ -56,7 +56,7 @@ classdef BehaviorBoxData < handle
         Shape_code = {'o', 's', '^', 'd', 'p', 'h', 'o', '*', 'd', 'p', 'o', 'h', '^', 'd', 'p', '*', 'o', '*', 'd', 'h'};
     end
     methods
-        %constructor 
+        %constructor
         function this = BehaviorBoxData(options)
             arguments
                 options.Inv (1,:) char = 'Will';
@@ -105,7 +105,8 @@ classdef BehaviorBoxData < handle
         end
         %INPUT INTERFACE FUNCTIONS ==== %log all activity here, which then gets passed to organize
         function GetStartTime(this)
-            this.start_time = clock; %Start time is after the mouse begins the first trial
+            %this.start_time = clock; %Start time is after the mouse begins the first trial
+            this.start_time = datetime("now");
         end
         function AddData(this, Level, isLeftTrial, WhatDecision, RewardPulses, InterTMal, DuringTMal, TrialStartTime, ResponseTime, DrinkTime, BetweenTrialTime, SideBias, SetIdx, SetStr)
             CodedChoice = convertEnum(WhatDecision);
@@ -137,7 +138,8 @@ classdef BehaviorBoxData < handle
             %this.LevelHist.MM = cellfun(@(x)this.LevelMMAnalysis(x), this.LevelHist.LastScores, "ErrorHandler",@errorFuncNaN);
         end
         function addStimEvent(this, ~) %Get the timestamp of when the stimulus appeared
-            this.current_data_struct.TimeStamp(end+1) = etime(clock,  this.start_time)/60; %elapsed time in minutes since starting first trial
+            %this.current_data_struct.TimeStamp(end+1) = etime(clock,  this.start_time)/60; %elapsed time in minutes since starting first trial
+            this.current_data_struct.TimeStamp(end+1) = minutes(datetime("now")-this.start_time);
         end
         function [data] = addDataRow(this, add) %This fx adds the data from each trial to the data_struct
             %Match the field names and concatenate data with values in add
@@ -306,10 +308,8 @@ classdef BehaviorBoxData < handle
                 % Lev = cellfun(@(x) getLev(x), StimHist, 'UniformOutput', false);
                 c = 0;
                 for d = days
-                    Out = struct();
                     bigSession = struct;
                     sessions = struct;
-                    StimHist = [];
                     c = c+1;
                     dayData.((mouse)){c,2} = d;
                     wD = vertcat(allData{:,2}) == d;
@@ -455,51 +455,39 @@ classdef BehaviorBoxData < handle
             Out.LevelTbls = cell(numSubs);
             Out.DayMM = cell(numSubs);
             Out.LevelMM = cell(numSubs);
-            sc = 0;
+            SC = 0;
             for S = struct2cell(this.DayData)'
-                sc = sc + 1;
+                SC = SC + 1;
                 data = S{:}(:,3);
-                %[g, groups] = inspectAllSettings(SData)
-                %names = cellfun(@(x)fieldnames(x),data,'UniformOutput',false);
                 SDData = struct();
                 for f = {'Date','TrialNum','LvlTrialNum','BigBin','SmallBin','TimeStamp','Score','Level','isLeftTrial','CodedChoice','Include'}
                     fn = f{:};
                     SDData.(fn) = cell2mat(cellfun(@(x)x.(fn), data, 'UniformOutput', false));
                 end
-                % SDData = cell2mat(data);
-                % TrialTblStruct = struct();
-                % for f = fieldnames(SDData)'
-                %     try
-                %         n = f{:};
-                %         TrialTblStruct.(n) = vertcat(SDData.(n));
-                %     end
-                % end
-                % TrialTblStruct = rmfield(TrialTblStruct, {'SetStr', 'Settings'});
-                % trialTbl = struct2table(TrialTblStruct);
                 trialTbl = struct2table(SDData);
                 trialTbl.Level = round(trialTbl.Level);
                 trialTbl = this.getLevelTNums(trialTbl);
-                Out.TrialTbls{sc} = trialTbl;
+                Out.TrialTbls{SC} = trialTbl;
                 this.trial_table = trialTbl;
                 [allDates, Ds] = findgroups(trialTbl.Date');
-                Out.SplitTbls{sc} = cellfun(@SplitDayLevels, num2cell(Ds), "UniformOutput", false);
-                Out.DayMM{sc} = table;
+                Out.SplitTbls{SC} = cellfun(@SplitDayLevels, num2cell(Ds), "UniformOutput", false);
+                Out.DayMM{SC} = table;
                 try
-                    [G,Out.DayMM{sc}.Ds,Out.DayMM{sc}.Ls] = findgroups(trialTbl.Date, trialTbl.Level);
-                    Out.DayMM{sc}.DayNums = num2cell(findgroups(Out.DayMM{sc}.Ds));
-                    Out.DayMM{sc}.dayBin = splitapply(@(x){this.DayBin(x)}, [trialTbl.Score trialTbl.Level trialTbl.Date allDates'], G);
-                    Out.DayMM{sc} = sortrows(Out.DayMM{sc}, {'Ls'});
+                    [G,Out.DayMM{SC}.Ds,Out.DayMM{SC}.Ls] = findgroups(trialTbl.Date, trialTbl.Level);
+                    Out.DayMM{SC}.DayNums = num2cell(findgroups(Out.DayMM{SC}.Ds));
+                    Out.DayMM{SC}.dayBin = splitapply(@(x){this.DayBin(x)}, [trialTbl.Score trialTbl.Level trialTbl.Date allDates'], G);
+                    Out.DayMM{SC} = sortrows(Out.DayMM{SC}, {'Ls'});
                 catch Err
-                    Err
+                    unwrapErr(Err);
                 end
                 [G, ~] = findgroups(trialTbl.Level);
                 Levels = num2cell(1:20);
-                Out.LevelTbls{sc} = cellfun(@(x){trialTbl(trialTbl.Level==x,:)}, Levels, "UniformOutput", true);
+                Out.LevelTbls{SC} = cellfun(@(x){trialTbl(trialTbl.Level==x,:)}, Levels, "UniformOutput", true);
                 this.LevelHist.LastScores = cellfun(@(x){trialTbl(trialTbl.Level==x,:).Score(end-100:end)}, Levels, "ErrorHandler",@errorFuncZeroCell);
                 %this.LevelHist.MM = cellfun(@(x)this.LevelMMAnalysis(x), this.LevelHist.LastScores, "ErrorHandler",@errorFuncNaN);
-                Out.LevelMM{sc} = splitapply(@(x)this.LevelMMAnalysis(x), [trialTbl.Score allDates' trialTbl.Include], G)';
-                Out.LevelMM{sc}(cellfun(@isempty,Out.LevelMM{sc})) = [];
-                MaxLPerf = cellfun(@(x)max(x(:,1)), Out.LevelMM{sc}, "ErrorHandler", @errorFuncZeroCell, 'UniformOutput', true);
+                Out.LevelMM{SC} = splitapply(@(x)this.LevelMMAnalysis(x), [trialTbl.Score allDates' trialTbl.Include], G)';
+                Out.LevelMM{SC}(cellfun(@isempty,Out.LevelMM{SC})) = [];
+                MaxLPerf = cellfun(@(x)max(x(:,1)), Out.LevelMM{SC}, "ErrorHandler", @errorFuncZeroCell, 'UniformOutput', true);
                 this.MaxLevel = find(MaxLPerf>=0.8, 1, 'last')+1;
             end
             this.AnalyzedData = Out;
@@ -509,22 +497,16 @@ classdef BehaviorBoxData < handle
                 varargout{1} = Out;
             end
             function Out = SplitDayLevels(D)
-                [~, Ls] = findgroups(trialTbl.Level');
+                % [~, Ls] = findgroups(trialTbl.Level');
                 r = trialTbl.Date==D;
                 Dtbl = trialTbl(r,:);
                 Out = Dtbl;
                 %Out = cellfun(@(x)Dtbl(Dtbl.Level==x,:), num2cell(Ls), "UniformOutput", false)';
             end
         end
-        function Out = SplitDayLevels(this, D)
-            [~, Ls] = findgroups(this.trialTbl.Level');
-            r = this.trialTbl.Date==D;
-            Dtbl = this.trialTbl(r,:);
-            Out = Dtbl;
-        end
         function Out = LevelMMAnalysis(this, L)
             try
-                noT = L(L(:,1)~=2,:);
+                % noT = L(L(:,1)~=2,:);
                 Inc = L(L(:,1)~=2,3);
                 scores = L(L(:,1)~=2,1);
                 bMM = this.MM(scores,"Type","Big");
@@ -534,17 +516,18 @@ classdef BehaviorBoxData < handle
                 D = L(L(:,1)~=2,2);
                 XCoord = zeros(size(D));
                 XCoordLevDay = zeros(size(D));
-                offset = D(1);
-                dc = 0;
+                % offset = D(1);
+                DC = 0;
                 for d = unique(D')
-                    dc = dc + 1;
+                    DC = DC + 1;
                     w = D==d;
                     x = 1:numel(D(w));
                     XCoord(w) = (d-1)+normalize(x, 'range');
-                    XCoordLevDay(w) = (dc-1)+normalize(x, 'range');
+                    XCoordLevDay(w) = (DC-1)+normalize(x, 'range');
                 end
                 Out = {[bMM bSD XCoord(this.BB:end) XCoordLevDay(this.BB:end) Inc(this.BB:end)]};
             catch Err
+                unwrapErr(Err)
                 if size(L,2)==1
                     Out = {[bMM bSD]};
                 else
@@ -576,10 +559,10 @@ classdef BehaviorBoxData < handle
                 txt = string(cellfun(@(x){num2str(round(100*x,1))}, num2cell(binned)));
                 %Moving mean Stuff
                 sMM = movmean( [0.5 ; these], [this.SB-1 0], 'Endpoints', 'shrink')';
-                bMM = movmean( [0.5 ; these], [this.BB-1 0], 'Endpoints', 'discard')';
+                % bMM = movmean( [0.5 ; these], [this.BB-1 0], 'Endpoints', 'discard')';
                 xMM = normalize(1:numel(sMM),'range');
                 sCross = find( movmean( [0.5 ; these], [this.SB-1 0], 'Endpoints', 'shrink')'>=0.8, 1, 'first'); %When did today's performance cross the threshold?
-                bCross = find( movmean( [these], [this.BB-1 0], 'Endpoints', 'shrink')'>=0.8, 1, 'first'); %When did today's performance cross the threshold?
+                bCross = find( movmean( these, [this.BB-1 0], 'Endpoints', 'shrink')'>=0.8, 1, 'first'); %When did today's performance cross the threshold?
                 if isempty(sCross)
                     sCross = NaN;
                 end
@@ -663,7 +646,7 @@ classdef BehaviorBoxData < handle
                     graphFig.Children.Title.String = title;
                     this.PlotNewData();
                     FileDir = [this.filedir{this.sc} filesep 'DayRec' filesep];
-                    if ~exist(FileDir)
+                    if ~exist(FileDir,"dir")
                         mkdir(FileDir)
                     end
                     filename = FileDir+"Day_"+this.dc+"_"+this.date+"_"+this.Sub{this.sc}+"_Rec";
@@ -680,10 +663,10 @@ classdef BehaviorBoxData < handle
             end
             try
                 setGUI(this.current_data_struct, this.GUInum)
-                try
-                    %this.plotTimerHists(this.Axes, this.current_data_struct)
-                catch
-                end
+                % try
+                %     this.plotTimerHists(this.Axes, this.current_data_struct)
+                % catch
+                % end
                 %this.plotTrialHistory(this.Axes.TrialHistory, this.current_data_struct)
                 this.plotBinnedPerformance(this.Axes.BinnedPerf, this.current_data_struct)
                 this.plotAllLevelPerformance()
@@ -736,13 +719,13 @@ classdef BehaviorBoxData < handle
                     end
                     [b.CData(LRT{s},:)] = repmat(colors{s}, numel(LRT{s}), 1);
                 end
-                dat = Data.Score(Data.Score ~=2);
+                % dat = Data.Score(Data.Score ~=2);
                 y = movmean([0.5 ; Data.Score(Data.Score ~=2)], [this.BB-1 0], "Endpoints", "shrink");
                 x = (0:(numel(y)-1))';
                 try
                     cPerf = plot(x, y, 'Parent',Ax);
                 catch err
-                    err
+                    unwrapErr(err)
                 end
                 cPerf.LineWidth = 2;
                 cPerf.Color = 'w';
@@ -758,6 +741,7 @@ classdef BehaviorBoxData < handle
                 end
                 Ax.XLimitMethod = "tight";
                 Ax.XLim = [0.5 numel(Data.Score)+0.5];
+            catch
             end
         end
         function plotSideBias(this, Ax, D)
@@ -805,7 +789,7 @@ classdef BehaviorBoxData < handle
                 [~,Lidx]=sort(SortData(:,1));
                 SortData = SortData(Lidx,:);
                 halfFull = sum(SortData(:,[4 5 6]),2)<this.BB;
-                smallszs(halfFull) = sum(SortData(halfFull,[4 5 6]),2);%Find which rows were not full bins
+                %smallszs(halfFull) = sum(SortData(halfFull,[4 5 6]),2);%Find which rows were not full bins
                 %SortData = [SortData(~halfFull,:) ; SortData(halfFull,:)]; %Put the empty bins last
                 [m,~] = size(SortData);
                 [~, Levels] = findgroups(SortData(:,1)');
@@ -848,7 +832,7 @@ classdef BehaviorBoxData < handle
                     try
                         Perf2.Marker = Perf.Marker;
                         p.SeriesIndex = L;
-                        p2.SeriesIndex = L;
+                        % p2.SeriesIndex = L;
                     catch
                     end
                     Perf2.MarkerFaceColor = "auto";
@@ -889,10 +873,9 @@ classdef BehaviorBoxData < handle
             Ax = this.Axes.AllLevelPerf; hold(Ax, "on");
             for L = this.current_data_struct.LevelGroups
                 w = Data.Level==L & Data.Score~=2;
-                score = Data.Score(w);
+                score = [0.5 ; Data.Score(w)];
                 x = [0 ; tnum(w)]; %Add point [0, 50%] because at trial #0 the mouse is at 50% (chance) performance, every day you assume the mouse starts from "chance"
                 x(1) = x(2)-1;
-                score = [0.5 ; score];
                 yB = movmean(score, [this.BB-1,0],"Endpoints","shrink");
                 yS = movmean(score, [this.SB-1,0],"Endpoints","shrink");
                 try
@@ -974,7 +957,7 @@ classdef BehaviorBoxData < handle
                 %Level count at y = 0.48
                 y = 0.48*ones(size(LvIdx));
                 countTxt = cellfun(@(x) num2str(x), Avgs(5,:), 'UniformOutput', false);
-                t = text(LvIdx, y, countTxt, ...
+                text(LvIdx, y, countTxt, ...
                     'Parent', Ax, ...
                     'HorizontalAlignment','center', ...
                     'FontSize',8);
@@ -1014,13 +997,13 @@ classdef BehaviorBoxData < handle
             if opts.Group
                 %close all
                 Trial = cellfun(@(x)this.GroupTrialsToPass(Sc=x), Num, "UniformOutput",false);
-                P = this.PlotGroupTrialsToPass(Trial);
+                this.PlotGroupTrialsToPass(Trial);
                 %this.SaveManyFigures([],'TrialsTo', SameFolder=1)
             end
             if opts.LevGroup
                 %LevDay = cellfun(@(x){this.PlotLevelGroupsByLevel(Sc=x)}, Num);
                 close all
-                LevDay = cellfunp(@(x){this.PlotLevelGroupsByDay(Sc=x)}, Num); drawnow
+                cellfunp(@(x){this.PlotLevelGroupsByDay(Sc=x)}, Num); drawnow
                 this.SaveManyFigures([],'LevelGroup', SameFolder=1)
             end
             if opts.LevMM
@@ -1030,7 +1013,7 @@ classdef BehaviorBoxData < handle
                 cellfun(@(x) set(x, 'Visible', 'on'), ACell)
             end
             if opts.Stim
-                figs = this.PlotStimulusHistory();
+                this.PlotStimulusHistory();
             end
             time = toc;
             fprintf("Total time: " + time + " seconds.\n")
@@ -1042,53 +1025,53 @@ classdef BehaviorBoxData < handle
                 options.count double = 10
                 options.tol double = 0
             end
-        try
-            tic
-            SUB = this.Sub{options.Sc};
-%Get moving means of accuracy over the last 60 (big bin) trials
-            Ldat = this.AnalyzedData.LevelMM{options.Sc};
-            Ldat(cellfun(@(x) all(isnan(x),'all'),Ldat,'UniformOutput',true)) = [];
-%Find the trial number when the mouse's performance crossed over a
-%specified threshold:
-% Threshold for the last 60 (big bin) trials:
-%   accuracy above 80%
-%   std of 0  (based on small bins)
-%   for 3 consecutive trials
-%          overThresh = cellfun(@(x)find(x(:,1)>=0.8 & x(:,2)<=0.03), Ldat, 'UniformOutput', false);  %  Need to filter out Left/Right only trials, at least for level 1 only
-            overThresh = cellfun(@(x)find(x(:,1)>=0.8 & x(:,5)==1)+this.BB, Ldat, 'UniformOutput', false);
-            Trial = cellfun(@(x) this.consecutiveTrial(x, options.count, options.tol), overThresh, "UniformOutput",true);
-            % if any(isnan(Trial)) % IF they have not passed then use the total number
-            %     Trial(1,isnan(Trial)) = size(Ldat{:},1);
-            % end
-% Find the trial number when the mouse had been above threshold for 3
-% consecutive trials and get the LevelTrialNumber (the count of individual trials at the 
-% specified Level that the mouse has seen)
-            Ttbl = this.AnalyzedData.TrialTbls{options.Sc};
-            Ttbl = Ttbl(Ttbl.Score~=2,:);
-% Use that number to find how many trials of each difficulty the mouse had
-% seen before the trial on which they "passed" each level
-            SumCount = cell(size(Trial));
-            c = 0;
-            for L = Trial
-                c = c+1;
-                if isnan(L) %If its nan they have not passed this level so count every trial they've see so far
-                    SC = histcounts(Ttbl.Level); SC(21) = 0; SC(21) = [];
-                    SumCount{c} = SC;
-                    Trial(c) = SC(c);
-                    continue
+            try
+                tic
+                % SUB = this.Sub{options.Sc};
+                %Get moving means of accuracy over the last 60 (big bin) trials
+                Ldat = this.AnalyzedData.LevelMM{options.Sc};
+                Ldat(cellfun(@(x) all(isnan(x),'all'),Ldat,'UniformOutput',true)) = [];
+                %Find the trial number when the mouse's performance crossed over a
+                %specified threshold:
+                % Threshold for the last 60 (big bin) trials:
+                %   accuracy above 80%
+                %   std of 0  (based on small bins)
+                %   for 3 consecutive trials
+                %          overThresh = cellfun(@(x)find(x(:,1)>=0.8 & x(:,2)<=0.03), Ldat, 'UniformOutput', false);  %  Need to filter out Left/Right only trials, at least for level 1 only
+                overThresh = cellfun(@(x)find(x(:,1)>=0.8 & x(:,5)==1)+this.BB, Ldat, 'UniformOutput', false);
+                Trial = cellfun(@(x) this.consecutiveTrial(x, options.count, options.tol), overThresh, "UniformOutput",true);
+                % if any(isnan(Trial)) % IF they have not passed then use the total number
+                %     Trial(1,isnan(Trial)) = size(Ldat{:},1);
+                % end
+                % Find the trial number when the mouse had been above threshold for 3
+                % consecutive trials and get the LevelTrialNumber (the count of individual trials at the
+                % specified Level that the mouse has seen)
+                Ttbl = this.AnalyzedData.TrialTbls{options.Sc};
+                Ttbl = Ttbl(Ttbl.Score~=2,:);
+                % Use that number to find how many trials of each difficulty the mouse had
+                % seen before the trial on which they "passed" each level
+                SumCount = cell(size(Trial));
+                c = 0;
+                for L = Trial
+                    c = c+1;
+                    if isnan(L) %If its nan they have not passed this level so count every trial they've see so far
+                        SC = histcounts(Ttbl.Level); SC(21) = 0; SC(21) = [];
+                        SumCount{c} = SC;
+                        Trial(c) = SC(c);
+                        continue
+                    end
+                    try
+                        w = Ttbl.LvlTrialNum == L & Ttbl.Level == c;
+                        SC = histcounts(Ttbl.Level(1:find(w))); SC(21) = 0; SC(21) = [];
+                        SumCount{c} = SC;
+                    catch
+                        SC = histcounts(Ttbl.Level); SC(21) = 0; SC(21) = [];
+                        SumCount{c} = SC;
+                    end
                 end
-                try
-                w = Ttbl.LvlTrialNum == L & Ttbl.Level == c;
-                SC = histcounts(Ttbl.Level(1:find(w))); SC(21) = 0; SC(21) = [];
-                SumCount{c} = SC;
-                catch
-                    SC = histcounts(Ttbl.Level); SC(21) = 0; SC(21) = [];
-                    SumCount{c} = SC;
-                end
+                Out = [ num2cell(Trial) ; SumCount]; % NEW - [Out ; SumCount], change following code...
+            catch
             end
-            Out = [ num2cell(Trial) ; SumCount]; % NEW - [Out ; SumCount], change following code...
-        catch
-        end
         end
         function Out = consecutiveTrial(this, vec, count, tol)
             arguments
@@ -1104,7 +1087,7 @@ classdef BehaviorBoxData < handle
                 if Nums(end)-Nums(1) <= ((count-1) + tol)
                     Out = vec(v);
                     return
-                end 
+                end
             end
             Out = NaN;
         end
@@ -1129,7 +1112,7 @@ classdef BehaviorBoxData < handle
             for A = AlltrialsTo
                 Ac = Ac+1;
                 Empty = cellfun(@(x) all(isnan(x)), A', 'UniformOutput', true);
-                AlltrialsTo(Empty,Ac) = deal( { AlltrialsTo{ find(~Empty,1,'last') ,Ac}});
+                AlltrialsTo(Empty,Ac) = deal( { AlltrialsTo { find(~Empty,1,'last') ,Ac}});
             end
             Het = contains(this.Sub, '- Het');
             WT = ~Het;
@@ -1146,9 +1129,9 @@ classdef BehaviorBoxData < handle
             geneID = strings(1,6);
             geneID(Het) = "Het";
             geneID(~Het) = "WT";
-    %Now add sex ID to separate by sex
+            %Now add sex ID to separate by sex
             Levs = size(T,1);
-    %Turn T into a table and stack T based on the level
+            %Turn T into a table and stack T based on the level
             c = 0;
             lc = 0;
             BigY = [];
@@ -1214,18 +1197,18 @@ classdef BehaviorBoxData < handle
                     if c == 1
                         %continue
                     end
-                try
-                    %remove empties and NaNs from L
-                    L(cellfun(@(x) all(isnan(x)),L)) = deal({zeros(1,20)});
-                    d = cell2mat(L);
-                    % d(:,1) = []; % To remove level 1 from graph
-                    hT = d(Het,1:c);
-                    wT = d(WT,1:c);
-                    B = bar([hT ; mean(hT(~all(hT==0,2),:),1) ; mean(wT(~all(wT==0,2),:),1) ; wT], 'stacked', 'Parent', Ax);
-                    xline([size(hT,1)+0.5 size(hT,1)+2.5])
-                    Ax = nexttile(Ax.Parent);
-                catch
-                end
+                    try
+                        %remove empties and NaNs from L
+                        L(cellfun(@(x) all(isnan(x)),L)) = deal({zeros(1,20)});
+                        d = cell2mat(L);
+                        % d(:,1) = []; % To remove level 1 from graph
+                        hT = d(Het,1:c);
+                        wT = d(WT,1:c);
+                        B = bar([hT ; mean(hT(~all(hT==0,2),:),1) ; mean(wT(~all(wT==0,2),:),1) ; wT], 'stacked', 'Parent', Ax);
+                        xline([size(hT,1)+0.5 size(hT,1)+2.5])
+                        Ax = nexttile(Ax.Parent);
+                    catch
+                    end
                 end
             end
         end
@@ -1455,39 +1438,39 @@ classdef BehaviorBoxData < handle
                             'SeriesIndex',L(4), 'Parent',Ax);
                         E.MarkerFaceColor = E.Color;
                         E.CapSize = 1;
-                    %Plot bars
-                    switch L(4)
-                        case 1
-                            LvAX = A1;
-                        case 2
-                            LvAX = A2;
-                        case 3
-                            LvAX = A3;
-                        case 4
-                            LvAX = A4;
-                        case 5
-                            LvAX = A5;
-                        case 6
-                            LvAX = A6;
-                        case 7
-                            LvAX = A7;
-                        case 8
-                            LvAX = A8;
-                        case 9
-                            LvAX = A9;
-                        case 10
-                            LvAX = A10;
-                        case 11
-                            LvAX = A11;
-                        case 12
-                            LvAX = A12;
-                        case 13
-                            LvAX = A13;
-                        case 14
-                            LvAX = A14;
-                        case 15
-                            LvAX = A15;
-                    end
+                        %Plot bars
+                        switch L(4)
+                            case 1
+                                LvAX = A1;
+                            case 2
+                                LvAX = A2;
+                            case 3
+                                LvAX = A3;
+                            case 4
+                                LvAX = A4;
+                            case 5
+                                LvAX = A5;
+                            case 6
+                                LvAX = A6;
+                            case 7
+                                LvAX = A7;
+                            case 8
+                                LvAX = A8;
+                            case 9
+                                LvAX = A9;
+                            case 10
+                                LvAX = A10;
+                            case 11
+                                LvAX = A11;
+                            case 12
+                                LvAX = A12;
+                            case 13
+                                LvAX = A13;
+                            case 14
+                                LvAX = A14;
+                            case 15
+                                LvAX = A15;
+                        end
                         B = bar((d-1), L([5 6]), 'Parent',LvAX, 'EdgeColor','none',SeriesIndex=L(4),BarWidth=1);
                         %C = bar((d-1), L(6), 'Parent',Az, 'EdgeColor','none',SeriesIndex=L(4),BarWidth=0.1); hold(Az, 'on')
                     end
@@ -2436,8 +2419,8 @@ classdef BehaviorBoxData < handle
             function SvFig(Name, Props, options)
                 if options.format == ".pdf"
                     print(Name, Props, '-dpdf', ...
-                            '-vector', ...
-                            '-fillpage')
+                        '-vector', ...
+                        '-fillpage')
                 end
             end
             %winopen(SaveAsName)
