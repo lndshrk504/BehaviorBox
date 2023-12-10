@@ -89,6 +89,7 @@ classdef BehaviorBoxData < handle
             if ~options.find && options.analyze
                 try
                     this.AnalyzeAllData();
+                catch
                 end
                 if options.plot && numel(this.Sub)==1
                     f = this.plotLvByDayOneAxis();
@@ -164,7 +165,7 @@ classdef BehaviorBoxData < handle
                         this.current_data_struct.(fold{strcmpi(fold, x)})(end+1) = add.(x); %horizontal concatenate
                     end
                 catch err
-                    %err
+                    unwrapErr(err)
                 end
             end
             data = this.CleanData();
@@ -180,10 +181,10 @@ classdef BehaviorBoxData < handle
             dirlist = dirlist([dirlist.isdir] & ...
                 ~contains({dirlist.name}, {'.', 'settings', 'alltime', 'Rescued'}, 'IgnoreCase',true) ...
                 & contains({dirlist.name}, this.Sub, "IgnoreCase",true));
-            a = []; b = [];
             try
-                [a,b]=findgroups({dirlist.folder}');
+                [~,b]=findgroups({dirlist.folder}');
                 dirPath = cellfun(@(x) fullfile(b{:}, x), {dirlist.name}' , 'UniformOutput', false);
+            catch
             end
             filelist = dir(fullfile(GetFilePath("Data"), this.Inv,this.Inp, '**', '*.mat'));
             filelist = filelist(contains({filelist.name}, this.Sub) & ~contains({filelist.name}, 'settings', 'IgnoreCase',true));
@@ -209,6 +210,7 @@ classdef BehaviorBoxData < handle
                         else
                             try
                                 mkdir(newpath{:})
+                            catch
                             end
                             fprintf("New strain, folders will be created when saving data...\n")
                             subfiledir = newpath;
@@ -252,6 +254,7 @@ classdef BehaviorBoxData < handle
                         tree = split(direc, filesep);
                         this.Sub = tree(end);
                         this.Str = tree{end-1};
+                    catch
                     end
                 end
             end
@@ -403,6 +406,7 @@ classdef BehaviorBoxData < handle
                     try
                         bigSession.Include = Include(bigSession.SetIdx);
                     catch Err
+                        unwrapErr(Err)
                         bigSession.Include = ones(size(bigSession.Score)); %For any data that was rescued, there are no settings
                     end
                     bigSession.SetStr = SetStr;
@@ -693,7 +697,7 @@ classdef BehaviorBoxData < handle
                 this.plotSideBias(this.Axes.SideBias, this.current_data_struct)
                 this.plotLevelPerf(this.Axes.LevelCount, this.current_data_struct)
             catch err
-                %unwrapErr(err)
+                unwrapErr(err)
             end
         end
         function plotTimerHists(this, ~, Data)
@@ -844,6 +848,7 @@ classdef BehaviorBoxData < handle
                     Perf.MarkerMode = "auto";
                     try
                         Perf.Marker = this.Shape_code{L};
+                    catch
                     end
                     Perf.MarkerSize = 9;
                     Perf2 = scatter( total(halffullrows) , SortData(halffullrows,2) , 'Parent', Ax);
@@ -851,6 +856,7 @@ classdef BehaviorBoxData < handle
                         Perf2.Marker = Perf.Marker;
                         p.SeriesIndex = L;
                         p2.SeriesIndex = L;
+                    catch
                     end
                     Perf2.MarkerFaceColor = "auto";
                     Perf2.MarkerFaceColor = 'flat';
@@ -865,6 +871,7 @@ classdef BehaviorBoxData < handle
                         'Parent',Ax, ...
                         'HorizontalAlignment','center', ...
                         'VerticalAlignment','Top')
+                catch
                 end
                 text(total, SortData(:,2), num2cell(round(SortData(:,2),4)*100), ...
                     'Parent',Ax, ...
@@ -912,6 +919,7 @@ classdef BehaviorBoxData < handle
             top = min([max(yB)+0.001 1.05]);
             try
                 Ax.YLim = [0.501 top];
+            catch
             end
             %Change limits, ticks, grids:
             Ax.XLim = [0.5 numel(tnum)+0.5];
@@ -958,6 +966,7 @@ classdef BehaviorBoxData < handle
                                 "YJitter","density");
                             dots.CData = s.Color;
                         end
+                    catch
                     end
                 end
                 %Big average on scatter point
@@ -1085,6 +1094,7 @@ classdef BehaviorBoxData < handle
                 end
             end
             Out = [ num2cell(Trial) ; SumCount]; % NEW - [Out ; SumCount], change following code...
+        catch
         end
         end
         function Out = consecutiveTrial(this, vec, count, tol)
@@ -1199,6 +1209,7 @@ classdef BehaviorBoxData < handle
                         xlim tight
                         Ax.Box = 0;
                     end
+                catch
                 end
             end
             %this.SaveManyFigures([],'TrialsTo', SameFolder=1)
@@ -1220,6 +1231,7 @@ classdef BehaviorBoxData < handle
                     B = bar([hT ; mean(hT(~all(hT==0,2),:),1) ; mean(wT(~all(wT==0,2),:),1) ; wT], 'stacked', 'Parent', Ax);
                     xline([size(hT,1)+0.5 size(hT,1)+2.5])
                     Ax = nexttile(Ax.Parent);
+                catch
                 end
                 end
             end
@@ -1338,6 +1350,7 @@ classdef BehaviorBoxData < handle
                             newColor = SmallPlot.Color * 1.5;
                             newColor(newColor>1) = 1;
                             SmallPlot.Color = newColor;
+                        catch
                         end
                         %Daily bin values:
                         try
@@ -1355,6 +1368,7 @@ classdef BehaviorBoxData < handle
                                     "VerticalAlignment","bottom", ...
                                     "FontSize",6);
                             end
+                        catch
                         end
                     end
                 end
@@ -1436,7 +1450,7 @@ classdef BehaviorBoxData < handle
                     bCROSS = cellfun(@(x)x{11} ,Ld, "UniformOutput", true, "ErrorHandler", @errorFuncNaN)';
                     sCROSS = cellfun(@(x)x{10} ,Ld, "UniformOutput", true, "ErrorHandler", @errorFuncNaN)';
                 catch err
-                    err;
+                    unwrapErr(err);
                 end
                 x = (d-1)+Xrange;
                 y = AVG-1;
@@ -1567,7 +1581,7 @@ classdef BehaviorBoxData < handle
                         NUM = cellfun(@(x)x{4} ,Ld(wD), "UniformOutput", true)';
                         STD = cellfun(@(x)x{6} ,Ld(wD), "UniformOutput", true)';
                     catch err
-                        err;
+                        unwrapErr(err);
                     end
                     if numel(LevIdx)>1
                         1;
@@ -1580,7 +1594,7 @@ classdef BehaviorBoxData < handle
                         tDAT(:, isnan(LevIdx) ) = [];
                         DAT = mat2cell( tDAT , 4, [ones( size(tDAT,2) ,1)] );
                     catch err
-                        err;
+                        unwrapErr(err);
                     end
                     Plots = cellfun(@(x){plotLv(x)}, DAT);
                 end
@@ -1750,7 +1764,7 @@ classdef BehaviorBoxData < handle
                         %
                         % end
                     catch err
-                        err;
+                        unwrapErr(err);
                     end
                 end
                 HistT = struct2table(BigHist);
