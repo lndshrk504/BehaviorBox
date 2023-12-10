@@ -71,14 +71,7 @@ classdef BehaviorBoxData < handle
                 options.find logical = false;
             end
             %Apply inputs
-            b = properties(this);
-            o = fieldnames(options);
-            for n = b(matches(b,o))'
-                try
-                    this.(n{:}) = options.(n{:});
-                catch
-                end
-            end
+            this = copytoStruct(this, options);
             this.date = char(datetime("now", "Format","yyMMdd"));
             [~,~,this.SBidx] = histcounts((1:this.BB)', [1:this.SB:this.BB inf]);
             %Find subject data
