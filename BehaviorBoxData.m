@@ -298,7 +298,6 @@ classdef BehaviorBoxData < handle
                 w = contains(allData(:,6), name); %only needed if there are multiple subjects
                 [~,days] = findgroups(cell2mat(allData(w,2))');
                 dayData.((mouse)) = cell(numel(days'),4);
-                this.DayData.((mouse)) = dayData.((mouse));
                 % StimHist = allData(w,4);
                 % EmptyIdx = cellfun('isempty', StimHist);
                 % L = cellfun(@(x) x.Level ,allData(:,3) , 'UniformOutput',false);
@@ -308,6 +307,9 @@ classdef BehaviorBoxData < handle
                 % Lev = cellfun(@(x) getLev(x), StimHist, 'UniformOutput', false);
                 c = 0;
                 for d = days
+                    if d == 231117
+                        1;
+                    end
                     bigSession = struct;
                     sessions = struct;
                     c = c+1;
@@ -368,6 +370,16 @@ classdef BehaviorBoxData < handle
                     if all(cellfun(@isempty, {sessions.Score}))
                         continue
                     end
+                % Remove the sessions with no values for TrialNum (means
+                % training session was aborted before the first trial)
+                    wEmpty = zeros(size(sessions));
+                    for i = 1:numel(sessions)
+                        if isempty(sessions(i).TrialNum)
+                            wEmpty(i) = i;
+                        end
+                    end
+                    wEmpty(wEmpty==0)=[];
+                    sessions(wEmpty) = [];
                     for i = 2:numel(sessions)
                         numPrevSettings = sum(cellfun(@numel, {sessions(1:i-1).Settings}));
                         sessions(i).SetIdx = sessions(i).SetIdx + numPrevSettings;
@@ -398,8 +410,8 @@ classdef BehaviorBoxData < handle
                     end
                     try
                         bigSession.Include = Include(bigSession.SetIdx);
-                    catch Err
-                        unwrapErr(Err)
+                    catch
+                        warning("Sub: "+cell2mat(S)+" Day "+d+" - Rescued data found, settings info is missing");
                         bigSession.Include = ones(size(bigSession.Score)); %For any data that was rescued, there are no settings
                     end
                     bigSession.SetStr = SetStr;
@@ -470,7 +482,7 @@ classdef BehaviorBoxData < handle
                 Out.TrialTbls{SC} = trialTbl;
                 this.trial_table = trialTbl;
                 [allDates, Ds] = findgroups(trialTbl.Date');
-                Out.SplitTbls{SC} = cellfun(@SplitDayLevels, num2cell(Ds), "UniformOutput", false);
+                Out.SplitTbls{SC} = cellfun(@SplitDays, num2cell(Ds), "UniformOutput", false);
                 Out.DayMM{SC} = table;
                 try
                     [G,Out.DayMM{SC}.Ds,Out.DayMM{SC}.Ls] = findgroups(trialTbl.Date, trialTbl.Level);
@@ -480,7 +492,7 @@ classdef BehaviorBoxData < handle
                 catch Err
                     unwrapErr(Err);
                 end
-                [G, ~] = findgroups(trialTbl.Level);
+                [G, Lvs] = findgroups(trialTbl.Level);
                 Levels = num2cell(1:20);
                 Out.LevelTbls{SC} = cellfun(@(x){trialTbl(trialTbl.Level==x,:)}, Levels, "UniformOutput", true);
                 this.LevelHist.LastScores = cellfun(@(x){trialTbl(trialTbl.Level==x,:).Score(end-100:end)}, Levels, "ErrorHandler",@errorFuncZeroCell);
@@ -488,7 +500,7 @@ classdef BehaviorBoxData < handle
                 Out.LevelMM{SC} = splitapply(@(x)this.LevelMMAnalysis(x), [trialTbl.Score allDates' trialTbl.Include], G)';
                 Out.LevelMM{SC}(cellfun(@isempty,Out.LevelMM{SC})) = [];
                 MaxLPerf = cellfun(@(x)max(x(:,1)), Out.LevelMM{SC}, "ErrorHandler", @errorFuncZeroCell, 'UniformOutput', true);
-                this.MaxLevel = find(MaxLPerf>=0.8, 1, 'last')+1;
+                this.MaxLevel = Lvs(find(MaxLPerf>=0.8, 1, 'last'))+1;
             end
             this.AnalyzedData = Out;
             this.current_data_struct = this.new_init_data_struct();
@@ -496,7 +508,7 @@ classdef BehaviorBoxData < handle
             if nargout >= 1
                 varargout{1} = Out;
             end
-            function Out = SplitDayLevels(D)
+            function Out = SplitDays(D)
                 % [~, Ls] = findgroups(trialTbl.Level');
                 r = trialTbl.Date==D;
                 Dtbl = trialTbl(r,:);
@@ -1027,7 +1039,8 @@ classdef BehaviorBoxData < handle
             end
             try
                 tic
-                % SUB = this.Sub{options.Sc};
+                SUB = this.Sub{options.Sc};
+                Levels = unique(this.AnalyzedData.TrialTbls{options.Sc}.Level)';
                 %Get moving means of accuracy over the last 60 (big bin) trials
                 Ldat = this.AnalyzedData.LevelMM{options.Sc};
                 Ldat(cellfun(@(x) all(isnan(x),'all'),Ldat,'UniformOutput',true)) = [];
@@ -1050,26 +1063,29 @@ classdef BehaviorBoxData < handle
                 Ttbl = Ttbl(Ttbl.Score~=2,:);
                 % Use that number to find how many trials of each difficulty the mouse had
                 % seen before the trial on which they "passed" each level
-                SumCount = cell(size(Trial));
+                SumCount = cell(1, max(Levels));
                 c = 0;
                 for L = Trial
                     c = c+1;
-                    if isnan(L) %If its nan they have not passed this level so count every trial they've see so far
+                    LEVEL = Levels(c);
+                    if isnan(L) %If its nan they have not passed this level so count every trial they've seen so far
                         SC = histcounts(Ttbl.Level); SC(21) = 0; SC(21) = [];
-                        SumCount{c} = SC;
-                        Trial(c) = SC(c);
+                        SumCount{LEVEL} = SC;
+                        Trial(LEVEL) = SC(LEVEL);
                         continue
                     end
                     try
-                        w = Ttbl.LvlTrialNum == L & Ttbl.Level == c;
+                        w = Ttbl.LvlTrialNum == L & Ttbl.Level == LEVEL;
                         SC = histcounts(Ttbl.Level(1:find(w))); SC(21) = 0; SC(21) = [];
-                        SumCount{c} = SC;
+                        SumCount{LEVEL} = SC;
+                        Trial(LEVEL) = SC(LEVEL);
                     catch
                         SC = histcounts(Ttbl.Level); SC(21) = 0; SC(21) = [];
-                        SumCount{c} = SC;
+                        SumCount{LEVEL} = SC;
+                        Trial(LEVEL) = SC(LEVEL);
                     end
                 end
-                Out = [ num2cell(Trial) ; SumCount]; % NEW - [Out ; SumCount], change following code...
+                Out = [ num2cell(1:max(Levels)) ; SumCount];
             catch
             end
         end
@@ -1110,9 +1126,13 @@ classdef BehaviorBoxData < handle
             end
             Ac = 0;
             for A = AlltrialsTo
-                Ac = Ac+1;
-                Empty = cellfun(@(x) all(isnan(x)), A', 'UniformOutput', true);
-                AlltrialsTo(Empty,Ac) = deal( { AlltrialsTo { find(~Empty,1,'last') ,Ac}});
+                try
+                    Ac = Ac+1;
+                    Empty = cellfun(@(x) all(isnan(x)), A', 'UniformOutput', true);
+                    AlltrialsTo(Empty,Ac) = deal( { AlltrialsTo { find(~Empty,1,'last') ,Ac}} );
+                catch err
+                    unwrapErr(err)
+                end
             end
             Het = contains(this.Sub, '- Het');
             WT = ~Het;
