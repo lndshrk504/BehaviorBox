@@ -1,5 +1,5 @@
 classdef BehaviorBoxData < handle
-    % 5.08.2023 Will Snyder
+    % 12.13.2023 Will Snyder
     %====================================================================
     %Data class
     %This Class stores all the data during training, and analyzes the
@@ -82,7 +82,8 @@ classdef BehaviorBoxData < handle
             if ~options.find && options.analyze
                 try
                     this.AnalyzeAllData();
-                catch
+                catch err
+                    unwrapErr(err)
                 end
                 if options.plot && numel(this.Sub)==1
                     f = this.plotLvByDayOneAxis();
@@ -493,14 +494,24 @@ classdef BehaviorBoxData < handle
                     unwrapErr(Err);
                 end
                 [G, Lvs] = findgroups(trialTbl.Level);
-                Levels = num2cell(1:20);
-                Out.LevelTbls{SC} = cellfun(@(x){trialTbl(trialTbl.Level==x,:)}, Levels, "UniformOutput", true);
-                this.LevelHist.LastScores = cellfun(@(x){trialTbl(trialTbl.Level==x,:).Score(end-100:end)}, Levels, "ErrorHandler",@errorFuncZeroCell);
+                AllLevels = num2cell(1:20);
+                Out.LevelTbls{SC} = cellfun(@(x){trialTbl(trialTbl.Level==x,:)}, AllLevels, "UniformOutput", true);
+                % Out.LevelTbls{SC}(cellfun(@(x)size(x,1), Out.LevelTbls{SC}) == 0) This gives indices of empty levels
+                this.LevelHist.LastScores = cellfun(@(x){trialTbl(trialTbl.Level==x,:).Score(end-100:end)}, AllLevels, "ErrorHandler",@errorFuncZeroCell);
                 %this.LevelHist.MM = cellfun(@(x)this.LevelMMAnalysis(x), this.LevelHist.LastScores, "ErrorHandler",@errorFuncNaN);
-                Out.LevelMM{SC} = splitapply(@(x)this.LevelMMAnalysis(x), [trialTbl.Score allDates' trialTbl.Include], G)';
-                Out.LevelMM{SC}(cellfun(@isempty,Out.LevelMM{SC})) = [];
-                MaxLPerf = cellfun(@(x)max(x(:,1)), Out.LevelMM{SC}, "ErrorHandler", @errorFuncZeroCell, 'UniformOutput', true);
+                Out.LevelMM{SC} = cell(1, max(Lvs));
+                LMM = splitapply(@(x)this.LevelMMAnalysis(x), [trialTbl.Score allDates' trialTbl.Include], G)';
+                for i = 1:numel(LMM)
+                    Out.LevelMM{SC}{Lvs(i)} = LMM{i};
+                end
+                try
+                MLP = cellfun(@(x)max(x(:,1)), Out.LevelMM{SC}, "ErrorHandler", @errorFuncZeroDouble, 'UniformOutput', false);
+                [MLP{cellfun('isempty', MLP)}] = deal(0);
+                MaxLPerf = cell2mat(MLP);
                 this.MaxLevel = Lvs(find(MaxLPerf>=0.8, 1, 'last'))+1;
+                catch err
+                    unwrapErr(err)
+                end
             end
             this.AnalyzedData = Out;
             this.current_data_struct = this.new_init_data_struct();
@@ -1043,7 +1054,7 @@ classdef BehaviorBoxData < handle
                 Levels = unique(this.AnalyzedData.TrialTbls{options.Sc}.Level)';
                 %Get moving means of accuracy over the last 60 (big bin) trials
                 Ldat = this.AnalyzedData.LevelMM{options.Sc};
-                Ldat(cellfun(@(x) all(isnan(x),'all'),Ldat,'UniformOutput',true)) = [];
+                %Ldat(cellfun(@(x) all(isnan(x),'all'),Ldat,'UniformOutput',true)) = [];
                 %Find the trial number when the mouse's performance crossed over a
                 %specified threshold:
                 % Threshold for the last 60 (big bin) trials:
@@ -1051,7 +1062,7 @@ classdef BehaviorBoxData < handle
                 %   std of 0  (based on small bins)
                 %   for 3 consecutive trials
                 %          overThresh = cellfun(@(x)find(x(:,1)>=0.8 & x(:,2)<=0.03), Ldat, 'UniformOutput', false);  %  Need to filter out Left/Right only trials, at least for level 1 only
-                overThresh = cellfun(@(x)find(x(:,1)>=0.8 & x(:,5)==1)+this.BB, Ldat, 'UniformOutput', false);
+                overThresh = cellfun(@(x)find(x(:,1)>=0.8 & x(:,5)==1)+this.BB, Ldat, 'UniformOutput', false, 'ErrorHandler',@errorFuncNaN);
                 Trial = cellfun(@(x) this.consecutiveTrial(x, options.count, options.tol), overThresh, "UniformOutput",true);
                 % if any(isnan(Trial)) % IF they have not passed then use the total number
                 %     Trial(1,isnan(Trial)) = size(Ldat{:},1);
@@ -1066,6 +1077,9 @@ classdef BehaviorBoxData < handle
                 SumCount = cell(1, max(Levels));
                 c = 0;
                 for L = Trial
+                    if isnan(L)
+                        continue
+                    end
                     c = c+1;
                     LEVEL = Levels(c);
                     if isnan(L) %If its nan they have not passed this level so count every trial they've seen so far
@@ -1086,7 +1100,8 @@ classdef BehaviorBoxData < handle
                     end
                 end
                 Out = [ num2cell(1:max(Levels)) ; SumCount];
-            catch
+            catch err
+                unwrapErr(err)
             end
         end
         function Out = consecutiveTrial(this, vec, count, tol)
@@ -1117,7 +1132,7 @@ classdef BehaviorBoxData < handle
                 options.Stacked logical = 0;
             end
             Out = [];
-            MaxLvl = max(cellfun(@(x) size(x,2),T));
+            MaxLvl = min(cellfun(@(x) size(x,2),T));
             trialsTo = nan(MaxLvl, numel(this.Sub));
             AlltrialsTo = cell(size(trialsTo));
             for L = 1:MaxLvl
