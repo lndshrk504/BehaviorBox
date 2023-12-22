@@ -505,10 +505,10 @@ classdef BehaviorBoxData < handle
                     Out.LevelMM{SC}{Lvs(i)} = LMM{i};
                 end
                 try
-                MLP = cellfun(@(x)max(x(:,1)), Out.LevelMM{SC}, "ErrorHandler", @errorFuncZeroDouble, 'UniformOutput', false);
-                [MLP{cellfun('isempty', MLP)}] = deal(0);
-                MaxLPerf = cell2mat(MLP);
-                this.MaxLevel = Lvs(find(MaxLPerf>=0.8, 1, 'last'))+1;
+                    MLP = cellfun(@(x)max(x(:,1)), Out.LevelMM{SC}, "ErrorHandler", @errorFuncZeroDouble, 'UniformOutput', false);
+                    [MLP{cellfun('isempty', MLP)}] = deal(0);
+                    MaxLPerf = cell2mat(MLP);
+                    this.MaxLevel = Lvs(find(MaxLPerf>=0.8, 1, 'last'))+1;
                 catch err
                     unwrapErr(err)
                 end
@@ -1050,7 +1050,7 @@ classdef BehaviorBoxData < handle
             end
             try
                 tic
-                SUB = this.Sub{options.Sc};
+                %SUB = this.Sub{options.Sc};
                 Levels = unique(this.AnalyzedData.TrialTbls{options.Sc}.Level)';
                 %Get moving means of accuracy over the last 60 (big bin) trials
                 Ldat = this.AnalyzedData.LevelMM{options.Sc};
@@ -1157,15 +1157,15 @@ classdef BehaviorBoxData < handle
             else
                 SEX = "Males";
             end
-            M = ~F;
-            IDhet = this.Sub(Het);
-            IDwt = this.Sub(WT);
+            %M = ~F;
+            %IDhet = this.Sub(Het);
+            %IDwt = this.Sub(WT);
             ID = [this.Sub(Het) 'Het AVG' 'WT AVG' this.Sub(WT)];
-            geneID = strings(1,6);
-            geneID(Het) = "Het";
-            geneID(~Het) = "WT";
+            %geneID = strings(1,6);
+            %geneID(Het) = "Het";
+            %geneID(~Het) = "WT";
             %Now add sex ID to separate by sex
-            Levs = size(T,1);
+            %Levs = size(T,1);
             %Turn T into a table and stack T based on the level
             c = 0;
             lc = 0;
@@ -1187,7 +1187,7 @@ classdef BehaviorBoxData < handle
                         hold(Ax,'on');
                         [B.CData(1,:)] = Ax.ColorOrder(1,:);
                         [B.CData(2,:)] = Ax.ColorOrder(7,:);
-                        ER = errorbar([1 2], x, [std(hT(~isnan(hT))) std(wT(~isnan(wT)))], ...
+                        errorbar([1 2], x, [std(hT(~isnan(hT))) std(wT(~isnan(wT)))], ...
                             'LineStyle','none', 'Color','k', 'LineWidth',2);
                         Ax.XTickLabel = {'Shank3b','WT'};
                     elseif options.Dataonly
@@ -1206,7 +1206,7 @@ classdef BehaviorBoxData < handle
                         [B.CData(find(contains(ID, 'WT')),:)] = repmat(Ax.ColorOrder(2,:),sum(contains(ID, 'WT')),1);
                         [B.CData(find(contains(ID, 'Het AVG')),:)] = Ax.ColorOrder(1,:);
                         [B.CData(find(contains(ID, 'WT AVG')),:)] = Ax.ColorOrder(7,:);
-                        ER = errorbar(find(contains(ID, 'AVG')), [mean(hT(~isnan(hT))) mean(wT(~isnan(wT)))], [std(hT(~isnan(hT))) std(wT(~isnan(wT)))], ...
+                        errorbar(find(contains(ID, 'AVG')), [mean(hT(~isnan(hT))) mean(wT(~isnan(wT)))], [std(hT(~isnan(hT))) std(wT(~isnan(wT)))], ...
                             'LineStyle','none', 'Color','k', 'LineWidth',2);
                     end
                     if ~options.Dataonly
@@ -1239,7 +1239,7 @@ classdef BehaviorBoxData < handle
                         % d(:,1) = []; % To remove level 1 from graph
                         hT = d(Het,1:c);
                         wT = d(WT,1:c);
-                        B = bar([hT ; mean(hT(~all(hT==0,2),:),1) ; mean(wT(~all(wT==0,2),:),1) ; wT], 'stacked', 'Parent', Ax);
+                        bar([hT ; mean(hT(~all(hT==0,2),:),1) ; mean(wT(~all(wT==0,2),:),1) ; wT], 'stacked', 'Parent', Ax);
                         xline([size(hT,1)+0.5 size(hT,1)+2.5])
                         Ax = nexttile(Ax.Parent);
                     catch
@@ -1413,7 +1413,7 @@ classdef BehaviorBoxData < handle
                 options.Sc
             end
             tic
-            Out = [];
+            %Out = [];
             if ~isempty(options.Sc)
                 this.sc = options.Sc;
             else
@@ -1425,7 +1425,7 @@ classdef BehaviorBoxData < handle
             if options.InComposite
                 Ax = options.Ax;
                 Ax.YLim(1) = -1;
-                yOff = -1;
+                %yOff = -1;
             else
                 Ax = VertAxes(); hold(Ax, 'on'); Ax.Parent.Parent.Visible = 1;
                 T = Ax.Parent; f = T.Parent; f.Name = SUB;
@@ -1726,7 +1726,7 @@ classdef BehaviorBoxData < handle
             data(:,end+1) = score;
             n = data(:,6);
             n = categorical(cellfun(@(x) x(1:7),n,'UniformOutput',false));
-            d = cell2mat(data(:,2));
+            %d = cell2mat(data(:,2));
             G = findgroups(n);
             Out = splitapply(@(x)SortStims(x), data, G);
             F = figure("MenuBar","none","Name", "Stimulus",'NumberTitle', 'off', 'Visible','off');F.Position = [1 31 362 1147]; F.Renderer = "painters"; F.InvertHardcopy = 'off';
@@ -1919,7 +1919,7 @@ classdef BehaviorBoxData < handle
                 unwrapErr(err)
             end
         end
-        function [Out] = getSideBias(this, Idx, whatDecision)
+        function [Out] = getSideBias(~, Idx, whatDecision)
             switch nargin
                 case 2 %only side choice data supplied, make ID vector to match the input
                     whatDecision = Idx;
@@ -1954,7 +1954,7 @@ classdef BehaviorBoxData < handle
                 Out = [0 0];
             end
         end
-        function SBt = CalculateSB(this, D)
+        function SBt = CalculateSB(~, D)
             try
                 SBt = cell(1, numel(D.LevelGroups));
                 lc = 0;
@@ -2377,7 +2377,7 @@ classdef BehaviorBoxData < handle
             end
             this.graphFig.MenuBar = 'figure';
         end
-        function saveFigure(this, fig, folder, name)
+        function saveFigure(~, fig, folder, name)
             name = erase(name, '.mat');
             figure_property = struct; %Reset export Settings:
             figure_property.units = 'inches';
@@ -2552,7 +2552,7 @@ classdef BehaviorBoxData < handle
         function [chosen_figure] = getFigProps(fig, options)
             chosen_figure=fig;
             figure_property = struct; %Reset export Settings:
-            FigProps = struct;
+            %FigProps = struct;
             figure_property.units = 'inches';
             figure_property.format = 'pdf';
             figure_property.Preview= 'none';
@@ -2588,7 +2588,7 @@ classdef BehaviorBoxData < handle
             %set(chosen_figure,'PaperOrientation','landscape');
             set(chosen_figure,'PaperSize',[str2double(figure_property.Width) str2double(figure_property.Height)]); % Canvas Size
             set(chosen_figure,'Units','inches');
-            FigProps = figure_property;
+            %FigProps = figure_property;
         end
     end
 end %end class
@@ -2611,17 +2611,7 @@ end
 Ax.YTick = [];
 Ax.XTick = [];
 end
-function [filepath] = getFilePath
-filepath = string;
-switch 1
-    case ispc
-        filepath = 'D:\Dropbox (Dropbox @RU)\Gilbert Lab\BehaviorBoxData\Data\';
-    case ismac
-        filepath = '/Users/willsnyder/Dropbox (Dropbox @RU)/Dropbox (Dropbox @RU)/Gilbert Lab/BehaviorBoxData/Data/';
-    case isunix
-        filepath = char(string(getenv('HOME'))+'/Dropbox (Dropbox @RU)/Gilbert Lab/BehaviorBoxData/Data/');
-end
-end
+
 function setGUI(Data, GUINums)
 try
     GUINums.right = num2str(sum(Data.CodedChoice == [2 ; 4],'all')); %Left Responses
