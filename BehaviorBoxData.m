@@ -1011,9 +1011,9 @@ classdef BehaviorBoxData < handle
                 this
                 opts.Composite logical = 0
                 opts.LevGroup logical = 0
-                opts.LevMM logical = 0
+                opts.LevMM logical = 1
                 opts.Stim logical = 0
-                opts.Group logical = 1
+                opts.Group logical = 0
             end
             Num = num2cell(1:numel(this.Sub));
             tic
