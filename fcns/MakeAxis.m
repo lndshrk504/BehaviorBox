@@ -1,4 +1,6 @@
 function Out = MakeAxis(options)
+% This function creates a tiledlayout with 1 axis and returns the handle
+% for that axis
     arguments
         options.Ax = [];
         options.m = [];
@@ -11,11 +13,13 @@ function Out = MakeAxis(options)
         else %They both must not be empty
             t = tiledlayout(options.m, options.n,'TileSpacing','none', 'Padding','tight', 'Parent',f);
         end
-        Out = f;
+        Ax = nexttile(t);
     else
         Ax = options.Ax;
-        Out = Ax;
     end
     Ax.YTick = [];
     Ax.XTick = [];
+    hold(Ax,"on")
+
+    Out = Ax;
 end

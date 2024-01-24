@@ -371,8 +371,8 @@ classdef BehaviorBoxData < handle
                     if all(cellfun(@isempty, {sessions.Score}))
                         continue
                     end
-                % Remove the sessions with no values for TrialNum (means
-                % training session was aborted before the first trial)
+                    % Remove the sessions with no values for TrialNum (means
+                    % training session was aborted before the first trial)
                     wEmpty = zeros(size(sessions));
                     for i = 1:numel(sessions)
                         if isempty(sessions(i).TrialNum)
@@ -1011,12 +1011,20 @@ classdef BehaviorBoxData < handle
                 this
                 opts.Composite logical = 0
                 opts.LevGroup logical = 0
-                opts.LevMM logical = 1
+                opts.LevMM logical = 0
                 opts.Stim logical = 0
                 opts.Group logical = 0
+                opts.DayProgress logical = 1
             end
             Num = num2cell(1:numel(this.Sub));
+            Num(1:2) = []; % Only 3 and 4 have seen high levels
             tic
+            if opts.DayProgress
+                %close all
+                Trial = cellfun(@(x)this.DailyProgress(Sc=x), Num, "UniformOutput",false);
+                this.PlotGroupTrialsToPass(Trial);
+                %this.SaveManyFigures([],'TrialsTo', SameFolder=1)
+            end
             if opts.Group
                 %close all
                 Trial = cellfun(@(x)this.GroupTrialsToPass(Sc=x), Num, "UniformOutput",false);
@@ -1026,7 +1034,7 @@ classdef BehaviorBoxData < handle
             if opts.LevGroup
                 %LevDay = cellfun(@(x){this.PlotLevelGroupsByLevel(Sc=x)}, Num);
                 close all
-                cellfunp(@(x){this.PlotLevelGroupsByDay(Sc=x)}, Num); drawnow
+                cellfun(@(x){this.PlotLevelGroupsByDay(Sc=x)}, Num); drawnow
                 this.SaveManyFigures([],'LevelGroup', SameFolder=1)
             end
             if opts.LevMM
@@ -1040,6 +1048,59 @@ classdef BehaviorBoxData < handle
             end
             time = toc;
             fprintf("Total time: " + time + " seconds.\n")
+        end
+        function Out = DailyProgress(this, options)
+            % This fcn normalizes the performance to each day to show the mouse's
+            % progress at each day of the level
+            arguments
+                this
+                options.Sc double = 1
+                options.AllMice logical = 0
+                options.Lvs double = [8 9 10 12] % Do not display levels below this
+                options.Moveable logical = 0
+            end
+            LEVDATA = cellfun(@(x)this.AnalyzedData.LevelMM{x}, {3 4}, UniformOutput=false);
+            DAYDATA = cellfun(@(x)this.AnalyzedData.DayMM{x}, {3 4}, UniformOutput=false);
+            for L = options.Lvs
+                Ax = MakeAxis();
+                if ~options.Moveable
+                    
+                else
+                end
+                TH_Mouse = false;
+                Ax.Title.String = "Level "+L;
+                Ax.YLim = [0.4 1];
+                SC = 1;
+                for SUBDATA = [DAYDATA ; LEVDATA]
+                    dayData = SUBDATA{1};
+                    LevData = SUBDATA{2};
+                    lev = LevData{L};
+                    lx = lev(:,4);
+                    ly = lev(:,1);
+                    lp = plot(lx,ly,"Parent",Ax,"SeriesIndex",SC, "LineWidth",3);
+                    dc = 0;
+                    data = dayData(dayData.Ls==L,:);
+                    for d = data.dayBin'
+                        dayy = d{:}{8};
+                        dayx = d{:}{9} + dc;
+                        dp = plot(dayx,dayy,"Parent",Ax, "SeriesIndex",SC);
+                        dc = dc + 1;
+                    end
+                    dayBars = xline(1:numel(data.dayBin), 'LineStyle',':', 'LineWidth',3);
+                    if ~options.Moveable
+                        TH = yline(0.8, 'LineStyle','-', 'LineWidth',3, ...
+                            'ButtonDownFcn',@MouseDown_TH);
+                    else
+                    end
+                    SC = SC + 1;
+                end
+            end
+
+            function MouseDown_TH(obj, events)
+                TH_Mouse = true;
+                Ax.XLimMode="manual";
+                Ax.YLimMode="manual";
+            end
         end
         function Out = GroupTrialsToPass(this, options)
             arguments
@@ -1267,7 +1328,7 @@ classdef BehaviorBoxData < handle
                 SUB = this.Sub{this.sc};
                 Ldat = this.AnalyzedData.LevelMM{this.sc};
                 HighScore = cellfun(@(x) max([x(:,1) ; 0]), Ldat, 'UniformOutput', true, 'ErrorHandler', @errorFuncNaN);
-                maxPassedL = find(HighScore>=0.8, 1, 'last')+1;
+                maxPassedL = find(HighScore>=0.8 & ~cellfun('isempty', Ldat), 1, 'last');
                 highestSeen = max(unique(this.trial_table.Level));
                 this.trial_table = this.AnalyzedData.TrialTbls{this.sc};
                 title = SUB+" All Time Performance";
@@ -1287,7 +1348,7 @@ classdef BehaviorBoxData < handle
                 TH = yline(thresh:1:(highestSeen+1), ':',(100*thresh)+"%", ...
                     "LabelHorizontalAlignment","left", ...
                     "FontSize",6);
-                for L = 1:highestSeen % maxPassedL
+                for L = unique(this.trial_table.Level)' % maxPassedL
                     LO = L-1;
                     wL = this.AnalyzedData.DayMM{this.sc}.Ls==L;
                     Ddat = this.AnalyzedData.DayMM{this.sc}(wL,:);
@@ -2593,24 +2654,6 @@ classdef BehaviorBoxData < handle
     end
 end %end class
 %EXTERNAL FUNCTIONS ====
-function Ax = MakeAxis(options)
-arguments
-    options.Ax = [];
-    options.Visible logical = 1;
-end
-if isempty(options.Ax)
-    f = figure;
-    t = tiledlayout('flow','TileSpacing','none', 'Padding','tight', 'Parent',f);
-    Ax = nexttile(t);
-    if ~options.Visible
-        f.Visible = 0;
-    end
-else
-    Ax = options.Ax;
-end
-Ax.YTick = [];
-Ax.XTick = [];
-end
 
 function setGUI(Data, GUINums)
 try
