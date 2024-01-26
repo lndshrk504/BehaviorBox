@@ -1020,9 +1020,9 @@ classdef BehaviorBoxData < handle
             Num(1:2) = []; % Only 3 and 4 have seen high levels
             tic
             if opts.DayProgress
-                %close all
-                Trial = cellfun(@(x)this.DailyProgress(Sc=x), Num, "UniformOutput",false);
-                this.PlotGroupTrialsToPass(Trial);
+                close all
+                Trial = this.DailyProgress();
+                %this.PlotGroupTrialsToPass(Trial);
                 %this.SaveManyFigures([],'TrialsTo', SameFolder=1)
             end
             if opts.Group
@@ -1059,42 +1059,100 @@ classdef BehaviorBoxData < handle
                 options.Lvs double = [8 9 10 12] % Do not display levels below this
                 options.Moveable logical = 0
             end
+            Out = struct();
             LEVDATA = cellfun(@(x)this.AnalyzedData.LevelMM{x}, {3 4}, UniformOutput=false);
             DAYDATA = cellfun(@(x)this.AnalyzedData.DayMM{x}, {3 4}, UniformOutput=false);
+            SUBS = this.Sub(3:4);
             for L = options.Lvs
-                Ax = MakeAxis();
+                Ax = MakeAxis(); Bx = nexttile; Bx.Box = 1; hold(Bx,"on"); Cx = nexttile; hold(Cx,"on"); Dx = nexttile; hold(Dx,"on");
+                Ax.Title.String = "By Day";
+                Bx.Title.String = "By Trial";
+                Cx.Title.String = "Days To";
+                Dx.Title.String = "Trials To";
+                Ax.Parent.Title.String = "Level "+L;
+                Ax.Box=1;
+                Bx.Box=1;
+                Cx.Box=1;
+                Dx.Box=1;
                 if ~options.Moveable
-                    
+                    TH_Mouse = false;
                 else
                 end
-                TH_Mouse = false;
-                Ax.Title.String = "Level "+L;
-                Ax.YLim = [0.4 1];
+                Ax.YLim = [0.4 1]; Bx.YLim = [0.4 1];
                 SC = 1;
+                PassIdx = zeros(numel(SUBS),4);
+                % 1 Did they pass
+                % 2 at which trial number
+                % 3 Threshold for passing (in case TH is later lowered)
+                % 4 Day of passing
+                LD = cell(size(SUBS));
                 for SUBDATA = [DAYDATA ; LEVDATA]
                     dayData = SUBDATA{1};
                     LevData = SUBDATA{2};
                     lev = LevData{L};
                     lx = lev(:,4);
                     ly = lev(:,1);
-                    lp = plot(lx,ly,"Parent",Ax,"SeriesIndex",SC, "LineWidth",3);
+                    LD{SC}=ly;
+                    if any(ly>=0.8)
+                        PassIdx(SC,3)=0.8;
+                        PassIdx(SC,1)=1;
+                        PassIdx(SC,2)=find(ly>=0.8, 1, 'first')+59;
+                    else
+                        PassIdx(SC,3)=max(ly);
+                        PassIdx(SC,2)=find(ly==max(ly), 1, 'last')+59;
+                    end
+                    PassIdx(SC,4)=ceil(lx(PassIdx(SC,2)-59));
+                    lp = plot(lx,ly,"Parent",Ax,"SeriesIndex",SC, "LineWidth",3, "DisplayName",SUBS{SC});
+                    lpB = plot((1:numel(ly))+59,ly,"Parent",Bx,"SeriesIndex",SC, "LineWidth",3, "DisplayName",SUBS{SC});
+                    Bx.XLim = [60 numel(ly+59)];
                     dc = 0;
                     data = dayData(dayData.Ls==L,:);
                     for d = data.dayBin'
                         dayy = d{:}{8};
                         dayx = d{:}{9} + dc;
-                        dp = plot(dayx,dayy,"Parent",Ax, "SeriesIndex",SC);
+                        dp = plot(dayx,dayy,"Parent",Ax, "SeriesIndex",SC, 'HandleVisibility','off');
                         dc = dc + 1;
                     end
-                    dayBars = xline(1:numel(data.dayBin), 'LineStyle',':', 'LineWidth',3);
+                    dayBars = xline(1:numel(data.dayBin), 'LineStyle',':', 'LineWidth',3, 'HandleVisibility','off', Parent=Ax);
                     if ~options.Moveable
-                        TH = yline(0.8, 'LineStyle','-', 'LineWidth',3, ...
-                            'ButtonDownFcn',@MouseDown_TH);
+                        THA = yline(0.8, 'LineStyle','-', 'LineWidth',3, ...
+                            'ButtonDownFcn',@MouseDown_TH, "Parent",Ax, 'HandleVisibility','off');
+                        THB = yline(0.8, 'LineStyle','-', 'LineWidth',3, ...
+                            'ButtonDownFcn',@MouseDown_TH, "Parent",Bx, 'HandleVisibility','off');
                     else
                     end
                     SC = SC + 1;
                 end
+                legend(Ax); legend(Bx);
+
+                % Plot a bar graph of trials to pass
+                if ~all(PassIdx(:,1))
+                    NewTH = min(PassIdx(PassIdx(:,1)~=1,3));
+                    THA.Value = NewTH; THA.Label = num2str(NewTH);
+                    THB.Value = NewTH; THB.Label = num2str(NewTH);
+                    %Reset the trial count for whoeveer has passed the
+                    %levels at 80% to the new lower threshold
+                    WHICH = PassIdx(:,1)~=1;
+                    pc = 0;
+                    for w = WHICH'
+                        pc = pc+1;
+                        if w == 0
+                            continue
+                        end
+                        PassIdx(pc,2)=find(LD{pc}>=NewTH,1,"first")+59;
+                    end
+                end
+                SC = 1;
+                for P = PassIdx'
+                    Bday = bar(SC, P(4), "Parent",Cx, "SeriesIndex",SC);
+                    Blev = bar(SC, P(2), "Parent",Dx, "SeriesIndex",SC);
+
+                    SC = SC + 1;
+                end
+                Dx.XTick = [1:numel(SUBS)];
+                Dx.XTickLabel = this.Sub([3 4]);
             end
+
 
             function MouseDown_TH(obj, events)
                 TH_Mouse = true;
