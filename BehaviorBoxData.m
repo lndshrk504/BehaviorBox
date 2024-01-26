@@ -1056,15 +1056,18 @@ classdef BehaviorBoxData < handle
                 this
                 options.Sc double = 1
                 options.AllMice logical = 0
-                options.Lvs double = [8 9 10 12] % Do not display levels below this
+                options.Lvs double = [2:10] % Do not display levels below this
                 options.Moveable logical = 0
             end
             Out = struct();
-            LEVDATA = cellfun(@(x)this.AnalyzedData.LevelMM{x}, {3 4}, UniformOutput=false);
-            DAYDATA = cellfun(@(x)this.AnalyzedData.DayMM{x}, {3 4}, UniformOutput=false);
-            SUBS = this.Sub(3:4);
+            LEVDATA = cellfun(@(x)this.AnalyzedData.LevelMM{x}, num2cell(1:numel(this.Sub)), UniformOutput=false);
+            DAYDATA = cellfun(@(x)this.AnalyzedData.DayMM{x}, num2cell(1:numel(this.Sub)), UniformOutput=false);
+            SUBS = this.Sub;
             for L = options.Lvs
-                Ax = MakeAxis(); Bx = nexttile; Bx.Box = 1; hold(Bx,"on"); Cx = nexttile; hold(Cx,"on"); Dx = nexttile; hold(Dx,"on");
+                Ax = MakeAxis();
+                Bx = nexttile; Bx.Box = 1; hold(Bx,"on");
+                Cx = nexttile; hold(Cx,"on");
+                Dx = nexttile; hold(Dx,"on");
                 Ax.Title.String = "By Day";
                 Bx.Title.String = "By Trial";
                 Cx.Title.String = "Days To";
@@ -1079,7 +1082,7 @@ classdef BehaviorBoxData < handle
                 else
                 end
                 Ax.YLim = [0.4 1]; Bx.YLim = [0.4 1];
-                SC = 1;
+                SC = 0;
                 PassIdx = zeros(numel(SUBS),4);
                 % 1 Did they pass
                 % 2 at which trial number
@@ -1087,41 +1090,46 @@ classdef BehaviorBoxData < handle
                 % 4 Day of passing
                 LD = cell(size(SUBS));
                 for SUBDATA = [DAYDATA ; LEVDATA]
-                    dayData = SUBDATA{1};
-                    LevData = SUBDATA{2};
-                    lev = LevData{L};
-                    lx = lev(:,4);
-                    ly = lev(:,1);
-                    LD{SC}=ly;
-                    if any(ly>=0.8)
-                        PassIdx(SC,3)=0.8;
-                        PassIdx(SC,1)=1;
-                        PassIdx(SC,2)=find(ly>=0.8, 1, 'first')+59;
-                    else
-                        PassIdx(SC,3)=max(ly);
-                        PassIdx(SC,2)=find(ly==max(ly), 1, 'last')+59;
-                    end
-                    PassIdx(SC,4)=ceil(lx(PassIdx(SC,2)-59));
-                    lp = plot(lx,ly,"Parent",Ax,"SeriesIndex",SC, "LineWidth",3, "DisplayName",SUBS{SC});
-                    lpB = plot((1:numel(ly))+59,ly,"Parent",Bx,"SeriesIndex",SC, "LineWidth",3, "DisplayName",SUBS{SC});
-                    Bx.XLim = [60 numel(ly+59)];
-                    dc = 0;
-                    data = dayData(dayData.Ls==L,:);
-                    for d = data.dayBin'
-                        dayy = d{:}{8};
-                        dayx = d{:}{9} + dc;
-                        dp = plot(dayx,dayy,"Parent",Ax, "SeriesIndex",SC, 'HandleVisibility','off');
-                        dc = dc + 1;
-                    end
-                    dayBars = xline(1:numel(data.dayBin), 'LineStyle',':', 'LineWidth',3, 'HandleVisibility','off', Parent=Ax);
-                    if ~options.Moveable
-                        THA = yline(0.8, 'LineStyle','-', 'LineWidth',3, ...
-                            'ButtonDownFcn',@MouseDown_TH, "Parent",Ax, 'HandleVisibility','off');
-                        THB = yline(0.8, 'LineStyle','-', 'LineWidth',3, ...
-                            'ButtonDownFcn',@MouseDown_TH, "Parent",Bx, 'HandleVisibility','off');
-                    else
-                    end
                     SC = SC + 1;
+                    try
+                        dayData = SUBDATA{1};
+                        LevData = SUBDATA{2};
+                        lev = LevData{L};
+                        lx = lev(:,4);
+                        ly = lev(:,1);
+                        LD{SC}=ly;
+                        if any(ly>=0.8)
+                            PassIdx(SC,3)=0.8;
+                            PassIdx(SC,1)=1;
+                            PassIdx(SC,2)=find(ly>=0.8, 1, 'first')+59;
+                        else
+                            PassIdx(SC,3)=max(ly);
+                            PassIdx(SC,2)=find(ly==max(ly), 1, 'last')+59;
+                        end
+                        PassIdx(SC,4)=ceil(lx(PassIdx(SC,2)-59));
+                        lp = plot(lx,ly,"Parent",Ax,"SeriesIndex",SC, "LineWidth",3, "DisplayName",SUBS{SC});
+                        lpB = plot((1:numel(ly))+59,ly,"Parent",Bx,"SeriesIndex",SC, "LineWidth",3, "DisplayName",SUBS{SC});
+                        %Bx.XLim = [60 numel(ly+59)];
+                        dc = 0;
+                        data = dayData(dayData.Ls==L,:);
+                        for d = data.dayBin'
+                            dayy = d{:}{8};
+                            dayx = d{:}{9} + dc;
+                            dp = plot(dayx,dayy,"Parent",Ax, "SeriesIndex",SC, 'HandleVisibility','off');
+                            dc = dc + 1;
+                        end
+                        %dayBars = xline(1:numel(data.dayBin), 'LineStyle',':', 'LineWidth',3, 'HandleVisibility','off', Parent=Ax);
+                    catch err
+                        unwrapErr(err)
+                        1;
+                    end
+                end
+                if ~options.Moveable
+                    THA = yline(0.8, 'LineStyle','-', 'LineWidth',3, ...
+                        'ButtonDownFcn',@MouseDown_TH, "Parent",Ax, 'HandleVisibility','off');
+                    THB = yline(0.8, 'LineStyle','-', 'LineWidth',3, ...
+                        'ButtonDownFcn',@MouseDown_TH, "Parent",Bx, 'HandleVisibility','off');
+                else
                 end
                 legend(Ax); legend(Bx);
 
@@ -1139,20 +1147,23 @@ classdef BehaviorBoxData < handle
                         if w == 0
                             continue
                         end
-                        PassIdx(pc,2)=find(LD{pc}>=NewTH,1,"first")+59;
+                        try
+                            PassIdx(pc,2)=find(LD{pc}>=NewTH,1,"first")+59;
+                        catch err
+                            unwrapErr(err)
+                            1;
+                        end
                     end
                 end
                 SC = 1;
                 for P = PassIdx'
                     Bday = bar(SC, P(4), "Parent",Cx, "SeriesIndex",SC);
                     Blev = bar(SC, P(2), "Parent",Dx, "SeriesIndex",SC);
-
                     SC = SC + 1;
                 end
                 Dx.XTick = [1:numel(SUBS)];
-                Dx.XTickLabel = this.Sub([3 4]);
+                Dx.XTickLabel = this.Sub;
             end
-
 
             function MouseDown_TH(obj, events)
                 TH_Mouse = true;
