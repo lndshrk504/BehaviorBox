@@ -65,10 +65,10 @@ classdef BehaviorBoxData < handle
                 options.Sub (1,:) cell;
                 options.BB double = 60;
                 options.SB double = 30;
-                options.load logical = true;
-                options.analyze logical = true;
-                options.plot logical = false;
-                options.find logical = false;
+                options.load logical = 1;
+                options.analyze logical = 1;
+                options.plot logical = 0;
+                options.find logical = 0;
             end
             %Apply inputs
             this = copytoStruct(this, options);
@@ -82,6 +82,9 @@ classdef BehaviorBoxData < handle
             if ~options.find && options.analyze
                 try
                     this.AnalyzeAllData();
+                    if numel(this.Sub)>1
+                        this.SortSubjects();
+                    end
                 catch err
                     unwrapErr(err)
                 end
@@ -256,7 +259,12 @@ classdef BehaviorBoxData < handle
             end
 
         end
-        function [varargout] = loadFiles(this)
+        function [varargout] = loadFiles(this, options)
+            arguments
+                this
+% How many trials to remove from the end of each day, to accomodate for the mouse's waning attention/interest in the task
+                options.CropEnd double = 30
+            end
             tic
             if isempty(this.fds)
                 return
@@ -282,7 +290,11 @@ classdef BehaviorBoxData < handle
             end
             fprintf("Loaded... : " + toc + " seconds.\n")
         end
-        function [varargout] = CombineDays(this)
+        function [varargout] = CombineDays(this, options)
+            arguments
+                this
+                options.CE double = 30
+            end
             if isempty(this.loadedData)
                 %fprintf(".\n")
                 return
@@ -417,7 +429,8 @@ classdef BehaviorBoxData < handle
                     end
                     bigSession.SetStr = SetStr;
                     this.current_data_struct = bigSession;
-                    bigSession = this.CleanData;
+                    %bigSession = this.CleanData(IsAnalysis=1); % Crop trials
+                    bigSession = this.CleanData(IsAnalysis=0); % Do not
                     bigSession.Date = repmat(d, numel(bigSession.Score),1);
                     bigSession.LvlTrialNum = zeros(numel(bigSession.Score),1); %Will be filled in later on
                     theseFirst = ["Date";
@@ -435,6 +448,7 @@ classdef BehaviorBoxData < handle
                     Out = orderfields(bigSession, finalorder);
                     Out.StimulusHistory = vertcat(StimHist);
                     dayData.((mouse)){c,3} =Out;
+
                 end
                 emptyDays = cellfun(@isempty, dayData.(mouse)(:,1));
                 dayData.(mouse)(emptyDays,:) = [];
@@ -459,7 +473,11 @@ classdef BehaviorBoxData < handle
                 this.dc = 1+numel(dat{:}(:,1));
             end
         end
-        function [varargout] = AnalyzeAllData(this)
+        function [varargout] = AnalyzeAllData(this, options)
+            arguments
+                this
+                options.CropEnd double = 30 % How many trials to remove from the end of each day, to accomodate for the mouse's waning attention/interest in the task
+            end
             tic
             Out = struct;
             numSubs = size(this.Sub);
@@ -525,6 +543,16 @@ classdef BehaviorBoxData < handle
                 Dtbl = trialTbl(r,:);
                 Out = Dtbl;
                 %Out = cellfun(@(x)Dtbl(Dtbl.Level==x,:), num2cell(Ls), "UniformOutput", false)';
+            end
+        end
+        function SortSubjects(this)
+%Reorder everything in this.AnalyzedData to put Hets first, WTs last
+            this.AnalyzedData.Subjects = this.Sub;
+            WTs = find(contains(this.AnalyzedData.Subjects, "WT"));
+            Hets = find(~contains(this.AnalyzedData.Subjects, "WT"));
+            order = [Hets WTs];
+            for f = fieldnames(this.AnalyzedData)'
+                this.AnalyzedData.(f{:}) = this.AnalyzedData.(f{:})(order);
             end
         end
         function Out = LevelMMAnalysis(this, L)
@@ -617,7 +645,12 @@ classdef BehaviorBoxData < handle
                 dataMatrix.(n{:}) = dataMatrix.(n{:})';
             end
         end
-        function data = CleanData(this)
+        function data = CleanData(this, options)
+            arguments
+                this
+                options.IsAnalysis logical = 0
+                options.CE double = 30
+            end
             data = this.current_data_struct;
             try
                 names = fieldnames(data);
@@ -646,6 +679,24 @@ classdef BehaviorBoxData < handle
                 end
                 [~, ~, data.SmallBin(rows)] = histcounts((1:m)', [1:this.SB:m inf]); %Small Bin
                 [~, ~, data.BigBin(rows)] = histcounts((1:m)', [1:this.BB:m inf]); %Large Bin
+            end
+            if options.IsAnalysis && options.CE ~= 0 && max(data.TrialNum) >= 120
+                % Crop the last few trials
+
+            %Either use the Include vector to later crop (more work)
+                data.Include(end-options.CE+1:end) = 2;
+                m = numel(data.TrialNum);
+            % Or just remove them
+            for n = names'
+                try
+                    if numel(data.(n{:}))~=m
+                        continue
+                    end
+                    data.(n{:})(end-options.CE+1:end) = [];
+                catch err
+                    unwrapErr(err)
+                end
+            end
             end
         end
         %Plot functions
@@ -1017,13 +1068,12 @@ classdef BehaviorBoxData < handle
                 opts.DayProgress logical = 1
             end
             Num = num2cell(1:numel(this.Sub));
-            Num(1:2) = []; % Only 3 and 4 have seen high levels
             tic
             if opts.DayProgress
                 close all
                 Trial = this.DailyProgress();
                 %this.PlotGroupTrialsToPass(Trial);
-                %this.SaveManyFigures([],'TrialsTo', SameFolder=1)
+                this.SaveManyFigures([],'DayTrial', SameFolder=1)
             end
             if opts.Group
                 %close all
@@ -1056,16 +1106,21 @@ classdef BehaviorBoxData < handle
                 this
                 options.Sc double = 1
                 options.AllMice logical = 0
-                options.Lvs double = [2:10] % Do not display levels below this
-                options.Moveable logical = 0
+                options.Lvs double = 2:12 % Do not display levels below this
+                options.Moveable logical = 0 % Unused
+                options.Threshold double = 0.8 % Passing threshold for each level
+                options.count double = 10 % Num of consecutive trials above threshold before passing
+                options.tol double = 0 % How many below-threshold trials in the streak of options.count to be tolerated
             end
             Out = struct();
+        % Pull the cumulative Level and Day data
             LEVDATA = cellfun(@(x)this.AnalyzedData.LevelMM{x}, num2cell(1:numel(this.Sub)), UniformOutput=false);
             DAYDATA = cellfun(@(x)this.AnalyzedData.DayMM{x}, num2cell(1:numel(this.Sub)), UniformOutput=false);
-            SUBS = this.Sub;
+            SUBS = this.AnalyzedData.Subjects;
             for L = options.Lvs
+            % Prepare and format 2x2 subplot
                 Ax = MakeAxis();
-                Bx = nexttile; Bx.Box = 1; hold(Bx,"on");
+                Bx = nexttile; hold(Bx,"on");
                 Cx = nexttile; hold(Cx,"on");
                 Dx = nexttile; hold(Dx,"on");
                 Ax.Title.String = "By Day";
@@ -1077,47 +1132,63 @@ classdef BehaviorBoxData < handle
                 Bx.Box=1;
                 Cx.Box=1;
                 Dx.Box=1;
-                if ~options.Moveable
-                    TH_Mouse = false;
-                else
-                end
                 Ax.YLim = [0.4 1]; Bx.YLim = [0.4 1];
                 SC = 0;
-                PassIdx = zeros(numel(SUBS),4);
+            % Matrix to record passing data:
+                PassIdx = zeros(numel(SUBS),6);
                 % 1 Did they pass
                 % 2 at which trial number
                 % 3 Threshold for passing (in case TH is later lowered)
                 % 4 Day of passing
+                % 5 Did they see that level at all
+                % 6 Cumulative over-threshold passing-trial
+                % 7 Het = 1 or WT = 0
+                % 8 Male = 1 or Female = 0
                 LD = cell(size(SUBS));
                 for SUBDATA = [DAYDATA ; LEVDATA]
                     SC = SC + 1;
+                    thisSub = SUBS{SC};
+                    PassIdx(SC,7) = contains(thisSub, "Het");
+                    PassIdx(SC,8) = contains(thisSub, "- M -");
+                    ColorIdx = PassIdx(SC,7)+1;
+                %Check if they've seen this level:
+                    if ~any(SUBDATA{1}.Ls == L)
+                        continue
+                    end
                     try
                         dayData = SUBDATA{1};
                         LevData = SUBDATA{2};
+                % From cumulative LevelTable, find the trials over the threshold
+                        % overThreshEx = cellfun(@(x)find(x(:,1)>=options.Threshold & x(:,5)==1)+this.BB, LevData, 'UniformOutput', false, 'ErrorHandler',@errorFuncNaN);
+                        % TrialEx = cellfun(@(x) this.consecutiveTrial(x, options.count, options.tol), overThreshEx, "UniformOutput",true);
+                        overThresh = cellfun(@(x)find(x(:,1)>=options.Threshold)+this.BB, LevData, 'UniformOutput', false, 'ErrorHandler',@errorFuncNaN);
+                        Trial = cellfun(@(x) this.consecutiveTrial(x, options.count, options.tol), overThresh, "UniformOutput",true);
+                        PassIdx(SC,6)=Trial(L);
                         lev = LevData{L};
                         lx = lev(:,4);
                         ly = lev(:,1);
                         LD{SC}=ly;
-                        if any(ly>=0.8)
-                            PassIdx(SC,3)=0.8;
+                        if any(ly>=options.Threshold)
+                            PassIdx(SC,3)=options.Threshold;
                             PassIdx(SC,1)=1;
-                            PassIdx(SC,2)=find(ly>=0.8, 1, 'first')+59;
+                            PassIdx(SC,2)=find(ly>=options.Threshold, 1, 'first')+59;
+                            PassIdx(SC,4)=ceil(lx(PassIdx(SC,2)-59));
                         else
                             PassIdx(SC,3)=max(ly);
                             PassIdx(SC,2)=find(ly==max(ly), 1, 'last')+59;
                         end
-                        PassIdx(SC,4)=ceil(lx(PassIdx(SC,2)-59));
-                        lp = plot(lx,ly,"Parent",Ax,"SeriesIndex",SC, "LineWidth",3, "DisplayName",SUBS{SC});
-                        lpB = plot((1:numel(ly))+59,ly,"Parent",Bx,"SeriesIndex",SC, "LineWidth",3, "DisplayName",SUBS{SC});
+                        lp = plot(lx,ly,"Parent",Ax,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
+                        lpB = plot((1:numel(ly))+59,ly,"Parent",Bx,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
                         %Bx.XLim = [60 numel(ly+59)];
                         dc = 0;
                         data = dayData(dayData.Ls==L,:);
                         for d = data.dayBin'
                             dayy = d{:}{8};
                             dayx = d{:}{9} + dc;
-                            dp = plot(dayx,dayy,"Parent",Ax, "SeriesIndex",SC, 'HandleVisibility','off');
+                            dp = plot(dayx,dayy,"Parent",Ax, "SeriesIndex",ColorIdx, 'HandleVisibility','off');
                             dc = dc + 1;
                         end
+                        PassIdx(SC,5)=1;
                         %dayBars = xline(1:numel(data.dayBin), 'LineStyle',':', 'LineWidth',3, 'HandleVisibility','off', Parent=Ax);
                     catch err
                         unwrapErr(err)
@@ -1132,37 +1203,50 @@ classdef BehaviorBoxData < handle
                 else
                 end
                 legend(Ax); legend(Bx);
-
                 % Plot a bar graph of trials to pass
-                if ~all(PassIdx(:,1))
+                if ~all(PassIdx(:,1)) && min(PassIdx( PassIdx(:,1) ~=1 ,3))~=0
                     NewTH = min(PassIdx(PassIdx(:,1)~=1,3));
+                    PassIdx(:,3) = NewTH;
+                    SC = 0;
+                    for LevData = LEVDATA
+                        SC = SC + 1;
+                        overThresh = cellfun(@(x)find(x(:,1)>=NewTH)+this.BB, LevData{:}, 'UniformOutput', false, 'ErrorHandler',@errorFuncNaN);
+                        Trial = cellfun(@(x) this.consecutiveTrial(x, options.count, options.tol), overThresh, "UniformOutput",true);
+                        PassIdx(SC,6) = Trial(L);
+                        %PassIdx(SC,2)=find(ly>=NewTH, 1, 'first')+59;
+                        %PassIdx(SC,4)=ceil(lx(PassIdx(SC,2)-59));
+                    end
                     THA.Value = NewTH; THA.Label = num2str(NewTH);
                     THB.Value = NewTH; THB.Label = num2str(NewTH);
-                    %Reset the trial count for whoeveer has passed the
-                    %levels at 80% to the new lower threshold
-                    WHICH = PassIdx(:,1)~=1;
-                    pc = 0;
-                    for w = WHICH'
-                        pc = pc+1;
-                        if w == 0
-                            continue
-                        end
-                        try
-                            PassIdx(pc,2)=find(LD{pc}>=NewTH,1,"first")+59;
-                        catch err
-                            unwrapErr(err)
-                            1;
-                        end
-                    end
+                    % %Reset the trial count for whoeveer has passed the
+                    % %levels at 80% to the new lower threshold
+                    % WHICH = PassIdx(:,1)~=1;
+                    % pc = 0;
+                    % for w = WHICH'
+                    %     pc = pc+1;
+                    %     if w == 0
+                    %         continue
+                    %     end
+                    %     try
+                    %         PassIdx(pc,2)=find(LD{pc}>=NewTH,1,"first")+59;
+                    %     catch err
+                    %         unwrapErr(err)
+                    %         1;
+                    %     end
+                    % end
                 end
                 SC = 1;
                 for P = PassIdx'
-                    Bday = bar(SC, P(4), "Parent",Cx, "SeriesIndex",SC);
-                    Blev = bar(SC, P(2), "Parent",Dx, "SeriesIndex",SC);
+                    ColorIdx = P(7)+1;
+                    if isnan(P(6))
+                        P(6) = P(2);
+                    end
+                    Bday = bar(SC, P(4), "Parent",Cx, "SeriesIndex",ColorIdx);
+                    Blev = bar(SC, P(6), "Parent",Dx, "SeriesIndex",ColorIdx);
                     SC = SC + 1;
                 end
                 Dx.XTick = [1:numel(SUBS)];
-                Dx.XTickLabel = this.Sub;
+                Dx.XTickLabel = SUBS;
             end
 
             function MouseDown_TH(obj, events)
@@ -1180,7 +1264,7 @@ classdef BehaviorBoxData < handle
             end
             try
                 tic
-                %SUB = this.Sub{options.Sc};
+                SubjectID = this.AnalyzedData.Subjects{options.Sc};
                 Levels = unique(this.AnalyzedData.TrialTbls{options.Sc}.Level)';
                 %Get moving means of accuracy over the last 60 (big bin) trials
                 Ldat = this.AnalyzedData.LevelMM{options.Sc};
@@ -2561,8 +2645,13 @@ classdef BehaviorBoxData < handle
                 tic
                 FIG = findobj('Type','figure');
                 FIG(contains({FIG.Name}, 'BehaviorBox')) = [];
+                if all({FIG.Name}=="")
+                    Names = {FIG.Number};
+                else
+                    Names = {FIG.Name};
+                end
                 if options.SameFolder %Make a folder using filename to save all files
-                    SavePathName = fullfile(this.filedir, filename, string({FIG.Name})'+filename);
+                    SavePathName = fullfile(this.filedir, filename, string(Names)'+filename);
                     if ~isfolder(fullfile(this.filedir, filename))
                         mkdir(fullfile(this.filedir, filename))
                     end
