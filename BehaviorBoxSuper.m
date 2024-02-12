@@ -768,6 +768,7 @@ classdef BehaviorBoxSuper < handle
                             drawnow
                             break;
                         end
+                        pause(0.1)
                     end
                     t2 = clock;
                     this.ReadyCue(this.ReadyCueStruct.Color);
@@ -819,6 +820,7 @@ classdef BehaviorBoxSuper < handle
                                     set(this.message_handle,'Text','Waiting for Trial initialization'); drawnow
                                     break
                                 end
+                                pause(0.1)
                             end
                         end
                         %Immediately accept choice
@@ -936,6 +938,7 @@ classdef BehaviorBoxSuper < handle
             %ignore input if set
             t1 = datetime("now");
             while this.Setting_Struct.Input_ignored & seconds(datetime("now")-t1)<this.Setting_Struct.Pokes_ignored_time
+                pause(0.1)
                 time = this.Setting_Struct.Pokes_ignored_time-seconds(datetime("now")-t1);
                 txt = "Ignoring input for "+round(time,1)+" sec...";
                 set(this.message_handle,'Text',txt)
@@ -966,6 +969,7 @@ classdef BehaviorBoxSuper < handle
                     this.GiveReward(this.a, this.Box, this.Buttons, this.WhatDecision); %give reward
                     if this.Box.Input_type == 3
                         while this.checkRewardPortsandwait(this.WhatDecision)%Pause while the mouse is standing there and drinking their reward
+                            pause(0.1)
                         end
                     end
                     t2 = clock;
@@ -995,6 +999,7 @@ classdef BehaviorBoxSuper < handle
                                 set(this.message_handle, 'Text','Ending session...'); drawnow
                                 break;
                             end
+                            pause(0.1)
                         end
                     end
                     o = findobj(this.fig.Children);
@@ -1112,6 +1117,7 @@ classdef BehaviorBoxSuper < handle
             starttime = clock;
             while etime(clock, starttime) < interval
                 drawnow
+                pause(0.1)
                 if this.Pause.Value
                     set(this.message_handle,'Text','Paused, click pause button again to continue...');
                     o = findobj(this.fig.Children);
@@ -1119,6 +1125,7 @@ classdef BehaviorBoxSuper < handle
                     this.fig.Color = this.ReadyCueStruct.Color;% Clear stim and turn the screen black to tell the mouse the time to drink water is now over. This should help mice not associate an air puff with the correct/rewarded stimulus, and instead associate an air puff with the black screen.
                     while get(this.Pause, 'Value')
                         drawnow
+                        pause(0.1)
                     end
                     this.fig.Color = this.StimulusStruct.BackgroundColor;
                 end
@@ -1159,6 +1166,7 @@ classdef BehaviorBoxSuper < handle
             switch this.Box.Input_type
                 case 3 % Nose
                     while this.checkRewardPortsandwait(this.WhatDecision)%Pause while the mouse is standing there and drinking their water reward
+                        pause(0.1)
                     end
                     o = findobj(this.fig.Children);
                     [o(:).Visible] = deal(0);
@@ -1387,16 +1395,19 @@ classdef BehaviorBoxSuper < handle
             set(this.message_handle,'Text','Trigger the Left Sensor');
             while this.a.readDigitalPin(this.Box.Left) ~= this.Box.readHigh
                 %just wait until the sensor is triggered
+                pause(0.1)
             end
             this.ResetSensor(this)
             set(this.message_handle,'Text','Trigger the Right Sensor');
             while this.a.readDigitalPin(this.Box.Right) ~= this.Box.readHigh
                 %just wait until the sensor is triggered
+                pause(0.1)
             end
             this.ResetSensor(this)
             set(this.message_handle,'Text','Trigger the Middle Sensor');
             while this.a.readDigitalPin(this.Box.Middle) ~= this.Box.readHigh
                 %just wait until the sensor is triggered
+                pause(0.1)
             end
             this.cleanUP();
             set(this.message_handle,'Text','Did the sensors work?');
@@ -1595,6 +1606,8 @@ classdef BehaviorBoxSuper < handle
                         event = 2; %Right Choice
                         break
                     end
+                    pause(0.1)
+                    drawnow
                     % %Make the mouse stand at its choice for the input ignore duration
                     % while this.a.readDigitalPin(this.Box.Left) == this.Box.readHigh %& this.isLeftTrial %LeverA is left
                     %     t1 = datetime("now");
