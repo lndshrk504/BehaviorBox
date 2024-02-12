@@ -1084,6 +1084,7 @@ classdef BehaviorBoxNose < handle
             this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
             for i = 1:PulseNum
                 GiveDrop(this.a, Valve, Time)
+                this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
                 if i < PulseNum
                     switch this.Box.Input_type
                         case 3 %Nose
