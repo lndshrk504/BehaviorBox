@@ -955,7 +955,7 @@ classdef BehaviorBoxSuper < handle
             %stop sound
             if this.Setting_Struct.Play_sound
             end
-            if this.Box.Input_type == 6
+            if this.Box.Input_type == 6 % Wheel
                 p = findobj('Type', 'Polygon');
                 [p.FaceColor] = deal(this.StimulusStruct.BackgroundColor);
             end
@@ -1473,6 +1473,7 @@ classdef BehaviorBoxSuper < handle
                         if get(Buttons.Stop, 'Value') || get(Buttons.FastForward, 'Value')
                             break
                         end
+                        pause(0.1)
                     end
                 case 6 % Wheel
                     switch true
@@ -1498,15 +1499,10 @@ classdef BehaviorBoxSuper < handle
                                 if get(Buttons.Stop, 'Value') || get(Buttons.FastForward, 'Value')
                                     break
                                 end
+                                pause(0.1)
                             end
                         case 6 %wheel
-                            bigTimer = [];
-                            timer = clock;
-                            while etime(clock, timer) < Box.SecBwPulse
-                                if get(Buttons.Stop, 'Value') || get(Buttons.FastForward, 'Value')
-                                    break
-                                end
-                            end
+                            pause(Box.SecBwPulse)
                     end
                 end
             end
