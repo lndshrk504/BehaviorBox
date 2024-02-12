@@ -802,6 +802,7 @@ classdef BehaviorBoxNose < handle
                                 drawnow
                                 break;
                             end
+                            pause(0.1)
                         end
                         t2 = clock;
                         this.ReadyCue(this.ReadyCueStruct.Color);
@@ -852,6 +853,7 @@ classdef BehaviorBoxNose < handle
                                     set(this.message_handle,'Text','Waiting for Trial initialization'); drawnow
                                     break
                                 end
+                                pause(0.1)
                             end
                         end
                         %Immediately accept choice
@@ -954,7 +956,7 @@ classdef BehaviorBoxNose < handle
                 time = this.Setting_Struct.Pokes_ignored_time-seconds(datetime("now")-t1);
                 txt = "Ignoring input for "+round(time,1)+" sec...";
                 set(this.message_handle,'Text',txt)
-                pause(0.05); drawnow;
+                pause(0.1); drawnow;
             end
             this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'NewStim'); % Make visible stimulus and flash if set
             set(this.message_handle,'Text',['Waiting for ',this.current_side,' choice...']);
@@ -1008,6 +1010,7 @@ classdef BehaviorBoxNose < handle
                                 set(this.message_handle, 'Text','Ending session...'); drawnow
                                 break;
                             end
+                            pause(0.1)
                         end
                     end
                     o = findobj(this.fig.Children);
@@ -1092,14 +1095,7 @@ classdef BehaviorBoxNose < handle
                                 end
                             end
                         case 6 %wheel
-                            bigTimer = [];
-                            timer = clock;
-                            while etime(clock, timer) < this.Box.SecBwPulse
-                                pause(0.1); drawnow;
-                                if get(this.Buttons.Stop, 'Value') || get(this.Buttons.FastForward, 'Value')
-                                    break
-                                end
-                            end
+                            pause(this.Box.SecBwPulse)
                     end
                 end
             end
@@ -1114,7 +1110,7 @@ classdef BehaviorBoxNose < handle
         function UpdatePause(this, interval)
             starttime = clock;
             while etime(clock, starttime) < interval
-                pause(0.05); drawnow;
+                pause(0.1); drawnow;
                 if this.Pause.Value
                     set(this.message_handle,'Text','Paused, click pause button again to continue...');
                     o = findobj(this.fig.Children);
@@ -1410,17 +1406,17 @@ classdef BehaviorBoxNose < handle
             this.getGUI();
             set(this.message_handle,'Text','Trigger the Left Sensor');
             while ~this.Box.readL()
-                pause(0.05); drawnow;
+                pause(0.1); drawnow;
                 %just wait until the sensor is triggered
             end
             set(this.message_handle,'Text','Trigger the Right Sensor');
             while ~this.Box.readR()
-                pause(0.05); drawnow;
+                pause(0.1); drawnow;
                 %just wait until the sensor is triggered
             end
             set(this.message_handle,'Text','Trigger the Middle Sensor');
             while ~this.Box.readM()
-                pause(0.05); drawnow;
+                pause(0.1); drawnow;
                 %just wait until the sensor is triggered
             end
             this.cleanUP();
@@ -1562,14 +1558,7 @@ classdef BehaviorBoxNose < handle
                                 end
                             end
                         case 6 %wheel
-                            bigTimer = [];
-                            timer = clock;
-                            while etime(clock, timer) < Box.SecBwPulse
-                                pause(0.1); drawnow;
-                                if get(Buttons.Stop, 'Value') || get(Buttons.FastForward, 'Value')
-                                    break
-                                end
-                            end
+                            pause(this.Box.SecBwPulse)
                     end
                 end
             end
@@ -1584,7 +1573,7 @@ classdef BehaviorBoxNose < handle
             prompt = 'L, R, or M/C:   ';
             keypress = 0; t1 = clock;
             while keypress==0
-                pause(0.05); drawnow;
+                pause(0.1); drawnow;
                 currkey = input(prompt,"s");
                 response_time = etime(clock, t1);
                 switch true
@@ -1642,7 +1631,7 @@ classdef BehaviorBoxNose < handle
                 response_timer = clock;
                 %run loop
                 while timeout_value == 0 | etime(clock, timeout_timer)<timeout_value
-                    pause(0.01);drawnow;
+                    pause(0.1);drawnow;
                     if get(this.Skip, 'Value') %this.Skip.Value
                         this.Skip.Value = 0; %Turn the button off
                         break
@@ -1965,9 +1954,9 @@ classdef BehaviorBoxNose < handle
                 end
             end
             function CorrectFlash
-                while Box.readL() || Box.readR()
-                    pause(0.5); drawnow
-                end
+                % while Box.readL() || Box.readR()
+                %     pause(0.5); drawnow
+                % end
                 [Lines(:).Color] = deal(Stim.BackgroundColor);
                 pause(1/Freq/5)
                 for StimRep = 1:Reps
