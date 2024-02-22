@@ -1,4 +1,3 @@
-% From ChatGPT on 5/16/23 - Will Snyder
 function viewDualCameras
 %  Make sure you have the Image Acquisition Toolbox installed.
 output = ver;
@@ -10,7 +9,11 @@ end
 imaqreset
 imaqmex('feature','-limitPhysicalMemoryUsage',false)
 % Find cameras and remove system items
-CamInfo = imaqhwinfo('linuxvideo');
+if isunix && ismac
+    CamInfo = imaqhwinfo("macvideo");
+else
+    CamInfo = imaqhwinfo("linuxvideo");
+end
 INFO = CamInfo.DeviceInfo;
 IDS = CamInfo.DeviceIDs;
 List = struct2cell(INFO);
@@ -18,6 +21,7 @@ IDS = IDS(~cellfun(@(x) contains(x(end), '0x0'), List(end,:,:)));
 if isempty(IDS)
     return
 end
+
 % Loop through the IDs and add cameras
 for id = cell2mat(IDS)
     info = INFO(id);
@@ -28,7 +32,11 @@ for id = cell2mat(IDS)
     end
     try
         %  Initialize the video input object
-        vid = videoinput('linuxvideo', id, res{w});
+        if isunix && ismac
+            vid = videoinput("macvideo", id, res{w});
+        else
+            vid = videoinput("linuxvideo", id, res{w});
+        end
         preview(vid)
     catch err
         unwrapErr(err)

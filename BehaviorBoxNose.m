@@ -1969,6 +1969,7 @@ classdef BehaviorBoxNose < handle
                     [Lines(:).Color] = deal(start_color);
                     try
                         [d.Color] = deal(Stim.DimColor); drawnow
+                    catch
                     end
                     pause(1/Freq/10)
                     [Lines(:).Color] = deal(flash_color);
