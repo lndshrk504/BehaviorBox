@@ -984,7 +984,7 @@ classdef BehaviorBoxNose < handle
                         end
                     end
                     this.DrinkTime = toc;
-                    [this.fig.Children(contains({this.fig.Children.Tag}, "Incorrect")).Children.Visible] = deal(0);
+                    %[this.fig.Children(contains({this.fig.Children.Tag}, "Incorrect")).Children.Visible] = deal(0);
                     %Flash
                     %this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
                     if this.StimulusStruct.PersistCorrectInterv > 0

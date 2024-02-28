@@ -1033,7 +1033,7 @@ classdef BehaviorBoxWheel < handle
                 time = this.Setting_Struct.Pokes_ignored_time-seconds(datetime("now")-t1);
                 txt = "Ignoring input for "+round(time,1)+" sec...";
                 set(this.message_handle,'Text',txt)
-                pause(0.05); drawnow;
+                pause(0.1); drawnow;
             end
             this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'NewStim'); % Make visible stimulus and flash if set
             set(this.message_handle,'Text',['Waiting for ',this.current_side,' choice...']);
@@ -1053,23 +1053,24 @@ classdef BehaviorBoxWheel < handle
                     [d.Color] = deal(this.StimulusStruct.DimColor);
                 end
                 pause(this.Setting_Struct.Input_Delay_Respond)
-                try
-                    p = findobj('Type', 'Polygon');
-                    [p.FaceColor] = deal(this.StimulusStruct.BackgroundColor);
-                end
+                % try
+                %     p = findobj('Type', 'Polygon');
+                %     [p.FaceColor] = deal(this.StimulusStruct.BackgroundColor);
+                % end
                 pause(this.Setting_Struct.Input_Delay_Respond)
             end
             switch true
                 case contains({this.WhatDecision} , 'correct', 'IgnoreCase', true)
                     set(this.message_handle,'Text','Giving Reward...');
                     tic
-                    this.GiveReward(this.a, this.Box, this.Buttons, this.WhatDecision); %give reward
+                    this.GiveRewardAndFlash();
+                    %this.GiveReward(this.a, this.Box, this.Buttons, this.WhatDecision); %give reward
                     while abs(this.Box.encoder.readSpeed) > this.Setting_Struct.Hold_Still_Thresh %Pause while the mouse is standing there
                         pause(0.5);drawnow;
                     end
                     this.DrinkTime = toc;
                     %Flash
-                    this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
+                    %this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
                     if this.StimulusStruct.PersistCorrectInterv > 0
                         thisInt = (this.StimulusStruct.PersistCorrectInterv);
                     else
@@ -1114,11 +1115,85 @@ classdef BehaviorBoxWheel < handle
                     this.fig.Color = 'k';
             end
         end
+        %open reward valves
+        function GiveRewardAndFlash(this)
+            %Get reward valve, pulse number and time:
+            switch this.Box.Input_type
+                case 3 %Nose
+                    switch true
+                        case contains(this.WhatDecision, 'left correct', 'IgnoreCase', true)
+                            CorrectLever = this.Box.Left; %Left
+                            OtherLever = this.Box.Right; %Right
+                            PulseNum = this.Box.LeftPulse;
+                            Valve = this.Box.ValveR; %Left
+                            Time = this.Box.Lrewardtime; %Left
+                        case contains(this.WhatDecision, 'right correct', 'IgnoreCase', true)
+                            CorrectLever = this.Box.Right; %Right
+                            OtherLever = this.Box.Left; %Left
+                            PulseNum = this.Box.RightPulse;
+                            Valve = this.Box.ValveL; %Right
+                            Time = this.Box.Rrewardtime; %Right
+                        case contains(this.WhatDecision, 'wrong', 'IgnoreCase', true)
+                            if this.Box.Air_Puff_Penalty
+                                PulseNum = this.Box.AirPuffPulses;
+                                Valve = this.Box.AirPuff;
+                                Time = this.Box.AirPuffTime;
+                            else
+                                return
+                            end
+                    end
+                case 6 % Wheel
+                    switch true
+                        case contains(this.WhatDecision, 'correct', 'IgnoreCase', true)
+                            PulseNum = this.Box.RightPulse;
+                            Valve = this.Box.Reward; %Right
+                            Time = this.Box.Rrewardtime; %Right
+                        case contains(this.WhatDecision, 'wrong', 'IgnoreCase', true)
+                            return %No air puff for wheel
+                    end
+                otherwise %Keyboard, any input method I haven't used before
+                    return
+            end
+            % while contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && ~this.Box.readPin(CorrectLever) %Wait for NosePoke Don't dispense the reward unless the mouse is waiting for it! Wait indefinitely between pulses for them to learn to collect all the water
+            %     pause(0.2); drawnow;
+            %     if get(this.Buttons.Stop, 'Value') || get(this.Buttons.FastForward, 'Value')
+            %         break
+            %     end
+            % end
+            GiveDrop(this.a, Valve, Time)
+            PulseNum = PulseNum-1;
+            % then flash
+            this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
+            for i = 1:PulseNum
+                GiveDrop(this.a, Valve, Time)
+                this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
+                if i < PulseNum
+                    switch this.Box.Input_type
+                        case 3 %Nose
+                            pause(this.Box.SecBwPulse)
+                            while contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && ~this.Box.readPin(CorrectLever) %Wait for NosePoke Don't dispense the reward unless the mouse is waiting for it! Wait indefinitely between pulses for them to learn to collect all the water
+                                pause(0.2); drawnow;
+                                if get(this.Buttons.Stop, 'Value') || get(this.Buttons.FastForward, 'Value')
+                                    break
+                                end
+                            end
+                        case 6 %wheel
+                            pause(this.Box.SecBwPulse)
+                    end
+                end
+            end
+            function GiveDrop(ard,V,T)
+                % Give one pulse
+                ard.writeDigitalPin(V,1)
+                pause(T);
+                ard.writeDigitalPin(V,0); drawnow
+            end
+        end
         %Use this function instead of pausing, so that buttons are checked and settings are updated during the pause
         function UpdatePause(this, interval)
             starttime = clock;
             while etime(clock, starttime) < interval
-                pause(0.05); drawnow;
+                pause(0.1); drawnow;
                 if this.Pause.Value
                     set(this.message_handle,'Text','Paused, click pause button again to continue...');
                     o = findobj(this.fig.Children);
@@ -1408,17 +1483,17 @@ classdef BehaviorBoxWheel < handle
             this.getGUI();
             set(this.message_handle,'Text','Trigger the Left Sensor');
             while ~this.Box.readL()
-                pause(0.05); drawnow;
+                pause(0.1); drawnow;
                 %just wait until the sensor is triggered
             end
             set(this.message_handle,'Text','Trigger the Right Sensor');
             while ~this.Box.readR()
-                pause(0.05); drawnow;
+                pause(0.1); drawnow;
                 %just wait until the sensor is triggered
             end
             set(this.message_handle,'Text','Trigger the Middle Sensor');
             while ~this.Box.readM()
-                pause(0.05); drawnow;
+                pause(0.1); drawnow;
                 %just wait until the sensor is triggered
             end
             this.cleanUP();
@@ -1555,7 +1630,7 @@ classdef BehaviorBoxWheel < handle
             prompt = 'L, R, or M/C:   ';
             keypress = 0; t1 = clock;
             while keypress==0
-                pause(0.05); drawnow;
+                pause(0.1); drawnow;
                 currkey = input(prompt,"s");
                 response_time = etime(clock, t1);
                 switch true
