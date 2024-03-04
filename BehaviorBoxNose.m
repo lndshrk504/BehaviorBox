@@ -33,6 +33,7 @@ classdef BehaviorBoxNose < handle
         %Structures of variables:
         Stimulus_Object = struct();
         Data_Object = struct();
+        Current_Settings char = 'default'
         Setting_Struct = struct();
         Temp_Settings = struct();
         Temp_Countdown = 0;
@@ -198,16 +199,16 @@ classdef BehaviorBoxNose < handle
             this.dropdowns = cell2struct(DropVals, dTags);
             props = props(~contains(types, {'dropdown'})); types = GetType(this.app, props);
             %Make Checkbox structure
-            tempVal = cell(size(props));
+            setVals = cell(size(props));
             CIdx = contains(types, {'check'});
             Checkboxes = props(CIdx);
             cVals = cellfun(@(x)logical(this.app.(x).Value), Checkboxes, 'UniformOutput',false);
-            tempVal(CIdx) = cVals;
+            setVals(CIdx) = cVals;
             pTags = GetTag(this.app, props);
-            tempVal(~CIdx) = cellfun(@(x)str2double(this.app.(x).Value), props(~CIdx), 'UniformOutput',false);
-            ReDo = cellfun(@isnan, tempVal, 'UniformOutput',true);
-            tempVal(ReDo) = cellfun(@(x)(this.app.(x).Value), props(ReDo), 'UniformOutput',false);
-            tempSetting_Struct = cell2struct(tempVal, pTags);
+            setVals(~CIdx) = cellfun(@(x)str2double(this.app.(x).Value), props(~CIdx), 'UniformOutput',false);
+            ReDo = cellfun(@isnan, setVals, 'UniformOutput',true);
+            setVals(ReDo) = cellfun(@(x)(this.app.(x).Value), props(ReDo), 'UniformOutput',false);
+            tempSetting_Struct = cell2struct(setVals, pTags);
             tempSetting_Struct = appendStruct(tempSetting_Struct, this.dropdowns);
             this.makeTrialStructures(tempSetting_Struct);
             this.LevelStruct = this.ManyLevels(this.LevelStruct);
@@ -425,7 +426,6 @@ classdef BehaviorBoxNose < handle
             fprintf(txt+"\n");
             this.i = 0;
             this.timeout_counter = 0;
-            this.CheckTemp();
         end
         %Do some things before each trial
         function BeforeTrial(this)
@@ -438,6 +438,7 @@ classdef BehaviorBoxNose < handle
             end
             set(this.FF, 'Value', 0) %Turn off FF button
             this.UpdateSettings()
+            this.CheckTemp();
             %Update GUI window numbers
             this.updateGUIbeforeIteration();
             %Pick next reward drop size, if variable
@@ -484,26 +485,37 @@ classdef BehaviorBoxNose < handle
             %this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.DimColor;
         end
         function CheckTemp(this)
-            if this.i == 0 %Setup before main loop:
-                switch 1
-                    case this.Temp_Settings.PerformanceThreshold ~= 0
-                        this.Temp_Active = 1;
-
-                    case this.Temp_Settings.TrialNumber ~= 0
-                        this.Temp_Active = 1;
-                        this.Temp_iStart = this.i;
-                        this.Temp_Countdown = this.Temp_Settings.TrialCount - this.i;
-                    otherwise
-                        this.Temp_Active = 0;
+            % Temp_Settings = struct();
+            % Temp_Old_Settings = struct();
+            % Temp_Countdown = 0;
+            % Temp_iStart = 0;
+            % Temp_Active = 0;
+            if ~this.Temp_Active
+                if this.Temp_Settings.PerformanceThreshold || this.Temp_Settings.TrialNumber
+                    this.Temp_Active = true;
+                    this.Temp_iStart = true;
                 end
-            else %After beginning session:
-                switch 1
-                    case this.Temp_Settings.PerformanceThreshold ~= 0
-
-                    case this.Temp_Settings.TrialNumber ~= 0
-
-                    otherwise
-                        this.Temp_Active = 0;
+            end
+            if this.Temp_Active && this.Temp_Settings.TempOff
+                this.Temp_Active = false;
+                this.Setting_Struct = this.Temp_Old_Settings;
+                this.app.TrialsRemainingLabel.Text = "_ Trials Remaining";
+                this.app.TempOff_Temp.Value = 1;
+            end
+            if this.Temp_Active
+                this.Temp_Old_Settings = this.Setting_Struct;
+                this.Setting_Struct = copytoStruct(this.Setting_Struct, this.Temp_Settings);
+                if this.Temp_iStart
+                    this.Temp_iStart = false;
+                    this.Temp_Countdown = this.Temp_Settings.TrialCount;
+                end
+                this.Temp_Countdown = this.Temp_Countdown - 1;
+                this.app.TrialsRemainingLabel.Text = this.Temp_Countdown+" Trials Remaining";
+                if this.Temp_Countdown == 0
+                    this.Temp_Active = false;
+                    this.Setting_Struct = this.Temp_Old_Settings;
+                    this.app.TrialsRemainingLabel.Text = "_ Trials Remaining";
+                    this.app.TempOff_Temp.Value = 1;
                 end
             end
         end
@@ -1170,6 +1182,9 @@ classdef BehaviorBoxNose < handle
             end
             %Wait for interval
             this.UpdatePause(interval_time)
+            if this.Temp_Active
+                this.Setting_Struct = this.Temp_Old_Settings;
+            end
             try
                 this.GuiHandles.MsgBox.String = fileread(this.textdiary);
             catch err
