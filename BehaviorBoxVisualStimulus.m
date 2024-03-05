@@ -176,6 +176,7 @@ classdef BehaviorBoxVisualStimulus
             
         end
         function FLAx = finishLine(this)
+% Make this visually similar to the stimulus elements
             FLAx = [];
             if ~this.FinishLine
                 return

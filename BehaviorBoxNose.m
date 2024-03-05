@@ -36,6 +36,7 @@ classdef BehaviorBoxNose < handle
         Current_Settings char = 'default'
         Setting_Struct = struct();
         Temp_Settings = struct();
+        Temp_Old_Settings = struct();
         Temp_Countdown = 0;
         Temp_iStart = 0;
         Temp_Active = 0;
@@ -426,6 +427,7 @@ classdef BehaviorBoxNose < handle
             fprintf(txt+"\n");
             this.i = 0;
             this.timeout_counter = 0;
+            this.Temp_Active = false;
         end
         %Do some things before each trial
         function BeforeTrial(this)
@@ -511,7 +513,7 @@ classdef BehaviorBoxNose < handle
                 end
                 this.Temp_Countdown = this.Temp_Countdown - 1;
                 this.app.TrialsRemainingLabel.Text = this.Temp_Countdown+" Trials Remaining";
-                if this.Temp_Countdown == 0
+                if this.Temp_Countdown <= 0
                     this.Temp_Active = false;
                     this.Setting_Struct = this.Temp_Old_Settings;
                     this.app.TrialsRemainingLabel.Text = "_ Trials Remaining";
@@ -981,6 +983,16 @@ classdef BehaviorBoxNose < handle
                 otherwise
                     [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial);
             end
+            if this.Setting_Struct.OnlyCorrect && contains({this.WhatDecision} , 'wrong', 'IgnoreCase', true)
+                switch 1
+                    case any(this.Box.Input_type == [1 2 3 5]) %NosePoke
+                        [this.WhatDecision, this.ResponseTime] = this.readLeverLoopDigital_OnlyCorrect(this);
+                    case this.Box.Input_type == 6 %Wheel (new)
+                        [this.WhatDecision, this.ResponseTime] = this.readLeverLoopAnalogWheel(this);
+                    otherwise
+                        [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial);
+                end
+            end
             if this.Box.Input_type == 6
                 p = findobj('Type', 'Polygon');
                 [p.FaceColor] = deal(this.StimulusStruct.BackgroundColor);
@@ -1043,6 +1055,8 @@ classdef BehaviorBoxNose < handle
                     o = findobj(this.fig.Children);
                     [o(:).Visible] = deal(0);
                     this.fig.Color = 'k';
+                case contains({this.WhatDecision} , 'Only_correct', 'IgnoreCase', true)
+
             end
         end
         %open reward valves
@@ -1701,6 +1715,86 @@ classdef BehaviorBoxNose < handle
                     else
                         WhatDecision = 'right wrong';
                     end
+            end
+        end
+        %read the lever (digital read)
+        function [WhatDecision, response_time] = readLeverLoopDigital_OnlyCorrect(this)
+            response_time = 0;
+            this.DuringTMal = 0;
+            event = -1;
+            try
+                %Turn on/Reset lick sensor
+                this.ResetSensor(this)
+                timeout_value = this.Box.Timeout_after_time;
+                InpDelay = this.Setting_Struct.Input_Delay_Respond;
+                timeout_timer = clock;
+                response_timer = clock;
+                %run loop
+                while timeout_value == 0 | etime(clock, timeout_timer)<timeout_value
+                    pause(0.1);drawnow;
+                    if get(this.Skip, 'Value') %this.Skip.Value
+                        this.Skip.Value = 0; %Turn the button off
+                        break
+                    end
+                    %check if stop pressed
+                    if get(this.stop_handle, 'Value')
+                        break %abort
+                    end
+                    if this.Box.readM()
+                        this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'center')
+                        this.DuringTMal = this.DuringTMal + 1;
+                    end
+                    %Immediately accept the choice:
+                    if this.Box.readL()
+                        if this.isLeftTrial
+                            event = 3;
+                            break
+                        else
+                            this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Contour'), 'center')
+                        end
+                    end
+                    if this.Box.readR()
+                        if ~this.isLeftTrial
+                            event = 3;
+                            break
+                        else
+                            this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Contour'), 'center')
+                        end
+                    end
+                end
+                try
+                    a = this.fig.findobj("Type", "Axes");
+                    a = a(contains({a.Tag}, 'Correct'));
+                    c = a.findobj("Tag", "Contour");
+                    [c.Color] = deal(this.StimulusStruct.FlashColor);
+                    d = a.findobj("Tag", "Distractor");
+                    [d.Color] = deal(this.StimulusStruct.DimColor);
+                catch
+                end
+                response_time = etime(clock, response_timer);
+            catch err
+                this.unwrapError(err)
+            end
+            %translate to decision enum
+            switch event
+                case -1
+                    WhatDecision = 'time out';
+                    response_time = 0;
+                case 1
+                    %-1 is for trainingstrials always correct
+                    if this.isLeftTrial ==1 || this.isLeftTrial == -1
+                        WhatDecision = 'left correct';
+                    else
+                        WhatDecision = 'left wrong';
+                    end
+                case 2
+                    if this.isLeftTrial ==0 || this.isLeftTrial == -1
+                        WhatDecision = 'right correct';
+                    else
+                        WhatDecision = 'right wrong';
+                    end
+                case 3 % Only_Correct Setting active, mouse got it wrong but gets second chance
+                    WhatDecision = 'Only_correct';
             end
         end
         function [WhatDecision, response_time] = readLeverLoopAnalogWheel(this)
