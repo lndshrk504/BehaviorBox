@@ -457,12 +457,12 @@ classdef BehaviorBoxNose < handle
             end
             if this.Setting_Struct.Repeat_wrong==1 && any(LastScore == [3 4]) %If repeat wrong and they got it wrong
                 if isvalid(this.fig)
-                    %this.StimHistory(this.i,:) = this.StimHistory(this.i-1,:); %Use the same stimulus from last time
-                    [this.StimHistory{this.i,1},this.StimHistory{this.i,2}] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, this.Level); %Plot new stimulus as hidden objects, record positions and angles of the segments
+                    this.StimHistory(this.i,:) = this.StimHistory(this.i-1,:); %Use the same stimulus from last time
+                    %[this.StimHistory{this.i,1},this.StimHistory{this.i,2}] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, this.Level); %Plot new stimulus as hidden objects, record positions and angles of the segments
                 else
                     [this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.Stimulus_Object.setUpFigure();
-                    %this.StimHistory(this.i,:) = this.StimHistory(this.i-1,:); %Use the same stimulus from last time
-                    [this.StimHistory{this.i,1},this.StimHistory{this.i,2}] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, this.Level); %Plot new stimulus as hidden objects, record positions and angles of the segments
+                    this.StimHistory(this.i,:) = this.StimHistory(this.i-1,:); %Use the same stimulus from last time
+                    %[this.StimHistory{this.i,1},this.StimHistory{this.i,2}] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, this.Level); %Plot new stimulus as hidden objects, record positions and angles of the segments
                 end
             else %If correct or no repeat wrong
                 this.isLeftTrial = this.PickSideForCorrect(this.isLeftTrial, this.SideBias); %Pick if isLeftTrial
@@ -984,6 +984,7 @@ classdef BehaviorBoxNose < handle
                     [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial);
             end
             if this.Setting_Struct.OnlyCorrect && contains({this.WhatDecision} , 'wrong', 'IgnoreCase', true)
+                set(this.message_handle,'Text',['Reanswer... Waiting for ',this.current_side,' choice...']);
                 switch 1
                     case any(this.Box.Input_type == [1 2 3 5]) %NosePoke
                         [this.WhatDecision, this.ResponseTime] = this.readLeverLoopDigital_OnlyCorrect(this);
