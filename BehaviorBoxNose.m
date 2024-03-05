@@ -1055,8 +1055,55 @@ classdef BehaviorBoxNose < handle
                     o = findobj(this.fig.Children);
                     [o(:).Visible] = deal(0);
                     this.fig.Color = 'k';
-                case contains({this.WhatDecision} , 'Only_correct', 'IgnoreCase', true)
-
+                case contains({this.WhatDecision} , 'OC', 'IgnoreCase', true)
+                    set(this.message_handle,'Text','Reanswer, Giving small Reward...');
+                    tic
+                    this.GiveRewardAndFlash();
+                    if this.Box.Input_type == 3
+                        while this.Box.readL() || this.Box.readR() %Pause while the mouse is standing there and drinking their reward
+                            pause(0.5);drawnow;
+                        end
+                    end
+                    this.DrinkTime = toc;
+                    %[this.fig.Children(contains({this.fig.Children.Tag}, "Incorrect")).Children.Visible] = deal(0);
+                    %Flash
+                    %this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
+                    if this.StimulusStruct.PersistCorrectInterv > 0
+                        thisInt = (this.StimulusStruct.PersistIncorrectInterv);
+                    else
+                        thisInt = 0;
+                    end
+                    set(this.message_handle, 'Text',['Persisting correct stimulus for ' num2str(thisInt)  ' (sec)...']); drawnow
+                    if this.Box.Input_type == 3 %Nose
+                        this.UpdatePause(thisInt)
+                    elseif this.Box.Input_type == 6 %Wheel
+                        timerStart = clock;
+                        while 1
+                            drawnow %unless drawnow is here the button statuses will not update...
+                            if etime(clock, timerStart) > thisInt
+                                break
+                            end
+                            if get(this.FF, 'Value')
+                                set(this.message_handle, 'Text','Skipping persist interval...'); drawnow
+                                break;
+                            end
+                            if get(this.stop_handle, 'Value')
+                                set(this.message_handle, 'Text','Ending session...'); drawnow
+                                break;
+                            end
+                            pause(0.1)
+                        end
+                    end
+                    o = findobj(this.fig.Children);
+                    [o(:).Visible] = deal(0);
+                    % Change this.WhatDecision back to the actual incorrect
+                    % choice so that it is recorded correctly
+                    if this.isLeftTrial
+                        this.WhatDecision = "right wrong";
+                    else
+                        this.WhatDecision = "left wrong";
+                    end
+                    
             end
         end
         %open reward valves
@@ -1085,6 +1132,20 @@ classdef BehaviorBoxNose < handle
                             else
                                 return
                             end
+                        case contains(this.WhatDecision, 'OC', 'IgnoreCase', true)
+                            if this.isLeftTrial
+                                CorrectLever = this.Box.Left; %Left
+                                OtherLever = this.Box.Right; %Right
+                                PulseNum = this.Box.OCPulse;
+                                Valve = this.Box.ValveR; %Left
+                                Time = this.Box.Lrewardtime; %Left
+                            else
+                                CorrectLever = this.Box.Right; %Right
+                                OtherLever = this.Box.Left; %Left
+                                PulseNum = this.Box.OCPulse;
+                                Valve = this.Box.ValveL; %Right
+                                Time = this.Box.Rrewardtime; %Right
+                            end
                     end
                 case 6 % Wheel
                     switch true
@@ -1109,8 +1170,6 @@ classdef BehaviorBoxNose < handle
             % then flash
             this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
             for i = 1:PulseNum
-                GiveDrop(this.a, Valve, Time)
-                this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
                 if i < PulseNum
                     switch this.Box.Input_type
                         case 3 %Nose
@@ -1125,6 +1184,8 @@ classdef BehaviorBoxNose < handle
                             pause(this.Box.SecBwPulse)
                     end
                 end
+                GiveDrop(this.a, Valve, Time)
+                this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
             end
             function GiveDrop(ard,V,T)
                 % Give one pulse
@@ -1794,7 +1855,7 @@ classdef BehaviorBoxNose < handle
                         WhatDecision = 'right wrong';
                     end
                 case 3 % Only_Correct Setting active, mouse got it wrong but gets second chance
-                    WhatDecision = 'Only_correct';
+                    WhatDecision = 'OC';
             end
         end
         function [WhatDecision, response_time] = readLeverLoopAnalogWheel(this)
@@ -1982,7 +2043,7 @@ classdef BehaviorBoxNose < handle
             switch 1
                 case contains(whatdecision, 'wrong')
                     Reps = Stim.RepFlashAfterW;
-                case contains(whatdecision, 'correct')
+                case contains(whatdecision, 'correct') || contains(whatdecision, 'OC')
                     Reps = Stim.RepFlashAfterC;
             end
             if contains(whatdecision, {'wrong', 'correct'}) && Reps == 0
@@ -2019,7 +2080,7 @@ classdef BehaviorBoxNose < handle
                         if Reps > 0
                             WrongFlash()
                         end
-                    case contains(whatdecision, 'correct')
+                    case contains(whatdecision, 'correct') || contains(whatdecision, 'OC')
                         Reps = Stim.RepFlashAfterC;
                         if Reps > 0
                             CorrectFlash()
