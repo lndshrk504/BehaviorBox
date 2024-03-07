@@ -961,6 +961,7 @@ classdef BehaviorBoxNose < handle
             [Ls(:).Color] = deal(this.StimulusStruct.DimColor);
             this.ReadyCue(0); drawnow
             while this.Box.readM()
+                this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'center')
                 pause(0.2);drawnow;
             end
             [Ls(:).Color] = deal(this.StimulusStruct.LineColor); drawnow
