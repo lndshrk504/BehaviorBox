@@ -958,13 +958,12 @@ classdef BehaviorBoxNose < handle
             end
             this.fig.Color = this.StimulusStruct.BackgroundColor;
             Ls = this.fig.findobj('Type','line');
-            [Ls(:).Color] = deal(this.StimulusStruct.DimColor);
-            this.ReadyCue(0); drawnow
+            [Ls(:).Color] = deal(this.StimulusStruct.LineColor); drawnow
             while this.Box.readM()
                 this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'center')
-                pause(0.2);drawnow;
             end
             [Ls(:).Color] = deal(this.StimulusStruct.LineColor); drawnow
+            this.ReadyCue(0); drawnow % ReadyCue goes away after input ignore interval
             %ignore input if set
             t1 = datetime("now");
             while this.Setting_Struct.Input_ignored & seconds(datetime("now")-t1)<this.Setting_Struct.Pokes_ignored_time
