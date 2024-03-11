@@ -959,19 +959,24 @@ classdef BehaviorBoxNose < handle
             this.fig.Color = this.StimulusStruct.BackgroundColor;
             Ls = this.fig.findobj('Type','line');
             [Ls(:).Color] = deal(this.StimulusStruct.LineColor); drawnow
-            while this.Box.readM()
-                this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'NewStim');
-            end
-            [Ls(:).Color] = deal(this.StimulusStruct.LineColor); drawnow
             this.ReadyCue(0); drawnow % ReadyCue goes away after input ignore interval
+            % while this.Box.readM()
+            %     this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'NewStim');
+            % end
+            [Ls(:).Color] = deal(this.StimulusStruct.LineColor); drawnow
             %ignore input if set
             this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'NewStim'); 
             t1 = datetime("now");
             while this.Setting_Struct.Input_ignored & seconds(datetime("now")-t1)<this.Setting_Struct.Pokes_ignored_time
+                if this.Setting_Struct.ConfirmChoice && this.Box.readL() && this.isLeftTrial
+                    this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Contour'), 'Correct_Confirmation');
+                elseif this.Setting_Struct.ConfirmChoice && this.Box.readR() && ~this.isLeftTrial
+                    this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Contour'), 'Correct_Confirmation');
+                end
                 time = this.Setting_Struct.Pokes_ignored_time-seconds(datetime("now")-t1);
                 txt = "Ignoring input for "+round(time,1)+" sec...";
                 set(this.message_handle,'Text',txt)
-                pause(0.1); drawnow;
+                %pause(0.1); drawnow;
             end
             this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'NewStim'); % Make visible stimulus and flash if set
             set(this.message_handle,'Text',['Waiting for ',this.current_side,' choice...']);
@@ -2070,6 +2075,10 @@ classdef BehaviorBoxNose < handle
                 Reps = 1;
                 Freq = Stim.FreqFlashInitial;
                 RQFlash()
+            elseif whatdecision == "Correct_Confirmation"
+                Reps = 1;
+                Freq = Stim.FreqFlashInitial;
+                CCFlash()
             else
                 Freq = Stim.FreqFlashAfter;
                 d = findobj('Tag', 'Distractor');
@@ -2087,6 +2096,20 @@ classdef BehaviorBoxNose < handle
                         if Reps > 0
                             CorrectFlash()
                         end
+                end
+            end
+            function CCFlash()
+                %Flash_outline(Lines, dark_color, 10)
+                steps = 10;
+                for StimRep = 1:Reps
+                    for i = 1:steps
+                        color = start_color + (dark_color - start_color) * (i/steps);
+                        [Lines.Color] = deal(color); drawnow
+                    end
+                    for i = steps:-1:1
+                        color = start_color + (dark_color - start_color) * (i/steps);
+                        [Lines.Color] = deal(color); drawnow
+                    end
                 end
             end
             function RQFlash()
@@ -2108,9 +2131,9 @@ classdef BehaviorBoxNose < handle
                     end
                 else %line
                     for StimRep = 1:Reps
-                        while Box.readM()
-                            pause(0.5); drawnow
-                        end
+                        % while Box.readM()
+                        %     pause(0.5); drawnow
+                        % end
                         [Lines(:).Color] = deal(Stim.BackgroundColor); [Lines(:).Visible] = deal(1); drawnow
                         pause(1/Freq/5)
                         [Lines(:).Color] = deal(dark_color); drawnow
@@ -2195,6 +2218,17 @@ classdef BehaviorBoxNose < handle
                     pause(1/Freq/2)
                 end
                 [Lines.Color] = deal(Stim.LineColor);
+            end
+            function Flash_outline(obj, color, steps)
+                start_color = obj.Color;
+                for i = 1:steps
+                    color = start_color + (color - start_color) * (i/steps);
+                    [obj.Color] = deal(color); drawnow
+                end
+                for i = steps:-1:1
+                    color = start_color + (color - start_color) * (i/steps);
+                    [obj.Color] = deal(color); drawnow
+                end
             end
         end
         function saveFigure(fig, folder, name)
