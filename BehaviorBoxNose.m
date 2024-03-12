@@ -1051,9 +1051,9 @@ classdef BehaviorBoxNose < handle
                     [o(:).Visible] = deal(0);
                 case contains({this.WhatDecision} , 'wrong', 'IgnoreCase', true)
                     set(this.message_handle,'Text',[this.WhatDecision,' - Penalty...']);
-                    % while this.Box.readL() || this.Box.readR() %Pause while the mouse is standing there
-                    %     pause(0.5);drawnow;
-                    % end
+                    while this.Box.readL() || this.Box.readR() %Pause while the mouse is standing there
+                        pause(0.5);drawnow;
+                    end
                     [this.fig.Children(contains({this.fig.Children.Tag}, "Correct")).Children.Visible] = deal(0);
                     %Flash
                     this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'), this.WhatDecision);
