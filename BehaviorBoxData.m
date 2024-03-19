@@ -567,6 +567,22 @@ classdef BehaviorBoxData < handle
                 D = L(L(:,1)~=2,2);
                 XCoord = zeros(size(D));
                 XCoordLevDay = zeros(size(D));
+            % Binomial
+                trialWin = this.BB;
+                BiCDF = zeros(numel(scores),2);
+                BiCDF(this.BB:numel(scores),2) = bMM;
+                tc = this.BB-1;
+                for t = trialWin:numel(scores)
+                    tc = tc + 1;
+                    t0 = t-trialWin+1;
+                    dataWin = scores(t0:t);
+                    BiCDF(t,1) = binocdf(sum(dataWin), numel(dataWin), 0.5, 'upper');
+                end
+                try
+                    BiCDF( 1:this.BB-1,:) = [];
+                    BiCDF(:,2) = [];
+                catch % Only fails when all responses are timeouts and th BiCDF vector is empty
+                end
                 % offset = D(1);
                 DC = 0;
                 for d = unique(D')
@@ -576,7 +592,7 @@ classdef BehaviorBoxData < handle
                     XCoord(w) = (d-1)+normalize(x, 'range');
                     XCoordLevDay(w) = (DC-1)+normalize(x, 'range');
                 end
-                Out = {[bMM bSD XCoord(this.BB:end) XCoordLevDay(this.BB:end) Inc(this.BB:end)]};
+                Out = {[bMM bSD XCoord(this.BB:end) XCoordLevDay(this.BB:end) Inc(this.BB:end) BiCDF]};
             catch Err
                 unwrapErr(Err)
                 if size(L,2)==1
