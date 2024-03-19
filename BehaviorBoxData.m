@@ -636,6 +636,14 @@ classdef BehaviorBoxData < handle
                 if isempty(bCross)
                     bCross = NaN;
                 end
+                BiCDF = zeros(numel(these),1);
+                tc = 0;
+                for t = this.BB:numel(these)
+                    tc = tc + 1;
+                    t0 = t-this.BB+1;
+                    dataWin = these(t0:t);
+                    BiCDF(t,1) = binocdf(sum(dataWin), numel(dataWin), 0.5, 'upper');
+                end
                 Out = {binned;
                     x;
                     txt;
@@ -647,6 +655,7 @@ classdef BehaviorBoxData < handle
                     xMM;
                     sCross;
                     bCross;
+                    BiCDF;
                     Level;
                     Day;
                     Date};
@@ -752,7 +761,7 @@ classdef BehaviorBoxData < handle
                 this.current_data_struct = CleanData(this.current_data_struct);
             end
             try
-                setGUI(this.current_data_struct, this.GUInum)
+                this.setGUI(this.current_data_struct, this.GUInum)
                 % try
                 %     this.plotTimerHists(this.Axes, this.current_data_struct)
                 % catch
@@ -1122,9 +1131,9 @@ classdef BehaviorBoxData < handle
                 this
                 options.Sc double = 1
                 options.AllMice logical = 0
-                options.Lvs double = 2:12 % Do not display levels below this
+                options.Lvs double = 10:16 % Do not display levels below this
                 options.Moveable logical = 0 % Unused
-                options.Threshold double = 0.8 % Passing threshold for each level
+                options.Threshold double = 0.7 % Passing threshold for each level
                 options.count double = 10 % Num of consecutive trials above threshold before passing
                 options.tol double = 0 % How many below-threshold trials in the streak of options.count to be tolerated
             end
@@ -1144,10 +1153,10 @@ classdef BehaviorBoxData < handle
                 Cx.Title.String = "Days To";
                 Dx.Title.String = "Trials To";
                 Ax.Parent.Title.String = "Level "+L;
-                Ax.Box=1;
-                Bx.Box=1;
-                Cx.Box=1;
-                Dx.Box=1;
+                Ax.Box=0;
+                Bx.Box=0;
+                Cx.Box=0;
+                Dx.Box=0;
                 Ax.YLim = [0.4 1]; Bx.YLim = [0.4 1];
                 SC = 0;
             % Matrix to record passing data:
@@ -2705,6 +2714,15 @@ classdef BehaviorBoxData < handle
         end
     end %end methods
     methods(Static)
+        function setGUI(Data, GUINums)
+            try
+                GUINums.right = num2str(sum(Data.CodedChoice == [2 ; 4],'all')); %Left Responses
+                GUINums.left = num2str(sum(Data.CodedChoice == [1 ; 3],'all')); %Right Responses
+                GUINums.rewards = num2str(sum(Data.Score==1));
+                GUINums.total_correct = [num2str( 100*round(sum( Data.Score(Data.Score~=2))/numel(Data.Score(Data.Score~=2)),2 ) ) '%'];
+                %Add a loop to go thru the handles:
+            end
+        end
         function MM = MM(Scores, options)
             arguments
                 Scores
@@ -2717,11 +2735,11 @@ classdef BehaviorBoxData < handle
                 case options.Type == "Big"
                     options.Endpoints = 0;
                     options.FromChance = 0;
-                    BinSize = 60;
+                    BinSize = 30;
                 case options.Type == "Small"
                     options.Endpoints = 1;
                     options.FromChance = 1;
-                    BinSize = 20;
+                    BinSize = 15;
                 case ~isempty(options.BinSize)
                     BinSize = options.BinSize;
                 otherwise
@@ -2828,64 +2846,13 @@ classdef BehaviorBoxData < handle
     end
 end %end class
 %EXTERNAL FUNCTIONS ====
-
-function setGUI(Data, GUINums)
-try
-    GUINums.right = num2str(sum(Data.CodedChoice == [2 ; 4],'all')); %Left Responses
-    GUINums.left = num2str(sum(Data.CodedChoice == [1 ; 3],'all')); %Right Responses
-    GUINums.rewards = num2str(sum(Data.Score==1));
-    GUINums.total_correct = [num2str( 100*round(sum( Data.Score(Data.Score~=2))/numel(Data.Score(Data.Score~=2)),2 ) ) '%'];
-    %Add a loop to go thru the handles:
-end
-end
-function unwrapErr(err)
-%Is there an error? Send the err object over here and it will be unwrapped in the command window. Maybe too much info?
-errFields = fields(err);
-for i = 1:numel(errFields)
-    if ~matches(errFields{i}, 'stack')
-        if ~isempty(err.(errFields{i}))
-            disp([errFields{i} ': ' err.(errFields{i})])
-        end
-    elseif matches(errFields{i}, 'stack')
-        for L = numel(err.stack):-1:1
-            disp(['In fx ' err.stack(L).name ', line ' num2str(err.stack(L).line)])
-        end
-    end
-end
-end
-function [A] = errorFuncNaN(~,varargin)
-%warning(S.identifier, S.message);
-A = NaN;
-%B = NaN;
-end
-function [A] = errorFuncZeroDouble(~,varargin)
-%warning(S.identifier, S.message);
-A = 0;
-%B = NaN;
-end
-function [A] = errorFuncZeroCell(~,varargin)
-%warning(S.identifier, S.message);
-A = {0};
-%B = NaN;
-end
-%convert enum to integer
-function [int_out] = convertEnum(enum_decision)
-switch enum_decision
-    case 'left correct'
-        int_out = 1;
-    case 'right correct'
-        int_out = 2;
-    case 'left wrong'
-        int_out = 3;
-    case 'right wrong'
-        int_out = 4;
-    case 'time out'
-        int_out = 5;
-    case 'time out - malingering'
-        int_out = 6;
-    case 'center poke'
-        int_out = 6;
-    otherwise
-        int_out = -1;
-end
-end
+% 
+% function setGUI(Data, GUINums)
+% try
+%     GUINums.right = num2str(sum(Data.CodedChoice == [2 ; 4],'all')); %Left Responses
+%     GUINums.left = num2str(sum(Data.CodedChoice == [1 ; 3],'all')); %Right Responses
+%     GUINums.rewards = num2str(sum(Data.Score==1));
+%     GUINums.total_correct = [num2str( 100*round(sum( Data.Score(Data.Score~=2))/numel(Data.Score(Data.Score~=2)),2 ) ) '%'];
+%     %Add a loop to go thru the handles:
+% end
+% end
