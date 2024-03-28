@@ -70,6 +70,7 @@ classdef BehaviorBoxData < handle
                 options.plot logical = 0;
                 options.find logical = 0;
             end
+            addpath("fcns/")
             %Apply inputs
             this = copytoStruct(this, options);
             this.date = char(datetime("now", "Format","yyMMdd"));
@@ -1096,7 +1097,8 @@ classdef BehaviorBoxData < handle
             tic
             if opts.DayProgress
                 close all
-                Trial = this.DailyProgress();
+                %Trial = this.DailyProgress();
+                this.BinomialProgress();
                 %this.PlotGroupTrialsToPass(Trial);
                 this.SaveManyFigures([],'DayTrial', SameFolder=1)
             end
@@ -1148,10 +1150,14 @@ classdef BehaviorBoxData < handle
                 Bx = nexttile; hold(Bx,"on");
                 Cx = nexttile; hold(Cx,"on");
                 Dx = nexttile; hold(Dx,"on");
+                Ex = nexttile; hold(Ex,"on");
+                Fx = nexttile; hold(Fx,"on");
                 Ax.Title.String = "By Day";
                 Bx.Title.String = "By Trial";
-                Cx.Title.String = "Days To";
-                Dx.Title.String = "Trials To";
+                Cx.Title.String = "Days to Pass";
+                Dx.Title.String = "Trials To Pass";
+                Ex.Title.String = "Binomial by Day";
+                Fx.Title.String = "Binomial by Trial";
                 Ax.Parent.Title.String = "Level "+L;
                 Ax.Box=0;
                 Bx.Box=0;
@@ -1160,7 +1166,7 @@ classdef BehaviorBoxData < handle
                 Ax.YLim = [0.4 1]; Bx.YLim = [0.4 1];
                 SC = 0;
             % Matrix to record passing data:
-                PassIdx = zeros(numel(SUBS),6);
+                PassIdx = zeros(numel(SUBS),9);
                 % 1 Did they pass
                 % 2 at which trial number
                 % 3 Threshold for passing (in case TH is later lowered)
@@ -1169,6 +1175,7 @@ classdef BehaviorBoxData < handle
                 % 6 Cumulative over-threshold passing-trial
                 % 7 Het = 1 or WT = 0
                 % 8 Male = 1 or Female = 0
+                % 9 Lowest binomial p-value
                 LD = cell(size(SUBS));
                 for SUBDATA = [DAYDATA ; LEVDATA]
                     SC = SC + 1;
@@ -1183,27 +1190,31 @@ classdef BehaviorBoxData < handle
                     try
                         dayData = SUBDATA{1};
                         LevData = SUBDATA{2};
-                % From cumulative LevelTable, find the trials over the threshold
+                        lev = LevData{L};
+                        lx = lev(:,4);
+                        ly = lev(:,1);
+                        lb = lev(:,6); %binomial p-value
+                        plot(lx,lb,"Parent",Ex,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
+                        plot((1:numel(ly))+(this.BB-1),lb,"Parent",Fx,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
+                        PassIdx(SC,9) = min(lb);
+                        lp = plot(lx,ly,"Parent",Ax,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
+                        lpB = plot((1:numel(ly))+(this.BB-1),ly,"Parent",Bx,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
+                    % From cumulative LevelTable, find the trials over the threshold
                         % overThreshEx = cellfun(@(x)find(x(:,1)>=options.Threshold & x(:,5)==1)+this.BB, LevData, 'UniformOutput', false, 'ErrorHandler',@errorFuncNaN);
                         % TrialEx = cellfun(@(x) this.consecutiveTrial(x, options.count, options.tol), overThreshEx, "UniformOutput",true);
                         overThresh = cellfun(@(x)find(x(:,1)>=options.Threshold)+this.BB, LevData, 'UniformOutput', false, 'ErrorHandler',@errorFuncNaN);
                         Trial = cellfun(@(x) this.consecutiveTrial(x, options.count, options.tol), overThresh, "UniformOutput",true);
                         PassIdx(SC,6)=Trial(L);
-                        lev = LevData{L};
-                        lx = lev(:,4);
-                        ly = lev(:,1);
                         LD{SC}=ly;
                         if any(ly>=options.Threshold)
                             PassIdx(SC,3)=options.Threshold;
                             PassIdx(SC,1)=1;
-                            PassIdx(SC,2)=find(ly>=options.Threshold, 1, 'first')+59;
-                            PassIdx(SC,4)=ceil(lx(PassIdx(SC,2)-59));
+                            PassIdx(SC,2)=find(ly>=options.Threshold, 1, 'first')+(this.BB-1);
+                            PassIdx(SC,4)=ceil(lx(PassIdx(SC,2)-(this.BB-1)));
                         else
                             PassIdx(SC,3)=max(ly);
-                            PassIdx(SC,2)=find(ly==max(ly), 1, 'last')+59;
+                            PassIdx(SC,2)=find(ly==max(ly), 1, 'last')+(this.BB-1);
                         end
-                        lp = plot(lx,ly,"Parent",Ax,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
-                        lpB = plot((1:numel(ly))+59,ly,"Parent",Bx,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
                         %Bx.XLim = [60 numel(ly+59)];
                         dc = 0;
                         data = dayData(dayData.Ls==L,:);
@@ -1278,6 +1289,157 @@ classdef BehaviorBoxData < handle
                 TH_Mouse = true;
                 Ax.XLimMode="manual";
                 Ax.YLimMode="manual";
+            end
+        end
+        function Out = BinomialProgress(this, options)
+            % This fcn normalizes the performance to each day to show the mouse's
+            % progress at each day of the level
+            arguments
+                this
+                options.Sc double = 1
+                options.AllMice logical = 0
+                options.Lvs double = 10:16 % Do not display levels below this
+                options.Threshold double = 0.7 % Passing threshold for each level
+                options.count double = 10 % Num of consecutive trials above threshold before passing
+                options.tol double = 0 % How many below-threshold trials in the streak of options.count to be tolerated
+            end
+            Out = struct();
+        % Pull the cumulative Level and Day data
+            LEVDATA = cellfun(@(x)this.AnalyzedData.LevelMM{x}, num2cell(1:numel(this.Sub)), UniformOutput=false);
+            DAYDATA = cellfun(@(x)this.AnalyzedData.DayMM{x}, num2cell(1:numel(this.Sub)), UniformOutput=false);
+            SUBS = this.AnalyzedData.Subjects;
+            for L = options.Lvs
+            % Prepare and format 2x2 subplot
+                Ax = MakeAxis();
+                Bx = nexttile; hold(Bx,"on");
+                Cx = nexttile; hold(Cx,"on");
+                Dx = nexttile; hold(Dx,"on");
+                Ex = nexttile; hold(Ex,"on");
+                Fx = nexttile; hold(Fx,"on");
+                Ax.Title.String = "By Day";
+                Bx.Title.String = "By Trial";
+                Cx.Title.String = "Days to Pass";
+                Dx.Title.String = "Trials To Pass";
+                Ex.Title.String = "Binomial by Day";
+                Fx.Title.String = "Binomial by Trial";
+                Ax.Parent.Title.String = "Level "+L;
+                Ax.Box=0;
+                Bx.Box=0;
+                Cx.Box=0;
+                Dx.Box=0;
+                Ax.YLim = [0.4 1]; Bx.YLim = [0.4 1];
+                SC = 0;
+            % Matrix to record passing data:
+                PassIdx = zeros(numel(SUBS),9);
+                % 1 Did they pass
+                % 2 at which trial number
+                % 3 Threshold for passing (in case TH is later lowered)
+                % 4 Day of passing
+                % 5 Did they see that level at all
+                % 6 Cumulative over-threshold passing-trial
+                % 7 Het = 1 or WT = 0
+                % 8 Male = 1 or Female = 0
+                % 9 Lowest binomial p-value
+                LD = cell(size(SUBS));
+                for SUBDATA = [DAYDATA ; LEVDATA]
+                    SC = SC + 1;
+                    thisSub = SUBS{SC};
+                    PassIdx(SC,7) = contains(thisSub, "Het");
+                    PassIdx(SC,8) = contains(thisSub, "- M -");
+                    ColorIdx = PassIdx(SC,7)+1;
+                %Check if they've seen this level:
+                    if ~any(SUBDATA{1}.Ls == L)
+                        continue
+                    end
+                    try
+                        dayData = SUBDATA{1};
+                        LevData = SUBDATA{2};
+                        lev = LevData{L};
+                        lx = lev(:,4);
+                        ly = lev(:,1);
+                        lb = lev(:,6); %binomial p-value
+                        plot(lx,lb,"Parent",Ex,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
+                        plot((1:numel(ly))+(this.BB-1),lb,"Parent",Fx,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
+                        PassIdx(SC,9) = min(lb);
+                        lp = plot(lx,ly,"Parent",Ax,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
+                        lpB = plot((1:numel(ly))+(this.BB-1),ly,"Parent",Bx,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
+                    % From cumulative LevelTable, find the trials over the threshold
+                        % overThreshEx = cellfun(@(x)find(x(:,1)>=options.Threshold & x(:,5)==1)+this.BB, LevData, 'UniformOutput', false, 'ErrorHandler',@errorFuncNaN);
+                        % TrialEx = cellfun(@(x) this.consecutiveTrial(x, options.count, options.tol), overThreshEx, "UniformOutput",true);
+                        overThresh = cellfun(@(x)find(x(:,1)>=options.Threshold)+this.BB, LevData, 'UniformOutput', false, 'ErrorHandler',@errorFuncNaN);
+                        Trial = cellfun(@(x) this.consecutiveTrial(x, options.count, options.tol), overThresh, "UniformOutput",true);
+                        PassIdx(SC,6)=Trial(L);
+                        LD{SC}=ly;
+                        if any(ly>=options.Threshold)
+                            PassIdx(SC,3)=options.Threshold;
+                            PassIdx(SC,1)=1;
+                            PassIdx(SC,2)=find(ly>=options.Threshold, 1, 'first')+(this.BB-1);
+                            PassIdx(SC,4)=ceil(lx(PassIdx(SC,2)-(this.BB-1)));
+                        else
+                            PassIdx(SC,3)=max(ly);
+                            PassIdx(SC,2)=find(ly==max(ly), 1, 'last')+(this.BB-1);
+                        end
+                        %Bx.XLim = [60 numel(ly+59)];
+                        dc = 0;
+                        data = dayData(dayData.Ls==L,:);
+                        for d = data.dayBin'
+                            dayy = d{:}{8};
+                            dayx = d{:}{9} + dc;
+                            dp = plot(dayx,dayy,"Parent",Ax, "SeriesIndex",ColorIdx, 'HandleVisibility','off');
+                            dc = dc + 1;
+                        end
+                        PassIdx(SC,5)=1;
+                        %dayBars = xline(1:numel(data.dayBin), 'LineStyle',':', 'LineWidth',3, 'HandleVisibility','off', Parent=Ax);
+                    catch err
+                        unwrapErr(err)
+                        1;
+                    end
+                end
+                legend(Ax); legend(Bx);
+                % Plot a bar graph of trials to pass
+                if ~all(PassIdx(:,1)) && min(PassIdx( PassIdx(:,1) ~=1 ,3))~=0
+                    NewTH = min(PassIdx(PassIdx(:,1)~=1,3));
+                    PassIdx(:,3) = NewTH;
+                    SC = 0;
+                    for LevData = LEVDATA
+                        SC = SC + 1;
+                        overThresh = cellfun(@(x)find(x(:,1)>=NewTH)+this.BB, LevData{:}, 'UniformOutput', false, 'ErrorHandler',@errorFuncNaN);
+                        Trial = cellfun(@(x) this.consecutiveTrial(x, options.count, options.tol), overThresh, "UniformOutput",true);
+                        PassIdx(SC,6) = Trial(L);
+                        %PassIdx(SC,2)=find(ly>=NewTH, 1, 'first')+59;
+                        %PassIdx(SC,4)=ceil(lx(PassIdx(SC,2)-59));
+                    end
+                    THA.Value = NewTH; THA.Label = num2str(NewTH);
+                    THB.Value = NewTH; THB.Label = num2str(NewTH);
+                    % %Reset the trial count for whoeveer has passed the
+                    % %levels at 80% to the new lower threshold
+                    % WHICH = PassIdx(:,1)~=1;
+                    % pc = 0;
+                    % for w = WHICH'
+                    %     pc = pc+1;
+                    %     if w == 0
+                    %         continue
+                    %     end
+                    %     try
+                    %         PassIdx(pc,2)=find(LD{pc}>=NewTH,1,"first")+59;
+                    %     catch err
+                    %         unwrapErr(err)
+                    %         1;
+                    %     end
+                    % end
+                end
+                SC = 1;
+                for P = PassIdx'
+                    ColorIdx = P(7)+1;
+                    if isnan(P(6))
+                        P(6) = P(2);
+                    end
+                    Bday = bar(SC, P(4), "Parent",Cx, "SeriesIndex",ColorIdx);
+                    Blev = bar(SC, P(6), "Parent",Dx, "SeriesIndex",ColorIdx);
+                    SC = SC + 1;
+                end
+                Dx.XTick = [1:numel(SUBS)];
+                Dx.XTickLabel = SUBS;
             end
         end
         function Out = GroupTrialsToPass(this, options)
