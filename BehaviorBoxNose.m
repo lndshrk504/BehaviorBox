@@ -965,7 +965,7 @@ classdef BehaviorBoxNose < handle
             % end
             [Ls(:).Color] = deal(this.StimulusStruct.LineColor); drawnow
             %ignore input if set
-            this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'NewStim'); 
+            this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'NewStim');
             t1 = datetime("now");
             while this.Setting_Struct.Input_ignored & seconds(datetime("now")-t1)<this.Setting_Struct.Pokes_ignored_time
                 if this.Setting_Struct.ConfirmChoice && this.Box.readL() && this.isLeftTrial
@@ -1113,7 +1113,7 @@ classdef BehaviorBoxNose < handle
                     else
                         this.WhatDecision = "left wrong";
                     end
-                    
+
             end
         end
         %open reward valves
@@ -2064,26 +2064,26 @@ classdef BehaviorBoxNose < handle
             dark_color = Stim.DimColor;
             if whatdecision == "time out"
                 Reps = Stim.RepFlashInitial;
-                Freq = Stim.FreqFlashInitial;
-                SimpleFlash(Stim.LineColor)
+                Steps = Stim.FreqFlashInitial;
+                Flash_outline(Lines, Stim.BackgroundColor, Steps)
             elseif whatdecision == "Mal" | whatdecision == "Wheel" %Wheel hold still interval
                 Reps = 1;
-                Freq = 3;
-                RQFlash()
+                Steps = 10;
+                Flash_outline(Lines, Stim.BackgroundColor, Steps)
             elseif whatdecision == "NewStim" %L or R poke during intertrial
                 Reps = Stim.RepFlashInitial;
-                Freq = Stim.FreqFlashInitial;
-                RQFlash()
+                Steps = Stim.FreqFlashInitial;
+                Flash_outline(Lines, Stim.BackgroundColor, Steps)
             elseif whatdecision == "center" %Center poke during trial
                 Reps = 1;
-                Freq = Stim.FreqFlashInitial;
-                RQFlash()
+                Steps = Stim.FreqFlashInitial;
+                Flash_outline(Lines, Stim.BackgroundColor, Steps)
             elseif whatdecision == "Correct_Confirmation"
                 Reps = 1;
-                Freq = Stim.FreqFlashInitial;
-                CCFlash()
+                Steps = Stim.FreqFlashInitial;
+                Flash_outline(Lines, dark_color, Steps)
             else
-                Freq = Stim.FreqFlashAfter;
+                Steps = Stim.FreqFlashAfter;
                 d = findobj('Tag', 'Distractor');
                 if isempty(d)
                     d = struct();
@@ -2092,145 +2092,54 @@ classdef BehaviorBoxNose < handle
                     case contains(whatdecision, 'wrong')
                         Reps = Stim.RepFlashAfterW;
                         if Reps > 0
-                            WrongFlash()
+                            Flash_outline(Lines, Stim.BackgroundColor, Steps)
                         end
                     case contains(whatdecision, 'correct') || contains(whatdecision, 'OC')
                         Reps = Stim.RepFlashAfterC;
                         if Reps > 0
-                            CorrectFlash()
+                            [Lines.Color] = deal(Stim.BackgroundColor);
+                            Flash_outline(Lines, flash_color, Steps)
+                            [Lines.Color] = deal(Stim.LineColor);
                         end
-                end
-            end
-            function CCFlash()
-                %Flash_outline(Lines, dark_color, 10)
-                steps = 10;
-                for StimRep = 1:Reps
-                    for i = 1:steps
-                        color = start_color + (dark_color - start_color) * (i/steps);
-                        [Lines.Color] = deal(color); drawnow
-                    end
-                    for i = steps:-1:1
-                        color = start_color + (dark_color - start_color) * (i/steps);
-                        [Lines.Color] = deal(color); drawnow
-                    end
-                end
-            end
-            function RQFlash()
-                if [Lines.Type] == "scatter" %Nose
-                    r = 1 ;
-                    for StimRep = 1:Reps
-                        [Lines.MarkerFaceColor] = deal(flash_color); drawnow
-                        pause(1/Freq/6)
-                        [Lines.MarkerFaceColor] = deal(start_color); drawnow
-                        if StimRep < r
-                            pause(1/Freq/2)
-                        end
-                    end
-                elseif [Lines(1).Type] == "polygon" %Wheel
-                    for StimRep = 1:Reps
-                        [Lines.FaceColor] = deal(flash_color); drawnow
-                        pause(1/Freq/6)
-                        [Lines.FaceColor] = deal(start_color); drawnow
-                    end
-                else %line
-                    for StimRep = 1:Reps
-                        % while Box.readM()
-                        %     pause(0.5); drawnow
-                        % end
-                        [Lines(:).Color] = deal(Stim.BackgroundColor); [Lines(:).Visible] = deal(1); drawnow
-                        pause(1/Freq/5)
-                        [Lines(:).Color] = deal(dark_color); drawnow
-                        pause(1/Freq/10)
-                        [Lines(:).Color] = deal(start_color); drawnow
-                        pause(1/Freq/10)
-                        [Lines(:).Color] = deal(flash_color); drawnow
-                        pause(1/Freq/5)
-                        [Lines(:).Color] = deal(start_color); drawnow
-                        if StimRep < Reps
-                            pause(1/Freq/10)
-                        end
-                    end
-                end
-            end
-            function CorrectFlash
-                % while Box.readL() || Box.readR()
-                %     pause(0.5); drawnow
-                % end
-                [Lines(:).Color] = deal(Stim.BackgroundColor);
-                pause(1/Freq/5)
-                for StimRep = 1:Reps
-                    % while Box.readL() || Box.readR()
-                    %     pause(0.5); drawnow
-                    % end
-                    [Lines(:).Color] = deal(dark_color); drawnow
-                    pause(1/Freq/10)
-                    [Lines(:).Color] = deal(start_color);
-                    try
-                        [d.Color] = deal(Stim.DimColor); drawnow
-                    catch
-                    end
-                    pause(1/Freq/10)
-                    [Lines(:).Color] = deal(flash_color);
-                    try
-                        [d.Color] = deal(Stim.DimColor);
-                    catch
-                    end
-                    drawnow
-                    pause(1/Freq/5)
-                    [Lines(:).Color] = deal(start_color); drawnow
-                    if StimRep < Reps
-                        pause(1/Freq/10)
-                    end
-                end
-            end
-            function SimpleFlash(Color)
-                [Lines.Color] = deal(Stim.LineColor);
-                [d.Color] = deal(Stim.BackgroundColor); drawnow
-                pause(1/Freq/8)
-                Reps = 1;
-                while Box.readL() || Box.readM() || Box.readR()
-                    pause(0.5); drawnow
-                end
-                for StimRep = 1:Reps
-                    [Lines.Color] = deal(Stim.BackgroundColor);
-                    [d.Color] = deal(Stim.BackgroundColor); drawnow
-                    pause(1/Freq/8)
-                    [Lines.Color] = deal(Stim.DimColor);
-                    [d.Color] = deal(Stim.DimColor); drawnow
-                    pause(1/Freq/8)
-                    [Lines(:).Color] = deal(Stim.BrightColor);
-                    [d.Color] = deal(Stim.LineColor); drawnow
-                    pause(1/Freq/2)
-                    [Lines.Color] = deal(Stim.LineColor);
-                    [d.Color] = deal(Stim.DimColor); drawnow
-                    pause(1/Freq/2)
                 end
             end
             function WrongFlash
                 while Box.readL() || Box.readM() || Box.readR()
                     pause(0.5); drawnow
                 end
-                pause(1/Freq/2)
+                pause(1/Steps/2)
                 for StimRep = 1:Reps
                     while Box.readL() || Box.readM() || Box.readR()
                         pause(0.5); drawnow
                     end
                     [Lines.Color] = deal(dark_color); drawnow
-                    pause(1/Freq/2)
+                    pause(1/Steps/2)
                     [Lines.Color] = deal(flash_color); drawnow
-                    pause(1/Freq/2)
+                    pause(1/Steps/2)
                 end
                 [Lines.Color] = deal(Stim.LineColor);
             end
-            function Flash_outline(obj, color, steps)
-                start_color = obj.Color;
-                for i = 1:steps
-                    color = start_color + (color - start_color) * (i/steps);
-                    [obj.Color] = deal(color); drawnow
+            function Flash_outline(obj, NewColor, steps)
+                % This blinks the Obj to the NewColor and back, over a total of
+                % 2*steps increments
+                if obj(1).Type == "scatter"
+                    start_color = [obj(1).MarkerFaceColor];
+                elseif obj(1).Type == "polygon"
+                    start_color = [obj(1).FaceColor];
+                elseif obj(1).Type == "line"
+                    start_color = [obj(1).Color];
+                else
+                    return %prevent an error crash
                 end
-                for i = steps:-1:1
-                    color = start_color + (color - start_color) * (i/steps);
-                    [obj.Color] = deal(color); drawnow
+                for i = [1:1:steps steps-1:-1:0]
+                    CurrentColor = start_color + (NewColor - start_color) * (i/steps);
+                    if obj(1).Type == "scatter"
+                        [obj.MarkerFaceColor] = deal(CurrentColor);
+                    elseif obj(1).Type == "polygon"
+                    elseif obj(1).Type == "line"
+                        [obj.Color] = deal(CurrentColor);
+                    end
+                    drawnow
                 end
             end
         end

@@ -5,6 +5,8 @@ function Out = MakeAxis(options)
         options.Ax = [];
         options.m = [];
         options.n = [];
+        options.NoTick logical = true
+        options.FigOrAx char = 'Ax'
     end
     if isempty(options.Ax) %Make new fig and axis if not supplied
         f = figure;
@@ -17,9 +19,14 @@ function Out = MakeAxis(options)
     else
         Ax = options.Ax;
     end
-    Ax.YTick = [];
-    Ax.XTick = [];
+    if options.NoTick
+        Ax.YTick = [];
+        Ax.XTick = [];
+    end
     hold(Ax,"on")
-
-    Out = Ax;
+    if options.FigOrAx == "Ax"
+        Out = Ax;
+    else
+        Out = Ax.Parent.Parent;
+    end
 end
