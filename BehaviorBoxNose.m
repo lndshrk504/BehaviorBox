@@ -2103,22 +2103,6 @@ classdef BehaviorBoxNose < handle
                         end
                 end
             end
-            function WrongFlash
-                while Box.readL() || Box.readM() || Box.readR()
-                    pause(0.5); drawnow
-                end
-                pause(1/Steps/2)
-                for StimRep = 1:Reps
-                    while Box.readL() || Box.readM() || Box.readR()
-                        pause(0.5); drawnow
-                    end
-                    [Lines.Color] = deal(dark_color); drawnow
-                    pause(1/Steps/2)
-                    [Lines.Color] = deal(flash_color); drawnow
-                    pause(1/Steps/2)
-                end
-                [Lines.Color] = deal(Stim.LineColor);
-            end
             function Flash_outline(obj, NewColor, steps)
                 % This blinks the Obj to the NewColor and back, over a total of
                 % 2*steps increments
