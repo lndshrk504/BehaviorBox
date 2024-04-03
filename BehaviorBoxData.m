@@ -2897,11 +2897,13 @@ classdef BehaviorBoxData < handle
                 case options.Type == "Big"
                     options.Endpoints = 0;
                     options.FromChance = 0;
-                    BinSize = 30;
+                    %BinSize = 30;
+                    BinSize = 60;
                 case options.Type == "Small"
                     options.Endpoints = 1;
                     options.FromChance = 1;
-                    BinSize = 15;
+                    %BinSize = 15;
+                    BinSize = 20;
                 case ~isempty(options.BinSize)
                     BinSize = options.BinSize;
                 otherwise
