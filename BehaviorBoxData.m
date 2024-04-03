@@ -1753,8 +1753,8 @@ classdef BehaviorBoxData < handle
                         DO = d{1}-1;
                         %Small Bin Moving mean:
                         try
-                            x = DO+d{end-5};
-                            y = LO+d{end-6};
+                            x = DO+d{9};
+                            y = LO+d{8};
                             SmallPlot = plot(x,y, ...
                                 "Parent",Ax, ...
                                 "SeriesIndex",L, ...
