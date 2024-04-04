@@ -605,7 +605,7 @@ classdef BehaviorBoxData < handle
         end
         function Out = DayBin(this,D)
             %D is trial scores grouped by Level, and by Day
-            Out = num2cell(nan(14,1));
+            Out = num2cell(nan(15,1));
             s = D(:,1);
             these = s(s~=2);
             if numel(these)==0

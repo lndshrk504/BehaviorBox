@@ -13,7 +13,11 @@ end
 imaqreset
 imaqmex('feature','-limitPhysicalMemoryUsage',false)
 % Find cameras and remove system items
-CamInfo = imaqhwinfo('linuxvideo');
+if isunix && ~ismac
+    CamInfo = imaqhwinfo('linuxvideo');
+elseif ispc
+    CamInfo = imaqhwinfo('winvideo');
+end
 INFO = CamInfo.DeviceInfo;
 IDS = CamInfo.DeviceIDs;
 List = struct2cell(INFO);
@@ -31,7 +35,12 @@ for id = cell2mat(IDS)
     end
     try
         %  Initialize the video input object
-        vid = videoinput('linuxvideo', id, res{w});
+        
+        if isunix && ~ismac
+            vid = videoinput('linuxvideo', id, res{w});
+        elseif ispc
+            vid = videoinput('winvideo', id, res{w});
+        end
         preview(vid)
         if opt.Record
             DATE = string(datetime('now','TimeZone','local','Format','yy-MM-dd-HH:mm:ss'));
@@ -41,9 +50,12 @@ for id = cell2mat(IDS)
             % vid.FrameGrabInterval = 1;
             vid.LoggingMode = "disk";
             vid.FramesPerTrigger = inf;
-            vid.DiskLogger = VideoWriter(filename,"Motion JPEG AVI");
+            VW = VideoWriter("newfile.avi","Uncompressed AVI");
+            open(VW)
+            vid.DiskLogger = VW;
             start(vid)       % Close the AVI file
             stop(vid);
+            close(VW)
         end
     catch err
         unwrapErr(err)
