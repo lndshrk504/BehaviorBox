@@ -2039,12 +2039,13 @@ classdef BehaviorBoxNose < handle
                 this.Box.encoder.resetCount
             end
         end
-        function Flash(Stim, Box, Lines, whatdecision)
+        function Flash(Stim, Box, Lines, whatdecision, OneWay)
             arguments
                 Stim % from Setting structure
                 Box
                 Lines = findobj('Tag', 'Contour')
                 whatdecision = "time out"
+                OneWay logical = false
             end
             drawnow
             if ~Stim.FlashStim
@@ -2096,14 +2097,20 @@ classdef BehaviorBoxNose < handle
                         end
                     case contains(whatdecision, 'correct') || contains(whatdecision, 'OC')
                         Reps = Stim.RepFlashAfterC;
+                        OneWay = true;
                         if Reps > 0
                             [Lines.Color] = deal(dark_color);
                             Flash_outline(Lines, flash_color, Steps)
-                            [Lines.Color] = deal(Stim.LineColor);
+                            %[Lines.Color] = deal(Stim.LineColor);
                         end
                 end
             end
             function Flash_outline(obj, NewColor, steps)
+                if OneWay
+                    STEPS = 1:1:steps;
+                else
+                    STEPS = [1:1:steps steps-1:-1:0];
+                end
                 % This blinks the Obj to the NewColor and back, over a total of
                 % 2*steps increments
                 if obj(1).Type == "scatter"
@@ -2115,7 +2122,7 @@ classdef BehaviorBoxNose < handle
                 else
                     return %prevent an error crash
                 end
-                for i = [1:1:steps steps-1:-1:0]
+                for i = STEPS
                     CurrentColor = start_color + (NewColor - start_color) * (i/steps);
                     if obj(1).Type == "scatter"
                         [obj.MarkerFaceColor] = deal(CurrentColor);

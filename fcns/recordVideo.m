@@ -41,18 +41,19 @@ for id = cell2mat(IDS)
         elseif ispc
             vid = videoinput('winvideo', id, res{w});
         end
-        preview(vid)
+        %preview(vid)
         if opt.Record
-            DATE = string(datetime('now','TimeZone','local','Format','yy-MM-dd-HH:mm:ss'));
-            filename = 'outputVideo'+DATE+'.avi';
+            vid.LoggingMode = "disk";
+            VW = VideoWriter("newfile.mp4","MPEG-4");
+            vid.DiskLogger = VW;
+            % DATE = string(datetime('now','TimeZone','local','Format','yy-MM-dd-HH:mm:ss'));
+            % filename = 'outputVideo'+DATE+'.avi';
             % set(vid, 'FramesPerTrigger', Inf);
+            % set(vid, 'DiskLoggerFrameCount', 100);
             % set(vid, 'ReturnedColorspace', 'rgb');
             % vid.FrameGrabInterval = 1;
-            vid.LoggingMode = "disk";
-            vid.FramesPerTrigger = inf;
-            VW = VideoWriter("newfile.avi","Uncompressed AVI");
-            open(VW)
-            vid.DiskLogger = VW;
+            % vid.FramesPerTrigger = inf;
+            % open(VW)
             start(vid)       % Close the AVI file
             stop(vid);
             close(VW)
