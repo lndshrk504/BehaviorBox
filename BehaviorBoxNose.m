@@ -2097,9 +2097,9 @@ classdef BehaviorBoxNose < handle
                     case contains(whatdecision, 'correct') || contains(whatdecision, 'OC')
                         Reps = Stim.RepFlashAfterC;
                         if Reps > 0
-                            %[Lines.Color] = deal(Stim.BackgroundColor);
+                            [Lines.Color] = deal(dark_color);
                             Flash_outline(Lines, flash_color, Steps)
-                            %[Lines.Color] = deal(Stim.LineColor);
+                            [Lines.Color] = deal(Stim.LineColor);
                         end
                 end
             end
