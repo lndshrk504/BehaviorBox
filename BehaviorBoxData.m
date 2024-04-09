@@ -807,7 +807,7 @@ classdef BehaviorBoxData < handle
             for S = struct2cell(this.DayData)'
                 this.sc = this.sc+1;
                 this.dc = 0;
-                for d = [S{:}(:,:)]' % [S{:}(:,:)]'
+                for d = [S{:}(:,:)]'
                     this.dc = this.dc+1;
                     this.date = d{2};
                     %                     if this.dc==17
@@ -815,17 +815,16 @@ classdef BehaviorBoxData < handle
                     %                     end
                     this.current_data_struct = d{3};
                     this.CleanData();
-                    graphFig = figure("Name", "Graphs", "Visible","off");
-                    this.Axes = this.CreateAllTimeGraphs(graphFig);
+                    graphFig = figure("Name", "DayRec"+filesep+this.Sub{this.sc}, "Visible","on");
+                    this.Axes = this.CreateDailyGraphs(graphFig);
                     title = "Day " +this.dc+" - - - "+this.Sub{this.sc}+" - - - "+d{2};
                     graphFig.Children.Title.String = title;
                     this.PlotNewData();
-                    FileDir = [this.filedir{this.sc} filesep 'DayRec' filesep];
+                    FileDir = [this.filedir{this.sc} filesep 'DayRec' filesep this.Sub{this.sc} filesep];
                     if ~exist(FileDir,"dir")
                         mkdir(FileDir)
                     end
-                    filename = FileDir+"Day_"+this.dc+"_"+this.date+"_"+this.Sub{this.sc}+"_Rec";
-                    this.SaveManyFigures(graphFig, filename);
+                    this.SaveManyFigures([], string(d{2})+"_"+this.Sub{this.sc});
                     close(graphFig)
                 end
             end
@@ -2916,7 +2915,7 @@ classdef BehaviorBoxData < handle
                     fprops = this.getFigProps(f, options);
                     SvFig(SavePathName(c),fprops, options)
                 end
-                fprintf("Saved "+numel(FIG)+ "files... etime: " + toc + " seconds.\n")
+                fprintf("Saved "+numel(FIG)+ " files... etime: " + toc + " seconds.\n")
                 return
             end
             function SvFig(Name, Props, options)
