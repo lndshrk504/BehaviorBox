@@ -558,24 +558,25 @@ classdef BehaviorBoxData < handle
         end
         function Out = LevelMMAnalysis(this, L)
             try
-                % noT = L(L(:,1)~=2,:);
                 Inc = L(L(:,1)~=2,3);
                 scores = L(L(:,1)~=2,1);
-                bMM = this.MM(scores,"Type","Big");
-                B1 = movmean(scores(1:(end-this.SB)), [this.SB-1 0], 'Endpoints', 'discard');
-                B2 = movmean(scores((this.SB+1):end), [this.SB-1 0], 'Endpoints', 'discard');
-                bSD = std([B1 B2],0,2);
+                bMM = this.newMM(scores,"Type","Big");
+                sMM = this.newMM(scores,"Type","Small", "Endpoints", 0, "FromChance", 0);
+                try
+                    bSD = sMM(:,2);
+                catch
+                    bSD = bMM;
+                end
                 D = L(L(:,1)~=2,2);
                 XCoord = zeros(size(D));
                 XCoordLevDay = zeros(size(D));
             % Binomial
-                trialWin = this.BB;
                 BiCDF = zeros(numel(scores),2);
                 BiCDF(this.BB:numel(scores),2) = bMM;
                 tc = this.BB-1;
-                for t = trialWin:numel(scores)
+                for t = 1:numel(scores)
                     tc = tc + 1;
-                    t0 = t-trialWin+1;
+                    t0 = max(t-this.BB+1,1);
                     dataWin = scores(t0:t);
                     BiCDF(t,1) = binocdf(sum(dataWin), numel(dataWin), 0.5, 'upper');
                 end
@@ -603,6 +604,78 @@ classdef BehaviorBoxData < handle
                 end
             end
         end
+        function MM = newMM(this, scores, options)
+            arguments
+                this
+                scores
+                options.Type string = ""
+                options.BinSize double = []
+                options.FromChance = [] % Append the Scores with a 0.5 to start the moving mean from 50%
+                options.Endpoints = [] %Shrink or Discard
+            end
+        % Init settings variables:
+            Endpoints = [];
+            FromChance = [];
+            switch 1 %Either the BinSize is a number or the Type is specified
+                case options.Type == "Big" % Returns a numel(scores) x 1 vector
+                    Endpoints = 0;
+                    FromChance = 0;
+                    BinSize = this.BB;
+                case options.Type == "Small" % Returns a numel(scores) x 3 vector
+                    Endpoints = 1;
+                    FromChance = 1;
+                    BinSize = this.SB;
+                case ~isempty(options.BinSize)
+                    BinSize = options.BinSize;
+                    Endpoints = 1;
+                    FromChance = 1;
+                otherwise
+            end
+        %Check defaults against inputs, override if specified
+            if ~isempty(options.Endpoints)
+                Endpoints = options.Endpoints;
+            end
+            if ~isempty(options.FromChance)
+                FromChance = options.FromChance;
+            end
+        % Decode settings
+            if Endpoints
+                EP = 'shrink';
+            else
+                EP = 'discard';
+            end
+            if FromChance
+                APP = 0.5;
+            else
+                APP = [];
+            end
+            if options.Type == "Big"
+                % large bin moving mean
+                MM = movmean([APP ; scores], [BinSize-1 0], 'Endpoints', EP);
+            else
+                % small bin moving mean
+                sMM = movmean([APP ; scores], [BinSize-1 0], 'Endpoints', EP);
+                if numel(scores)<this.SB
+                    MM = sMM;
+                    return
+                end
+            % For standard deviation:
+                B1 = movmean(scores(1:(numel(scores)-this.SB)), [this.SB-1 0], 'Endpoints', 'discard');
+                B2 = movmean(scores((this.SB+1):numel(scores)), [this.SB-1 0], 'Endpoints', 'discard');
+                STD = std([B1 B2],0,2);
+                if EP == "shrink"
+                    EXT = nan(numel(sMM)-numel(STD)-1,1);
+                    STD = [NaN ; EXT ; STD];
+                    B1 = [NaN ; B1 ; EXT];
+                    B2 = [NaN ; EXT ; B2];
+                    MM = [sMM STD B1 B2];
+                else
+                    EXT = numel(sMM)-numel(STD);
+                    sMM = sMM(EXT+1:end);
+                    MM = [sMM STD];
+                end
+            end
+        end
         function Out = DayBin(this,D)
             %D is trial scores grouped by Level, and by Day
             Out = num2cell(nan(15,1));
@@ -626,24 +699,25 @@ classdef BehaviorBoxData < handle
                 end
                 txt = string(cellfun(@(x){num2str(round(100*x,1))}, num2cell(binned)));
                 %Moving mean Stuff
-                sMM = movmean( [0.5 ; these], [this.SB-1 0], 'Endpoints', 'shrink')';
-                % bMM = movmean( [0.5 ; these], [this.BB-1 0], 'Endpoints', 'discard')';
+                sMMIn = this.newMM(these,"Type","Small", "Endpoints",1, "FromChance", 1);
+                sMM = sMMIn(:,1)';
+                bMM = this.newMM(these,"Type","Big", "Endpoints",1, "FromChance", 1)';
                 xMM = normalize(1:numel(sMM),'range');
-                sCross = find( movmean( [0.5 ; these], [this.SB-1 0], 'Endpoints', 'shrink')'>=0.8, 1, 'first'); %When did today's performance cross the threshold?
-                bCross = find( movmean( these, [this.BB-1 0], 'Endpoints', 'shrink')'>=0.8, 1, 'first'); %When did today's performance cross the threshold?
+                BiCDF = zeros(numel(these),1);
+                tc = 0;
+                for t = 1:numel(these)
+                    tc = tc + 1;
+                    t0 = max(t-this.BB+1,1);
+                    dataWin = these(t0:t);
+                    BiCDF(t,1) = binocdf(sum(dataWin), numel(dataWin), 0.5, 'upper');
+                end
+                sCross = find(sMM>=0.8, 1, 'first'); %When did today's performance cross the threshold?
+                bCross = find(bMM>=0.8, 1, 'first'); %When did today's performance cross the threshold?
                 if isempty(sCross)
                     sCross = NaN;
                 end
                 if isempty(bCross)
                     bCross = NaN;
-                end
-                BiCDF = zeros(numel(these),1);
-                tc = 0;
-                for t = this.BB:numel(these)
-                    tc = tc + 1;
-                    t0 = t-this.BB+1;
-                    dataWin = these(t0:t);
-                    BiCDF(t,1) = binocdf(sum(dataWin), numel(dataWin), 0.5, 'upper');
                 end
                 Out = {binned;
                     x;
@@ -654,6 +728,7 @@ classdef BehaviorBoxData < handle
                     s';
                     sMM;
                     xMM;
+                    bMM;
                     sCross;
                     bCross;
                     BiCDF;
@@ -761,6 +836,11 @@ classdef BehaviorBoxData < handle
             if ~isfield(this.current_data_struct, 'LevelGroups')
                 this.current_data_struct = CleanData(this.current_data_struct);
             end
+            trialTbl = this.current_data_struct;
+            [G,ID] = findgroups(this.current_data_struct.Level);
+            DATE = ones(size(this.current_data_struct.Score));
+            this.AnalyzedData.DayMM = splitapply(@(x){this.DayBin(x)}, [this.current_data_struct.Score this.current_data_struct.Level DATE DATE], G);
+            this.AnalyzedData.LevMM = splitapply(@(x)this.LevelMMAnalysis(x), [trialTbl.Score DATE DATE], G);
             try
                 this.setGUI(this.current_data_struct, this.GUInum)
                 % try
@@ -889,36 +969,31 @@ classdef BehaviorBoxData < handle
                 [~,Lidx]=sort(SortData(:,1));
                 SortData = SortData(Lidx,:);
                 halfFull = sum(SortData(:,[4 5 6]),2)<this.BB;
-                %smallszs(halfFull) = sum(SortData(halfFull,[4 5 6]),2);%Find which rows were not full bins
-                %SortData = [SortData(~halfFull,:) ; SortData(halfFull,:)]; %Put the empty bins last
                 [m,~] = size(SortData);
                 [~, Levels] = findgroups(SortData(:,1)');
-                LAvgs = zeros(size(Levels));
-                LStds = zeros(size(Levels));
                 total = 1:m;
+                COUNT = 0;
                 for L = Levels
+                    COUNT=COUNT+1;
                     fullrows = SortData(:,1) == L & ~halfFull;
                     halffullrows = SortData(:,1) == L & halfFull;
                     Lvrows = SortData(:,1) == L;
-                    score = Data.Score(Data.Level==L & Data.Score~=2);
-                    LAvgs(L) = mean(score);
-                    LStds(L) = std(SortData(Lvrows,2));
-                    %len = sum(Lvrows) - (this.BB-mod(numel(score), this.BB))/this.BB;
-                    len = sum(Lvrows);
-                    yB = movmean([0.5 ; score],[this.BB-1,0],"Endpoints","shrink");
-                    yS = movmean([0.5 ; score],[this.SB-1,0],"Endpoints","shrink");
+                    yB = this.AnalyzedData.DayMM{COUNT}{10};
+                    yS = this.AnalyzedData.DayMM{COUNT}{8};
+                    yBinom = this.AnalyzedData.DayMM{COUNT}{13};
                     LIdx = find(SortData(:,1)==L,1,'first')-0.5;
+                    len = sum(Lvrows);
                     x = LIdx+len*((1:numel(yB))/numel(yB));
                     try
-                        pS = plot(x, yS, 'Parent', Ax);
+                        pS = plot(x, yS, 'Parent', Ax, 'DisplayName',"Small Bin");
                         pS.LineStyle = ":";
-                        p = plot(x,yB, 'Parent', Ax);
+                        p = plot(x,yB, 'Parent', Ax, 'DisplayName',"Big Bin");
                         p.LineWidth = 1.5;
                         p.SeriesIndex = L;
                         pS.SeriesIndex = L;
                     catch
                     end
-                    Perf = errorbar( total(fullrows) , SortData(fullrows,2) , SortData(fullrows,3) , 'Parent', Ax);
+                    Perf = errorbar( total(fullrows) , SortData(fullrows,2) , SortData(fullrows,3) , 'Parent', Ax, 'DisplayName',"Binned");
                     Perf.MarkerFaceColor = "auto";
                     Perf.MarkerEdgeColor = "auto";
                     Perf.LineStyle = 'none';
@@ -928,7 +1003,7 @@ classdef BehaviorBoxData < handle
                     catch
                     end
                     Perf.MarkerSize = 9;
-                    Perf2 = scatter( total(halffullrows) , SortData(halffullrows,2) , 'Parent', Ax);
+                    Perf2 = scatter( total(halffullrows) , SortData(halffullrows,2) , 'Parent', Ax, 'DisplayName',"Marker");
                     try
                         Perf2.Marker = Perf.Marker;
                         p.SeriesIndex = L;
@@ -956,6 +1031,7 @@ classdef BehaviorBoxData < handle
                     'VerticalAlignment','Bottom')
                 %Change limits, ticks, grids:
                 Ax.XLim = [0.6 size(SortData,1)+0.6];
+                %Ax.XLim = [0 numel(Levels)];
                 Ax.YLim = [0.45 1.01];
                 Ax.YTick = 0:0.25:1;
                 Ax.YGrid = 1;
@@ -971,13 +1047,15 @@ classdef BehaviorBoxData < handle
             Data = this.current_data_struct;
             tnum = Data.TrialNum;
             Ax = this.Axes.AllLevelPerf; hold(Ax, "on");
+            COUNT = 0;
             for L = this.current_data_struct.LevelGroups
+                COUNT=COUNT+1;
                 w = Data.Level==L & Data.Score~=2;
-                score = [0.5 ; Data.Score(w)];
                 x = [0 ; tnum(w)]; %Add point [0, 50%] because at trial #0 the mouse is at 50% (chance) performance, every day you assume the mouse starts from "chance"
                 x(1) = x(2)-1;
-                yB = movmean(score, [this.BB-1,0],"Endpoints","shrink");
-                yS = movmean(score, [this.SB-1,0],"Endpoints","shrink");
+                yB = this.AnalyzedData.DayMM{COUNT}{10};
+                yS = this.AnalyzedData.DayMM{COUNT}{8};
+                yBinom = [0 ;this.AnalyzedData.DayMM{COUNT}{13}];
                 try
                     p2s = plot(x,yS,'Parent', Ax, ...
                         "LineStyle",":");
@@ -989,6 +1067,10 @@ classdef BehaviorBoxData < handle
                     p2B.SeriesIndex = L;
                     p2B.MarkerFaceColor = "auto";
                     p2B.Marker = deal(this.Shape_code(L));
+                    p2BN = plot(x,yBinom,'Parent', this.Axes.Binomial, ...
+                        "LineStyle","-");
+                    p2BN.SeriesIndex = L;
+                    p2BN.LineWidth = 2;
                 catch
                 end
             end
@@ -1008,6 +1090,15 @@ classdef BehaviorBoxData < handle
             Ax.YMinorGrid = 1;
             Ax.YAxis.MinorTickValues = 0:0.1:1;
             Ax.YAxis.TickLabels = [];
+            %Change limits, ticks, grids:
+            %this.Axes.Binomial.XLim = [0.5 numel(tnum)+0.5];
+            %this.Axes.Binomial.XAxis.TickLabels = [];
+            %this.Axes.Binomial.YScale = "log";
+            % this.Axes.Binomial.YLim = [-0.1 1];
+            % this.Axes.Binomial.YGrid = 1;
+            % this.Axes.Binomial.YMinorTick = 1;
+            % this.Axes.Binomial.YMinorGrid = 1;
+            % this.Axes.Binomial.YAxis.TickLabels = [];
         end
         function plotLevelPerf(this, Ax, D)
             hold(Ax, 'on')
@@ -2439,53 +2530,10 @@ classdef BehaviorBoxData < handle
             unseen = [Avgs{5,:}] == 0;
             Avgs(:,unseen) = [];
         end
-        function [Out] = LevelMM(this)
-            try
-                Out = {};
-                trialWin = this.BB;
-                [~,Levels] = findgroups(this.trial_table.Level');
-                MM = cell(size(Levels'));
-                for L = Levels
-                    r = this.trial_table.Level == L & this.trial_table.LvlTrialNum ~= 0;
-                    LevTbl = this.trial_table(r,:);
-                    m = numel(LevTbl.Date);
-                    if m == 0
-                        continue
-                    end
-                    MM{L} = NaN(m,10);
-                    MM{L}(:,1) = LevTbl.Score;
-                    %Small Bin Moving Mean
-                    MM{L}(:,3) = movmean(LevTbl.Score, [this.BB-1 0], 'Endpoints', 'shrink'); %makes movmean of this.BB-1 trials before the current, and only for full bins
-                    MM{L}(:,2) = movmean(LevTbl.Score, [this.SB-1 0], 'Endpoints', 'shrink'); %makes movmean of this.BB-1 trials before the current, and only for full bins
-                    MM{L}(1:m,4) = (1:m);
-                    tc = this.BB-1;
-                    for t = trialWin:m
-                        tc = tc + 1;
-                        t0 = t-trialWin+1;
-                        dataWin = LevTbl.Score(t0:t);
-                        CCWin = LevTbl.CodedChoice(t0:t);
-                        MM{L}(tc,5) = mean(dataWin);
-                        MM{L}(tc,6) = std(accumarray(this.SBidx, dataWin, [], @mean));
-                        try %Not every computer has the Stats Toolbox and this line fails
-                            MM{L}(tc,7) = -log10(binocdf(sum(dataWin), numel(dataWin), 0.5, 'upper'));
-                        end
-                        SideBias = this.getSideBias(CCWin);
-                        MM{L}(tc,8) = SideBias(4);
-                    end
-                    MM{L}(:,9) = LevTbl.Date;
-                    [MM{L}(:,10), ~] = findgroups(LevTbl.Date);
-                end
-                MM = MM(~cellfun(@isempty, MM));
-                Varnames = {'Score','SmallMean', 'BigMean', 'LvTrialNum', 'MeanMM', 'STD', '-Log Binomial', 'SideBias', 'Date', 'DayNum'};
-                Out = cellfun(@(x) array2table(x, 'VariableNames', Varnames), MM, "UniformOutput", false);
-            catch err
-                unwrapErr(err)
-            end
-        end
         %Setup figures to display data
         function Axes = CreateDailyGraphs(this,P)
             %Create the TiledLayout in the Panel for all of the graphs...
-            r = 4;
+            r = 5;
             c = 5;
             TL = tiledlayout(P, r, c, ...
                 'Padding','tight', ...
@@ -2571,6 +2619,20 @@ classdef BehaviorBoxData < handle
             SB.Box = 'off';
             %SB.BoxStyle = 'full';
             SB.PickableParts = 'none';
+
+            % Create Binomial by trial
+            BN = nexttile(TL, [1 5]);
+            BN.Tag = 'Axes_Binomial';
+            %title(BN, 'Side Bias History')
+            BN.Toolbar.Visible = 'off';
+            BN.YLim = [0 1];
+            BN.TickLength = [0 0];
+            BN.XTick = [];
+            BN.YTick = [];
+            BN.NextPlot = 'add';
+            BN.Box = 'off';
+            %BN.BoxStyle = 'full';
+            BN.PickableParts = 'none';
 
             %             % Create axes6
             %             ST = nexttile(TL, [1 1]);
@@ -2884,42 +2946,6 @@ classdef BehaviorBoxData < handle
                 GUINums.total_correct = [num2str( 100*round(sum( Data.Score(Data.Score~=2))/numel(Data.Score(Data.Score~=2)),2 ) ) '%'];
                 %Add a loop to go thru the handles:
             end
-        end
-        function MM = MM(Scores, options)
-            arguments
-                Scores
-                options.BinSize double = []
-                options.Type string = ""
-                options.FromChance logical = false % Append the Scores with a 0.5 to start the moving mean from 50%
-                options.Endpoints logical = false %Shrink or Discard
-            end
-            switch 1 %Either the BinSize is a number or the Type is specified
-                case options.Type == "Big"
-                    options.Endpoints = 0;
-                    options.FromChance = 0;
-                    BinSize = 30;
-                    %BinSize = 60;
-                case options.Type == "Small"
-                    options.Endpoints = 1;
-                    options.FromChance = 1;
-                    BinSize = 15;
-                    %BinSize = 20;
-                case ~isempty(options.BinSize)
-                    BinSize = options.BinSize;
-                otherwise
-            end
-            if options.Endpoints
-                EP = 'shrink';
-            else
-                EP = 'discard';
-            end
-            if options.FromChance
-                APP = 0.5;
-            else
-                APP = [];
-            end
-            %large bin moving mean
-            MM = movmean([APP ; Scores], [BinSize-1 0], 'Endpoints', EP);
         end
         function [struct_out] = new_init_data_struct() %Initialize data structure
             %Use these names to match the analysis scripts:

@@ -360,7 +360,11 @@ classdef BehaviorBoxVisualStimulus
             else
                 W = 1;
             end
-            numDs = this.numDistractorsTable(this.Level,W);
+            try
+                numDs = this.numDistractorsTable(this.Level,W);
+            catch err
+                unwrapErr(err)
+            end
             if isCorrect %Plot the correct stim with 5 line segments:
                 contourNodesIdx = logical(this.ContourNodes(:,1) == 0);
                 contourNodes = this.ContourNodes(contourNodesIdx,:); %Contour nodes are those where X = 0 [this can be modified]

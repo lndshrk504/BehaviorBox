@@ -247,7 +247,7 @@ classdef BehaviorBoxNose < handle
                 HardLevs = In.HardLvList;
             end
             if ~isnumeric(In.EasyLvList)
-                EasyLevs = str2double(In.EasyLvList);
+                EasyLevs = str2num(string(In.EasyLvList)); %#ok<ST2NM>
             else
                 EasyLevs = In.EasyLvList;
             end
