@@ -274,6 +274,7 @@ classdef BehaviorBoxNose < handle
             try
                 % https://docs.arduino.cc/learn/microcontrollers/digital-pins
                 if this.Setting_Struct.Box_Input_type == 8 %Skip all this if keyboard mode
+                    this.Box.ardunioReadDigital = 0;
                     return
                 end
                 if ispc
@@ -1670,7 +1671,10 @@ classdef BehaviorBoxNose < handle
             this.a.writeDigitalPin(this.Box.AirPuff,0)
         end
         function [WhatDecision, response_time] = readKeyboardInput(stop_handle, message_handle, isLeftTrial)
-            text = 'Respond: Press L for Left, R for Right, C or M for Middle:'; set(message_handle,'String',text); fprintf([text '\n']); drawnow
+            text = 'Respond: Press L for Left, R for Right, C or M for Middle:';
+            set(message_handle,'Text',text); 
+            fprintf([text '\n']); 
+            drawnow
             prompt = 'L, R, or M/C:   ';
             keypress = 0; t1 = clock;
             while keypress==0
@@ -1679,17 +1683,17 @@ classdef BehaviorBoxNose < handle
                 response_time = etime(clock, t1);
                 switch true
                     case strcmp(currkey, 'l') || strcmp(currkey, 'L')
-                        text = 'Left choice...'; fprintf([text '\n']); set(message_handle,'String',text); drawnow
+                        text = 'Left choice...'; fprintf([text '\n']); set(message_handle,'Text',text); drawnow
                         event = 1;
                         keypress = 1;
                     case strcmp(currkey, 'r') || strcmp(currkey, 'R')
-                        text = 'Right choice...'; fprintf([text '\n']); set(message_handle,'String',text); drawnow
+                        text = 'Right choice...'; fprintf([text '\n']); set(message_handle,'Text',text); drawnow
                         event = 2;
                         keypress = 1;
                     case strcmp(currkey, 'C') || strcmp(currkey, 'c') || strcmp(currkey, 'M') || strcmp(currkey, 'm')
-                        text = 'Middle choice'; fprintf([text '\n']); set(message_handle,'String',text); drawnow
+                        text = 'Middle choice'; fprintf([text '\n']); set(message_handle,'Text',text); drawnow
                     otherwise
-                        text = 'Please only press one of the indicated keys...'; fprintf([text '\n']); set(message_handle,'String',text); drawnow
+                        text = 'Please only press one of the indicated keys...'; fprintf([text '\n']); set(message_handle,'Text',text); drawnow
                 end
                 pause(0.1); drawnow;
                 if stop_handle.Value
