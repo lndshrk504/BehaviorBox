@@ -836,11 +836,12 @@ classdef BehaviorBoxNose < handle
                         %Otherwise the ready cue immediately turns dim when it appears, and mice poke L/R to see the blink instead of recognizing the bright dot
                     end
                     while ~get(this.stop_handle, 'Value') %While the stop button has not been pressed
-                        pause(0.1); drawnow; %Update the buttons
+                        this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'ReadyCueDot'), 'Correct_Confirmation')
+                        drawnow; %Update the buttons
                         if this.Setting_Struct.IntertrialMalCancel && this.Box.readL() | this.Box.readR()
                             %this.ReadyCue('k') %Make the ReadyCue black
-                            this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'ReadyCueDot'), 'Mal')
-                            this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.DimColor; drawnow %Make the ReadyCue dim
+                            %this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'ReadyCueDot'), 'Mal')
+                            this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.BackgroundColor; drawnow %Make the ReadyCue dim
                             this.message_handle.Text = ['Do not poke L or R for the Intertrial Malingering interval: ' num2str(this.Setting_Struct.IntertrialMalSec) ' sec...'];
                             timerStart = datetime("now");
                             while 1
@@ -974,7 +975,10 @@ classdef BehaviorBoxNose < handle
                 elseif this.Setting_Struct.ConfirmChoice && this.Box.readR() && ~this.isLeftTrial
                     this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Contour'), 'Correct_Confirmation');
                 end
-                if seconds(datetime("now")-t1)>=this.Setting_Struct.Pokes_ignored_time
+                if this.Box.readM()
+                    this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'NewStim');
+                end
+                if seconds(datetime("now")-t1)>this.Setting_Struct.Pokes_ignored_time
                     break
                 end
                 time = this.Setting_Struct.Pokes_ignored_time-seconds(datetime("now")-t1);
@@ -1029,7 +1033,12 @@ classdef BehaviorBoxNose < handle
                     end
                     set(this.message_handle, 'Text',['Persisting correct stimulus for ' num2str(thisInt)  ' (sec)...']); drawnow
                     if this.Box.Input_type == 3 %Nose
-                        this.UpdatePause(thisInt)
+                        % this.UpdatePause(thisInt)
+                        DIST = this.fig.Children(contains({this.fig.Children.Tag}, "Correct")).Children.findobj('Tag','Contour');
+                        tic
+                        while toc <= thisInt
+                            this.Flash(this.StimulusStruct, this.Box, DIST, 'Correct_Confirmation')
+                        end
                     elseif this.Box.Input_type == 6 %Wheel
                         timerStart = clock;
                         while 1
@@ -1053,14 +1062,25 @@ classdef BehaviorBoxNose < handle
                 case contains({this.WhatDecision} , 'wrong', 'IgnoreCase', true)
                     set(this.message_handle,'Text',[this.WhatDecision,' - Penalty...']);
                     while this.Box.readL() || this.Box.readR() %Pause while the mouse is standing there
-                        pause(0.5);drawnow;
+                        pause(0.5);
                     end
-                    [this.fig.Children(contains({this.fig.Children.Tag}, "Correct")).Children.Visible] = deal(0);
+                    %[this.fig.Children(contains({this.fig.Children.Tag}, "Correct")).Children.Visible] = deal(0);
                     %Flash
-                    this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'), this.WhatDecision);
+                    %this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'), this.WhatDecision);
                     if ~get(this.stop_handle, 'Value') && this.StimulusStruct.PersistIncorrect
                         set(this.message_handle,'Text','Persisting correct stimulus...');
-                        this.UpdatePause(this.StimulusStruct.PersistIncorrectInterv)
+                        if this.Box.Input_type == 3 %Nose
+                            % this.UpdatePause(thisInt)
+                            thisInt = this.StimulusStruct.PersistIncorrectInterv;
+                            DIST = this.fig.Children(contains({this.fig.Children.Tag}, "Correct")).Children.findobj('Tag','Distractor');
+                            set(DIST, "Color", this.StimulusStruct.LineColor)
+                            tic
+                            while toc <= thisInt
+                                this.Flash(this.StimulusStruct, this.Box, DIST, 'Correct_Confirmation')
+                            end
+                            %this.Flash(this.StimulusStruct, this.Box, DIST, 'Correct_Confirmation')
+                        end
+                        %this.UpdatePause(this.StimulusStruct.PersistIncorrectInterv)
                     else
                     end
                     o = findobj(this.fig.Children);
@@ -1762,8 +1782,8 @@ classdef BehaviorBoxNose < handle
                 try
                     a = this.fig.findobj("Type", "Axes");
                     a = a(contains({a.Tag}, 'Correct'));
-                    c = a.findobj("Tag", "Contour");
-                    [c.Color] = deal(this.StimulusStruct.FlashColor);
+                    %c = a.findobj("Tag", "Contour");
+                    %[c.Color] = deal(this.StimulusStruct.FlashColor);
                     d = a.findobj("Tag", "Distractor");
                     [d.Color] = deal(this.StimulusStruct.DimColor);
                 catch
@@ -2050,6 +2070,9 @@ classdef BehaviorBoxNose < handle
                 Lines = findobj('Tag', 'Contour')
                 whatdecision = "time out"
                 OneWay logical = false
+            end
+            if isempty(Lines)
+                return
             end
             drawnow
             if ~Stim.FlashStim
