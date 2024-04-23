@@ -1178,7 +1178,7 @@ classdef BehaviorBoxData < handle
                 this
                 opts.Composite logical = 0
                 opts.LevGroup logical = 0
-                opts.LevMM logical = 0
+                opts.LevMM logical = 1
                 opts.Stim logical = 0
                 opts.Group logical = 0
                 opts.DayProgress logical = 1
@@ -1190,7 +1190,7 @@ classdef BehaviorBoxData < handle
                 %Trial = this.DailyProgress();
                 this.BinomialProgress();
                 %this.PlotGroupTrialsToPass(Trial);
-                this.SaveManyFigures([],'DayTrial', SameFolder=1)
+                %this.SaveManyFigures([],'DayTrial', SameFolder=1)
             end
             if opts.Group
                 %close all
@@ -1200,7 +1200,7 @@ classdef BehaviorBoxData < handle
             end
             if opts.LevGroup
                 %LevDay = cellfun(@(x){this.PlotLevelGroupsByLevel(Sc=x)}, Num);
-                close all
+                %close all
                 cellfun(@(x){this.PlotLevelGroupsByDay(Sc=x)}, Num); drawnow
                 this.SaveManyFigures([],'LevelGroup', SameFolder=1)
             end
@@ -1388,7 +1388,7 @@ classdef BehaviorBoxData < handle
                 this
                 options.Sc double = 1
                 options.AllMice logical = 0
-                options.Lvs double = 10:16 % Do not display levels below this
+                options.Lvs double = 10:18 % Do not display levels below this
                 options.Threshold double = 0.7 % Passing threshold for each level
                 options.count double = 10 % Num of consecutive trials above threshold before passing
                 options.tol double = 0 % How many below-threshold trials in the streak of options.count to be tolerated
