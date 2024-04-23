@@ -27,6 +27,7 @@ classdef BehaviorBoxNose < handle
         RStimAx; %Axis that contains the left stimulus plot
         FLAx; %Axis that contains the 2 finish line triangles
         graphFig;
+        TrialPhase char = 'intertrial' % Either : BeforeTrial, Intertrial, AfterTrial
         ReadyCueStruct = struct();
         StimulusStruct = struct();
         LevelStruct = struct();
@@ -790,38 +791,7 @@ classdef BehaviorBoxNose < handle
             this.TrialStartTime = 0;
             set(this.message_handle,'Text','Waiting for Trial initialization');
             this.t1 = clock; t2 = this.t1;%In case of crash
-            switch 1
-                case this.Box.Input_type==6 %Wheel 2.0, wait for the mouse to hold the wheel still for the interval to start a new trial
-                    if this.i ~=1
-                        this.ReadyCue('k');
-                        fl = [this.FLAx.Children];
-                        [fl.Visible] = deal(1);
-                        this.fig.Color = this.StimulusStruct.BackgroundColor;
-                        timelimit = this.Setting_Struct.HoldStill;
-                        starttime = clock;
-                        tic
-                        E = toc;
-                        while E<=timelimit
-                            E = toc;
-                            this.message_handle.Text = ['Keep the wheel still for ' num2str(round(timelimit - etime(clock, starttime),1)) ' seconds.']; drawnow
-                            if abs(this.Box.encoder.readSpeed) > 0
-                                starttime = clock;
-                            end
-                            if get(this.stop_handle, 'Value')
-                                this.message_handle.Text = 'Ending session...';
-                                break;
-                            end
-                            if get(this.FF, 'Value')
-                                set(this.message_handle, 'Text','Skipping interval...')
-                                set(this.FF, 'Value', 0)
-                                drawnow
-                                break;
-                            end
-                            pause(0.1)
-                        end
-                        t2 = clock;
-                        this.ReadyCue(this.ReadyCueStruct.Color);
-                    end
+            switch true
                 case this.Box.ardunioReadDigital==1 %Nose and Lick are Digital
                     if this.Setting_Struct.Box_Input_type == 5
                         this.ResetSensor(this)
@@ -836,7 +806,7 @@ classdef BehaviorBoxNose < handle
                         %Otherwise the ready cue immediately turns dim when it appears, and mice poke L/R to see the blink instead of recognizing the bright dot
                     end
                     while ~get(this.stop_handle, 'Value') %While the stop button has not been pressed
-                        this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'ReadyCueDot'), 'Correct_Confirmation')
+                        this.FlashNew(this.StimulusStruct, this.Box,  findobj('Tag', 'ReadyCueDot'), 'Correct_Confirmation')
                         drawnow; %Update the buttons
                         if this.Setting_Struct.IntertrialMalCancel && this.Box.readL() | this.Box.readR()
                             %this.ReadyCue('k') %Make the ReadyCue black
@@ -864,7 +834,7 @@ classdef BehaviorBoxNose < handle
                                     break;
                                 end
                                 if seconds(datetime("now")-timerStart) > this.Setting_Struct.IntertrialMalSec %End when mouse has not poked L or R for the interval
-                                    this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'ReadyCueDot'), 'Mal')
+                                    this.FlashNew(this.StimulusStruct, this.Box,  findobj('Tag', 'ReadyCueDot'), 'Mal')
                                     this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.LineColor;
                                     set(this.message_handle,'Text','Waiting for Trial initialization'); drawnow
                                     break
@@ -967,26 +937,26 @@ classdef BehaviorBoxNose < handle
             % end
             [Ls(:).Color] = deal(this.StimulusStruct.LineColor); drawnow
             %ignore input if set
-            this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'NewStim');
-            t1 = datetime("now");
-            while this.Setting_Struct.Input_ignored & seconds(datetime("now")-t1)<this.Setting_Struct.Pokes_ignored_time
+            %this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'NewStim');
+            tic
+            while this.Setting_Struct.Input_ignored && toc<=this.Setting_Struct.Pokes_ignored_time
                 if this.Setting_Struct.ConfirmChoice && this.Box.readL() && this.isLeftTrial
-                    this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Contour'), 'Correct_Confirmation');
+                    this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Contour'), 'Correct_Confirmation');
                 elseif this.Setting_Struct.ConfirmChoice && this.Box.readR() && ~this.isLeftTrial
-                    this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Contour'), 'Correct_Confirmation');
+                    this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Contour'), 'Correct_Confirmation');
                 end
                 if this.Box.readM()
-                    this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'NewStim');
+                    this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'NewStim');
                 end
-                if seconds(datetime("now")-t1)>this.Setting_Struct.Pokes_ignored_time
+                if toc>this.Setting_Struct.Pokes_ignored_time
                     break
                 end
-                time = this.Setting_Struct.Pokes_ignored_time-seconds(datetime("now")-t1);
+                time = this.Setting_Struct.Pokes_ignored_time-toc;
                 txt = "Ignoring input for "+round(time,1)+" sec...";
                 set(this.message_handle,'Text',txt)
                 %pause(0.1); drawnow;
             end
-            this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'NewStim'); % Make visible stimulus and flash if set
+            %this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'NewStim'); % Make visible stimulus and flash if set
             set(this.message_handle,'Text',['Waiting for ',this.current_side,' choice...']);
             this.Data_Object.addStimEvent(this.isLeftTrial); %Add the timestamp for the trial
             switch 1
@@ -1037,7 +1007,7 @@ classdef BehaviorBoxNose < handle
                         DIST = this.fig.Children(contains({this.fig.Children.Tag}, "Correct")).Children.findobj('Tag','Contour');
                         tic
                         while toc <= thisInt
-                            this.Flash(this.StimulusStruct, this.Box, DIST, 'Correct_Confirmation')
+                            this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Contour'), 'Correct_Confirmation');
                         end
                     elseif this.Box.Input_type == 6 %Wheel
                         timerStart = clock;
@@ -1137,6 +1107,119 @@ classdef BehaviorBoxNose < handle
 
             end
         end
+        function FlashNew(this, Stim, Box, Lines, whatdecision, OneWay)
+            arguments
+                this
+                Stim % from Setting structure
+                Box
+                Lines = findobj('Tag', 'Contour')
+                whatdecision = "time out"
+                OneWay logical = false
+            end
+            if isempty(Lines)
+                return
+            end
+            drawnow
+            if ~Stim.FlashStim
+                return
+            end
+            switch 1
+                case contains(whatdecision, 'wrong')
+                    Reps = Stim.RepFlashAfterW;
+                case contains(whatdecision, 'correct') || contains(whatdecision, 'OC')
+                    Reps = Stim.RepFlashAfterC;
+            end
+            if contains(whatdecision, {'wrong', 'correct'}) && Reps == 0
+                return
+            end
+            start_color = Stim.LineColor;
+            flash_color = Stim.FlashColor;
+            dark_color = Stim.DimColor;
+            if whatdecision == "time out"
+                Reps = Stim.RepFlashInitial;
+                Steps = Stim.FreqFlashInitial;
+                this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
+            elseif whatdecision == "Mal" %Wheel hold still interval
+                Reps = 1;
+                Steps = 10;
+                this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
+            elseif whatdecision == "NewStim" %L or R poke during intertrial
+                Reps = Stim.RepFlashInitial;
+                Steps = Stim.FreqFlashInitial;
+                this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
+            elseif whatdecision == "center" %Center poke during trial
+                Reps = 1;
+                Steps = Stim.FreqFlashInitial;
+                this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
+            elseif whatdecision == "Correct_Confirmation"
+                Reps = 1;
+                Steps = Stim.FreqFlashInitial;
+                this.BasicFlash("Lines",Lines, "NewColor", dark_color, "steps", Steps, "Interruptor", this.Box.readM)
+            else
+                Steps = Stim.FreqFlashAfter;
+                d = findobj('Tag', 'Distractor');
+                if isempty(d)
+                    d = struct();
+                end
+                switch 1
+                    case contains(whatdecision, 'wrong')
+                        Reps = Stim.RepFlashAfterW;
+                        if Reps > 0
+                            this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
+                        end
+                    case contains(whatdecision, 'correct') || contains(whatdecision, 'OC')
+                        Reps = Stim.RepFlashAfterC;
+                        OneWay = true;
+                        if Reps > 0
+                            %[Lines.Color] = deal(dark_color);
+                            this.BasicFlash("Lines",Lines, "NewColor", flash_color, "steps", Steps)
+                            %this.BasicFlash(Lines, flash_color, Steps)
+                            %[Lines.Color] = deal(Stim.LineColor);
+                        end
+                end
+            end
+        end
+        function BasicFlash(this, vars)
+            arguments
+                this
+                vars.Lines = findobj('Tag','Contour')
+                vars.NewColor
+                vars.steps
+                vars.OneWay logical = false
+                vars.Interruptor = [];
+            end
+            obj = vars.Lines;
+            NewColor = vars.NewColor;
+            steps = vars.steps;
+            OneWay = vars.OneWay;
+            if OneWay
+                STEPS = 1:1:steps;
+            else
+                STEPS = [1:1:steps steps-1:-1:1];
+            end
+            % This blinks the Obj to the NewColor and back, over a total of
+            % 2*steps increments
+            if obj(1).Type == "scatter"
+                start_color = [obj(1).MarkerFaceColor];
+                COLOR_PROP = 'MarkerFaceColor';
+            elseif obj(1).Type == "polygon"
+                start_color = [obj(1).FaceColor];
+            elseif obj(1).Type == "line"
+                start_color = [obj(1).Color];
+                COLOR_PROP = 'Color';
+            else
+                return %prevent an error crash
+            end
+            % Generate a 100x3 matrix where each row is from start_color to NewColor
+            mat = interp1( [1 ; steps], [start_color ; NewColor], STEPS);
+            for i = mat'
+                set(obj, COLOR_PROP, i); drawnow
+                if ~isempty(vars.Interruptor) && vars.Interruptor() %This is all very slow and will be sped up later
+                    set(obj, COLOR_PROP, start_color)
+                    break
+                end
+            end
+        end
         %open reward valves
         function GiveRewardAndFlash(this)
             %Get reward valve, pulse number and time:
@@ -1199,24 +1282,19 @@ classdef BehaviorBoxNose < handle
             GiveDrop(this.a, Valve, Time)
             PulseNum = PulseNum-1;
             % then flash
-            this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
+            this.FlashNew(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
             for i = 1:PulseNum
                 if i < PulseNum
-                    switch this.Box.Input_type
-                        case 3 %Nose
-                            pause(this.Box.SecBwPulse)
-                            while contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && ~this.Box.readPin(CorrectLever) %Wait for NosePoke Don't dispense the reward unless the mouse is waiting for it! Wait indefinitely between pulses for them to learn to collect all the water
-                                pause(0.2); drawnow;
-                                if get(this.Buttons.Stop, 'Value') || get(this.Buttons.FastForward, 'Value')
-                                    break
-                                end
-                            end
-                        case 6 %wheel
-                            pause(this.Box.SecBwPulse)
+                    pause(this.Box.SecBwPulse)
+                    while contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && ~this.Box.readPin(CorrectLever) %Wait for NosePoke Don't dispense the reward unless the mouse is waiting for it! Wait indefinitely between pulses for them to learn to collect all the water
+                        pause(0.2); drawnow;
+                        if get(this.Buttons.Stop, 'Value') || get(this.Buttons.FastForward, 'Value')
+                            break
+                        end
                     end
                 end
                 GiveDrop(this.a, Valve, Time)
-                this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
+                this.FlashNew(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
             end
             function GiveDrop(ard,V,T)
                 % Give one pulse
@@ -1570,7 +1648,7 @@ classdef BehaviorBoxNose < handle
             [this.fig.findobj('Tag','Spotlight').Visible] = deal(1);
             toc
             pause(0.1)
-            this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
+            this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
             if options.Export
                 name = "Stim-Lv-"+this.Setting_Struct.Starting_opacity;
                 this.Data_Object.SaveManyFigures([],name)
