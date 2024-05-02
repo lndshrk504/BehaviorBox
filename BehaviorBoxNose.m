@@ -166,10 +166,10 @@ classdef BehaviorBoxNose < handle
             % this.timers.TrialStartTimeRecord = [];
             % this.timers.response_timeRecord = [];
             % this.timers.drinkDwellTimeRecord = [];
-            this.stop_handle = this.app.stop; %Buttons
-            this.Skip = this.app.skip;
-            this.FF = this.app.ff;
-            this.Pause = this.app.pause;
+            this.stop_handle = this.app.Stop; %Buttons
+            this.Skip = this.app.Skip;
+            this.FF = this.app.FastForward;
+            this.Pause = this.app.Pause;
             this.message_handle = this.app.text1;
             this.GUI_numbers.trial_no = 0; %GUI Numbers and their handles on the figure
             this.GUI_numbers.choices = 0;
@@ -279,11 +279,11 @@ classdef BehaviorBoxNose < handle
                     return
                 end
                 if ispc
-                    comsnum = "COM"+this.app.edit22.Value;
+                    comsnum = "COM"+this.app.Arduino_Com.Value;
                 elseif ismac
-                    comsnum = "COM"+this.app.edit22.Value;
+                    comsnum = "COM"+this.app.Arduino_Com.Value;
                 elseif isunix
-                    comsnum = "/dev/tty"+this.app.edit22.Value;
+                    comsnum = "/dev/tty"+this.app.Arduino_Com.Value;
                 end
                 this.Box.use_ball = 0; %All these are automatically off
                 this.Box.use_wheel = 0;
@@ -367,6 +367,7 @@ classdef BehaviorBoxNose < handle
                 this.Setting_Struct.Box_Input_type = 8;
                 this.a = [];
             end
+            this.message_handle.Text = 'Done';
         end
         %Prepare the window and stimulus
         function SetupBeforeLoop(this)
@@ -1628,7 +1629,7 @@ classdef BehaviorBoxNose < handle
                 options.Export logical = 0
             end
             tic
-            %this.app.Preview.Enable = 0; %Disable this when debugging...
+            this.app.ShowStim.Enable = 0; %Disable this when debugging...
             this.getGUI();
             this.Stimulus_Object = BehaviorBoxVisualStimulus(this.StimulusStruct, Preview=1);
             this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
@@ -1653,7 +1654,7 @@ classdef BehaviorBoxNose < handle
                 name = "Stim-Lv-"+this.Setting_Struct.Starting_opacity;
                 this.Data_Object.SaveManyFigures([],name)
             end
-            this.app.Preview.Enable = 1;
+            this.app.ShowStim.Enable = 1;
         end
     end
     %STATIC FUNCTIONS====
