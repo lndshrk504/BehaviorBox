@@ -182,7 +182,7 @@ classdef BehaviorBoxNose < handle
             %this = copytoStruct(this, this.app.Set);
             props = properties(this.app); %Get all names
             props(props == "MsgBox") = [];
-            props(props == "TextArea2") = [];
+            props(props == "NotesText") = [];
             skiptypes = {'buttongroup', 'figure', 'label', 'panel', 'annotationpane', 'axes', 'tab', 'uigridlayout'};
             types = GetType(this.app, props); %cellfun(@(x) this.app.(x).Type, props, 'UniformOutput', false); %Get their types
             props = props(~contains(types, skiptypes, "IgnoreCase",true));
@@ -1460,7 +1460,7 @@ classdef BehaviorBoxNose < handle
             Str = this.Data_Object.Str;
             if ispc
                 saveasname = join([D Sub Str stim input],'_');
-                savefolder = fullfile(cell2mat(this.Data_Object.filedir));
+                savefolder = fullfile([cell2mat(this.Data_Object.filedir), filesep]);
             elseif ismac
             elseif isunix
                 saveasname = join([D Sub Str stim input],'_');
