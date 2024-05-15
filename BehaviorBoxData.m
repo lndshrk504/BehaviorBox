@@ -3034,14 +3034,3 @@ classdef BehaviorBoxData < handle
         end
     end
 end %end class
-%EXTERNAL FUNCTIONS ====
-% 
-% function setGUI(Data, GUINums)
-% try
-%     GUINums.right = num2str(sum(Data.CodedChoice == [2 ; 4],'all')); %Left Responses
-%     GUINums.left = num2str(sum(Data.CodedChoice == [1 ; 3],'all')); %Right Responses
-%     GUINums.rewards = num2str(sum(Data.Score==1));
-%     GUINums.total_correct = [num2str( 100*round(sum( Data.Score(Data.Score~=2))/numel(Data.Score(Data.Score~=2)),2 ) ) '%'];
-%     %Add a loop to go thru the handles:
-% end
-% end
