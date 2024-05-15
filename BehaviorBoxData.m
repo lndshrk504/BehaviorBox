@@ -1198,7 +1198,7 @@ classdef BehaviorBoxData < handle
                 this
                 opts.Composite logical = 0
                 opts.LevGroup logical = 0
-                opts.LevMM logical = 1
+                opts.LevMM logical = 0
                 opts.Stim logical = 0
                 opts.Group logical = 0
                 opts.DayProgress logical = 1
@@ -1408,10 +1408,11 @@ classdef BehaviorBoxData < handle
                 this
                 options.Sc double = 1
                 options.AllMice logical = 0
-                options.Lvs double = 10:18 % Do not display levels below this
+                options.Lvs double = [2:8 10:2:20] % Do not display levels below this
                 options.Threshold double = 0.7 % Passing threshold for each level
                 options.count double = 10 % Num of consecutive trials above threshold before passing
                 options.tol double = 0 % How many below-threshold trials in the streak of options.count to be tolerated
+                options.BarOnly logical = true
             end
             Out = struct();
         % Pull the cumulative Level and Day data
@@ -1421,23 +1422,26 @@ classdef BehaviorBoxData < handle
             for L = options.Lvs
             % Prepare and format 2x2 subplot
                 Ax = MakeAxis();
-                Bx = nexttile; hold(Bx,"on");
-                Cx = nexttile; hold(Cx,"on");
-                Dx = nexttile; hold(Dx,"on");
-                Ex = nexttile; hold(Ex,"on");
-                Fx = nexttile; hold(Fx,"on");
-                Ax.Title.String = "By Day";
-                Bx.Title.String = "By Trial";
-                Cx.Title.String = "Days to Pass";
-                Dx.Title.String = "Trials To Pass";
-                Ex.Title.String = "Binomial by Day";
-                Fx.Title.String = "Binomial by Trial";
                 Ax.Parent.Title.String = "Level "+L;
                 Ax.Box=0;
-                Bx.Box=0;
-                Cx.Box=0;
-                Dx.Box=0;
-                Ax.YLim = [0.4 1]; Bx.YLim = [0.4 1];
+                if ~options.BarOnly
+                    Bx = nexttile; hold(Bx,"on");
+                    Cx = nexttile; hold(Cx,"on");
+                    Dx = nexttile; hold(Dx,"on");
+                    Ex = nexttile; hold(Ex,"on");
+                    Fx = nexttile; hold(Fx,"on");
+                    Ax.Title.String = "By Day";
+                    Bx.Title.String = "By Trial";
+                    Cx.Title.String = "Days to Pass";
+                    Dx.Title.String = "Trials To Pass";
+                    Ex.Title.String = "Binomial by Day";
+                    Fx.Title.String = "Binomial by Trial";
+                    Bx.Box=0;
+                    Cx.Box=0;
+                    Dx.Box=0;
+                    Bx.YLim = [0.4 1];
+                    Ax.YLim = [0.4 1];
+                end
                 SC = 0;
             % Matrix to record passing data:
                 PassIdx = zeros(numel(SUBS),9);
@@ -1460,13 +1464,14 @@ classdef BehaviorBoxData < handle
                         lx = lev.XCoordLevDay;
                         ly = lev.bMM;
                         lb = lev.BiCDF; %binomial p-value
-                        OverBinomial{SC,1} = find(lb<=0.05, 1, "first");
-                        OverBinomial{SC,2} = find(lb<=0.01, 1, "first");
-                        OverBinomial{SC,3} = find(lb<=0.001, 1, "first");
-                        plot(lx,lb,"Parent",Ex,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
-                        plot((1:numel(ly))+(this.BB-1),lb,"Parent",Fx,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
-                        lp = plot(lx,ly,"Parent",Ax,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
-                        lpB = plot((1:numel(ly))+(this.BB-1),ly,"Parent",Bx,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
+                        OverBinomial{SC,1} = find(lb<=0.05, 1, "first") + this.SB;
+                        OverBinomial{SC,2} = find(lb<=0.01, 1, "first") + this.SB;
+                        OverBinomial{SC,3} = find(lb<=0.001, 1, "first") + this.SB;
+                        if ~options.BarOnly
+                            plot(lx,lb,"Parent",Ex,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
+                            plot((1:numel(ly))+(this.BB-1),lb,"Parent",Fx,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
+                            lp = plot(lx,ly,"Parent",Ax,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
+                            lpB = plot((1:numel(ly))+(this.BB-1),ly,"Parent",Bx,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
                         LD{SC}=ly;
                         %Bx.XLim = [60 numel(ly+59)];
                         dc = 0;
@@ -1479,17 +1484,30 @@ classdef BehaviorBoxData < handle
                             dp = plot(dayx,dayy,"Parent",Ax, "SeriesIndex",ColorIdx, 'HandleVisibility','off');
                             dc = dc + 1;
                         end
+                        end
                         %dayBars = xline(1:numel(data.dayBin), 'LineStyle',':', 'LineWidth',3, 'HandleVisibility','off', Parent=Ax);
                     catch err
                         unwrapErr(err)
                         1;
                     end
                 end
-                legend(Ax); legend(Bx);
+                %  legend(Ax); legend(Bx);
 
                 % Plot a bar graph of trials to pass
-                
-                
+                % p < 0.05
+                if options.BarOnly
+                    Dx = Ax;
+                end
+                y = OverBinomial.("p<0.05");
+                B = bar(OverBinomial.("p<0.05"), "FaceColor", "flat" , "Parent",Dx);
+                B.CData = repmat( Dx.ColorOrder(1,:) , length(y), 1);
+                w = find(contains(SUBS, "Het"));
+                B.CData( w, :) = repmat( Dx.ColorOrder(2,:) , length(w), 1);
+                xtips = B.XEndPoints;
+                ytips = B.YEndPoints;
+                labels = string(ytips);
+                text(xtips,ytips,labels,'Parent', Dx , 'HorizontalAlignment','center',...
+                    'VerticalAlignment','bottom')
                 Dx.XTick = [1:numel(SUBS)];
                 Dx.XTickLabel = SUBS;
             end
