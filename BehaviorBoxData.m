@@ -89,7 +89,7 @@ classdef BehaviorBoxData < handle
                 catch err
                     unwrapErr(err)
                 end
-                if options.plot && numel(this.Sub)==1
+                if options.plot && isscalar(this.Sub)
                     f = this.plotLvByDayOneAxis();
                     f.Visible = 1;
                 elseif options.plot
@@ -512,6 +512,7 @@ classdef BehaviorBoxData < handle
                 catch Err
                     unwrapErr(Err);
                 end
+                U_Lvs = unique(trialTbl.Level);
                 [G, Lvs] = findgroups(trialTbl.Level);
                 AllLevels = num2cell(1:20);
                 Out.LevelTbls{SC} = cellfun(@(x){trialTbl(trialTbl.Level==x,:)}, AllLevels, "UniformOutput", true);
@@ -523,14 +524,14 @@ classdef BehaviorBoxData < handle
                 for i = 1:numel(LMM)
                     Out.LevelMM{SC}{Lvs(i)} = LMM{i};
                 end
-                try
-                    MLP = cellfun(@(x)max(x(:,1)), Out.LevelMM{SC}, "ErrorHandler", @errorFuncZeroDouble, 'UniformOutput', false);
-                    [MLP{cellfun('isempty', MLP)}] = deal(0);
-                    MaxLPerf = cell2mat(MLP);
-                    this.MaxLevel = Lvs(find(MaxLPerf>=0.8, 1, 'last'))+1;
-                catch err
-                    unwrapErr(err)
-                end
+                % try
+                %     MLP = cellfun(@(x)max(x(:,1)), Out.LevelMM{SC}, "ErrorHandler", @errorFuncZeroDouble, 'UniformOutput', false);
+                %     [MLP{cellfun('isempty', MLP)}] = deal(0);
+                %     MaxLPerf = cell2mat(MLP);
+                %     this.MaxLevel = Lvs(find(MaxLPerf>=0.8, 1, 'last'))+1;
+                % catch err
+                %     unwrapErr(err)
+                % end
             end
             this.AnalyzedData = Out;
             this.current_data_struct = this.new_init_data_struct();
@@ -555,13 +556,14 @@ classdef BehaviorBoxData < handle
             for f = fieldnames(this.AnalyzedData)'
                 this.AnalyzedData.(f{:}) = this.AnalyzedData.(f{:})(order);
             end
+            this.Sub = this.Sub(order);
         end
         function Out = LevelMMAnalysis(this, L)
             try
                 Inc = L(L(:,1)~=2,3);
                 scores = L(L(:,1)~=2,1);
-                bMM = this.newMM(scores,"Type","Big");
-                sMM = this.newMM(scores,"Type","Small", "Endpoints", 0, "FromChance", 0);
+                bMM = this.newMM(scores,"Type", "Big");
+                sMM = this.newMM(scores,"Type", "Small", "Endpoints", 0, "FromChance", 0);
                 try
                     bSD = sMM(:,2);
                 catch
@@ -594,7 +596,14 @@ classdef BehaviorBoxData < handle
                     XCoord(w) = (d-1)+normalize(x, 'range');
                     XCoordLevDay(w) = (DC-1)+normalize(x, 'range');
                 end
-                Out = {[bMM bSD XCoord(this.BB:end) XCoordLevDay(this.BB:end) Inc(this.BB:end) BiCDF]};
+                FIRST = [bMM bSD XCoord(this.BB:end) XCoordLevDay(this.BB:end) Inc(this.BB:end) BiCDF];
+                Names = {'bMM', 'bSD', 'XCoord', 'XCoordLevDay', 'Inc', 'BiCDF'};
+                try
+                    Out = {array2table(FIRST, "VariableNames", Names)};
+                catch err
+                    % unwrapErr(err);
+                    Out = {array2table(nan(1,numel(Names)), "VariableNames", Names)};
+                end
             catch Err
                 unwrapErr(Err)
                 if size(L,2)==1
@@ -678,13 +687,16 @@ classdef BehaviorBoxData < handle
         end
         function Out = DayBin(this,D)
             %D is trial scores grouped by Level, and by Day
-            Out = num2cell(nan(16,1)); % THIS MUST BE UPDATED EVERYTIME NEW THINGS ARE ADDED
+            Out = num2cell(nan(17,1)); % THIS MUST BE UPDATED EVERYTIME NEW THINGS ARE ADDED
             s = D(:,1);
             these = s(s~=2);
             if numel(these)==0
                 return
             end
             Level = D(1,2);
+            if Level == 16
+                A = 1;
+            end
             Date = D(1,3);
             Day = D(1,4);
             try
@@ -703,23 +715,28 @@ classdef BehaviorBoxData < handle
                 sMM = sMMIn(:,1)';
                 bMM = this.newMM(these,"Type","Big", "Endpoints",1, "FromChance", 1)';
                 xMM = normalize(1:numel(sMM),'range');
-                BiCDF = zeros(numel(these),1);
+                BiCDF = zeros(1, numel(these));
                 tc = 0;
                 for t = 1:numel(these)
                     tc = tc + 1;
                     t0 = max(t-this.BB+1,1);
                     dataWin = these(t0:t);
-                    BiCDF(t,1) = binocdf(sum(dataWin), numel(dataWin), 0.5, 'upper');
+                    BiCDF(1,t) = binocdf(sum(dataWin), numel(dataWin), 0.5, 'upper');
                 end
+                BiCDF = [NaN BiCDF];
                 sCross = find(sMM>=0.8, 1, 'first'); %When did today's performance cross the threshold?
                 bCross = find(bMM>=0.8, 1, 'first'); %When did today's performance cross the threshold?
+                Binomial_Cross1 = find(BiCDF(this.SB:end)<=0.05, 1, 'first')+(this.SB-1);
+                Binomial_Cross2 = find(BiCDF(this.SB:end)<=0.01, 1, 'first')+(this.SB-1);
+                Binomial_Cross3 = find(BiCDF(this.SB:end)<=0.001, 1, 'first')+(this.SB-1);
+                BiCross = [Binomial_Cross1 Binomial_Cross2 Binomial_Cross3];
                 if isempty(sCross)
                     sCross = NaN;
                 end
                 if isempty(bCross)
                     bCross = NaN;
                 end
-                Out = {binned;
+                Day_Bin = {binned;
                     x;
                     txt;
                     numel(these);
@@ -732,9 +749,12 @@ classdef BehaviorBoxData < handle
                     sCross;
                     bCross;
                     BiCDF;
+                    BiCross;
                     Level;
                     Day;
                     Date};
+                Names = {'binned', 'x', 'txt', 'numel', 'mean', 'std', 's', 'sMM', 'xMM', 'bMM', 'sCross', 'bCross', 'BiCDF', 'BiCross', 'Level', 'Day', 'Date'};
+                Out = cell2table(Day_Bin, "RowNames", Names);
             catch
             end
         end
@@ -1421,15 +1441,7 @@ classdef BehaviorBoxData < handle
                 SC = 0;
             % Matrix to record passing data:
                 PassIdx = zeros(numel(SUBS),9);
-                % 1 Did they pass
-                % 2 at which trial number
-                % 3 Threshold for passing (in case TH is later lowered)
-                % 4 Day of passing
-                % 5 Did they see that level at all
-                % 6 Cumulative over-threshold passing-trial
-                % 7 Het = 1 or WT = 0
-                % 8 Male = 1 or Female = 0
-                % 9 Lowest binomial p-value
+                OverBinomial = array2table(zeros(numel(SUBS),3), "RowNames",SUBS, "VariableNames", {'p<0.05', 'p<0.01', 'p<0.001'});
                 LD = cell(size(SUBS));
                 for SUBDATA = [DAYDATA ; LEVDATA]
                     SC = SC + 1;
@@ -1445,40 +1457,28 @@ classdef BehaviorBoxData < handle
                         dayData = SUBDATA{1};
                         LevData = SUBDATA{2};
                         lev = LevData{L};
-                        lx = lev(:,4);
-                        ly = lev(:,1);
-                        lb = lev(:,6); %binomial p-value
+                        lx = lev.XCoordLevDay;
+                        ly = lev.bMM;
+                        lb = lev.BiCDF; %binomial p-value
+                        OverBinomial{SC,1} = find(lb<=0.05, 1, "first");
+                        OverBinomial{SC,2} = find(lb<=0.01, 1, "first");
+                        OverBinomial{SC,3} = find(lb<=0.001, 1, "first");
                         plot(lx,lb,"Parent",Ex,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
                         plot((1:numel(ly))+(this.BB-1),lb,"Parent",Fx,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
-                        PassIdx(SC,9) = min(lb);
                         lp = plot(lx,ly,"Parent",Ax,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
                         lpB = plot((1:numel(ly))+(this.BB-1),ly,"Parent",Bx,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
-                    % From cumulative LevelTable, find the trials over the threshold
-                        % overThreshEx = cellfun(@(x)find(x(:,1)>=options.Threshold & x(:,5)==1)+this.BB, LevData, 'UniformOutput', false, 'ErrorHandler',@errorFuncNaN);
-                        % TrialEx = cellfun(@(x) this.consecutiveTrial(x, options.count, options.tol), overThreshEx, "UniformOutput",true);
-                        overThresh = cellfun(@(x)find(x(:,1)>=options.Threshold)+this.BB, LevData, 'UniformOutput', false, 'ErrorHandler',@errorFuncNaN);
-                        Trial = cellfun(@(x) this.consecutiveTrial(x, options.count, options.tol), overThresh, "UniformOutput",true);
-                        PassIdx(SC,6)=Trial(L);
                         LD{SC}=ly;
-                        if any(ly>=options.Threshold)
-                            PassIdx(SC,3)=options.Threshold;
-                            PassIdx(SC,1)=1;
-                            PassIdx(SC,2)=find(ly>=options.Threshold, 1, 'first')+(this.BB-1);
-                            PassIdx(SC,4)=ceil(lx(PassIdx(SC,2)-(this.BB-1)));
-                        else
-                            PassIdx(SC,3)=max(ly);
-                            PassIdx(SC,2)=find(ly==max(ly), 1, 'last')+(this.BB-1);
-                        end
                         %Bx.XLim = [60 numel(ly+59)];
                         dc = 0;
                         data = dayData(dayData.Ls==L,:);
                         for d = data.dayBin'
-                            dayy = d{:}{8};
-                            dayx = d{:}{9} + dc;
+                            y = cell2mat(d{:}{8,1});
+                            dayy = y;
+                            x = cell2mat(d{:}{9,1});
+                            dayx = x + dc;
                             dp = plot(dayx,dayy,"Parent",Ax, "SeriesIndex",ColorIdx, 'HandleVisibility','off');
                             dc = dc + 1;
                         end
-                        PassIdx(SC,5)=1;
                         %dayBars = xline(1:numel(data.dayBin), 'LineStyle',':', 'LineWidth',3, 'HandleVisibility','off', Parent=Ax);
                     catch err
                         unwrapErr(err)
@@ -1486,48 +1486,10 @@ classdef BehaviorBoxData < handle
                     end
                 end
                 legend(Ax); legend(Bx);
+
                 % Plot a bar graph of trials to pass
-                if ~all(PassIdx(:,1)) && min(PassIdx( PassIdx(:,1) ~=1 ,3))~=0
-                    NewTH = min(PassIdx(PassIdx(:,1)~=1,3));
-                    PassIdx(:,3) = NewTH;
-                    SC = 0;
-                    for LevData = LEVDATA
-                        SC = SC + 1;
-                        overThresh = cellfun(@(x)find(x(:,1)>=NewTH)+this.BB, LevData{:}, 'UniformOutput', false, 'ErrorHandler',@errorFuncNaN);
-                        Trial = cellfun(@(x) this.consecutiveTrial(x, options.count, options.tol), overThresh, "UniformOutput",true);
-                        PassIdx(SC,6) = Trial(L);
-                        %PassIdx(SC,2)=find(ly>=NewTH, 1, 'first')+59;
-                        %PassIdx(SC,4)=ceil(lx(PassIdx(SC,2)-59));
-                    end
-                    THA.Value = NewTH; THA.Label = num2str(NewTH);
-                    THB.Value = NewTH; THB.Label = num2str(NewTH);
-                    % %Reset the trial count for whoeveer has passed the
-                    % %levels at 80% to the new lower threshold
-                    % WHICH = PassIdx(:,1)~=1;
-                    % pc = 0;
-                    % for w = WHICH'
-                    %     pc = pc+1;
-                    %     if w == 0
-                    %         continue
-                    %     end
-                    %     try
-                    %         PassIdx(pc,2)=find(LD{pc}>=NewTH,1,"first")+59;
-                    %     catch err
-                    %         unwrapErr(err)
-                    %         1;
-                    %     end
-                    % end
-                end
-                SC = 1;
-                for P = PassIdx'
-                    ColorIdx = P(7)+1;
-                    if isnan(P(6))
-                        P(6) = P(2);
-                    end
-                    Bday = bar(SC, P(4), "Parent",Cx, "SeriesIndex",ColorIdx);
-                    Blev = bar(SC, P(6), "Parent",Dx, "SeriesIndex",ColorIdx);
-                    SC = SC + 1;
-                end
+                
+                
                 Dx.XTick = [1:numel(SUBS)];
                 Dx.XTickLabel = SUBS;
             end
