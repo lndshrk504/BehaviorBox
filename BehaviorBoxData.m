@@ -1016,9 +1016,9 @@ classdef BehaviorBoxData < handle
                     fullrows = SortData(:,1) == L & ~halfFull;
                     halffullrows = SortData(:,1) == L & halfFull;
                     Lvrows = SortData(:,1) == L;
-                    yB = this.AnalyzedData.DayMM{COUNT}{10};
-                    yS = this.AnalyzedData.DayMM{COUNT}{8};
-                    yBinom = this.AnalyzedData.DayMM{COUNT}{13};
+                    yB = cell2mat(this.AnalyzedData.DayMM{COUNT}{10,1});
+                    yS = cell2mat(this.AnalyzedData.DayMM{COUNT}{8,1});
+                    yBinom = this.AnalyzedData.DayMM{COUNT}{13,1};
                     LIdx = find(SortData(:,1)==L,1,'first')-0.5;
                     len = sum(Lvrows);
                     x = LIdx+len*((1:numel(yB))/numel(yB));
@@ -1091,9 +1091,9 @@ classdef BehaviorBoxData < handle
                 w = Data.Level==L & Data.Score~=2;
                 x = [0 ; tnum(w)]; %Add point [0, 50%] because at trial #0 the mouse is at 50% (chance) performance, every day you assume the mouse starts from "chance"
                 x(1) = x(2)-1;
-                yB = this.AnalyzedData.DayMM{COUNT}{10};
-                yS = this.AnalyzedData.DayMM{COUNT}{8};
-                yBinom = [0 ;this.AnalyzedData.DayMM{COUNT}{13}];
+                yB = cell2mat(this.AnalyzedData.DayMM{COUNT}{10,1});
+                yS = cell2mat(this.AnalyzedData.DayMM{COUNT}{8,1});
+                yBinom = cell2mat(this.AnalyzedData.DayMM{COUNT}{13,1});
                 try
                     p2s = plot(x,yS,'Parent', Ax, ...
                         "LineStyle",":");
