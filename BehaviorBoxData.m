@@ -1739,9 +1739,9 @@ classdef BehaviorBoxData < handle
                     wL = this.AnalyzedData.DayMM{this.sc}.Ls==L;
                     Ddat = this.AnalyzedData.DayMM{this.sc}(wL,:);
                     try
-                        y = Ldat{L}(:,1)';
-                        std = Ldat{L}(:,2)';
-                        x = Ldat{L}(:,3)';
+                        y = Ldat{L}{:,1}';
+                        std = Ldat{L}{:,2}';
+                        x = Ldat{L}{:,3}';
                         %Perf
                         dn = "Level "+L+": All Time ";
                         AllTime = plot(x,LO+y, ...
@@ -1795,12 +1795,12 @@ classdef BehaviorBoxData < handle
                         howBig = cellfun(@numel,Ddat.dayBin');
                         [group, GROUPS]=findgroups(howBig);
                     end
-                    for d = [ Ddat.DayNums' ; [Ddat.dayBin{:}] ]
+                    for d = [ Ddat.DayNums' ; {Ddat.dayBin{:}} ]
                         DO = d{1}-1;
                         %Small Bin Moving mean:
                         try
-                            x = DO+d{9};
-                            y = LO+d{8};
+                            x = DO+cell2mat(d{2}{9,1});
+                            y = LO+cell2mat(d{2}{8,1});
                             SmallPlot = plot(x,y, ...
                                 "Parent",Ax, ...
                                 "SeriesIndex",L, ...
