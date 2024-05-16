@@ -948,6 +948,7 @@ classdef BehaviorBoxNose < handle
                 end
                 if this.Box.readM()
                     this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'NewStim');
+                    tic % Restart the timer? I do not want mice to skip the confirmation period by poking the center for 5 seconds
                 end
                 if toc>this.Setting_Struct.Pokes_ignored_time
                     break
@@ -955,7 +956,7 @@ classdef BehaviorBoxNose < handle
                 time = this.Setting_Struct.Pokes_ignored_time-toc;
                 txt = "Ignoring input for "+round(time,1)+" sec...";
                 set(this.message_handle,'Text',txt)
-                %pause(0.1); drawnow;
+                drawnow
             end
             %this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'NewStim'); % Make visible stimulus and flash if set
             set(this.message_handle,'Text',['Waiting for ',this.current_side,' choice...']);
