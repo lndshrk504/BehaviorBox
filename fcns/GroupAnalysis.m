@@ -4,5 +4,5 @@ W.GroupData
 F = BehaviorBoxData(Inv='Will', Inp='NosePoke', Sub={'261891', '247195'});
 F.GroupData
 
-M = BehaviorBoxData(Inv='Will', Inp='NosePoke', Sub={'247194'}, BB=30, SB=15);
+M = BehaviorBoxData(Inv='Will', Inp='NosePoke', Sub={'247194'}, BB=20, SB=10);
 M.GroupData

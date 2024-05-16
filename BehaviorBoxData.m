@@ -487,6 +487,7 @@ classdef BehaviorBoxData < handle
             Out.LevelTbls = cell(numSubs);
             Out.DayMM = cell(numSubs);
             Out.LevelMM = cell(numSubs);
+            Out.CrossTable = array2table(num2cell(zeros(numel(this.Sub),3)), "RowNames",this.Sub, "VariableNames", {'p<0.05', 'p<0.01', 'p<0.001'});
             SC = 0;
             for S = struct2cell(this.DayData)'
                 SC = SC + 1;
@@ -502,7 +503,7 @@ classdef BehaviorBoxData < handle
                 Out.TrialTbls{SC} = trialTbl;
                 this.trial_table = trialTbl;
                 [allDates, Ds] = findgroups(trialTbl.Date');
-                Out.SplitTbls{SC} = cellfun(@SplitDays, num2cell(Ds), "UniformOutput", false);
+                %Out.SplitTbls{SC} = cellfun(@SplitDays, num2cell(Ds), "UniformOutput", false);
                 Out.DayMM{SC} = table;
                 try
                     [G,Out.DayMM{SC}.Ds,Out.DayMM{SC}.Ls] = findgroups(trialTbl.Date, trialTbl.Level);
@@ -524,14 +525,12 @@ classdef BehaviorBoxData < handle
                 for i = 1:numel(LMM)
                     Out.LevelMM{SC}{Lvs(i)} = LMM{i};
                 end
-                % try
-                %     MLP = cellfun(@(x)max(x(:,1)), Out.LevelMM{SC}, "ErrorHandler", @errorFuncZeroDouble, 'UniformOutput', false);
-                %     [MLP{cellfun('isempty', MLP)}] = deal(0);
-                %     MaxLPerf = cell2mat(MLP);
-                %     this.MaxLevel = Lvs(find(MaxLPerf>=0.8, 1, 'last'))+1;
-                % catch err
-                %     unwrapErr(err)
-                % end
+                Cross = this.MMCross(Out.LevelMM{SC}, SC);
+                try
+                    Out.CrossTable(SC, :) = Cross;
+                catch err
+                    err
+                end
             end
             this.AnalyzedData = Out;
             this.current_data_struct = this.new_init_data_struct();
@@ -554,7 +553,10 @@ classdef BehaviorBoxData < handle
             Hets = find(~contains(this.AnalyzedData.Subjects, "WT"));
             order = [Hets WTs];
             for f = fieldnames(this.AnalyzedData)'
-                this.AnalyzedData.(f{:}) = this.AnalyzedData.(f{:})(order);
+                try
+                    this.AnalyzedData.(f{:}) = this.AnalyzedData.(f{:})(order);
+                catch err
+                end
             end
             this.Sub = this.Sub(order);
         end
@@ -612,6 +614,23 @@ classdef BehaviorBoxData < handle
                     Out = {[NaN NaN NaN NaN]};
                 end
             end
+        end
+        function Cross = MMCross(this, In, SC)
+            arguments
+                this
+                In
+                SC
+            end
+
+            Cross = table;
+            OverBinomial = array2table(num2cell(zeros(1,3)), "VariableNames", {'p<0.05', 'p<0.01', 'p<0.001'});
+            Lv_Binom = cellfun(@(x) x{:,6}, In, "UniformOutput", false, "ErrorHandler", @errorFuncNaN);
+            
+            OverBinomial{1,"p<0.05"} = {cellfun(@(x) find(x<0.05), Lv_Binom,  "UniformOutput", false,  "ErrorHandler", @errorFuncNaN)};
+            OverBinomial{1,"p<0.01"} = {cellfun(@(x) find(x<0.01), Lv_Binom,  "UniformOutput", false,  "ErrorHandler", @errorFuncNaN)};
+            OverBinomial{1,"p<0.001"} = {cellfun(@(x) find(x<0.001), Lv_Binom,  "UniformOutput", false,  "ErrorHandler", @errorFuncNaN)};
+
+            Cross = OverBinomial;
         end
         function MM = newMM(this, scores, options)
             arguments
@@ -1424,24 +1443,6 @@ classdef BehaviorBoxData < handle
                 Ax = MakeAxis();
                 Ax.Parent.Title.String = "Level "+L;
                 Ax.Box=0;
-                if ~options.BarOnly
-                    Bx = nexttile; hold(Bx,"on");
-                    Cx = nexttile; hold(Cx,"on");
-                    Dx = nexttile; hold(Dx,"on");
-                    Ex = nexttile; hold(Ex,"on");
-                    Fx = nexttile; hold(Fx,"on");
-                    Ax.Title.String = "By Day";
-                    Bx.Title.String = "By Trial";
-                    Cx.Title.String = "Days to Pass";
-                    Dx.Title.String = "Trials To Pass";
-                    Ex.Title.String = "Binomial by Day";
-                    Fx.Title.String = "Binomial by Trial";
-                    Bx.Box=0;
-                    Cx.Box=0;
-                    Dx.Box=0;
-                    Bx.YLim = [0.4 1];
-                    Ax.YLim = [0.4 1];
-                end
                 SC = 0;
             % Matrix to record passing data:
                 PassIdx = zeros(numel(SUBS),9);
@@ -1467,49 +1468,24 @@ classdef BehaviorBoxData < handle
                         OverBinomial{SC,1} = find(lb<=0.05, 1, "first") + this.SB;
                         OverBinomial{SC,2} = find(lb<=0.01, 1, "first") + this.SB;
                         OverBinomial{SC,3} = find(lb<=0.001, 1, "first") + this.SB;
-                        if ~options.BarOnly
-                            plot(lx,lb,"Parent",Ex,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
-                            plot((1:numel(ly))+(this.BB-1),lb,"Parent",Fx,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
-                            lp = plot(lx,ly,"Parent",Ax,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
-                            lpB = plot((1:numel(ly))+(this.BB-1),ly,"Parent",Bx,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
-                        LD{SC}=ly;
-                        %Bx.XLim = [60 numel(ly+59)];
-                        dc = 0;
-                        data = dayData(dayData.Ls==L,:);
-                        for d = data.dayBin'
-                            y = cell2mat(d{:}{8,1});
-                            dayy = y;
-                            x = cell2mat(d{:}{9,1});
-                            dayx = x + dc;
-                            dp = plot(dayx,dayy,"Parent",Ax, "SeriesIndex",ColorIdx, 'HandleVisibility','off');
-                            dc = dc + 1;
-                        end
-                        end
-                        %dayBars = xline(1:numel(data.dayBin), 'LineStyle',':', 'LineWidth',3, 'HandleVisibility','off', Parent=Ax);
                     catch err
                         unwrapErr(err)
                         1;
                     end
                 end
-                %  legend(Ax); legend(Bx);
-
-                % Plot a bar graph of trials to pass
-                % p < 0.05
-                if options.BarOnly
-                    Dx = Ax;
-                end
+        % p < 0.05
                 y = OverBinomial.("p<0.05");
-                B = bar(OverBinomial.("p<0.05"), "FaceColor", "flat" , "Parent",Dx);
-                B.CData = repmat( Dx.ColorOrder(1,:) , length(y), 1);
+                B = bar(OverBinomial.("p<0.05"), "FaceColor", "flat" , "Parent",Ax);
+                B.CData = repmat( Ax.ColorOrder(1,:) , length(y), 1);
                 w = find(contains(SUBS, "Het"));
-                B.CData( w, :) = repmat( Dx.ColorOrder(2,:) , length(w), 1);
+                B.CData( w, :) = repmat( Ax.ColorOrder(2,:) , length(w), 1);
                 xtips = B.XEndPoints;
                 ytips = B.YEndPoints;
                 labels = string(ytips);
-                text(xtips,ytips,labels,'Parent', Dx , 'HorizontalAlignment','center',...
+                text(xtips,ytips,labels,'Parent', Ax , 'HorizontalAlignment','center',...
                     'VerticalAlignment','bottom')
-                Dx.XTick = [1:numel(SUBS)];
-                Dx.XTickLabel = SUBS;
+                Ax.XTick = [1:numel(SUBS)];
+                Ax.XTickLabel = SUBS;
             end
         end
         function Out = GroupTrialsToPass(this, options)
