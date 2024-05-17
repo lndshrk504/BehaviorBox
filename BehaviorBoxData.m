@@ -1718,7 +1718,7 @@ classdef BehaviorBoxData < handle
                 highestSeen = max(unique(this.trial_table.Level));
                 this.trial_table = this.AnalyzedData.TrialTbls{this.sc};
                 title = SUB+" All Time Performance";
-                f = figure("Name",title, "Visible", "off"); % f.Visible=1;
+                f = figure("Name",title, "Visible", "off");  f.Visible=1;
                 T = tiledlayout(1,1,"Parent",f,"TileSpacing","none","Padding","tight");
                 Ax = nexttile(T); hold(Ax, "on");
                 Ax.Box = 0;
