@@ -487,7 +487,6 @@ classdef BehaviorBoxData < handle
             Out.LevelTbls = cell(numSubs);
             Out.DayMM = cell(numSubs);
             Out.LevelMM = cell(numSubs);
-            Out.CrossTable = array2table(num2cell(zeros(numel(this.Sub),3)), "RowNames",this.Sub, "VariableNames", {'p<0.05', 'p<0.01', 'p<0.001'});
             SC = 0;
             for S = struct2cell(this.DayData)'
                 SC = SC + 1;
@@ -525,14 +524,10 @@ classdef BehaviorBoxData < handle
                 for i = 1:numel(LMM)
                     Out.LevelMM{SC}{Lvs(i)} = LMM{i};
                 end
-                Cross = this.MMCross(Out.LevelMM{SC}, SC);
-                try
-                    Out.CrossTable(SC, :) = Cross;
-                catch err
-                    err
-                end
             end
             this.AnalyzedData = Out;
+            this.SortSubjects();
+            this.AnalyzedData.CrossTable = this.MMCross();
             this.current_data_struct = this.new_init_data_struct();
             fprintf("Analyzed... : " + toc + " seconds.\n")
             if nargout >= 1
@@ -615,22 +610,32 @@ classdef BehaviorBoxData < handle
                 end
             end
         end
-        function Cross = MMCross(this, In, SC)
+        function Cross = MMCross(this)
             arguments
                 this
-                In
-                SC
             end
+            OverBinomial = array2table(num2cell(zeros(20,3)), "VariableNames", {'p<0.05', 'p<0.01', 'p<0.001'});
+            OverBinomial_AVG = OverBinomial;
+            SUBS = this.AnalyzedData.Subjects;
+            WT = contains(SUBS, 'WT');
+            Het = contains(SUBS, 'Het');
+            Lev = this.AnalyzedData.LevelMM;
+            for L = 1:max(cellfun(@(x) numel(x), Lev, UniformOutput=true))
+                CROSS_1 = cellfun(@(x) find(x{L}{:,6} < 0.05, 1, "first")+this.BB, Lev, UniformOutput=0, ErrorHandler=@errorFuncNaN);
+                CROSS_1(cellfun('isempty', CROSS_1)) = {NaN};
+                OverBinomial{L,"p<0.05"} = {cell2mat(CROSS_1)};
+                OverBinomial_AVG{L,"p<0.05"} = {[mean(cell2mat(CROSS_1(Het)), "omitmissing") mean(cell2mat(CROSS_1(WT)), "omitmissing") ; std(cell2mat(CROSS_1(Het)), "omitmissing") std(cell2mat(CROSS_1(WT)), "omitmissing") ; sum(cellfun(@(x) ~isnan(x), CROSS_1(Het))) sum(cellfun(@(x) ~isnan(x), CROSS_1(WT)))]};
+                CROSS_2 = cellfun(@(x) find(x{L}{:,6} < 0.01, 1, "first")+this.BB, Lev, UniformOutput=0, ErrorHandler=@errorFuncNaN);
+                CROSS_2(cellfun('isempty', CROSS_2)) = {NaN};
+                OverBinomial{L,"p<0.01"} = {cell2mat(CROSS_2)};
+                OverBinomial_AVG{L,"p<0.01"} = {[mean(cell2mat(CROSS_2(Het)), "omitmissing") mean(cell2mat(CROSS_2(WT)), "omitmissing") ; std(cell2mat(CROSS_2(Het)), "omitmissing") std(cell2mat(CROSS_2(WT)), "omitmissing") ; sum(cellfun(@(x) ~isnan(x), CROSS_2(Het))) sum(cellfun(@(x) ~isnan(x), CROSS_2(WT)))]};
+                CROSS_3 = cellfun(@(x) find(x{L}{:,6} < 0.001, 1, "first")+this.BB, Lev, UniformOutput=0, ErrorHandler=@errorFuncNaN);
+                CROSS_3(cellfun('isempty', CROSS_3)) = {NaN};
+                OverBinomial{L,"p<0.001"} = {cell2mat(CROSS_3)};
+                OverBinomial_AVG{L,"p<0.001"} = {[mean(cell2mat(CROSS_3(Het)), "omitmissing") mean(cell2mat(CROSS_3(WT)), "omitmissing") ; std(cell2mat(CROSS_3(Het)), "omitmissing") std(cell2mat(CROSS_3(WT)), "omitmissing") ; sum(cellfun(@(x) ~isnan(x), CROSS_3(Het))) sum(cellfun(@(x) ~isnan(x), CROSS_3(WT)))]};
+            end
+            Cross = {OverBinomial ; OverBinomial_AVG}
 
-            Cross = table;
-            OverBinomial = array2table(num2cell(zeros(1,3)), "VariableNames", {'p<0.05', 'p<0.01', 'p<0.001'});
-            Lv_Binom = cellfun(@(x) x{:,6}, In, "UniformOutput", false, "ErrorHandler", @errorFuncNaN);
-            
-            OverBinomial{1,"p<0.05"} = {cellfun(@(x) find(x<0.05), Lv_Binom,  "UniformOutput", false,  "ErrorHandler", @errorFuncNaN)};
-            OverBinomial{1,"p<0.01"} = {cellfun(@(x) find(x<0.01), Lv_Binom,  "UniformOutput", false,  "ErrorHandler", @errorFuncNaN)};
-            OverBinomial{1,"p<0.001"} = {cellfun(@(x) find(x<0.001), Lv_Binom,  "UniformOutput", false,  "ErrorHandler", @errorFuncNaN)};
-
-            Cross = OverBinomial;
         end
         function MM = newMM(this, scores, options)
             arguments
@@ -1225,9 +1230,10 @@ classdef BehaviorBoxData < handle
             Num = num2cell(1:numel(this.Sub));
             tic
             if opts.DayProgress
-                close all
                 %Trial = this.DailyProgress();
                 this.BinomialProgress();
+                this.SaveManyFigures([],'Binomial', SameFolder=1)
+                close all
                 %this.PlotGroupTrialsToPass(Trial);
                 %this.SaveManyFigures([],'DayTrial', SameFolder=1)
             end
@@ -1434,58 +1440,35 @@ classdef BehaviorBoxData < handle
                 options.BarOnly logical = true
             end
             Out = struct();
-        % Pull the cumulative Level and Day data
-            LEVDATA = cellfun(@(x)this.AnalyzedData.LevelMM{x}, num2cell(1:numel(this.Sub)), UniformOutput=false);
-            DAYDATA = cellfun(@(x)this.AnalyzedData.DayMM{x}, num2cell(1:numel(this.Sub)), UniformOutput=false);
             SUBS = this.AnalyzedData.Subjects;
+            Data = this.AnalyzedData.CrossTable{2};
             for L = options.Lvs
             % Prepare and format 2x2 subplot
+            try
                 Ax = MakeAxis();
-                Ax.Parent.Title.String = "Level "+L;
+                hold(Ax, "on")
+                Ax.Parent.Title.String = "Shank-Females-Level-"+L;
+                Ax.Parent.Parent.Name = Ax.Parent.Title.String;
                 Ax.Box=0;
-                SC = 0;
-            % Matrix to record passing data:
-                PassIdx = zeros(numel(SUBS),9);
-                OverBinomial = array2table(zeros(numel(SUBS),3), "RowNames",SUBS, "VariableNames", {'p<0.05', 'p<0.01', 'p<0.001'});
-                LD = cell(size(SUBS));
-                for SUBDATA = [DAYDATA ; LEVDATA]
-                    SC = SC + 1;
-                    thisSub = SUBS{SC};
-                    PassIdx(SC,7) = contains(thisSub, "Het");
-                    PassIdx(SC,8) = contains(thisSub, "- M -");
-                    ColorIdx = PassIdx(SC,7)+1;
-                %Check if they've seen this level:
-                    if ~any(SUBDATA{1}.Ls == L)
-                        continue
-                    end
-                    try
-                        dayData = SUBDATA{1};
-                        LevData = SUBDATA{2};
-                        lev = LevData{L};
-                        lx = lev.XCoordLevDay;
-                        ly = lev.bMM;
-                        lb = lev.BiCDF; %binomial p-value
-                        OverBinomial{SC,1} = find(lb<=0.05, 1, "first") + this.SB;
-                        OverBinomial{SC,2} = find(lb<=0.01, 1, "first") + this.SB;
-                        OverBinomial{SC,3} = find(lb<=0.001, 1, "first") + this.SB;
-                    catch err
-                        unwrapErr(err)
-                        1;
-                    end
+
+                ThisData = cell2mat(Data{L,1});
+                if ThisData == 0
+                    continue
                 end
-        % p < 0.05
-                y = OverBinomial.("p<0.05");
-                B = bar(OverBinomial.("p<0.05"), "FaceColor", "flat" , "Parent",Ax);
-                B.CData = repmat( Ax.ColorOrder(1,:) , length(y), 1);
-                w = find(contains(SUBS, "Het"));
-                B.CData( w, :) = repmat( Ax.ColorOrder(2,:) , length(w), 1);
-                xtips = B.XEndPoints;
-                ytips = B.YEndPoints;
-                labels = string(ytips);
-                text(xtips,ytips,labels,'Parent', Ax , 'HorizontalAlignment','center',...
-                    'VerticalAlignment','bottom')
-                Ax.XTick = [1:numel(SUBS)];
-                Ax.XTickLabel = SUBS;
+                x = [1 2];
+                y = ThisData(1,:);
+                Err = ThisData(2,:);
+                B = bar(x, y, "Parent",Ax, "FaceColor","flat");
+                B.CData(2,:) = Ax.ColorOrder(2);
+                E_Bar = errorbar(x, y, Err, ...
+                    "Parent", Ax, ...
+                    "LineStyle","none");
+                Ax.XTick = x;
+                Ax.XTickLabel = "n = "+string(ThisData(3,:));
+                Text = text(x, y, string(y)+' +/- '+string(Err), "VerticalAlignment","bottom", "HorizontalAlignment","center");
+            catch err
+                unwrapErr
+            end
             end
         end
         function Out = GroupTrialsToPass(this, options)
