@@ -1190,6 +1190,9 @@ classdef BehaviorBoxNose < handle
                 vars.OneWay logical = false
                 vars.Interruptor = [];
             end
+            if vars.steps == 1
+                return
+            end
             obj = vars.Lines;
             NewColor = vars.NewColor;
             steps = vars.steps;
@@ -1627,7 +1630,7 @@ classdef BehaviorBoxNose < handle
         function TestStimulus(this, options)
             arguments
                 this
-                options.SaveStimulus logical = 1
+                options.SaveStimulus logical = 0
             end
             tic
             this.app.ShowStim.Enable = 0; %Disable this when debugging...
