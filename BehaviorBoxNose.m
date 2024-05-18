@@ -1627,7 +1627,7 @@ classdef BehaviorBoxNose < handle
         function TestStimulus(this, options)
             arguments
                 this
-                options.Export logical = 0
+                options.SaveStimulus logical = 1
             end
             tic
             this.app.ShowStim.Enable = 0; %Disable this when debugging...
@@ -1651,7 +1651,7 @@ classdef BehaviorBoxNose < handle
             toc
             pause(0.1)
             this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
-            if options.Export
+            if options.SaveStimulus
                 name = "Stim-Lv-"+this.Setting_Struct.Starting_opacity;
                 this.Data_Object.SaveManyFigures([],name)
             end
