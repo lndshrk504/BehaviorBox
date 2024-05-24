@@ -1433,7 +1433,7 @@ classdef BehaviorBoxData < handle
                 this
                 options.Sc double = 1
                 options.AllMice logical = 0
-                options.Lvs double = [3 6 8 10 12 16] % Do not display levels below this
+                options.Lvs double = [2 4 7 12] % Do not display levels below this
                 options.Threshold double = 0.7 % Passing threshold for each level
                 options.count double = 10 % Num of consecutive trials above threshold before passing
                 options.tol double = 0 % How many below-threshold trials in the streak of options.count to be tolerated
@@ -1443,7 +1443,6 @@ classdef BehaviorBoxData < handle
             SUBS = this.AnalyzedData.Subjects;
             deets = split(SUBS{1},'-');
             Data = this.AnalyzedData.CrossTable{2};
-
             Ax = MakeAxis();
             hold(Ax, "on")
             Ax.Parent.Title.String = string(this.Str)+deets{2};
