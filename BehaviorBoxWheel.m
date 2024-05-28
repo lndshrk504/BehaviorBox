@@ -166,10 +166,10 @@ classdef BehaviorBoxWheel < handle
             % this.timers.TrialStartTimeRecord = [];
             % this.timers.response_timeRecord = [];
             % this.timers.drinkDwellTimeRecord = [];
-            this.stop_handle = this.app.stop; %Buttons
-            this.Skip = this.app.skip;
-            this.FF = this.app.ff;
-            this.Pause = this.app.pause;
+            this.stop_handle = this.app.Stop; %Buttons
+            this.Skip = this.app.Skip;
+            this.FF = this.app.FastForward;
+            this.Pause = this.app.Pause;
             this.message_handle = this.app.text1;
             this.GUI_numbers.trial_no = 0; %GUI Numbers and their handles on the figure
             this.GUI_numbers.choices = 0;
@@ -293,42 +293,6 @@ classdef BehaviorBoxWheel < handle
                 this.Box.ResetPin        = 'D4';
                 this.Box.TriggerPin      = 'D5';
                 switch this.Setting_Struct.Box_Input_type
-                    case 3 %Three Pokes
-                        if options.Rebuild
-                            try
-                                this.a = [];
-                            end
-                            this.a = arduino(comsnum,'Uno','Libraries',{}, 'ForceBuildOn',true);
-                        else
-                            this.a = arduino(comsnum,'Uno','Libraries',{});
-                        end
-                        configurePin(this.a, "D2", "Unset");
-                        configurePin(this.a, "D3", "Unset");
-                        configurePin(this.a, "D7", "Unset");
-                        this.Box.ardunioReadDigital = 1;
-                        this.Box.readHigh = 0;
-                        if this.Box.readHigh %Voltage goes HIGH on choice
-                            configurePin(this.a, "D2", "DigitalInput");
-                            configurePin(this.a, "D3", "DigitalInput");
-                            configurePin(this.a, "D7", "DigitalInput");
-                        else %Voltage goes LOW on choice
-                            configurePin(this.a, "D2", "Pullup");
-                            configurePin(this.a, "D3", "Pullup");
-                            configurePin(this.a, "D7", "Pullup");
-                        end
-                        %Set up box structure
-                        this.Box.Left = 'D2';
-                        this.Box.Middle = 'D3';
-                        this.Box.Right = 'D7';
-                        this.Box.ValveL = 'D6';
-                        this.Box.ValveR = 'D8';
-                        this.Box.AirPuff  = 'D11';
-                        this.Box.readPin = @(PIN)this.a.readDigitalPin(PIN)==this.Box.readHigh;
-                        this.Box.readL = @(x)this.Box.readPin(this.Box.Left);
-                        this.Box.readR = @(x)this.Box.readPin(this.Box.Right);
-                        this.Box.readM = @(x)this.Box.readPin(this.Box.Middle);
-                    case 5 %Lick ports
-                        this.Box.ardunioReadDigital = 1;
                     case 6 %Rotating Wheel
                         if options.Rebuild
                             try
@@ -487,7 +451,6 @@ classdef BehaviorBoxWheel < handle
             [this.fig.Children.findobj('Type','Line').Visible] = deal(0);
             drawnow
             this.ReadyCue(1)
-            %this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.DimColor;
         end
         function CheckTemp(this)
             % Temp_Settings = struct();
@@ -541,55 +504,6 @@ classdef BehaviorBoxWheel < handle
         function [current_difficulty] = PickDifficultyLevel(this)
             % The old way is commented out below:
             current_difficulty = this.LevelStruct.ChooseLevel();
-            % if this.Setting_Struct.Ramp
-            %     if this.i == 1
-            %         current_difficulty = this.Setting_Struct.RampMinLevel;
-            %         return
-            %     end
-            %     try
-            %         LastScore = this.Data_Object.current_data_struct.CodedChoice(end);
-            %     catch
-            %         LastScore = 0;
-            %     end
-            %     if any(LastScore == [1 2])
-            %         this.RampCount = this.RampCount+1;
-            %     end
-            %     if this.RampCount > this.RampCorrectCount
-            %         this.RampWhichLevel = this.RampWhichLevel+1;
-            %         this.RampCount = 1;
-            %         if this.RampWhichLevel > numel(this.PossibleLevels)
-            %             this.Setting_Struct.Ramp=0;
-            %             this.app.RampCheckBox.Value=0;
-            %         end
-            %     end
-            %     current_difficulty = this.PossibleLevels(this.RampWhichLevel);
-            %     return
-            % end
-            % try
-            %     initLev = this.Setting_Struct.Starting_opacity;
-            %     list = split(split(this.Setting_Struct.prob_list, ';'), ',');
-            %     if size(list,2) == 1
-            %         list = list';
-            %     end
-            %     %Move this to a new fcns and store it in this.PossibleLevels
-            %     LPlist = cellfun(@str2num, list, 'UniformOutput', false);
-            %     LPlist(:,1) = cellfun(@(x) x*100, LPlist(:,1), "UniformOutput", false);
-            %     PossibleLvls = [];
-            %     for l = LPlist'
-            %         Lv = l{2};
-            %         p = ceil(l{1}/numel(Lv));
-            %         for L = Lv
-            %             PossibleLvls = [PossibleLvls repmat(L, 1, p)];
-            %         end
-            %     end
-            %     CurrentLvLProb = 100 - sum([LPlist{:,1}]); %Probability for current Level
-            %     PossibleLvls = [PossibleLvls repmat(initLev, 1, CurrentLvLProb)];
-            %     WhichLevel = randperm(numel(PossibleLvls), 1);
-            %     current_difficulty = PossibleLvls(WhichLevel);
-            % catch
-            %     current_difficulty = this.Setting_Struct.Starting_opacity;
-            %     return
-            % end
         end
         %Update all the settings if the button is ticked
         function UpdateSettings(this, options)
@@ -636,24 +550,6 @@ classdef BehaviorBoxWheel < handle
             [this.SetStr(end+1), this.Include(end+1)] = this.structureSettings(tempSetting_Struct);
             this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
             [this.Level] = this.Setting_Struct.Starting_opacity;
-            % if this.Setting_Struct.Ramp
-            %     this.RampCount = 1;
-            %     this.RampCorrectCount = this.Setting_Struct.RampNum;
-            %     this.RampMax = this.Setting_Struct.RampMaxLevel;
-            %     this.RampMin = this.Setting_Struct.RampMinLevel;
-            %     this.Level = this.Setting_Struct.RampMinLevel;
-            %     this.RampWhichLevel = 1;
-            %     this.app.DistractorsSpinner.Value = this.Level;
-            %     if this.RampMax-this.RampMin <=5
-            %         this.PossibleLevels = this.RampMin:1:this.RampMax;
-            %     elseif this.RampMax-this.RampMin <=10
-            %         this.PossibleLevels = unique([1 this.RampMin:2:this.RampMax this.RampMax]);
-            %     elseif this.RampMax-this.RampMin <=15
-            %         this.PossibleLevels = unique([1 this.RampMin:3:this.RampMax this.RampMax]);
-            %     else
-            %         this.PossibleLevels = unique([1 this.RampMin:4:this.RampMax this.RampMax]);
-            %     end
-            % end
         end
         %Choose if Left or Right will be correct
         function isLeftTrial = PickSideForCorrect(this, isLeftTrial, SB)
@@ -837,23 +733,6 @@ classdef BehaviorBoxWheel < handle
                 this.current_side = 'right';
             end
         end
-        %Show Cue
-        function ShowCue(this,current_opacity)
-            %select stim by making new stimulus object
-            %initialize by subracting 8 from the type, as id for
-            %the cue is -2 for circle and -1 for contour and 0 is image
-            set(this.message_handle,'Text','Showing Cue');
-            %drawnow; %refresh gui
-            Current_Cue_Object = BehaviorBoxVisualStimulus((this.Setting_Struct.Stimulus_type) -8 , 0, current_opacity ,this.Setting_Struct.Box_Input_type);
-            %display stimulus
-            Current_Cue_Object.DisplayOnScreen(1, 0, this.Setting_Struct.Stimulussize_y, this.Setting_Struct.Stimulussize_x, this.Setting_Struct.Stimulusposition_x, this.Setting_Struct.Stimulusposition_y, this.Setting_Struct.Orientation);
-            %wait for cue time
-            pause(this.Setting_Struct.CueDuration)
-            %close stim
-            Current_Cue_Object.DisplayOnScreen(0, 0, this.Setting_Struct.Stimulussize_y, this.Setting_Struct.Stimulussize_x, this.Setting_Struct.Stimulusposition_x, this.Setting_Struct.Stimulusposition_y, this.Setting_Struct.Orientation);
-            %wait after cue
-            pause(this.Setting_Struct.WaitAfterCue)
-        end
         %loop function that reads lever
         function WaitForInput(this)
             this.TrialStartTime = 0;
@@ -887,61 +766,6 @@ classdef BehaviorBoxWheel < handle
                         t2 = clock;
                         this.ReadyCue(this.ReadyCueStruct.Color);
                     end
-                case this.Box.ardunioReadDigital==1 %Nose and Lick are Digital
-                    if this.Setting_Struct.Box_Input_type == [5]
-                        this.ResetSensor(this)
-                    end
-                    t1 = datetime("now");
-                    this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.LineColor;
-                    set(this.message_handle,'Text','Waiting for Trial initialization'); drawnow
-                    event = 0;
-                    tic
-                    while this.Box.readL() | this.Box.readR()
-                        pause(0.1); drawnow; %Wait for the mouse to notice the bright ready cue before blinking it
-                        %Otherwise the ready cue immediately turns dim when it appears, and mice poke L/R to see the blink instead of recognizing the bright dot
-                    end
-                    while ~get(this.stop_handle, 'Value') %While the stop button has not been pressed
-                        pause(0.1); drawnow; %Update the buttons
-                        if this.Setting_Struct.IntertrialMalCancel && this.Box.readL() | this.Box.readR()
-                            %this.ReadyCue('k') %Make the ReadyCue black
-                            this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'ReadyCueDot'), 'Mal')
-                            this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.DimColor; drawnow %Make the ReadyCue dim
-                            this.message_handle.Text = ['Do not poke L or R for the Intertrial Malingering interval: ' num2str(this.Setting_Struct.IntertrialMalSec) ' sec...'];
-                            timerStart = datetime("now");
-                            while 1
-                                time = this.Setting_Struct.IntertrialMalSec-seconds(datetime("now")-timerStart);
-                                txt = "Do not poke L or R! Intertrial Malingering timeout: "+round(time,1)+" sec...";
-                                set(this.message_handle,'Text',txt)
-                                drawnow %Update the buttons
-                                if this.Box.readL() | this.Box.readR() %if L or R poke then restart timerStart
-                                    timerStart = datetime("now");
-                                end
-                                if get(this.FF, 'Value')
-                                    set(this.message_handle, 'Text','Skipping interval...')
-                                    set(this.FF, 'Value', 0)
-                                    drawnow
-                                    break;
-                                end
-                                if get(this.stop_handle, 'Value')
-                                    set(this.message_handle, 'Text','Ending session...')
-                                    drawnow
-                                    break;
-                                end
-                                if seconds(datetime("now")-timerStart) > this.Setting_Struct.IntertrialMalSec %End when mouse has not poked L or R for the interval
-                                    this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'ReadyCueDot'), 'Mal')
-                                    this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.LineColor;
-                                    set(this.message_handle,'Text','Waiting for Trial initialization'); drawnow
-                                    break
-                                end
-                            end
-                        end
-                        %Immediately accept choice
-                        if this.Box.readM()
-                            event = 1;
-                            break
-                        end
-                    end
-                    t2 = clock;
                 otherwise % Keyboard inputthis.Box.KeyboardInput==1
                     InterTMalInterv = this.Setting_Struct.IntertrialMalSec;
                     text = 'Initialize: Press L for Left, R for Right, C or M for Middle:'; set(this.message_handle,'Text',text); fprintf([text '\n'])
@@ -1035,8 +859,6 @@ classdef BehaviorBoxWheel < handle
             set(this.message_handle,'Text',['Waiting for ',this.current_side,' choice...']);
             this.Data_Object.addStimEvent(this.isLeftTrial); %Add the timestamp for the trial
             switch 1
-                case any(this.Box.Input_type == [1 2 3 5]) %NosePoke
-                    [this.WhatDecision, this.ResponseTime] = this.readLeverLoopDigital(this);
                 case this.Box.Input_type == 6 %Wheel (new)
                     [this.WhatDecision, this.ResponseTime] = this.readLeverLoopAnalogWheel(this);
                 otherwise
@@ -1044,26 +866,16 @@ classdef BehaviorBoxWheel < handle
             end
             if this.Setting_Struct.OnlyCorrect && contains({this.WhatDecision} , 'wrong', 'IgnoreCase', true)
                 switch 1
-                    case any(this.Box.Input_type == [1 2 3 5]) %NosePoke
-                        [this.WhatDecision, this.ResponseTime] = this.readLeverLoopDigital(this);
                     case this.Box.Input_type == 6 %Wheel (new)
                         [this.WhatDecision, this.ResponseTime] = this.readLeverLoopAnalogWheel_OnlyCorrect(this);
                     otherwise
                         [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial);
                 end
             end
-            if this.Box.Input_type == 6
-                pause(this.Setting_Struct.Input_Delay_Respond)
-                try
-                    d = this.fig.Children.findobj('Tag', 'Distractor');
-                    [d.Color] = deal(this.StimulusStruct.DimColor);
-                end
-                pause(this.Setting_Struct.Input_Delay_Respond)
-                % try
-                %     p = findobj('Type', 'Polygon');
-                %     [p.FaceColor] = deal(this.StimulusStruct.BackgroundColor);
-                % end
-                pause(this.Setting_Struct.Input_Delay_Respond)
+            pause(this.Setting_Struct.Input_Delay_Respond)
+            try
+                d = this.fig.Children.findobj('Tag', 'Distractor');
+                [d.Color] = deal(this.StimulusStruct.DimColor);
             end
             switch true
                 case contains({this.WhatDecision} , 'correct', 'IgnoreCase', true)
@@ -1125,29 +937,6 @@ classdef BehaviorBoxWheel < handle
         function GiveRewardAndFlash(this)
             %Get reward valve, pulse number and time:
             switch this.Box.Input_type
-                case 3 %Nose
-                    switch true
-                        case contains(this.WhatDecision, 'left correct', 'IgnoreCase', true)
-                            CorrectLever = this.Box.Left; %Left
-                            OtherLever = this.Box.Right; %Right
-                            PulseNum = this.Box.LeftPulse;
-                            Valve = this.Box.ValveR; %Left
-                            Time = this.Box.Lrewardtime; %Left
-                        case contains(this.WhatDecision, 'right correct', 'IgnoreCase', true)
-                            CorrectLever = this.Box.Right; %Right
-                            OtherLever = this.Box.Left; %Left
-                            PulseNum = this.Box.RightPulse;
-                            Valve = this.Box.ValveL; %Right
-                            Time = this.Box.Rrewardtime; %Right
-                        case contains(this.WhatDecision, 'wrong', 'IgnoreCase', true)
-                            if this.Box.Air_Puff_Penalty
-                                PulseNum = this.Box.AirPuffPulses;
-                                Valve = this.Box.AirPuff;
-                                Time = this.Box.AirPuffTime;
-                            else
-                                return
-                            end
-                    end
                 case 6 % Wheel
                     switch true
                         case contains(this.WhatDecision, 'correct', 'IgnoreCase', true)
@@ -1160,12 +949,6 @@ classdef BehaviorBoxWheel < handle
                 otherwise %Keyboard, any input method I haven't used before
                     return
             end
-            % while contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && ~this.Box.readPin(CorrectLever) %Wait for NosePoke Don't dispense the reward unless the mouse is waiting for it! Wait indefinitely between pulses for them to learn to collect all the water
-            %     pause(0.2); drawnow;
-            %     if get(this.Buttons.Stop, 'Value') || get(this.Buttons.FastForward, 'Value')
-            %         break
-            %     end
-            % end
             GiveDrop(this.a, Valve, Time)
             PulseNum = PulseNum-1;
             % then flash
@@ -1343,7 +1126,6 @@ classdef BehaviorBoxWheel < handle
             if ispc
                 saveasname = join([D Sub Str stim input],'_');
                 savefolder = fullfile(cell2mat(this.Data_Object.filedir));
-            elseif ismac
             elseif isunix
                 saveasname = join([D Sub Str stim input],'_');
                 savefolder = fullfile([cell2mat(this.Data_Object.filedir), filesep]);
@@ -1373,7 +1155,7 @@ classdef BehaviorBoxWheel < handle
                 newData.wheel_record = this.wheelchoice_record;
                 newData.wheel_record(any(cellfun(@isempty, newData.wheel_record)'),:) = [];
             end
-            if numel(this.SetUpdate) == 1 % Settings never changed during the session.
+            if isscalar(this.SetUpdate) % Settings never changed during the session.
                 newData.SetStr = this.SetStr;
                 newData.Include = repmat(this.Include, size(newData.TimeStamp));
                 newData.SetIdx = repmat(this.SetIdx, size(newData.TimeStamp));

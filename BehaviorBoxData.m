@@ -533,13 +533,6 @@ classdef BehaviorBoxData < handle
             if nargout >= 1
                 varargout{1} = Out;
             end
-            function Out = SplitDays(D)
-                % [~, Ls] = findgroups(trialTbl.Level');
-                r = trialTbl.Date==D;
-                Dtbl = trialTbl(r,:);
-                Out = Dtbl;
-                %Out = cellfun(@(x)Dtbl(Dtbl.Level==x,:), num2cell(Ls), "UniformOutput", false)';
-            end
         end
         function SortSubjects(this)
 %Reorder everything in this.AnalyzedData to put Hets first, WTs last
@@ -634,8 +627,7 @@ classdef BehaviorBoxData < handle
                 OverBinomial{L,"p<0.001"} = {cell2mat(CROSS_3)};
                 OverBinomial_AVG{L,"p<0.001"} = {[mean(cell2mat(CROSS_3(Het)), "omitmissing") mean(cell2mat(CROSS_3(WT)), "omitmissing") ; std(cell2mat(CROSS_3(Het)), "omitmissing") std(cell2mat(CROSS_3(WT)), "omitmissing") ; sum(cellfun(@(x) ~isnan(x), CROSS_3(Het))) sum(cellfun(@(x) ~isnan(x), CROSS_3(WT)))]};
             end
-            Cross = {OverBinomial ; OverBinomial_AVG}
-
+            Cross = {OverBinomial ; OverBinomial_AVG};
         end
         function MM = newMM(this, scores, options)
             arguments
@@ -1433,7 +1425,7 @@ classdef BehaviorBoxData < handle
                 this
                 options.Sc double = 1
                 options.AllMice logical = 0
-                options.Lvs double = [2 4 7 12] % Do not display levels below this
+                options.Lvs double = [2:20] % Do not display levels below this
                 options.Threshold double = 0.7 % Passing threshold for each level
                 options.count double = 10 % Num of consecutive trials above threshold before passing
                 options.tol double = 0 % How many below-threshold trials in the streak of options.count to be tolerated
