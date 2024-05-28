@@ -105,11 +105,9 @@ classdef BehaviorBoxNose < handle
         textdiary
     end
     methods
-        %constructor
         function this = BehaviorBoxNose(GUI_handles, app)
             this.app = app;
             this.GuiHandles = GUI_handles;
-            %dbstop if error
             try
                 this.stop_handle.Value = 0;
                 this.getGUI();
@@ -117,7 +115,6 @@ classdef BehaviorBoxNose < handle
                 this.unwrapError(err)
             end
         end
-        %INTERFACE====
         function RunTrials(this)
             try
                 delete(findobj("Type", "figure", "Name", "Graphs"))
@@ -130,12 +127,8 @@ classdef BehaviorBoxNose < handle
             this.GuiHandles.MsgBox.String = fileread(this.textdiary);
             diary off
         end
-        %MEMBER FUNCTIONS====
-        %Run the loop
         function DoLoop(this)
-            %=====MAIN LOOP===========================
             this.SetupBeforeLoop();
-            %LOOP==== %run loop
             errorc = 0;
             while 1
                 try
@@ -154,8 +147,7 @@ classdef BehaviorBoxNose < handle
                     this.unwrapError(err)
                     errorc = errorc + 1;
                 end
-            end %END loop
-            %=====END LOOP============================
+            end
             this.cleanUP();
             this.SaveAllData();
         end

@@ -1214,34 +1214,22 @@ classdef BehaviorBoxData < handle
                 this
                 opts.Composite logical = 0
                 opts.LevGroup logical = 0
-                opts.LevMM logical = 0
+                opts.History logical = 1
                 opts.Stim logical = 0
-                opts.Group logical = 0
-                opts.DayProgress logical = 1
+                opts.LevelProgress logical = 0
             end
             Num = num2cell(1:numel(this.Sub));
             tic
-            if opts.DayProgress
-                %Trial = this.DailyProgress();
+            if opts.LevelProgress
                 this.BinomialProgress();
                 this.SaveManyFigures([],'Binomial', SameFolder=1)
                 close all
-                %this.PlotGroupTrialsToPass(Trial);
-                %this.SaveManyFigures([],'DayTrial', SameFolder=1)
-            end
-            if opts.Group
-                %close all
-                Trial = cellfun(@(x)this.GroupTrialsToPass(Sc=x), Num, "UniformOutput",false);
-                this.PlotGroupTrialsToPass(Trial);
-                %this.SaveManyFigures([],'TrialsTo', SameFolder=1)
             end
             if opts.LevGroup
-                %LevDay = cellfun(@(x){this.PlotLevelGroupsByLevel(Sc=x)}, Num);
-                %close all
                 cellfun(@(x){this.PlotLevelGroupsByDay(Sc=x)}, Num); drawnow
                 this.SaveManyFigures([],'LevelGroup', SameFolder=1)
             end
-            if opts.LevMM
+            if opts.History
                 close all
                 ACell = cellfun(@(x){this.plotLvByDayOneAxis(Sc=x, LevDay=0)}, Num);
                 this.SaveManyFigures([],'AllLevelsByDay', SameFolder=1)
@@ -1471,69 +1459,7 @@ classdef BehaviorBoxData < handle
                 lc = lc + 1;
             end
         end
-        function Out = GroupTrialsToPass(this, options)
-            arguments
-                this
-                options.Sc double = 1
-                options.count double = 10
-                options.tol double = 0
-            end
-            try
-                tic
-                SubjectID = this.AnalyzedData.Subjects{options.Sc};
-                Levels = unique(this.AnalyzedData.TrialTbls{options.Sc}.Level)';
-                %Get moving means of accuracy over the last 60 (big bin) trials
-                Ldat = this.AnalyzedData.LevelMM{options.Sc};
-                %Ldat(cellfun(@(x) all(isnan(x),'all'),Ldat,'UniformOutput',true)) = [];
-                %Find the trial number when the mouse's performance crossed over a
-                %specified threshold:
-                % Threshold for the last 60 (big bin) trials:
-                %   accuracy above 80%
-                %   std of 0  (based on small bins)
-                %   for 3 consecutive trials
-                %          overThresh = cellfun(@(x)find(x(:,1)>=0.8 & x(:,2)<=0.03), Ldat, 'UniformOutput', false);  %  Need to filter out Left/Right only trials, at least for level 1 only
-                overThresh = cellfun(@(x)find(x(:,1)>=0.8 & x(:,5)==1)+this.BB, Ldat, 'UniformOutput', false, 'ErrorHandler',@errorFuncNaN);
-                Trial = cellfun(@(x) this.consecutiveTrial(x, options.count, options.tol), overThresh, "UniformOutput",true);
-                % if any(isnan(Trial)) % IF they have not passed then use the total number
-                %     Trial(1,isnan(Trial)) = size(Ldat{:},1);
-                % end
-                % Find the trial number when the mouse had been above threshold for 3
-                % consecutive trials and get the LevelTrialNumber (the count of individual trials at the
-                % specified Level that the mouse has seen)
-                Ttbl = this.AnalyzedData.TrialTbls{options.Sc};
-                Ttbl = Ttbl(Ttbl.Score~=2,:);
-                % Use that number to find how many trials of each difficulty the mouse had
-                % seen before the trial on which they "passed" each level
-                SumCount = cell(1, max(Levels));
-                c = 0;
-                for L = Trial
-                    if isnan(L)
-                        continue
-                    end
-                    c = c+1;
-                    LEVEL = Levels(c);
-                    if isnan(L) %If its nan they have not passed this level so count every trial they've seen so far
-                        SC = histcounts(Ttbl.Level); SC(21) = 0; SC(21) = [];
-                        SumCount{LEVEL} = SC;
-                        Trial(LEVEL) = SC(LEVEL);
-                        continue
-                    end
-                    try
-                        w = Ttbl.LvlTrialNum == L & Ttbl.Level == LEVEL;
-                        SC = histcounts(Ttbl.Level(1:find(w))); SC(21) = 0; SC(21) = [];
-                        SumCount{LEVEL} = SC;
-                        Trial(LEVEL) = SC(LEVEL);
-                    catch
-                        SC = histcounts(Ttbl.Level); SC(21) = 0; SC(21) = [];
-                        SumCount{LEVEL} = SC;
-                        Trial(LEVEL) = SC(LEVEL);
-                    end
-                end
-                Out = [ num2cell(1:max(Levels)) ; SumCount];
-            catch err
-                unwrapErr(err)
-            end
-        end
+        
         function Out = consecutiveTrial(this, vec, count, tol)
             arguments
                 this
@@ -1552,131 +1478,7 @@ classdef BehaviorBoxData < handle
             end
             Out = NaN;
         end
-        function Out = PlotGroupTrialsToPass(this, T, options)
-            arguments
-                this
-                T
-                options.Sex logical = 1
-                options.onlyAVG logical = 0
-                options.Dataonly logical = 0
-                options.Stacked logical = 0;
-            end
-            Out = [];
-            MaxLvl = min(cellfun(@(x) size(x,2),T));
-            trialsTo = nan(MaxLvl, numel(this.Sub));
-            AlltrialsTo = cell(size(trialsTo));
-            for L = 1:MaxLvl
-                trialsTo(L,:) = cellfun(@(x) x{1,L},T, "ErrorHandler",@errorFuncNaN);
-                AlltrialsTo(L,:) = cellfun(@(x) x{2,L},T, "ErrorHandler",@errorFuncNaN,'UniformOutput',false);
-            end
-            Ac = 0;
-            for A = AlltrialsTo
-                try
-                    Ac = Ac+1;
-                    Empty = cellfun(@(x) all(isnan(x)), A', 'UniformOutput', true);
-                    AlltrialsTo(Empty,Ac) = deal( { AlltrialsTo { find(~Empty,1,'last') ,Ac}} );
-                catch err
-                    unwrapErr(err)
-                end
-            end
-            Het = contains(this.Sub, '- Het');
-            WT = ~Het;
-            F = contains(this.Sub, '- F -');
-            if all(F)
-                SEX = "Females";
-            else
-                SEX = "Males";
-            end
-            %M = ~F;
-            %IDhet = this.Sub(Het);
-            %IDwt = this.Sub(WT);
-            ID = [this.Sub(Het) 'Het AVG' 'WT AVG' this.Sub(WT)];
-            %geneID = strings(1,6);
-            %geneID(Het) = "Het";
-            %geneID(~Het) = "WT";
-            %Now add sex ID to separate by sex
-            %Levs = size(T,1);
-            %Turn T into a table and stack T based on the level
-            c = 0;
-            lc = 0;
-            BigY = [];
-            BigX = [];
-            Bigerr = [];
-            for L = trialsTo'
-                c = c+1;
-                try
-                    if ~options.Dataonly
-                        Ax = MakeAxis(Visible=1);
-                    end
-                    hT = L(Het)';
-                    wT = L(WT)';
-                    if options.onlyAVG
-                        x = [mean(hT(~isnan(hT))) mean(wT(~isnan(wT)))];
-                        B = bar(x, 'Parent', Ax, ...
-                            'EdgeColor','none', 'FaceColor','flat', 'DisplayName',"Het");
-                        hold(Ax,'on');
-                        [B.CData(1,:)] = Ax.ColorOrder(1,:);
-                        [B.CData(2,:)] = Ax.ColorOrder(7,:);
-                        errorbar([1 2], x, [std(hT(~isnan(hT))) std(wT(~isnan(wT)))], ...
-                            'LineStyle','none', 'Color','k', 'LineWidth',2);
-                        Ax.XTickLabel = {'Shank3b','WT'};
-                    elseif options.Dataonly
-                        lc = lc+1;
-                        x = [mean(hT(~isnan(hT))) ; mean(wT(~isnan(wT)))];
-                        STD = [std(hT(~isnan(hT))) ; std(wT(~isnan(wT)))];
-                        BigY = [BigY x];
-                        BigX = [BigX lc];
-                        Bigerr = [Bigerr STD];
-                    else
-                        x = [sort(hT, 'ascend', 'MissingPlacement','first') mean(hT(~isnan(hT))) mean(wT(~isnan(wT))) sort(wT)];
-                        B = bar(x, 'Parent', Ax, ...
-                            'EdgeColor','none', 'FaceColor','flat', 'DisplayName',"Het");
-                        hold(Ax,'on');
-                        [B.CData(find(contains(ID, 'Het')),:)] = repmat(Ax.ColorOrder(6,:),sum(contains(ID, 'Het')),1);
-                        [B.CData(find(contains(ID, 'WT')),:)] = repmat(Ax.ColorOrder(2,:),sum(contains(ID, 'WT')),1);
-                        [B.CData(find(contains(ID, 'Het AVG')),:)] = Ax.ColorOrder(1,:);
-                        [B.CData(find(contains(ID, 'WT AVG')),:)] = Ax.ColorOrder(7,:);
-                        errorbar(find(contains(ID, 'AVG')), [mean(hT(~isnan(hT))) mean(wT(~isnan(wT)))], [std(hT(~isnan(hT))) std(wT(~isnan(wT)))], ...
-                            'LineStyle','none', 'Color','k', 'LineWidth',2);
-                    end
-                    if ~options.Dataonly
-                        title = join([this.Inp,this.Str,SEX], " ")+" - Level "+c+" trials to 80%";
-                        Ax.Title.String = title;
-                        Ax.Title.FontSize = 20;
-                        Ax.LineWidth = 2;
-                        Ax.FontSize = 20;
-                        Ax.Parent.Parent.Name = title;
-                        ylim([0 max(x)+max(x)*0.1])
-                        xlim tight
-                        Ax.Box = 0;
-                    end
-                catch
-                end
-            end
-            %this.SaveManyFigures([],'TrialsTo', SameFolder=1)
-            if options.Stacked
-                Ax = MakeAxis(Visible=1);
-                c = 0;
-                for L = AlltrialsTo'
-                    c = c+1;
-                    if c == 1
-                        %continue
-                    end
-                    try
-                        %remove empties and NaNs from L
-                        L(cellfun(@(x) all(isnan(x)),L)) = deal({zeros(1,20)});
-                        d = cell2mat(L);
-                        % d(:,1) = []; % To remove level 1 from graph
-                        hT = d(Het,1:c);
-                        wT = d(WT,1:c);
-                        bar([hT ; mean(hT(~all(hT==0,2),:),1) ; mean(wT(~all(wT==0,2),:),1) ; wT], 'stacked', 'Parent', Ax);
-                        xline([size(hT,1)+0.5 size(hT,1)+2.5])
-                        Ax = nexttile(Ax.Parent);
-                    catch
-                    end
-                end
-            end
-        end
+        
         function Out = plotLvByDayOneAxis(this, options)
             arguments
                 this
@@ -1823,12 +1625,6 @@ classdef BehaviorBoxData < handle
                 end
             catch err
                 unwrapErr(err)
-            end
-            %Add'l fcns:
-            function FMTtext(TextHandle)
-                [TextHandle(:).FontSize] = deal(12);
-                [TextHandle(:).HorizontalAlignment] = deal("center");
-                [TextHandle(:).VerticalAlignment] = deal("bottom");
             end
         end
         function Out = PlotLevelGroupsByDay(this, options)
