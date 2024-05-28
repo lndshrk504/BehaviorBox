@@ -335,7 +335,7 @@ classdef BehaviorBoxWheel < handle
             this.GuiHandles.NotesText.String = "";
             this.GuiHandles.NotesText.String = sprintf(string(datetime("today"))+" Behavior Notes:\n");
             %Set some defaults: FOR WHEEL
-            this.app.FinishlineCheckBox.Value = 1;
+            this.app.Stimulus_FinishLine.Value = 1;
             this.setGuiNumbers(this.GUI_numbers); %update gui
             try
                 this.Data_Object = BehaviorBoxData( ...
@@ -520,7 +520,8 @@ classdef BehaviorBoxWheel < handle
             tempVal(CIdx) = cVals;
             pTags = this.GetTag(this.app, props);
             tempVal(~CIdx) = cellfun(@(x)str2double(this.app.(x).Value), props(~CIdx), 'UniformOutput',false);
-            ReDo = cellfun(@isnan, tempVal, 'UniformOutput',true);
+            %tempVal(104) = {NaN}
+            ReDo = cellfun(@isnan, tempVal, 'UniformOutput',false);
             tempVal(ReDo) = cellfun(@(x)(this.app.(x).Value), props(ReDo), 'UniformOutput',false);
             tempSetting_Struct = cell2struct(tempVal, pTags);
             tempSetting_Struct = appendStruct(tempSetting_Struct, this.dropdowns);
@@ -1292,7 +1293,7 @@ classdef BehaviorBoxWheel < handle
         end
         function TestStimulus(this)
             tic
-            %this.app.Preview.Enable = 0; %Disable this when debugging...
+            
             this.getGUI();
             this.Stimulus_Object = BehaviorBoxVisualStimulus(this.StimulusStruct, Preview=1);
             this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
@@ -1304,9 +1305,7 @@ classdef BehaviorBoxWheel < handle
             this.fig = this.Stimulus_Object.fig;
             [this.fig.findobj('Tag','Spotlight').Visible] = deal(1);
             toc
-            pause(0.1)
             this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
-            this.app.Preview.Enable = 1;
         end
     end
     %STATIC FUNCTIONS====
