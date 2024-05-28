@@ -27,6 +27,7 @@ classdef BehaviorBoxWheel < handle
         RStimAx; %Axis that contains the left stimulus plot
         FLAx; %Axis that contains the 2 finish line triangles
         graphFig;
+        TrialPhase char = 'intertrial' % Either : BeforeTrial, Intertrial, AfterTrial
         ReadyCueStruct = struct();
         StimulusStruct = struct();
         LevelStruct = struct();
@@ -69,7 +70,6 @@ classdef BehaviorBoxWheel < handle
         counter_for_alternate = 0;
         current_side;
         Level;
-        PossibleLevels;
         RampCount=0;
         RampCorrectCount=0;
         RampWhichLevel;
@@ -108,7 +108,6 @@ classdef BehaviorBoxWheel < handle
         function this = BehaviorBoxWheel(GUI_handles, app)
             this.app = app;
             this.GuiHandles = GUI_handles;
-            %dbstop if error
             try
                 this.stop_handle.Value = 0;
                 this.getGUI();
@@ -128,7 +127,6 @@ classdef BehaviorBoxWheel < handle
             this.GuiHandles.MsgBox.String = fileread(this.textdiary);
             diary off
         end
-        %Run the loop
         function DoLoop(this)
             this.SetupBeforeLoop();
             errorc = 0;
@@ -175,7 +173,7 @@ classdef BehaviorBoxWheel < handle
             this.GUI_numbers.handle.time = this.app.text3;
             props = properties(this.app); %Get all names
             props(props == "MsgBox") = [];
-            props(props == "TextArea2") = [];
+            props(props == "NotesText") = [];
             skiptypes = {'buttongroup', 'figure', 'label', 'panel', 'annotationpane', 'axes', 'tab', 'uigridlayout'};
             types = GetType(this.app, props); %cellfun(@(x) this.app.(x).Type, props, 'UniformOutput', false); %Get their types
             props = props(~contains(types, skiptypes, "IgnoreCase",true));
@@ -225,7 +223,6 @@ classdef BehaviorBoxWheel < handle
             this.LevelStruct = appendStruct(this.LevelStruct, PullOut(Settings, 'Level_'));
             this.Temp_Settings = appendStruct(this.Temp_Settings, PullOut(Settings, '_Temp'));
             function OUT = PullOut(IN, chr)
-                OUT = struct();
                 names = fieldnames(IN);
                 inter = names(contains(names, chr));
                 vals = cellfun(@(x)IN.(x), inter, "UniformOutput",false);
@@ -237,12 +234,12 @@ classdef BehaviorBoxWheel < handle
         function OUT = ManyLevels(~, In)
             OUT = In;
             if ~isnumeric(In.HardLvList)
-                HardLevs = str2num(In.HardLvList);
+                HardLevs = str2num(In.HardLvList); %#ok<ST2NM>
             else
                 HardLevs = In.HardLvList;
             end
             if ~isnumeric(In.EasyLvList)
-                EasyLevs = str2double(In.EasyLvList);
+                EasyLevs = str2num(string(In.EasyLvList)); %#ok<ST2NM>
             else
                 EasyLevs = In.EasyLvList;
             end
@@ -269,6 +266,7 @@ classdef BehaviorBoxWheel < handle
             try
                 % https://docs.arduino.cc/learn/microcontrollers/digital-pins
                 if this.Setting_Struct.Box_Input_type == 8 %Skip all this if keyboard mode
+                    this.Box.ardunioReadDigital = 0;
                     return
                 end
                 if ispc
@@ -291,6 +289,7 @@ classdef BehaviorBoxWheel < handle
                         if options.Rebuild
                             try
                                 this.a = [];
+                            catch
                             end
                             this.a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'}, 'ForceBuildOn',true);
                         else
@@ -322,6 +321,7 @@ classdef BehaviorBoxWheel < handle
                 this.Setting_Struct.Box_Input_type = 8;
                 this.a = [];
             end
+            this.message_handle.Text = 'Done';
         end
         %Prepare the window and stimulus
         function SetupBeforeLoop(this)
@@ -338,14 +338,12 @@ classdef BehaviorBoxWheel < handle
                     Str=this.app.Strain.Value, ...
                     Sub={this.app.Subject.Value}, ...
                     find=1); % Set up data storage object
+            catch
             end
             try
                 diaryname = join([this.Data_Object.filedir "BBTrialOutput"+this.Data_Object.date+".txt"], filesep);
             catch
                 diaryname = join([this.Data_Object.Sub "BBTrialOutput"+this.Data_Object.date+".txt"], filesep);
-            end
-            if isunix
-                diaryname = "/"+diaryname;
             end
             this.textdiary = diaryname;
             diary(diaryname)
@@ -500,7 +498,7 @@ classdef BehaviorBoxWheel < handle
             current_difficulty = this.LevelStruct.ChooseLevel();
         end
         %Update all the settings if the button is ticked
-        function UpdateSettings(this, options)
+        function UpdateSettings(this)
             props = this.appProps;
             types = this.appPropsTypes;
             Dropdowns = props(contains(this.appPropsTypes, {'dropdown'}));
@@ -514,8 +512,7 @@ classdef BehaviorBoxWheel < handle
             tempVal(CIdx) = cVals;
             pTags = this.GetTag(this.app, props);
             tempVal(~CIdx) = cellfun(@(x)str2double(this.app.(x).Value), props(~CIdx), 'UniformOutput',false);
-            %tempVal(104) = {NaN}
-            ReDo = cellfun(@isnan, tempVal, 'UniformOutput',false);
+            ReDo = cellfun(@isnan, tempVal, 'UniformOutput',true);
             tempVal(ReDo) = cellfun(@(x)(this.app.(x).Value), props(ReDo), 'UniformOutput',false);
             tempSetting_Struct = cell2struct(tempVal, pTags);
             tempSetting_Struct = appendStruct(tempSetting_Struct, this.dropdowns);
@@ -733,7 +730,7 @@ classdef BehaviorBoxWheel < handle
             this.TrialStartTime = 0;
             set(this.message_handle,'Text','Waiting for Trial initialization');
             this.t1 = clock; t2 = this.t1;%In case of crash
-            switch 1
+            switch true
                 case this.Box.Input_type==6%Wheel 2.0, wait for the mouse to hold the wheel still for the interval to start a new trial
                     if this.i ~=1
                         this.ReadyCue('k');
