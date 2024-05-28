@@ -278,11 +278,11 @@ classdef BehaviorBoxWheel < handle
                     return
                 end
                 if ispc
-                    comsnum = "COM"+this.app.edit22.Value;
+                    comsnum = "COM"+this.app.Arduino_Com.Value;
                 elseif ismac
-                    comsnum = "COM"+this.app.edit22.Value;
+                    comsnum = "COM"+this.app.Arduino_Com.Value;
                 elseif isunix
-                    comsnum = "/dev/tty"+this.app.edit22.Value;
+                    comsnum = "/dev/tty"+this.app.Arduino_Com.Value;
                 end
                 this.Box.use_ball = 0; %All these are automatically off
                 this.Box.use_wheel = 0;
@@ -319,7 +319,7 @@ classdef BehaviorBoxWheel < handle
                 configurePin(this.a, "D6", "DigitalOutput");
                 configurePin(this.a, "D8", "DigitalOutput");
                 toc
-            catch
+            catch err
                 this.Box.use_ball = 0; %All these are automatically off
                 this.Box.use_wheel = 0;
                 this.Box.ardunioReadDigital = 0;
