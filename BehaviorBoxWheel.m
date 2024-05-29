@@ -1329,36 +1329,6 @@ classdef BehaviorBoxWheel < handle
         function GiveReward(A, Box, Buttons, whatdecision)
             %Get reward valve, pulse number and time:
             switch Box.Input_type
-                case 3 %Nose
-                    switch true
-                        case contains(whatdecision, 'left correct', 'IgnoreCase', true)
-                            CorrectLever = Box.Left; %Left
-                            OtherLever = Box.Right; %Right
-                            PulseNum = Box.LeftPulse;
-                            Valve = Box.ValveR; %Left
-                            Time = Box.Lrewardtime; %Left
-                        case contains(whatdecision, 'right correct', 'IgnoreCase', true)
-                            CorrectLever = Box.Right; %Right
-                            OtherLever = Box.Left; %Left
-                            PulseNum = Box.RightPulse;
-                            Valve = Box.ValveL; %Right
-                            Time = Box.Rrewardtime; %Right
-                        case contains(whatdecision, 'wrong', 'IgnoreCase', true)
-                            if Box.Air_Puff_Penalty
-                                PulseNum = Box.AirPuffPulses;
-                                Valve = Box.AirPuff;
-                                Time = Box.AirPuffTime;
-                            else
-                                return
-                            end
-                    end
-                    % Don't dispense the reward unless the mouse is waiting for it!
-                    while contains(whatdecision, 'correct', 'IgnoreCase', true) && Box.readPin(CorrectLever)
-                        pause(0.1); drawnow;
-                        if get(Buttons.Stop, 'Value') || get(Buttons.FastForward, 'Value')
-                            break
-                        end
-                    end
                 case 6 % Wheel
                     switch true
                         case contains(whatdecision, 'correct', 'IgnoreCase', true)
@@ -1397,11 +1367,6 @@ classdef BehaviorBoxWheel < handle
                     end
                 end
             end
-        end
-        function GiveOnePuff(this)
-            this.a.writeDigitalPin(this.Box.AirPuff,1)
-            pause(this.Box.AirPuffTime);
-            this.a.writeDigitalPin(this.Box.AirPuff,0)
         end
         function [WhatDecision, response_time] = readKeyboardInput(stop_handle, message_handle, isLeftTrial)
             text = 'Respond: Press L for Left, R for Right, C or M for Middle:'; set(message_handle,'String',text); fprintf([text '\n']); drawnow
@@ -1453,70 +1418,6 @@ classdef BehaviorBoxWheel < handle
             end
         end
         %read the lever (digital read)
-        function [WhatDecision, response_time] = readLeverLoopDigital(this)
-            response_time = 0;
-            this.DuringTMal = 0;
-            event = -1;
-            try
-                %Turn on/Reset lick sensor
-                this.ResetSensor(this)
-                timeout_value = this.Box.Timeout_after_time;
-                InpDelay = this.Setting_Struct.Input_Delay_Respond;
-                timeout_timer = clock;
-                response_timer = clock;
-                %run loop
-                while timeout_value == 0 | etime(clock, timeout_timer)<timeout_value
-                    pause(0.01);drawnow;
-                    if get(this.Skip, 'Value') %this.Skip.Value
-                        this.Skip.Value = 0; %Turn the button off
-                        break
-                    end
-                    %check if stop pressed
-                    if get(this.stop_handle, 'Value')
-                        break %abort
-                    end
-                    if this.Box.readM()
-                        this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'center')
-                        this.DuringTMal = this.DuringTMal + 1;
-                    end
-                    %Immediately accept the choice:
-                    if this.Box.readL() %& this.isLeftTrial %LeverA is left
-                        event = 1; %Left Choice
-                        break
-                    end
-                    if this.Box.readR() %& ~this.isLeftTrial %LeverB is right
-                        event = 2; %Right Choice
-                        break
-                    end
-                end
-                try
-                    d = this.fig.findobj("Tag", "Distractor");
-                    [d.Color] = deal(this.StimulusStruct.DimColor);
-                end
-                response_time = etime(clock, response_timer);
-            catch err
-                this.unwrapError(err)
-            end
-            %translate to decision enum
-            switch event
-                case -1
-                    WhatDecision = 'time out';
-                    response_time = 0;
-                case 1
-                    %-1 is for trainingstrials always correct
-                    if this.isLeftTrial ==1 || this.isLeftTrial == -1
-                        WhatDecision = 'left correct';
-                    else
-                        WhatDecision = 'left wrong';
-                    end
-                case 2
-                    if this.isLeftTrial ==0 || this.isLeftTrial == -1
-                        WhatDecision = 'right correct';
-                    else
-                        WhatDecision = 'right wrong';
-                    end
-            end
-        end
         function [WhatDecision, response_time] = readLeverLoopAnalogWheel(this)
             event = -1;
             delta = 0;
@@ -1542,7 +1443,7 @@ classdef BehaviorBoxWheel < handle
             this.wheelchoicetime = cell(1,1e6);
             i = 0;
             tic
-            while timeout_value == 0 | etime(clock, timeout_timer)<timeout_value % do NOT replace | with || or the expression is changed.
+            while timeout_value == 0 | toc<=timeout_value % do NOT replace | with || or the expression is changed.
                 dist = this.Box.encoder.readCount;
                 delta = (dist/threshold)*StimDistance;
                 if abs(delta)>thresh
@@ -1786,14 +1687,6 @@ classdef BehaviorBoxWheel < handle
             end
             Set = SetStr;
             T = Include;
-        end
-        function ResetSensor(this)
-            if this.Box.Input_type == 5
-                this.a.writeDigitalPin(this.Setting_Struct.ResetPin, 0);
-                this.a.writeDigitalPin(this.Setting_Struct.ResetPin, 1);
-            elseif this.Box.use_wheel == 1
-                this.Box.encoder.resetCount
-            end
         end
         function Flash(Stim, Box, Lines, whatdecision)
             arguments
