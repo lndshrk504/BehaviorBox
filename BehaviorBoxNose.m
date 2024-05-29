@@ -321,21 +321,6 @@ classdef BehaviorBoxNose < handle
                         this.Box.readL = @(x)this.Box.readPin(this.Box.Left);
                         this.Box.readR = @(x)this.Box.readPin(this.Box.Right);
                         this.Box.readM = @(x)this.Box.readPin(this.Box.Middle);
-                    case 5 %Lick ports
-                        this.Box.ardunioReadDigital = 1;
-                    case 6 %Rotating Wheel
-                        if options.Rebuild
-                            try
-                                this.a = [];
-                            catch
-                            end
-                            this.a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'}, 'ForceBuildOn',true);
-                        else
-                            this.a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'});
-                        end
-                        this.Box.encoder = rotaryEncoder(this.a,'D2','D3', 1024);
-                        this.Box.Reward =  'D6';
-                        this.Box.use_wheel = 1;
                     case 8 %Keyboard, used if no arduino connected
                         this.Box.KeyboardInput = 1;
                         this.Box.readHigh = 1;
@@ -763,23 +748,6 @@ classdef BehaviorBoxNose < handle
             end
         end
         %Show Cue
-        function ShowCue(this,current_opacity)
-            %select stim by making new stimulus object
-            %initialize by subracting 8 from the type, as id for
-            %the cue is -2 for circle and -1 for contour and 0 is image
-            set(this.message_handle,'Text','Showing Cue');
-            %drawnow; %refresh gui
-            Current_Cue_Object = BehaviorBoxVisualStimulus((this.Setting_Struct.Stimulus_type) -8 , 0, current_opacity ,this.Setting_Struct.Box_Input_type);
-            %display stimulus
-            Current_Cue_Object.DisplayOnScreen(1, 0, this.Setting_Struct.Stimulussize_y, this.Setting_Struct.Stimulussize_x, this.Setting_Struct.Stimulusposition_x, this.Setting_Struct.Stimulusposition_y, this.Setting_Struct.Orientation);
-            %wait for cue time
-            pause(this.Setting_Struct.CueDuration)
-            %close stim
-            Current_Cue_Object.DisplayOnScreen(0, 0, this.Setting_Struct.Stimulussize_y, this.Setting_Struct.Stimulussize_x, this.Setting_Struct.Stimulusposition_x, this.Setting_Struct.Stimulusposition_y, this.Setting_Struct.Orientation);
-            %wait after cue
-            pause(this.Setting_Struct.WaitAfterCue)
-        end
-        %loop function that reads lever
         function WaitForInput(this)
             this.TrialStartTime = 0;
             set(this.message_handle,'Text','Waiting for Trial initialization');
@@ -955,9 +923,7 @@ classdef BehaviorBoxNose < handle
             this.Data_Object.addStimEvent(this.isLeftTrial); %Add the timestamp for the trial
             switch 1
                 case any(this.Box.Input_type == [1 2 3 5]) %NosePoke
-                    [this.WhatDecision, this.ResponseTime] = this.readLeverLoopDigital(this);
-                case this.Box.Input_type == 6 %Wheel (new)
-                    [this.WhatDecision, this.ResponseTime] = this.readLeverLoopAnalogWheel(this);
+                    [this.WhatDecision, this.ResponseTime] = this.readLeverLoopDigital();
                 otherwise
                     [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial);
             end
@@ -965,9 +931,7 @@ classdef BehaviorBoxNose < handle
                 set(this.message_handle,'Text',['Reanswer... Waiting for ',this.current_side,' choice...']);
                 switch 1
                     case any(this.Box.Input_type == [1 2 3 5]) %NosePoke
-                        [this.WhatDecision, this.ResponseTime] = this.readLeverLoopDigital_OnlyCorrect(this);
-                    case this.Box.Input_type == 6 %Wheel (new)
-                        [this.WhatDecision, this.ResponseTime] = this.readLeverLoopAnalogWheel(this);
+                        [this.WhatDecision, this.ResponseTime] = this.readLeverLoopDigital_OnlyCorrect();
                     otherwise
                         [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial);
                 end
@@ -1099,6 +1063,156 @@ classdef BehaviorBoxNose < handle
                         this.WhatDecision = "left wrong";
                     end
 
+            end
+        end
+        %read the lever (digital read)
+        function [WhatDecision, response_time] = readLeverLoopDigital(this)
+            response_time = 0;
+            this.DuringTMal = 0;
+            event = -1;
+            try
+                %Turn on/Reset lick sensor
+                this.ResetSensor(this)
+                timeout_value = this.Box.Timeout_after_time;
+                InpDelay = this.Setting_Struct.Input_Delay_Respond;
+                timeout_timer = clock;
+                response_timer = clock;
+                %run loop
+                while timeout_value == 0 | etime(clock, timeout_timer)<timeout_value
+                    pause(0.1);drawnow;
+                    if get(this.Skip, 'Value') %this.Skip.Value
+                        this.Skip.Value = 0; %Turn the button off
+                        break
+                    end
+                    %check if stop pressed
+                    if get(this.stop_handle, 'Value')
+                        break %abort
+                    end
+                    if this.Box.readM()
+                        this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'center')
+                        this.DuringTMal = this.DuringTMal + 1;
+                    end
+                    %Immediately accept the choice:
+                    if this.Box.readL() %& this.isLeftTrial %LeverA is left
+                        event = 1; %Left Choice
+                        break
+                    end
+                    if this.Box.readR() %& ~this.isLeftTrial %LeverB is right
+                        event = 2; %Right Choice
+                        break
+                    end
+                end
+                try
+                    a = this.fig.findobj("Type", "Axes");
+                    a = a(contains({a.Tag}, 'Correct'));
+                    %c = a.findobj("Tag", "Contour");
+                    %[c.Color] = deal(this.StimulusStruct.FlashColor);
+                    d = a.findobj("Tag", "Distractor");
+                    [d.Color] = deal(this.StimulusStruct.DimColor);
+                catch
+                end
+                response_time = etime(clock, response_timer);
+            catch err
+                this.unwrapError(err)
+            end
+            %translate to decision enum
+            switch event
+                case -1
+                    WhatDecision = 'time out';
+                    response_time = 0;
+                case 1
+                    %-1 is for trainingstrials always correct
+                    if this.isLeftTrial ==1 || this.isLeftTrial == -1
+                        WhatDecision = 'left correct';
+                    else
+                        WhatDecision = 'left wrong';
+                    end
+                case 2
+                    if this.isLeftTrial ==0 || this.isLeftTrial == -1
+                        WhatDecision = 'right correct';
+                    else
+                        WhatDecision = 'right wrong';
+                    end
+            end
+        end
+        %read the lever (digital read)
+        function [WhatDecision, response_time] = readLeverLoopDigital_OnlyCorrect(this)
+            response_time = 0;
+            this.DuringTMal = 0;
+            event = -1;
+            try
+                %Turn on/Reset lick sensor
+                this.ResetSensor(this)
+                timeout_value = this.Box.Timeout_after_time;
+                InpDelay = this.Setting_Struct.Input_Delay_Respond;
+                timeout_timer = clock;
+                response_timer = clock;
+                %run loop
+                while timeout_value == 0 | etime(clock, timeout_timer)<timeout_value
+                    pause(0.1);drawnow;
+                    if get(this.Skip, 'Value') %this.Skip.Value
+                        this.Skip.Value = 0; %Turn the button off
+                        break
+                    end
+                    %check if stop pressed
+                    if get(this.stop_handle, 'Value')
+                        break %abort
+                    end
+                    if this.Box.readM()
+                        this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'center')
+                        this.DuringTMal = this.DuringTMal + 1;
+                    end
+                    %Immediately accept the choice:
+                    if this.Box.readL()
+                        if this.isLeftTrial
+                            event = 3;
+                            break
+                        else
+                            this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Contour'), 'center')
+                        end
+                    end
+                    if this.Box.readR()
+                        if ~this.isLeftTrial
+                            event = 3;
+                            break
+                        else
+                            this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Contour'), 'center')
+                        end
+                    end
+                end
+                try
+                    a = this.fig.findobj("Type", "Axes");
+                    a = a(contains({a.Tag}, 'Correct'));
+                    c = a.findobj("Tag", "Contour");
+                    [c.Color] = deal(this.StimulusStruct.FlashColor);
+                    d = a.findobj("Tag", "Distractor");
+                    [d.Color] = deal(this.StimulusStruct.DimColor);
+                catch
+                end
+                response_time = etime(clock, response_timer);
+            catch err
+                this.unwrapError(err)
+            end
+            %translate to decision enum
+            switch event
+                case -1
+                    WhatDecision = 'time out';
+                    response_time = 0;
+                case 1
+                    %-1 is for trainingstrials always correct
+                    if this.isLeftTrial ==1 || this.isLeftTrial == -1
+                        WhatDecision = 'left correct';
+                    else
+                        WhatDecision = 'left wrong';
+                    end
+                case 2
+                    if this.isLeftTrial ==0 || this.isLeftTrial == -1
+                        WhatDecision = 'right correct';
+                    else
+                        WhatDecision = 'right wrong';
+                    end
+                case 3 % Only_Correct Setting active, mouse got it wrong but gets second chance
+                    WhatDecision = 'OC';
             end
         end
         function FlashNew(this, Stim, Box, Lines, whatdecision, OneWay)
@@ -1358,8 +1472,6 @@ classdef BehaviorBoxNose < handle
                     end
                     % o = findobj(this.fig.Children);
                     % [o(:).Visible] = deal(0);
-                case 6 % Wheel
-                    this.ReadyCue(1)
             end
             %Wait for interval
             this.UpdatePause(interval_time)
@@ -1488,7 +1600,7 @@ classdef BehaviorBoxNose < handle
                 newData.wheel_record = this.wheelchoice_record;
                 newData.wheel_record(any(cellfun(@isempty, newData.wheel_record)'),:) = [];
             end
-            if numel(this.SetUpdate) == 1 % Settings never changed during the session.
+            if isscalar(this.SetUpdate) % Settings never changed during the session.
                 newData.SetStr = this.SetStr;
                 newData.Include = repmat(this.Include, size(newData.TimeStamp));
                 newData.SetIdx = repmat(this.SetIdx, size(newData.TimeStamp));
@@ -1593,9 +1705,6 @@ classdef BehaviorBoxNose < handle
                             'Tag', 'ReadyCueDot');
                         this.ReadyCueAx = [findobj(this.fig, 'Tag', 'ReadyCue')];
                 end
-                %                 if this.Box.Input_type~=6
-                %                     this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'ReadyCueDot'), 'NewStim')
-                %                 end
             end
             %drawnow
         end
@@ -1670,8 +1779,6 @@ classdef BehaviorBoxNose < handle
                     b{:}.Enable = on;
                 end
             end
-            %             B = findobj(Buttons, 'Type', 'uibutton');
-            %             [B.Enable] = deal(on);
         end
         %set GUI settings and numbers from save or when starting new
         function setGuiNumbers(GUI_numbers)
@@ -1683,88 +1790,6 @@ classdef BehaviorBoxNose < handle
             end
         end
         %open reward valves
-        function GiveRewardOld(A, Box, Buttons, whatdecision, options)
-            arguments
-                A
-                Box
-                Buttons
-                whatdecision
-                options.JustOne logical = false
-            end
-            %Get reward valve, pulse number and time:
-            switch Box.Input_type
-                case 3 %Nose
-                    switch true
-                        case contains(whatdecision, 'left correct', 'IgnoreCase', true)
-                            CorrectLever = Box.Left; %Left
-                            OtherLever = Box.Right; %Right
-                            PulseNum = Box.LeftPulse;
-                            Valve = Box.ValveR; %Left
-                            Time = Box.Lrewardtime; %Left
-                        case contains(whatdecision, 'right correct', 'IgnoreCase', true)
-                            CorrectLever = Box.Right; %Right
-                            OtherLever = Box.Left; %Left
-                            PulseNum = Box.RightPulse;
-                            Valve = Box.ValveL; %Right
-                            Time = Box.Rrewardtime; %Right
-                        case contains(whatdecision, 'wrong', 'IgnoreCase', true)
-                            if Box.Air_Puff_Penalty
-                                PulseNum = Box.AirPuffPulses;
-                                Valve = Box.AirPuff;
-                                Time = Box.AirPuffTime;
-                            else
-                                return
-                            end
-                    end
-                    % Don't dispense the reward unless the mouse is waiting for it!
-                    while contains(whatdecision, 'correct', 'IgnoreCase', true) && Box.readPin(CorrectLever)
-                        pause(0.1); drawnow;
-                        if get(Buttons.Stop, 'Value') || get(Buttons.FastForward, 'Value')
-                            break
-                        end
-                    end
-                case 6 % Wheel
-                    switch true
-                        case contains(whatdecision, 'correct', 'IgnoreCase', true)
-                            PulseNum = Box.RightPulse;
-                            Valve = Box.Reward; %Right
-                            Time = Box.Rrewardtime; %Right
-                        case contains(whatdecision, 'wrong', 'IgnoreCase', true)
-                            return %No air puff for wheel
-                    end
-                otherwise %Keyboard, any input method I haven't used before
-                    return
-            end
-            if options.JustOne
-                PulseNum = 1;
-            else
-                PulseNum = PulseNum - 1;
-            end
-            for i = 1:PulseNum
-                A.writeDigitalPin(Valve,1)
-                pause(Time);
-                A.writeDigitalPin(Valve,0); drawnow
-                if i < PulseNum
-                    switch Box.Input_type
-                        case 3 %Nose
-                            pause(Box.SecBwPulse)
-                            while contains(whatdecision, 'correct', 'IgnoreCase', true) && ~Box.readPin(CorrectLever) %Wait for NosePoke Don't dispense the reward unless the mouse is waiting for it! Wait indefinitely between pulses for them to learn to collect all the water
-                                pause(0.2); drawnow;
-                                if get(Buttons.Stop, 'Value') || get(Buttons.FastForward, 'Value')
-                                    break
-                                end
-                            end
-                        case 6 %wheel
-                            pause(this.Box.SecBwPulse)
-                    end
-                end
-            end
-        end
-        function GiveOnePuff(this)
-            this.a.writeDigitalPin(this.Box.AirPuff,1)
-            pause(this.Box.AirPuffTime);
-            this.a.writeDigitalPin(this.Box.AirPuff,0)
-        end
         function [WhatDecision, response_time] = readKeyboardInput(stop_handle, message_handle, isLeftTrial)
             text = 'Respond: Press L for Left, R for Right, C or M for Middle:';
             set(message_handle,'Text',text); 
@@ -1811,255 +1836,6 @@ classdef BehaviorBoxNose < handle
                     end
                 case 2
                     if isLeftTrial==0
-                        WhatDecision = 'right correct';
-                    else
-                        WhatDecision = 'right wrong';
-                    end
-            end
-        end
-        %read the lever (digital read)
-        function [WhatDecision, response_time] = readLeverLoopDigital(this)
-            response_time = 0;
-            this.DuringTMal = 0;
-            event = -1;
-            try
-                %Turn on/Reset lick sensor
-                this.ResetSensor(this)
-                timeout_value = this.Box.Timeout_after_time;
-                InpDelay = this.Setting_Struct.Input_Delay_Respond;
-                timeout_timer = clock;
-                response_timer = clock;
-                %run loop
-                while timeout_value == 0 | etime(clock, timeout_timer)<timeout_value
-                    pause(0.1);drawnow;
-                    if get(this.Skip, 'Value') %this.Skip.Value
-                        this.Skip.Value = 0; %Turn the button off
-                        break
-                    end
-                    %check if stop pressed
-                    if get(this.stop_handle, 'Value')
-                        break %abort
-                    end
-                    if this.Box.readM()
-                        this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'center')
-                        this.DuringTMal = this.DuringTMal + 1;
-                    end
-                    %Immediately accept the choice:
-                    if this.Box.readL() %& this.isLeftTrial %LeverA is left
-                        event = 1; %Left Choice
-                        break
-                    end
-                    if this.Box.readR() %& ~this.isLeftTrial %LeverB is right
-                        event = 2; %Right Choice
-                        break
-                    end
-                end
-                try
-                    a = this.fig.findobj("Type", "Axes");
-                    a = a(contains({a.Tag}, 'Correct'));
-                    %c = a.findobj("Tag", "Contour");
-                    %[c.Color] = deal(this.StimulusStruct.FlashColor);
-                    d = a.findobj("Tag", "Distractor");
-                    [d.Color] = deal(this.StimulusStruct.DimColor);
-                catch
-                end
-                response_time = etime(clock, response_timer);
-            catch err
-                this.unwrapError(err)
-            end
-            %translate to decision enum
-            switch event
-                case -1
-                    WhatDecision = 'time out';
-                    response_time = 0;
-                case 1
-                    %-1 is for trainingstrials always correct
-                    if this.isLeftTrial ==1 || this.isLeftTrial == -1
-                        WhatDecision = 'left correct';
-                    else
-                        WhatDecision = 'left wrong';
-                    end
-                case 2
-                    if this.isLeftTrial ==0 || this.isLeftTrial == -1
-                        WhatDecision = 'right correct';
-                    else
-                        WhatDecision = 'right wrong';
-                    end
-            end
-        end
-        %read the lever (digital read)
-        function [WhatDecision, response_time] = readLeverLoopDigital_OnlyCorrect(this)
-            response_time = 0;
-            this.DuringTMal = 0;
-            event = -1;
-            try
-                %Turn on/Reset lick sensor
-                this.ResetSensor(this)
-                timeout_value = this.Box.Timeout_after_time;
-                InpDelay = this.Setting_Struct.Input_Delay_Respond;
-                timeout_timer = clock;
-                response_timer = clock;
-                %run loop
-                while timeout_value == 0 | etime(clock, timeout_timer)<timeout_value
-                    pause(0.1);drawnow;
-                    if get(this.Skip, 'Value') %this.Skip.Value
-                        this.Skip.Value = 0; %Turn the button off
-                        break
-                    end
-                    %check if stop pressed
-                    if get(this.stop_handle, 'Value')
-                        break %abort
-                    end
-                    if this.Box.readM()
-                        this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'center')
-                        this.DuringTMal = this.DuringTMal + 1;
-                    end
-                    %Immediately accept the choice:
-                    if this.Box.readL()
-                        if this.isLeftTrial
-                            event = 3;
-                            break
-                        else
-                            this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Contour'), 'center')
-                        end
-                    end
-                    if this.Box.readR()
-                        if ~this.isLeftTrial
-                            event = 3;
-                            break
-                        else
-                            this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Contour'), 'center')
-                        end
-                    end
-                end
-                try
-                    a = this.fig.findobj("Type", "Axes");
-                    a = a(contains({a.Tag}, 'Correct'));
-                    c = a.findobj("Tag", "Contour");
-                    [c.Color] = deal(this.StimulusStruct.FlashColor);
-                    d = a.findobj("Tag", "Distractor");
-                    [d.Color] = deal(this.StimulusStruct.DimColor);
-                catch
-                end
-                response_time = etime(clock, response_timer);
-            catch err
-                this.unwrapError(err)
-            end
-            %translate to decision enum
-            switch event
-                case -1
-                    WhatDecision = 'time out';
-                    response_time = 0;
-                case 1
-                    %-1 is for trainingstrials always correct
-                    if this.isLeftTrial ==1 || this.isLeftTrial == -1
-                        WhatDecision = 'left correct';
-                    else
-                        WhatDecision = 'left wrong';
-                    end
-                case 2
-                    if this.isLeftTrial ==0 || this.isLeftTrial == -1
-                        WhatDecision = 'right correct';
-                    else
-                        WhatDecision = 'right wrong';
-                    end
-                case 3 % Only_Correct Setting active, mouse got it wrong but gets second chance
-                    WhatDecision = 'OC';
-            end
-        end
-        function [WhatDecision, response_time] = readLeverLoopAnalogWheel(this)
-            event = -1;
-            delta = 0;
-            timeout_value = this.Box.Timeout_after_time;
-            threshold = this.Setting_Struct.TurnMag;
-            o = this.fig.findobj('Type', 'Axes');
-            C = o(contains({o.Tag}, 'Correct'));
-            W = o(contains({o.Tag}, 'Incorrect'));
-            % A full revolution is about 4000 pulses 4400/360 = 12.22 pulses/degree 90 deg is ~1000 pulses
-            StimDistance = 0.3;
-            axes = [this.RStimAx this.LStimAx];
-            pos1i = axes(1).Position;
-            if numel(axes) > 1
-                pos2i = axes(2).Position;
-            end
-            thresh = abs(pos1i(1)/2);
-            RoundUp = (this.Setting_Struct.RoundUpVal/100); %Default is 75 --> 0.75
-            this.ResetSensor(this)
-            if this.Setting_Struct.RoundUp
-                thresh = RoundUp*thresh;
-            end
-            timeout_timer = clock;
-            response_timer = clock;
-            while timeout_value == 0 | etime(clock, timeout_timer)<timeout_value % do NOT replace | with || or the expression is changed.
-                dist = this.Box.encoder.readCount;
-                delta = (dist/threshold)*StimDistance;
-                if abs(delta)>thresh
-                    if sign(delta)>0
-                        delta =  thresh;
-                    elseif sign(delta)<0
-                        delta = -thresh;
-                    end
-                end
-                if this.isLeftTrial & delta < -thresh*RoundUp
-                    delta = -thresh*RoundUp;
-                elseif ~this.isLeftTrial & delta > thresh*RoundUp
-                    delta = thresh*RoundUp;
-                end
-                this.wheelchoice(end+1) = delta;
-                this.wheelchoicetime(end+1) = etime(clock, response_timer);
-                pos1 = pos1i + ([delta 0 0 0]);
-                axes(1).Position = pos1;
-                if numel(axes) > 1
-                    pos2 = pos2i + ([delta 0 0 0]);
-                    axes(2).Position = pos2;
-                end
-                drawnow
-                if this.isLeftTrial & delta <= -thresh*RoundUp
-                    event = 2;
-                    break
-                elseif ~this.isLeftTrial & delta >= thresh*RoundUp
-                    event = 1;
-                    break
-                end
-                if double(abs(delta)) >= double(thresh) %If a choice is made: !!! Add code to round up the correct choice but not accept an incorrect choice until it is fully made. Accept the correct choice early but wait for a full incorrect choice.
-                    if sign(delta) > 0
-                        event = 1;
-                        break
-                    elseif sign(delta) < 0
-                        event = 2;
-                        break
-                    end
-                end
-                %                 if get(this.stop_handle, 'Value') %Don't check stop button, let the mouse finish their trial
-                %                     break;
-                %                 end
-                if get(this.Skip, 'Value')
-                    set(this.Skip, 'Value', 0) %Turn the button off
-                    break
-                end
-            end
-            response_time = etime(clock, response_timer);
-            if event == -1 %If the mouse was close to picking a side, round up their choice:
-                if abs(delta) >= thresh*RoundUp
-                    if sign(delta) > 0
-                        event = 1;
-                    elseif sign(delta) < 0
-                        event = 2;
-                    end
-                end
-            end
-            %translate response to decision
-            switch event
-                case -1
-                    WhatDecision = 'time out';
-                case 1
-                    if this.isLeftTrial == 1
-                        WhatDecision = 'left correct';
-                    else
-                        WhatDecision = 'left wrong';
-                    end
-                case 2
-                    if this.isLeftTrial == 0
                         WhatDecision = 'right correct';
                     else
                         WhatDecision = 'right wrong';
