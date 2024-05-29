@@ -486,7 +486,11 @@ classdef BehaviorBoxWheel < handle
             this.GUI_numbers.choices = this.i- this.timeout_counter;
             this.GUI_numbers.difficulty = this.Level;
             try %Will fail before first trial is begun bc this.start_time is empty
-                this.GUI_numbers.time = [num2str(floor(etime(clock, this.start_time)/60)) ' min ' num2str(round((etime(clock, this.start_time)/60- floor(etime(clock, this.start_time)/60))*60)) ' sec'];
+                num2str(floor(minutes(datetime("now")-this.start_time)))
+                MIN = floor( minutes(datetime("now")-this.start_time));
+                SEC = round(seconds(datetime("now")-this.start_time),2) - 60*floor( minutes(datetime("now")-this.start_time));
+                TXT = MIN+" min : "+SEC+" sec";
+                this.GUI_numbers.time = TXT;
             catch
             end
             %update Gui window
@@ -494,8 +498,8 @@ classdef BehaviorBoxWheel < handle
         end
         %Pick difficulty level if variable:
         function [current_difficulty] = PickDifficultyLevel(this)
-            % The old way is commented out below:
-            current_difficulty = this.LevelStruct.ChooseLevel();
+            PossibleLevels = this.LevelStruct.PossibleLevels;
+            current_difficulty = PossibleLevels( randperm( numel(PossibleLevels), 1) );
         end
         %Update all the settings if the button is ticked
         function UpdateSettings(this)
@@ -737,12 +741,12 @@ classdef BehaviorBoxWheel < handle
                         [this.FLAx.Visible] = deal(1);
                         this.fig.Color = this.StimulusStruct.BackgroundColor;
                         timelimit = this.Setting_Struct.HoldStill;
-                        starttime = clock;
-                        while etime(clock, starttime)<timelimit
-                            this.message_handle.Text = ['Keep the wheel still for ' num2str(round(timelimit - etime(clock, starttime),1)) ' seconds.'];
+                        starttime = tic;
+                        while toc<=timelimit
+                            this.message_handle.Text = "Keep the wheel still for "+num2str(round(timelimit - toc,1))+" seconds.";
                             if abs(this.Box.encoder.readSpeed) > this.Setting_Struct.Hold_Still_Thresh
                                 this.Flash(this.StimulusStruct, this.Box, findobj('Type', 'Polygon'), 'Wheel');
-                                starttime = clock;
+                                starttime = tic;
                             end
                             if get(this.stop_handle, 'Value')
                                 this.message_handle.Text = 'Ending session...';
@@ -755,7 +759,7 @@ classdef BehaviorBoxWheel < handle
                                 break;
                             end
                         end
-                        t2 = clock;
+                        t2 = toc;
                         this.ReadyCue(this.ReadyCueStruct.Color);
                     end
                 otherwise % Keyboard inputthis.Box.KeyboardInput==1
@@ -840,9 +844,9 @@ classdef BehaviorBoxWheel < handle
             this.fig.Color = this.StimulusStruct.BackgroundColor;
             this.ReadyCue(0); drawnow
             %ignore input if set
-            t1 = datetime("now");
-            while this.Setting_Struct.Input_ignored & seconds(datetime("now")-t1)<this.Setting_Struct.Pokes_ignored_time
-                time = this.Setting_Struct.Pokes_ignored_time-seconds(datetime("now")-t1);
+            T1 = datetime("now");
+            while this.Setting_Struct.Input_ignored & seconds(datetime("now")-T1)<=this.Setting_Struct.Pokes_ignored_time
+                time = this.Setting_Struct.Pokes_ignored_time-seconds(datetime("now")-T1);
                 txt = "Ignoring input for "+round(time,1)+" sec...";
                 set(this.message_handle,'Text',txt)
                 pause(0.1); drawnow;
@@ -887,23 +891,19 @@ classdef BehaviorBoxWheel < handle
                         thisInt = 0;
                     end
                     set(this.message_handle, 'Text',['Persisting correct stimulus for ' num2str(thisInt)  ' (sec)...']); drawnow
-                    if this.Box.Input_type == 3 %Nose
-                        this.UpdatePause(thisInt)
-                    elseif this.Box.Input_type == 6 %Wheel
-                        timerStart = clock;
-                        while 1
-                            drawnow %unless drawnow is here the button statuses will not update...
-                            if etime(clock, timerStart) > thisInt
-                                break
-                            end
-                            if get(this.FF, 'Value')
-                                set(this.message_handle, 'Text','Skipping persist interval...'); drawnow
-                                break;
-                            end
-                            if get(this.stop_handle, 'Value')
-                                set(this.message_handle, 'Text','Ending session...'); drawnow
-                                break;
-                            end
+                    timerStart = clock;
+                    while 1
+                        drawnow %unless drawnow is here the button statuses will not update...
+                        if etime(clock, timerStart) > thisInt
+                            break
+                        end
+                        if get(this.FF, 'Value')
+                            set(this.message_handle, 'Text','Skipping persist interval...'); drawnow
+                            break;
+                        end
+                        if get(this.stop_handle, 'Value')
+                            set(this.message_handle, 'Text','Ending session...'); drawnow
+                            break;
                         end
                     end
                     o = findobj(this.fig.Children);
@@ -972,8 +972,8 @@ classdef BehaviorBoxWheel < handle
         end
         %Use this function instead of pausing, so that buttons are checked and settings are updated during the pause
         function UpdatePause(this, interval)
-            starttime = clock;
-            while etime(clock, starttime) < interval
+            starttime = tic;
+            while seconds(toc) <= interval
                 pause(0.1); drawnow;
                 if this.Pause.Value
                     set(this.message_handle,'Text','Paused, click pause button again to continue...');
@@ -1284,7 +1284,6 @@ classdef BehaviorBoxWheel < handle
         end
         function TestStimulus(this)
             tic
-            
             this.getGUI();
             this.Stimulus_Object = BehaviorBoxVisualStimulus(this.StimulusStruct, Preview=1);
             this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
@@ -1316,8 +1315,6 @@ classdef BehaviorBoxWheel < handle
                     b{:}.Enable = on;
                 end
             end
-            %             B = findobj(Buttons, 'Type', 'uibutton');
-            %             [B.Enable] = deal(on);
         end
         %set GUI settings and numbers from save or when starting new
         function setGuiNumbers(GUI_numbers)
