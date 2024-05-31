@@ -1546,7 +1546,7 @@ classdef BehaviorBoxWheel < handle
             this.wheelchoicetime = cell(1,1e6);
             i = 0;
             tic
-            while timeout_value == 0 | etime(clock, timeout_timer)<timeout_value % do NOT replace | with || or the expression is changed.
+            while timeout_value == 0 | toc<timeout_value % do NOT replace | with || or the expression is changed.
                 dist = this.Box.encoder.readCount;
                 delta = (dist/threshold)*StimDistance;
                 if abs(delta)>thresh
@@ -1748,7 +1748,7 @@ classdef BehaviorBoxWheel < handle
                 end
             end
             function RQFlash()
-                if [Lines.Type] == "scatter" %Nose
+                if Lines.Type == "scatter" %Nose
                     r = 1 ;
                     for StimRep = 1:Reps
                         [Lines.MarkerFaceColor] = deal(flash_color); drawnow
@@ -1758,7 +1758,7 @@ classdef BehaviorBoxWheel < handle
                             pause(1/Freq/2)
                         end
                     end
-                elseif [Lines(1).Type] == "polygon" %Wheel
+                elseif Lines(1).Type == "polygon" %Wheel
                     for StimRep = 1:Reps
                         [Lines.FaceColor] = deal(flash_color); drawnow
                         pause(1/Freq/6)
@@ -1790,11 +1790,13 @@ classdef BehaviorBoxWheel < handle
                     [Lines(:).Color] = deal(start_color);
                     try
                         [d.Color] = deal(Stim.DimColor); drawnow
+                    catch
                     end
                     pause(1/Freq/10)
                     [Lines(:).Color] = deal(flash_color);
                     try
                         [d.Color] = deal(Stim.DimColor);
+                    catch
                     end
                     drawnow
                     pause(1/Freq/5)
@@ -1804,7 +1806,7 @@ classdef BehaviorBoxWheel < handle
                     end
                 end
             end
-            function SimpleFlash(Color)
+            function SimpleFlash(~)
                 [Lines.Color] = deal(Stim.LineColor);
                 [d.Color] = deal(Stim.BackgroundColor); drawnow
                 pause(1/Freq/8)
