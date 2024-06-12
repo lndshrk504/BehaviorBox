@@ -1748,7 +1748,7 @@ classdef BehaviorBoxWheel < handle
                 end
             end
             function RQFlash()
-                if Lines.Type == "scatter" %Nose
+                if Lines(1).Type == "scatter" %Nose
                     r = 1 ;
                     for StimRep = 1:Reps
                         [Lines.MarkerFaceColor] = deal(flash_color); drawnow

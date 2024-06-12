@@ -11,6 +11,8 @@ imaqmex('feature','-limitPhysicalMemoryUsage',false)
 % Find cameras and remove system items
 if isunix && ismac
     CamInfo = imaqhwinfo("macvideo");
+elseif ispc
+    CamInfo = imaqhwinfo("winvideo");
 else
     CamInfo = imaqhwinfo("linuxvideo");
 end
@@ -34,6 +36,8 @@ for id = cell2mat(IDS)
         %  Initialize the video input object
         if isunix && ismac
             vid = videoinput("macvideo", id, res{w});
+        elseif ispc
+            vid = videoinput("winvideo", id, res{w});
         else
             vid = videoinput("linuxvideo", id, res{w});
         end
