@@ -1467,7 +1467,8 @@ classdef BehaviorBoxWheel < handle
                     pos2 = pos2i + ([delta 0 0 0]);
                     axes(2).Position = pos2;
                 end
-                drawnow
+                drawnow limitrate nocallbacks
+% The frame rate is very low on the new Ubuntu mini PC head fixation rig.
                 if this.isLeftTrial & delta <= -thresh*RoundUp
                     event = 2;
                     break
