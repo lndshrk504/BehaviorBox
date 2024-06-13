@@ -973,7 +973,7 @@ classdef BehaviorBoxWheel < handle
         %Use this function instead of pausing, so that buttons are checked and settings are updated during the pause
         function UpdatePause(this, interval)
             starttime = tic;
-            while seconds(toc) <= interval
+            while toc <= interval
                 pause(0.1); drawnow;
                 if this.Pause.Value
                     set(this.message_handle,'Text','Paused, click pause button again to continue...');
@@ -1435,7 +1435,7 @@ classdef BehaviorBoxWheel < handle
             end
             thresh = abs(pos1i(1)/2);
             RoundUp = (this.Setting_Struct.RoundUpVal/100); %Default is 75 --> 0.75
-            this.ResetSensor(this)
+            this.Box.encoder.resetCount();
             if this.Setting_Struct.RoundUp
                 thresh = RoundUp*thresh;
             end
