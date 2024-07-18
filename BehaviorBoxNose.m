@@ -472,12 +472,14 @@ classdef BehaviorBoxNose < handle
             % Temp_Countdown = 0;
             % Temp_iStart = 0;
             % Temp_Active = 0;
+            %Manually turning on:
             if ~this.Temp_Active
                 if this.Temp_Settings.PerformanceThreshold || this.Temp_Settings.TrialNumber
                     this.Temp_Active = true;
                     this.Temp_iStart = true;
                 end
             end
+            %Manually Turning Off:
             if this.Temp_Active && this.Temp_Settings.TempOff
                 this.Temp_Active = false;
                 this.Setting_Struct = this.Temp_Old_Settings;
@@ -491,13 +493,15 @@ classdef BehaviorBoxNose < handle
                     this.Temp_iStart = false;
                     this.Temp_Countdown = this.Temp_Settings.TrialCount;
                 end
-                this.Temp_Countdown = this.Temp_Countdown - 1;
-                this.app.TrialsRemainingLabel.Text = this.Temp_Countdown+" Trials Remaining";
-                if this.Temp_Countdown <= 0
+                this.Temp_Countdown = this.Temp_Settings.TrialCount - sum(this.Data_Object.current_data_struct.Score);
+                this.app.TrialsRemainingLabel.Text = this.Temp_Countdown+" Correct Trials Remaining";
+                if this.Temp_Countdown <= 0 && mean(this.Data_Object.current_data_struct.Score) >= this.Temp_Settings.Threshold/100
                     this.Temp_Active = false;
                     this.Setting_Struct = this.Temp_Old_Settings;
                     this.app.TrialsRemainingLabel.Text = "_ Trials Remaining";
                     this.app.TempOff_Temp.Value = 1;
+                elseif this.Temp_Countdown <= 0
+                    this.app.TrialsRemainingLabel.Text = (this.Temp_Countdown*-1)+" Extra trials, Poor performance";
                 end
             end
         end
@@ -1568,7 +1572,11 @@ classdef BehaviorBoxNose < handle
             Str = this.Data_Object.Str;
             if ispc
                 saveasname = join([D Sub Str stim input],'_');
-                savefolder = fullfile([cell2mat(this.Data_Object.filedir), filesep]);
+                try
+                    savefolder = fullfile([cell2mat(this.Data_Object.filedir), filesep]);
+                catch err
+                    savefolder = cell2mat(fullfile(GetFilePath("Data"), this.Data_Object.Inv ,this.Data_Object.Inp , this.Data_Object.Str, this.Data_Object.Sub));
+                end
             elseif ismac
             elseif isunix
                 saveasname = join([D Sub Str stim input],'_');

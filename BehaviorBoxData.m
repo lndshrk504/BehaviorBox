@@ -2617,7 +2617,7 @@ classdef BehaviorBoxData < handle
                 fig
                 filename string
                 options.format string = ".pdf"
-                options.Columns = 10     %Inches acroww
+                options.Columns = 20     %Inches across
                 options.Rows = 5 %Inches high
                 options.SameFolder logical = false
             end
