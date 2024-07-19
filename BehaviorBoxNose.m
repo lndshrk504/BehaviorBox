@@ -495,7 +495,11 @@ classdef BehaviorBoxNose < handle
                 end
                 this.Temp_Countdown = this.Temp_Settings.TrialCount - sum(this.Data_Object.current_data_struct.Score);
                 this.app.TrialsRemainingLabel.Text = this.Temp_Countdown+" Correct Trials Remaining";
-                if this.Temp_Countdown <= 0 && mean(this.Data_Object.current_data_struct.Score) >= this.Temp_Settings.Threshold/100
+                if this.i <= 2
+                    return
+                end
+                sMM = this.Data_Object.AnalyzedData.DayMM{:}{8,1}{:}(end);
+                if this.Temp_Countdown <= 0 && sMM >= this.Temp_Settings.Threshold/100
                     this.Temp_Active = false;
                     this.Setting_Struct = this.Temp_Old_Settings;
                     this.app.TrialsRemainingLabel.Text = "_ Trials Remaining";

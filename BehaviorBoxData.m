@@ -771,7 +771,8 @@ classdef BehaviorBoxData < handle
                     Date};
                 Names = {'binned', 'x', 'txt', 'numel', 'mean', 'std', 's', 'sMM', 'xMM', 'bMM', 'sCross', 'bCross', 'BiCDF', 'BiCross', 'Level', 'Day', 'Date'};
                 Out = cell2table(Day_Bin, "RowNames", Names);
-            catch
+            catch err
+                unwrapErr(err)
             end
         end
         function [dataMatrix] = getDataToSave(this) %Make the data table for saving the data:
