@@ -498,7 +498,11 @@ classdef BehaviorBoxNose < handle
                 if this.i <= 2
                     return
                 end
-                sMM = this.Data_Object.AnalyzedData.DayMM{:}{8,1}{:}(end);
+                try
+                    sMM = this.Data_Object.AnalyzedData.DayMM{:}{8,1}{:}(end);
+                catch err % This fails because of a problem with the way an incomplete bin is handled after the 11th trial
+                    unwrapErr(err)
+                end
                 if this.Temp_Countdown <= 0 && sMM >= this.Temp_Settings.Threshold/100
                     this.Temp_Active = false;
                     this.Setting_Struct = this.Temp_Old_Settings;
