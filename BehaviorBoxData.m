@@ -553,7 +553,7 @@ classdef BehaviorBoxData < handle
                 Inc = L(L(:,1)~=2,3);
                 scores = L(L(:,1)~=2,1);
                 bMM = this.newMM(scores,"Type", "Big");
-                sMM = this.newMM(scores,"Type", "Small", "Endpoints", 0, "FromChance", 0);
+                sMM = this.newMM(scores,"Type", "Small", "Endpoints", 1, "FromChance", 0);
                 try
                     bSD = sMM(:,2);
                 catch
@@ -562,9 +562,13 @@ classdef BehaviorBoxData < handle
                 D = L(L(:,1)~=2,2);
                 XCoord = zeros(size(D));
                 XCoordLevDay = zeros(size(D));
-            % Binomial
+                % Binomial
                 BiCDF = zeros(numel(scores),2);
-                BiCDF(this.BB:numel(scores),2) = bMM;
+                try
+                    BiCDF(this.BB:numel(scores),2) = bMM;
+                catch
+                    BiCDF(:,2) = NaN;
+                end
                 tc = this.BB-1;
                 for t = 1:numel(scores)
                     tc = tc + 1;
@@ -573,8 +577,8 @@ classdef BehaviorBoxData < handle
                     BiCDF(t,1) = binocdf(sum(dataWin), numel(dataWin), 0.5, 'upper');
                 end
                 try
-                    BiCDF( 1:this.BB-1,:) = [];
                     BiCDF(:,2) = [];
+                    BiCDF( 1:this.BB-1,:) = [];
                 catch % Only fails when all responses are timeouts and th BiCDF vector is empty
                 end
                 % offset = D(1);
@@ -586,7 +590,11 @@ classdef BehaviorBoxData < handle
                     XCoord(w) = (d-1)+normalize(x, 'range');
                     XCoordLevDay(w) = (DC-1)+normalize(x, 'range');
                 end
-                FIRST = [bMM bSD XCoord(this.BB:end) XCoordLevDay(this.BB:end) Inc(this.BB:end) BiCDF];
+                if numel(scores) < this.BB
+                    FIRST = [bMM bSD nan(size(bMM)) nan(size(bMM)) nan(size(bMM)) BiCDF];
+                else
+                    FIRST = [bMM bSD(this.BB:end) XCoord(this.BB:end) XCoordLevDay(this.BB:end) Inc(this.BB:end) BiCDF];
+                end
                 Names = {'bMM', 'bSD', 'XCoord', 'XCoordLevDay', 'Inc', 'BiCDF'};
                 try
                     Out = {array2table(FIRST, "VariableNames", Names)};
@@ -677,6 +685,9 @@ classdef BehaviorBoxData < handle
             if options.Type == "Big"
                 % large bin moving mean
                 MM = movmean([APP ; scores], [BinSize-1 0], 'Endpoints', EP);
+                if isempty(MM)
+                    MM = movmean([APP ; scores], [BinSize-1 0], 'Endpoints', 'shrink');
+                end
             else
                 % small bin moving mean
                 sMM = movmean([APP ; scores], [BinSize-1 0], 'Endpoints', EP);
@@ -689,10 +700,12 @@ classdef BehaviorBoxData < handle
                 B2 = movmean(scores((this.SB+1):numel(scores)), [this.SB-1 0], 'Endpoints', 'discard');
                 STD = std([B1 B2],0,2);
                 if EP == "shrink"
-                    EXT = nan(numel(sMM)-numel(STD)-1,1);
-                    STD = [NaN ; EXT ; STD];
-                    B1 = [NaN ; B1 ; EXT];
-                    B2 = [NaN ; EXT ; B2];
+                    EXT_STD = nan(numel(sMM)-numel(STD)-1,1);
+                    STD = [NaN ; EXT_STD ; STD];
+                    EXT_B1 = nan(numel(sMM)-numel(B1)-1,1);
+                    B1 = [NaN ; B1 ; EXT_B1];
+                    EXT_B2 = nan(numel(sMM)-numel(B2)-1,1);
+                    B2 = [NaN ; EXT_B2 ; B2];
                     MM = [sMM STD B1 B2];
                 else
                     EXT = numel(sMM)-numel(STD);
