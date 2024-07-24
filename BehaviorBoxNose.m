@@ -934,7 +934,7 @@ classdef BehaviorBoxNose < handle
             set(this.message_handle,'Text',['Waiting for ',this.current_side,' choice...']);
             this.Data_Object.addStimEvent(this.isLeftTrial); %Add the timestamp for the trial
             switch 1
-                case any(this.Box.Input_type == [1 2 3 5]) %NosePoke
+                case ~isempty(this.a) && any(this.Box.Input_type == [1 2 3 5]) %NosePoke
                     [this.WhatDecision, this.ResponseTime] = this.readLeverLoopDigital();
                 otherwise
                     [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial);
@@ -957,7 +957,7 @@ classdef BehaviorBoxNose < handle
                     set(this.message_handle,'Text','Giving Reward...');
                     tic
                     this.GiveRewardAndFlash();
-                    if this.Box.Input_type == 3
+                    if ~this.Box.KeyboardInput && this.Box.Input_type == 3
                         while this.Box.readL() || this.Box.readR() %Pause while the mouse is standing there and drinking their reward
                             pause(0.5);drawnow;
                         end
@@ -972,37 +972,23 @@ classdef BehaviorBoxNose < handle
                         thisInt = 0;
                     end
                     set(this.message_handle, 'Text',['Persisting correct stimulus for ' num2str(thisInt)  ' (sec)...']); drawnow
-                    if this.Box.Input_type == 3 %Nose
+                    if this.Box.KeyboardInput==1
+                    elseif this.Box.Input_type == 3 %Nose
                         % this.UpdatePause(thisInt)
                         DIST = this.fig.Children(contains({this.fig.Children.Tag}, "Correct")).Children.findobj('Tag','Contour');
                         tic
                         while toc <= thisInt
                             this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Contour'), 'Correct_Confirmation');
                         end
-                    elseif this.Box.Input_type == 6 %Wheel
-                        timerStart = clock;
-                        while 1
-                            drawnow %unless drawnow is here the button statuses will not update...
-                            if etime(clock, timerStart) > thisInt
-                                break
-                            end
-                            if get(this.FF, 'Value')
-                                set(this.message_handle, 'Text','Skipping persist interval...'); drawnow
-                                break;
-                            end
-                            if get(this.stop_handle, 'Value')
-                                set(this.message_handle, 'Text','Ending session...'); drawnow
-                                break;
-                            end
-                            pause(0.1)
-                        end
                     end
                     o = findobj(this.fig.Children);
                     [o(:).Visible] = deal(0);
                 case contains({this.WhatDecision} , 'wrong', 'IgnoreCase', true)
                     set(this.message_handle,'Text',[this.WhatDecision,' - Penalty...']);
-                    while this.Box.readL() || this.Box.readR() %Pause while the mouse is standing there
-                        pause(0.5);
+                    if ~this.Box.KeyboardInput && this.Box.Input_type == 3
+                        while this.Box.readL() || this.Box.readR() %Pause while the mouse is standing there
+                            pause(0.5);drawnow;
+                        end
                     end
                     %[this.fig.Children(contains({this.fig.Children.Tag}, "Correct")).Children.Visible] = deal(0);
                     %Flash
@@ -1345,6 +1331,9 @@ classdef BehaviorBoxNose < handle
         end
         %open reward valves
         function GiveRewardAndFlash(this)
+            if this.Box.KeyboardInput == true
+                return
+            end
             %Get reward valve, pulse number and time:
             switch this.Box.Input_type
                 case 3 %Nose
@@ -1475,15 +1464,17 @@ classdef BehaviorBoxNose < handle
             if get(this.stop_handle, 'Value')
                 return
             end
-            switch this.Box.Input_type
-                case 3 % Nose
-                    this.ReadyCue(1)
-                    this.ReadyCueAx.findobj('Type','scatter').MarkerFaceColor = deal(this.StimulusStruct.DimColor); drawnow;
-                    while this.Box.readL() | this.Box.readR() %Pause while the mouse is standing there and drinking their water reward
-                        pause(0.1); drawnow;
-                    end
-                    % o = findobj(this.fig.Children);
-                    % [o(:).Visible] = deal(0);
+            if ~this.Box.KeyboardInput
+                switch this.Box.Input_type
+                    case 3 % Nose
+                        this.ReadyCue(1)
+                        this.ReadyCueAx.findobj('Type','scatter').MarkerFaceColor = deal(this.StimulusStruct.DimColor); drawnow;
+                        while this.Box.readL() | this.Box.readR() %Pause while the mouse is standing there and drinking their water reward
+                            pause(0.1); drawnow;
+                        end
+                        % o = findobj(this.fig.Children);
+                        % [o(:).Visible] = deal(0);
+                end
             end
             %Wait for interval
             this.UpdatePause(interval_time)
