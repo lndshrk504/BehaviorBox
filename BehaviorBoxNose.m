@@ -500,16 +500,16 @@ classdef BehaviorBoxNose < handle
                 end
                 try
                     sMM = this.Data_Object.AnalyzedData.DayMM{:}{8,1}{:}(end);
+                    if this.Temp_Countdown <= 0 && sMM >= this.Temp_Settings.Threshold/100
+                        this.Temp_Active = false;
+                        this.Setting_Struct = this.Temp_Old_Settings;
+                        this.app.TrialsRemainingLabel.Text = "_ Trials Remaining";
+                        this.app.TempOff_Temp.Value = 1;
+                    elseif this.Temp_Countdown <= 0
+                        this.app.TrialsRemainingLabel.Text = (this.Temp_Countdown*-1)+" Extra trials, Poor performance";
+                    end
                 catch err % This fails because of a problem with the way an incomplete bin is handled after the 11th trial
                     unwrapErr(err)
-                end
-                if this.Temp_Countdown <= 0 && sMM >= this.Temp_Settings.Threshold/100
-                    this.Temp_Active = false;
-                    this.Setting_Struct = this.Temp_Old_Settings;
-                    this.app.TrialsRemainingLabel.Text = "_ Trials Remaining";
-                    this.app.TempOff_Temp.Value = 1;
-                elseif this.Temp_Countdown <= 0
-                    this.app.TrialsRemainingLabel.Text = (this.Temp_Countdown*-1)+" Extra trials, Poor performance";
                 end
             end
         end
