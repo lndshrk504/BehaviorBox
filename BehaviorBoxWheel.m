@@ -828,7 +828,11 @@ classdef BehaviorBoxWheel < handle
             end
         end
         %wait loop while lever is read and open valves if correct
-        function WaitForInputAndGiveReward(this)
+        function WaitForInputAndGiveReward(this, options)
+            arguments
+                this
+                options.Test logical = false
+            end
             this.ResponseTime = 0;
             this.WhatDecision = 'time out';
             this.DrinkTime = 0;
@@ -853,7 +857,9 @@ classdef BehaviorBoxWheel < handle
             end
             this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'NewStim'); % Make visible stimulus and flash if set
             set(this.message_handle,'Text',['Waiting for ',this.current_side,' choice...']);
-            this.Data_Object.addStimEvent(this.isLeftTrial); %Add the timestamp for the trial
+            if ~options.Test
+                this.Data_Object.addStimEvent(this.isLeftTrial); %Add the timestamp for the trial
+            end
             switch 1
                 case this.Box.Input_type == 6 %Wheel (new)
                     [this.WhatDecision, this.ResponseTime] = this.readLeverLoopAnalogWheel(this);
@@ -1263,7 +1269,10 @@ classdef BehaviorBoxWheel < handle
             %drawnow
         end
         function TextBox(this)
+            this.app.Stimulus_FinishLine.Value = true;
             this.getGUI();
+            this.TestStimulus();
+            this.WaitForInputAndGiveReward("Test", true);
             set(this.message_handle,'Text','Trigger the Left Sensor');
             while ~this.Box.readL()
                 pause(0.1); drawnow;
