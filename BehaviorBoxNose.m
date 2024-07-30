@@ -285,6 +285,7 @@ classdef BehaviorBoxNose < handle
                 %set which lever is what and what the input setup is from
                 this.Box.ResetPin        = 'D4';
                 this.Box.TriggerPin      = 'D5';
+                this.Box.Timestamp       = 'D9';
                 switch this.Setting_Struct.Box_Input_type
                     case 3 %Three Pokes
                         if options.Rebuild
@@ -330,10 +331,12 @@ classdef BehaviorBoxNose < handle
                 configurePin(this.a, "D5", "Unset"); %Trigger pin
                 configurePin(this.a, "D6", "Unset");
                 configurePin(this.a, "D8", "Unset");
+                configurePin(this.a, "D9", "Unset");
                 configurePin(this.a, "D4", "DigitalOutput"); %Reset pin
                 configurePin(this.a, "D5", "DigitalInput"); %Trigger pin
                 configurePin(this.a, "D6", "DigitalOutput");
                 configurePin(this.a, "D8", "DigitalOutput");
+                configurePin(this.a, "D9", "DigitalOutput");
                 toc
             catch
                 this.Box.use_ball = 0; %All these are automatically off
@@ -1715,7 +1718,7 @@ classdef BehaviorBoxNose < handle
             end
             %drawnow
         end
-        function TextBox(this)
+        function TestBox(this)
             this.getGUI();
             set(this.message_handle,'Text','Trigger the Left Sensor');
             while ~this.Box.readL()

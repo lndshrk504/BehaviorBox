@@ -284,6 +284,7 @@ classdef BehaviorBoxWheel < handle
                 %set which lever is what and what the input setup is from
                 this.Box.ResetPin        = 'D4';
                 this.Box.TriggerPin      = 'D5';
+                this.Box.Timestamp       = 'D9';
                 switch this.Setting_Struct.Box_Input_type
                     case 6 %Rotating Wheel
                         if options.Rebuild
@@ -307,10 +308,12 @@ classdef BehaviorBoxWheel < handle
                 configurePin(this.a, "D5", "Unset"); %Trigger pin
                 configurePin(this.a, "D6", "Unset");
                 configurePin(this.a, "D8", "Unset");
+                configurePin(this.a, "D9", "Unset");
                 configurePin(this.a, "D4", "DigitalOutput"); %Reset pin
                 configurePin(this.a, "D5", "DigitalInput"); %Trigger pin
                 configurePin(this.a, "D6", "DigitalOutput");
                 configurePin(this.a, "D8", "DigitalOutput");
+                configurePin(this.a, "D9", "DigitalOutput");
                 toc
             catch err
                 this.Box.use_ball = 0; %All these are automatically off
@@ -322,6 +325,13 @@ classdef BehaviorBoxWheel < handle
                 this.a = [];
             end
             this.message_handle.Text = 'Done';
+        end
+        function Timestamp2p(this, opts)
+            arguments
+                this
+                opts.State logical = false
+            end
+            this.a.writeDigitalPin(this.Box.Timestamp, opts.State)
         end
         %Prepare the window and stimulus
         function SetupBeforeLoop(this)
@@ -860,6 +870,7 @@ classdef BehaviorBoxWheel < handle
             if ~options.Test
                 this.Data_Object.addStimEvent(this.isLeftTrial); %Add the timestamp for the trial
             end
+            this.Timestamp2p("State", true); %Turn on
             switch 1
                 case this.Box.Input_type == 6 %Wheel (new)
                     [this.WhatDecision, this.ResponseTime] = this.readLeverLoopAnalogWheel(this);
@@ -874,6 +885,7 @@ classdef BehaviorBoxWheel < handle
                         [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial);
                 end
             end
+            this.Timestamp2p(); % Turn off
             pause(this.Setting_Struct.Input_Delay_Respond)
             try
                 d = this.fig.Children.findobj('Tag', 'Distractor');
@@ -930,6 +942,147 @@ classdef BehaviorBoxWheel < handle
                     [o(:).Visible] = deal(0);
                     this.fig.Color = 'k';
             end
+        end
+        function FlashNew(this, Stim, Box, Lines, whatdecision, OneWay)
+            arguments
+                this
+                Stim % from Setting structure
+                Box
+                Lines = findobj('Tag', 'Contour')
+                whatdecision = "time out"
+                OneWay logical = false
+            end
+            if isempty(Lines)
+                return
+            end
+            drawnow
+            if ~Stim.FlashStim
+                return
+            end
+            switch 1
+                case contains(whatdecision, 'wrong')
+                    Reps = Stim.RepFlashAfterW;
+                case contains(whatdecision, 'correct') || contains(whatdecision, 'OC')
+                    Reps = Stim.RepFlashAfterC;
+            end
+            if contains(whatdecision, {'wrong', 'correct'}) && Reps == 0
+                return
+            end
+            start_color = Stim.LineColor;
+            flash_color = Stim.FlashColor;
+            dark_color = Stim.DimColor;
+            if whatdecision == "time out"
+                Reps = Stim.RepFlashInitial;
+                Steps = Stim.FreqFlashInitial;
+                this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
+            elseif whatdecision == "Mal" %Wheel hold still interval
+                Reps = 1;
+                Steps = 10;
+                this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
+            elseif whatdecision == "NewStim" %L or R poke during intertrial
+                Reps = Stim.RepFlashInitial;
+                Steps = Stim.FreqFlashInitial;
+                this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
+            elseif whatdecision == "center" %Center poke during trial
+                Reps = 1;
+                Steps = Stim.FreqFlashInitial;
+                this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
+            elseif whatdecision == "Correct_Confirmation"
+                Reps = 1;
+                Steps = Stim.FreqFlashInitial;
+                this.BasicFlash("Lines",Lines, "NewColor", dark_color, "steps", Steps, "Interruptor", this.Box.readM)
+            else
+                Steps = Stim.FreqFlashAfter;
+                d = findobj('Tag', 'Distractor');
+                if isempty(d)
+                    d = struct();
+                end
+                switch 1
+                    case contains(whatdecision, 'wrong')
+                        Reps = Stim.RepFlashAfterW;
+                        if Reps > 0
+                            this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
+                        end
+                    case contains(whatdecision, 'correct') || contains(whatdecision, 'OC')
+                        Reps = Stim.RepFlashAfterC;
+                        OneWay = true;
+                        if Reps > 0
+                            %[Lines.Color] = deal(dark_color);
+                            this.BasicFlash("Lines",Lines, "NewColor", flash_color, "steps", Steps)
+                            %this.BasicFlash(Lines, flash_color, Steps)
+                            %[Lines.Color] = deal(Stim.LineColor);
+                        end
+                end
+            end
+        end
+        function BasicFlash(this, vars)
+            arguments
+                this
+                vars.Lines = findobj('Tag','Contour')
+                vars.NewColor
+                vars.steps
+                vars.OneWay logical = false
+                vars.Interruptor = [];
+            end
+            if vars.steps == 1
+                return
+            end
+            obj = vars.Lines;
+            NewColor = vars.NewColor;
+            steps = vars.steps;
+            OneWay = vars.OneWay;
+            if OneWay
+                STEPS = 1:1:steps;
+            else
+                STEPS = [1:1:steps steps-1:-1:1];
+            end
+            % This blinks the Obj to the NewColor and back, over a total of
+            % 2*steps increments
+            if obj(1).Type == "scatter"
+                start_color = [obj(1).MarkerFaceColor];
+                COLOR_PROP = 'MarkerFaceColor';
+            elseif obj(1).Type == "polygon"
+                start_color = [obj(1).FaceColor];
+            elseif obj(1).Type == "line"
+                start_color = [obj(1).Color];
+                COLOR_PROP = 'Color';
+            else
+                return %prevent an error crash
+            end
+            mat = interp1( [1 ; steps], [start_color ; NewColor], STEPS);
+            for i = mat'
+                set(obj, COLOR_PROP, i);  drawnow
+                if ~isempty(vars.Interruptor) && vars.Interruptor() %This is all very slow and will be sped up later
+                    set(obj, COLOR_PROP, start_color)
+                    break
+                end
+            end
+% FUTURE: Interpolate along a sine wave rather than a linear interpolation for
+% maximum smoothness
+% Define the two points
+% y1 = 2;
+% y2 = 8;
+% 
+% % Calculate the mid-point
+% midPoint = (y1 + y2) / 2;
+% 
+% % Calculate the amplitude (distance from mid-point to either of the points)
+% amplitude = (y1 - y2) / 2;
+% 
+% % Choose how many points you want to interpolate
+% nInterpPoints = 100;
+% 
+% % Generate the x values from 0 to pi
+% x = linspace(0, pi, nInterpPoints);
+% 
+% % Generate the sine wave and scale/translate as needed
+% sineInterp = midPoint + amplitude * sin(x);
+% 
+% % Define x-axis for plotting
+% X = linspace(1, 2, nInterpPoints);
+% 
+% % Create the plot
+% plot(X, sineInterp);
         end
         %open reward valves
         function GiveRewardAndFlash(this)
@@ -1268,7 +1421,7 @@ classdef BehaviorBoxWheel < handle
             end
             %drawnow
         end
-        function TextBox(this)
+        function TestBox(this)
             this.app.Stimulus_FinishLine.Value = true;
             this.getGUI();
             this.TestStimulus();
@@ -1291,11 +1444,24 @@ classdef BehaviorBoxWheel < handle
             this.cleanUP();
             set(this.message_handle,'Text','Did the sensors work?');
         end
-        function TestStimulus(this)
+        function TestStimulus(this, options)
+            arguments
+                this
+                options.SaveStimulus logical = 0
+            end
             tic
+            this.app.ShowStim.Enable = 0; %Disable this when debugging...
+            this.app.Stimulus_FinishLine.Value = true;
             this.getGUI();
             this.Stimulus_Object = BehaviorBoxVisualStimulus(this.StimulusStruct, Preview=1);
             this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
+            this.Data_Object = BehaviorBoxData( ...
+                Inv=this.app.Inv.Value, ...
+                Inp=this.app.Box_Input_type.Value, ...
+                Str=this.app.Strain.Value, ...
+                Sub={this.app.Subject.Value}, ...
+                find=1, ...
+                load=0);
             if isempty([this.Stimulus_Object.LStimAx this.Stimulus_Object.RStimAx])
                 [this.fig,this.LStimAx,this.RStimAx, ~] = this.Stimulus_Object.setUpFigure(); drawnow
                 this.Stimulus_Object = this.Stimulus_Object.findfigs();
@@ -1304,7 +1470,14 @@ classdef BehaviorBoxWheel < handle
             this.fig = this.Stimulus_Object.fig;
             [this.fig.findobj('Tag','Spotlight').Visible] = deal(1);
             toc
-            this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
+            pause(0.01)
+            this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
+            % this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
+            if options.SaveStimulus
+                name = "Stim-Lv-"+this.Setting_Struct.Starting_opacity;
+                this.Data_Object.SaveManyFigures([],name)
+            end
+            this.app.ShowStim.Enable = 1;
         end
     end
     %STATIC FUNCTIONS====
