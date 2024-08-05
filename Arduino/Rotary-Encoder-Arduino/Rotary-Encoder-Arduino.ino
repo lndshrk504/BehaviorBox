@@ -16,6 +16,7 @@ Encoder myEnc(2, 3); // 2 and 3 are interrupt pins
 
 State currentState = READING;
 String str;
+int prevDegrees = -1;
 
 void setup() {
   pinMode(PIN_8, OUTPUT); // set pin 8 as output
@@ -49,15 +50,19 @@ void loop() {
       }
       else if (str.equals("Reset")) {
         myEnc.write(0); // reset the encoder position
+        Serial.println(0);
       }
     } 
     else {
-      long newPosition = myEnc.read();
+      int newPosition = myEnc.read();
       if (newPosition != 0) {
       // Divide by 4 because of "4X reporting" phenomenon from the quadrature of the encoder
       int degrees = newPosition / (4); // int and not double bc 1024 ppr is enough resolution without decimals
-   
-      Serial.println(degrees);
+
+      if (degrees!= prevDegrees) {
+        Serial.println(degrees);
+        prevDegrees = degrees;
+      }
     }
     // delay(1); // delay for readability of the serial output. Unsure how necessary this is so far...
     }
@@ -84,9 +89,9 @@ void loop() {
 
     // while(digitalRead(PIN_4) == HIGH); // Keep waiting until the photogate for the reward valve reads LOW (mouse is standing there)
     Serial.println("reward drop");
-    digitalWrite(Valve, HIGH);   // Turn the LED on
+    digitalWrite(PIN_8, HIGH);   // Turn the LED on
     delay(durationNumber*1000);  // Wait for specified duration
-    digitalWrite(Valve, LOW);    // Turn the LED off
+    digitalWrite(PIN_8, LOW);    // Turn the LED off
 
     // Go back to initial state or another state as needed. For example:
     myEnc.write(0); // reset the encoder position
