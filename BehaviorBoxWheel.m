@@ -331,7 +331,10 @@ classdef BehaviorBoxWheel < handle
                 this
                 opts.State logical = false
             end
-            this.a.writeDigitalPin(this.Box.Timestamp, opts.State)
+            try
+                this.a.writeDigitalPin(this.Box.Timestamp, opts.State)
+            catch % Fails when there is no arduino connected
+            end
         end
         %Prepare the window and stimulus
         function SetupBeforeLoop(this)
@@ -386,7 +389,7 @@ classdef BehaviorBoxWheel < handle
             this.ReadyCueStruct.Ax = this.ReadyCueAx;
             this.StimulusStruct.ReadyCue = this.ReadyCueStruct;
             if this.Box.Input_type == 6
-                this.fig.Children = [this.fig.Children([2 3 1 4 5])];
+                this.fig.Children = [this.fig.Children([2 3 1 4 5])]; %If it fails here then press the RESET ALL button
                 this.Box.use_wheel = 1;
             end
             this.toggleButtonsOnOff(this.Buttons,0); % Turn off all buttons
@@ -745,7 +748,7 @@ classdef BehaviorBoxWheel < handle
             set(this.message_handle,'Text','Waiting for Trial initialization');
             this.t1 = clock; t2 = this.t1;%In case of crash
             switch true
-                case this.Box.Input_type==6%Wheel 2.0, wait for the mouse to hold the wheel still for the interval to start a new trial
+                case ~this.Box.KeyboardInput && this.Box.Input_type==6%Wheel 2.0, wait for the mouse to hold the wheel still for the interval to start a new trial
                     if this.i ~=1
                         this.ReadyCue('k');
                         [this.FLAx.Visible] = deal(1);
@@ -872,14 +875,14 @@ classdef BehaviorBoxWheel < handle
             end
             this.Timestamp2p("State", true); %Turn on
             switch 1
-                case this.Box.Input_type == 6 %Wheel (new)
+                case ~this.Box.KeyboardInput && this.Box.Input_type == 6 %Wheel (new)
                     [this.WhatDecision, this.ResponseTime] = this.readLeverLoopAnalogWheel(this);
                 otherwise
                     [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial);
             end
             if this.Setting_Struct.OnlyCorrect && contains({this.WhatDecision} , 'wrong', 'IgnoreCase', true)
                 switch 1
-                    case this.Box.Input_type == 6 %Wheel (new)
+                    case ~this.Box.KeyboardInput && this.Box.Input_type == 6 %Wheel (new)
                         [this.WhatDecision, this.ResponseTime] = this.readLeverLoopAnalogWheel_OnlyCorrect(this);
                     otherwise
                         [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial);
@@ -897,8 +900,10 @@ classdef BehaviorBoxWheel < handle
                     tic
                     this.GiveRewardAndFlash();
                     %this.GiveReward(this.a, this.Box, this.Buttons, this.WhatDecision); %give reward
-                    while abs(this.Box.encoder.readSpeed) > this.Setting_Struct.Hold_Still_Thresh %Pause while the mouse is standing there
-                        pause(0.5);drawnow;
+                    if ~this.Box.KeyboardInput
+                        while abs(this.Box.encoder.readSpeed) > this.Setting_Struct.Hold_Still_Thresh %Pause while the mouse is standing there
+                            pause(0.5);drawnow;
+                        end
                     end
                     this.DrinkTime = toc;
                     %Flash
@@ -928,8 +933,10 @@ classdef BehaviorBoxWheel < handle
                     [o(:).Visible] = deal(0);
                 case contains({this.WhatDecision} , 'wrong', 'IgnoreCase', true)
                     set(this.message_handle,'Text',[this.WhatDecision,' - Penalty...']);
-                    while abs(this.Box.encoder.readSpeed) > this.Setting_Struct.Hold_Still_Thresh %Pause while the mouse is standing there
-                        pause(0.5);drawnow;
+                    if ~this.Box.KeyboardInput
+                        while abs(this.Box.encoder.readSpeed) > this.Setting_Struct.Hold_Still_Thresh %Pause while the mouse is standing there
+                            pause(0.5);drawnow;
+                        end
                     end
                     %Flash
                     this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'), this.WhatDecision);
@@ -1087,8 +1094,8 @@ classdef BehaviorBoxWheel < handle
         %open reward valves
         function GiveRewardAndFlash(this)
             %Get reward valve, pulse number and time:
-            switch this.Box.Input_type
-                case 6 % Wheel
+            switch true
+                case ~this.Box.KeyboardInput && this.Box.Input_type == 6 % Wheel
                     switch true
                         case contains(this.WhatDecision, 'correct', 'IgnoreCase', true)
                             PulseNum = this.Box.RightPulse;
@@ -1551,7 +1558,7 @@ classdef BehaviorBoxWheel < handle
             end
         end
         function [WhatDecision, response_time] = readKeyboardInput(stop_handle, message_handle, isLeftTrial)
-            text = 'Respond: Press L for Left, R for Right, C or M for Middle:'; set(message_handle,'String',text); fprintf([text '\n']); drawnow
+            text = 'Respond: Press L for Left, R for Right, C or M for Middle:'; set(message_handle,'Text',text); fprintf([text '\n']); drawnow
             prompt = 'L, R, or M/C:   ';
             keypress = 0; t1 = clock;
             while keypress==0
@@ -1560,21 +1567,21 @@ classdef BehaviorBoxWheel < handle
                 response_time = etime(clock, t1);
                 switch true
                     case strcmp(currkey, 'l') || strcmp(currkey, 'L')
-                        text = 'Left choice...'; fprintf([text '\n']); set(message_handle,'String',text); drawnow
+                        text = 'Left choice...'; fprintf([text '\n']); set(message_handle,'Text',text); drawnow
                         event = 1;
                         keypress = 1;
                     case strcmp(currkey, 'r') || strcmp(currkey, 'R')
-                        text = 'Right choice...'; fprintf([text '\n']); set(message_handle,'String',text); drawnow
+                        text = 'Right choice...'; fprintf([text '\n']); set(message_handle,'Text',text); drawnow
                         event = 2;
                         keypress = 1;
                     case strcmp(currkey, 'C') || strcmp(currkey, 'c') || strcmp(currkey, 'M') || strcmp(currkey, 'm')
-                        text = 'Middle choice'; fprintf([text '\n']); set(message_handle,'String',text); drawnow
+                        text = 'Middle choice'; fprintf([text '\n']); set(message_handle,'Text',text); drawnow
                     otherwise
-                        text = 'Please only press one of the indicated keys...'; fprintf([text '\n']); set(message_handle,'String',text); drawnow
+                        text = 'Please only press one of the indicated keys...'; fprintf([text '\n']); set(message_handle,'Text',text); drawnow
                 end
                 pause(0.1); drawnow;
                 if stop_handle.Value
-                    set(message_handle, 'String','Ending session...'); drawnow
+                    set(message_handle, 'Text','Ending session...'); drawnow
                     event = -1;
                     drawnow
                     break;
