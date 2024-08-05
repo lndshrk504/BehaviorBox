@@ -1,3 +1,4 @@
+#define ENCODER_OPTIMIZE_INTERRUPTS
 #include <Encoder.h>
 #define PIN_8 8   // Reward
 #define PIN_9 9   // Start Acquisition (ScanImage)
@@ -7,13 +8,13 @@
 
 // This code is a finite state machine that either reads from the encoder or gives rewards
 enum State {
-  WAITING, READING, REWARDING
+  TIMESTAMPING, READING, REWARDING
 };
 
 // The pin numbers must be defined here, since the Encoder library uses these to specify which pins to use
 Encoder myEnc(2, 3); // 2 and 3 are interrupt pins
 
-State currentState = WAITING;
+State currentState = READING;
 String str;
 
 void setup() {
@@ -26,7 +27,7 @@ void setup() {
 }
 
 void loop() {  
-  if (currentState == WAITING) {
+  if (currentState == TIMESTAMPING) {
     if (Serial.available()) { // check if data is available to read
       String str = Serial.readStringUntil('\n'); // read the incoming string
       if (str.equals("Read")) {
@@ -43,21 +44,22 @@ void loop() {
       if (str.equals("Reward")) {
         currentState = REWARDING; // switch to REWARDING state
       }
-      else if (str.equals("Wait")) {
-        currentState = WAITING; // switch to REWARDING state
+      else if (str.equals("Time")) {
+        currentState = TIMESTAMPING; // switch to REWARDING state
+      }
+      else if (str.equals("Reset")) {
+        myEnc.write(0); // reset the encoder position
       }
     } 
     else {
       long newPosition = myEnc.read();
       if (newPosition != 0) {
-      // Multiply by the number of pulses per revolution to get the number of degrees turned
-      double degrees = newPosition * (360.0 / 1024.0);
-      myEnc.write(0); // reset the encoder position
+      // Divide by 4 because of "4X reporting" phenomenon from the quadrature of the encoder
+      int degrees = newPosition / (4); // int and not double bc 1024 ppr is enough resolution without decimals
    
-      Serial.print("Degrees: "); 
       Serial.println(degrees);
     }
-    delay(10); // delay for readability of the serial output.
+    // delay(1); // delay for readability of the serial output. Unsure how necessary this is so far...
     }
   } 
   else if (currentState == REWARDING) {
@@ -65,10 +67,10 @@ void loop() {
     String str;
     String side;
 
-    Serial.println("Side");   // print "Side" message
-    while(!Serial.available()); // Wait until data is available
-    side = Serial.readStringUntil('\n'); // read the incoming string until a newline
-    int Valve = (side == 'L') ? PIN_7 : PIN_8; // Determine which Valve to use
+    // Serial.println("Side");   // print "Side" message
+    // while(!Serial.available()); // Wait until data is available
+    // side = Serial.readStringUntil('\n'); // read the incoming string until a newline
+    // int Valve = PIN_8; // Determine which Valve to use
 
     Serial.println("Duration"); // print "Duration" message
     while(!Serial.available()); // Wait until data is available
@@ -87,6 +89,7 @@ void loop() {
     digitalWrite(Valve, LOW);    // Turn the LED off
 
     // Go back to initial state or another state as needed. For example:
+    myEnc.write(0); // reset the encoder position
     currentState = READING;
     // Serial.println("end reward");
   }

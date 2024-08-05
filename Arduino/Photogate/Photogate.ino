@@ -3,16 +3,12 @@
 #define PIN_6 6   // Right
 #define PIN_7 7   // Left Reward
 #define PIN_8 8   // Right Reward
-#define PIN_9 9   // Start Acquisition (ScanImage)
-#define PIN_10 10 // Next File (ScanImage)
-#define PIN_11 11 // End Acquisition (ScanImage)
-#define PIN_12 12 // Timestamp (Other Arduino)
 
 enum State {
   WAITING, READING, REWARDING
 };
 
-State currentState = WAITING;
+State currentState = READING;
 String str;
 
 void setup() {
@@ -21,33 +17,15 @@ void setup() {
   pinMode(PIN_6, INPUT_PULLUP); // set pin 6 as input with internal pullup resistor
   pinMode(PIN_7, OUTPUT); // set pin 7 as output
   pinMode(PIN_8, OUTPUT); // set pin 8 as output
-  pinMode(PIN_9, OUTPUT); // set pin 9 as output
-  pinMode(PIN_10, OUTPUT); // set pin 10 as output
-  pinMode(PIN_11, OUTPUT); // set pin 11 as output
-  pinMode(PIN_12, OUTPUT); // set pin 12 as output
   Serial.begin(9600); // start the serial at 9600 baud
 }
 
 void loop() {  
-  if (currentState == WAITING) {
-    if (Serial.available()) { // check if data is available to read
-      String str = Serial.readStringUntil('\n'); // read the incoming string
-      if (str.equals("Read")) {
-        currentState = READING; // switch to READING state
-      }
-      else if (str.equals("Reward")) {
-        currentState = REWARDING; // switch to REWARDING state
-      }
-    }
-  } 
-  else if (currentState == READING) {
+  if (currentState == READING) {
     if (Serial.available()) { // check if data is available to read
       String str = Serial.readStringUntil('\n'); // read the incoming string
       if (str.equals("Reward")) {
         currentState = REWARDING; // switch to REWARDING state
-      }
-      else if (str.equals("Wait")) {
-        currentState = WAITING; // switch to REWARDING state
       }
     } 
     else {
