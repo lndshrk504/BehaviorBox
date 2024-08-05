@@ -55,7 +55,7 @@ void loop() {
         hasPrintedNone = false;
       }
       else {
-        if(!hasPrintedNone) {
+        if(digitalRead(PIN_4) == HIGH && digitalRead(PIN_5) == HIGH && digitalRead(PIN_6) == HIGH && !hasPrintedNone) {
           Serial.println('-');
           hasPrinted4 = false;
           hasPrinted5 = false;
