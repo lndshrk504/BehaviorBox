@@ -9,6 +9,7 @@ enum State {
 };
 
 State currentState = READING;
+bool hasPrinted = false; // Flag to prevent printing the same message twice
 String str;
 
 void setup() {
@@ -31,15 +32,21 @@ void loop() {
     else {
       if (digitalRead(PIN_4) == LOW) {
         Serial.println('L');
+        hasPrinted = false;
       }
       else if (digitalRead(PIN_5) == LOW) {
         Serial.println('M');
+        hasPrinted = false;
       }
       else if (digitalRead(PIN_6) == LOW) {
         Serial.println('R');
+        hasPrinted = false;
       }
       else {
-        Serial.println('-');
+        if(!hasPrinted) {
+          Serial.println('-');
+          hasPrinted = true;
+        }
       }
       delay(10); // delay for readability of the serial output.
     }
