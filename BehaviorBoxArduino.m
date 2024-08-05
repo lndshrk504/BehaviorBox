@@ -5,7 +5,7 @@ classdef BehaviorBoxArduino < handle
         port
         baudRate
         bytesAvailable
-        serialObj
+        Ard
         ExperimentMode % either 'Wheel' or 'NosePoke'
     end
     
@@ -20,34 +20,35 @@ classdef BehaviorBoxArduino < handle
             obj.ExperimentMode = ExperimentMode;
             
             try
-                obj.serialObj = serialport(obj.port, obj.baudRate);
+                obj.Ard = serialport(obj.port, obj.baudRate);
             end
         end
         
         function connect(obj)
-            fopen(obj.serialObj);
+            fopen(obj.Ard);
             disp('Serial port is open');
         end
         
         function disconnect(obj)
-            fclose(obj.serialObj);
+            fclose(obj.Ard);
             disp('Serial port is closed');
         end
         
         function data = readData(obj)
-            if obj.serialObj.BytesAvailable
+            if obj.Ard.BytesAvailable
                 switch obj.ExperimentMode
                     case 'Wheel'
                         % Perform data reading for 'Wheel' mode
                         % Here is an example, please change the code
                         % according to your experiment.
-                        data = fread(obj.serialObj, obj.serialObj.BytesAvailable);
-                    case 'Nose'
+                        data = fread(obj.Ard, obj.Ard.BytesAvailable);
+                    case 'NosePoke'
                         % Perform data reading for 'Nose' mode
                         % Here is an example, please change the code
                         % according to your experiment.
-                        data = fread(obj.serialObj, obj.serialObj.BytesAvailable);
+                        data = char(fread(obj.Ard, obj.Ard.BytesAvailable));
                 end
+                flusj(obj.Ard)
             else
                 data = [];
                 disp('No data available');
@@ -56,7 +57,7 @@ classdef BehaviorBoxArduino < handle
         
         function delete(obj)
             obj.disconnect();
-            delete(obj.serialObj);
+            delete(obj.Ard);
         end
     end
 end

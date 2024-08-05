@@ -48,7 +48,7 @@ void loop() {
           hasPrinted = true;
         }
       }
-      delay(10); // delay for readability of the serial output.
+      // delay(10); // delay for readability of the serial output.
     }
   } 
   else if (currentState == REWARDING) {
@@ -66,13 +66,8 @@ void loop() {
     while(!Serial.available()); // Wait until data is available
     str = Serial.readStringUntil('\n'); // read the incoming string until a newline
     durationNumber = str.toInt(); // convert this string to an integer
-        
-    // Serial.println("Pulse");   // print "Pulse" message
-    // while(!Serial.available()); // Wait until data is available
-    // str = Serial.readStringUntil('\n'); // read the incoming string until a newline
-    // pulseNumber = str.toInt(); // convert the string to an integer
 
-    // while(digitalRead(PIN_4) == HIGH); // Keep waiting until the photogate for the reward valve reads LOW (mouse is standing there)
+    //while(!digitalRead(Gate) == LOW); // Keep waiting until the photogate for the reward valve reads LOW (mouse is standing there)
     Serial.println("reward drop");
     digitalWrite(Valve, HIGH);   // Turn the LED on
     delay(durationNumber*1000);  // Wait for specified duration
