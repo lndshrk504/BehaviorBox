@@ -1,4 +1,4 @@
-#define ENCODER_OPTIMIZE_INTERRUPTS
+#define ENCODER_OPTIMIZE_INTERRUPTS // makes it super fast: https://www.pjrc.com/teensy/td_libs_Encoder.html
 #include <Encoder.h>
 #define PIN_8 8   // Reward
 #define PIN_9 9   // Start Acquisition (ScanImage)
@@ -6,15 +6,15 @@
 #define PIN_11 11 // End Acquisition (ScanImage)
 #define PIN_12 12 // Timestamp (Other Arduino)
 
-// This code is a finite state machine that either reads from the encoder or gives rewards
+// This code is a finite state machine that: reads from the encoder, gives rewards, or toggles the timestamp pin
 enum State {
-  TIMESTAMPING, READING, REWARDING
+  READING, REWARDING, TIMESTAMPING
 };
 
 // The pin numbers must be defined here, since the Encoder library uses these to specify which pins to use
-Encoder myEnc(2, 3); // 2 and 3 are interrupt pins
+Encoder myEnc(2, 3); // 2 and 3 are interrupt pins for Arduino Uno
 
-State currentState = READING;
+State currentState = READING; // Default state is Reading
 String str;
 int prevDegrees = -1;
 
