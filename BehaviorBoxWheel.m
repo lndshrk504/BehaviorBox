@@ -256,7 +256,7 @@ classdef BehaviorBoxWheel < handle
             OUT.ChooseLevel = @(x)OUT.PossibleLevels(randperm(numel(PossibleLevels), 1));
         end
         %set hardware (arduino) parameters
-        function ConfigureArduino(this, options)
+        function ConfigureBox(this, options)
             arguments
                 this
                 options.Rebuild logical = false

@@ -257,12 +257,12 @@ classdef BehaviorBoxNose < handle
             OUT.ChooseLevel = @(x)OUT.PossibleLevels(randperm(numel(PossibleLevels), 1));
         end
         %set hardware (arduino) parameters
-        function ConfigureArduino(this, options)
+        function ConfigureBox(this, options)
             arguments
                 this
                 options.Rebuild logical = false
             end
-            this.message_handle.Text = 'Connecting Arduino. . .';
+            this.message_handle.Text = 'Connecting to Arduino. . .';
             tic
             try
                 % https://docs.arduino.cc/learn/microcontrollers/digital-pins
@@ -285,7 +285,6 @@ classdef BehaviorBoxNose < handle
                 %set which lever is what and what the input setup is from
                 this.Box.ResetPin        = 'D4';
                 this.Box.TriggerPin      = 'D5';
-                this.Box.Timestamp       = 'D9';
                 switch this.Setting_Struct.Box_Input_type
                     case 3 %Three Pokes
                         if options.Rebuild
@@ -293,25 +292,26 @@ classdef BehaviorBoxNose < handle
                                 this.a = [];
                             catch
                             end
-                            this.a = arduino(comsnum,'Uno','Libraries',{}, 'ForceBuildOn',true);
+                            %this.a = arduino(comsnum,'Uno','Libraries',{}, 'ForceBuildOn',true);
+                            this.a = BehaviorBoxArduino(comsnum, 9600, 'NosePoke');
                         else
-                            %this.a = BehaviorBoxArduino(comsnum, 9600, 'NosePoke');
-                            this.a = arduino(comsnum,'Uno','Libraries',{});
+                            this.a = BehaviorBoxArduino(comsnum, 9600, 'NosePoke');
+                            %this.a = arduino(comsnum,'Uno','Libraries',{});
                         end
-                        configurePin(this.a, "D2", "Unset");
-                        configurePin(this.a, "D3", "Unset");
-                        configurePin(this.a, "D7", "Unset");
+                        % configurePin(this.a, "D2", "Unset");
+                        % configurePin(this.a, "D3", "Unset");
+                        % configurePin(this.a, "D7", "Unset");
                         this.Box.ardunioReadDigital = 1;
                         this.Box.readHigh = 0;
-                        if this.Box.readHigh %Voltage goes HIGH on choice
-                            configurePin(this.a, "D2", "DigitalInput");
-                            configurePin(this.a, "D3", "DigitalInput");
-                            configurePin(this.a, "D7", "DigitalInput");
-                        else %Voltage goes LOW on choice
-                            configurePin(this.a, "D2", "Pullup");
-                            configurePin(this.a, "D3", "Pullup");
-                            configurePin(this.a, "D7", "Pullup");
-                        end
+                        % if this.Box.readHigh %Voltage goes HIGH on choice
+                        %     configurePin(this.a, "D2", "DigitalInput");
+                        %     configurePin(this.a, "D3", "DigitalInput");
+                        %     configurePin(this.a, "D7", "DigitalInput");
+                        % else %Voltage goes LOW on choice
+                        %     configurePin(this.a, "D2", "Pullup");
+                        %     configurePin(this.a, "D3", "Pullup");
+                        %     configurePin(this.a, "D7", "Pullup");
+                        % end
                         %Set up box structure
                         this.Box.Left = 'D2';
                         this.Box.Middle = 'D3';
@@ -319,25 +319,25 @@ classdef BehaviorBoxNose < handle
                         this.Box.ValveL = 'D6';
                         this.Box.ValveR = 'D8';
                         this.Box.AirPuff  = 'D11';
-                        this.Box.readPin = @(PIN)this.a.readDigitalPin(PIN)==this.Box.readHigh;
-                        this.Box.readL = @(x)this.Box.readPin(this.Box.Left);
-                        this.Box.readR = @(x)this.Box.readPin(this.Box.Right);
-                        this.Box.readM = @(x)this.Box.readPin(this.Box.Middle);
+                        % this.Box.readPin = @(PIN)this.a.readDigitalPin(PIN)==this.Box.readHigh;
+                        % this.Box.readL = @(x)this.Box.readPin(this.Box.Left);
+                        % this.Box.readR = @(x)this.Box.readPin(this.Box.Right);
+                        % this.Box.readM = @(x)this.Box.readPin(this.Box.Middle);
                     case 8 %Keyboard, used if no arduino connected
                         this.Box.KeyboardInput = 1;
                         this.Box.readHigh = 1;
                         return
                 end
-                configurePin(this.a, "D4", "Unset"); %Reset pin
-                configurePin(this.a, "D5", "Unset"); %Trigger pin
-                configurePin(this.a, "D6", "Unset");
-                configurePin(this.a, "D8", "Unset");
-                configurePin(this.a, "D9", "Unset");
-                configurePin(this.a, "D4", "DigitalOutput"); %Reset pin
-                configurePin(this.a, "D5", "DigitalInput"); %Trigger pin
-                configurePin(this.a, "D6", "DigitalOutput");
-                configurePin(this.a, "D8", "DigitalOutput");
-                configurePin(this.a, "D9", "DigitalOutput");
+                % configurePin(this.a, "D4", "Unset"); %Reset pin
+                % configurePin(this.a, "D5", "Unset"); %Trigger pin
+                % configurePin(this.a, "D6", "Unset");
+                % configurePin(this.a, "D8", "Unset");
+                % configurePin(this.a, "D9", "Unset");
+                % configurePin(this.a, "D4", "DigitalOutput"); %Reset pin
+                % configurePin(this.a, "D5", "DigitalInput"); %Trigger pin
+                % configurePin(this.a, "D6", "DigitalOutput");
+                % configurePin(this.a, "D8", "DigitalOutput");
+                % configurePin(this.a, "D9", "DigitalOutput");
                 toc
             catch
                 this.Box.use_ball = 0; %All these are automatically off
