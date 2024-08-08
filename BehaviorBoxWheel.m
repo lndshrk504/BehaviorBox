@@ -272,7 +272,7 @@ classdef BehaviorBoxWheel < handle
                 if ispc
                     comsnum = "COM"+this.app.Arduino_Com.Value;
                 elseif ismac
-                    comsnum = "COM"+this.app.Arduino_Com.Value;
+                    comsnum = "/dev/tty.usbmodem"+this.app.Arduino_Com.Value;
                 elseif isunix
                     comsnum = "/dev/tty"+this.app.Arduino_Com.Value;
                 end
@@ -287,16 +287,17 @@ classdef BehaviorBoxWheel < handle
                 this.Box.Timestamp       = 'D9';
                 switch this.Setting_Struct.Box_Input_type
                     case 6 %Rotating Wheel
-                        if options.Rebuild
-                            try
-                                this.a = [];
-                            catch
-                            end
-                            this.a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'}, 'ForceBuildOn',true);
-                        else
-                            this.a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'});
-                        end
-                        this.Box.encoder = rotaryEncoder(this.a,'D2','D3', 1024);
+                        this.a = BehaviorBoxSerial(comsnum, 9600, 'Wheel');
+                        % if options.Rebuild
+                        %     try
+                        %         this.a = [];
+                        %     catch
+                        %     end
+                        %     this.a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'}, 'ForceBuildOn',true);
+                        % else
+                        %     this.a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'});
+                        % end
+                        %this.Box.encoder = rotaryEncoder(this.a,'D2','D3', 1024);
                         this.Box.Reward =  'D6';
                         this.Box.use_wheel = 1;
                     case 8 %Keyboard, used if no arduino connected
@@ -304,16 +305,16 @@ classdef BehaviorBoxWheel < handle
                         this.Box.readHigh = 1;
                         return
                 end
-                configurePin(this.a, "D4", "Unset"); %Reset pin
-                configurePin(this.a, "D5", "Unset"); %Trigger pin
-                configurePin(this.a, "D6", "Unset");
-                configurePin(this.a, "D8", "Unset");
-                configurePin(this.a, "D9", "Unset");
-                configurePin(this.a, "D4", "DigitalOutput"); %Reset pin
-                configurePin(this.a, "D5", "DigitalInput"); %Trigger pin
-                configurePin(this.a, "D6", "DigitalOutput");
-                configurePin(this.a, "D8", "DigitalOutput");
-                configurePin(this.a, "D9", "DigitalOutput");
+                % configurePin(this.a, "D4", "Unset"); %Reset pin
+                % configurePin(this.a, "D5", "Unset"); %Trigger pin
+                % configurePin(this.a, "D6", "Unset");
+                % configurePin(this.a, "D8", "Unset");
+                % configurePin(this.a, "D9", "Unset");
+                % configurePin(this.a, "D4", "DigitalOutput"); %Reset pin
+                % configurePin(this.a, "D5", "DigitalInput"); %Trigger pin
+                % configurePin(this.a, "D6", "DigitalOutput");
+                % configurePin(this.a, "D8", "DigitalOutput");
+                % configurePin(this.a, "D9", "DigitalOutput");
                 toc
             catch err
                 this.Box.use_ball = 0; %All these are automatically off
@@ -876,7 +877,7 @@ classdef BehaviorBoxWheel < handle
             this.Timestamp2p("State", true); %Turn on
             switch 1
                 case ~this.Box.KeyboardInput && this.Box.Input_type == 6 %Wheel (new)
-                    [this.WhatDecision, this.ResponseTime] = this.readLeverLoopAnalogWheel(this);
+                    [this.WhatDecision, this.ResponseTime] = this.readLeverLoopAnalogWheel();
                 otherwise
                     [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial);
             end
@@ -948,6 +949,112 @@ classdef BehaviorBoxWheel < handle
                     o = findobj(this.fig.Children);
                     [o(:).Visible] = deal(0);
                     this.fig.Color = 'k';
+            end
+        end
+        function [WhatDecision, response_time] = readLeverLoopAnalogWheel(this)
+            event = -1;
+            delta = 0;
+            timeout_value = this.Box.Timeout_after_time;
+            threshold = this.Setting_Struct.TurnMag;
+            o = this.fig.findobj('Type', 'Axes');
+            C = o(contains({o.Tag}, 'Correct'));
+            W = o(contains({o.Tag}, 'Incorrect'));
+            % A full revolution is about 4000 pulses 4400/360 = 12.22 pulses/degree 90 deg is ~1000 pulses
+            StimDistance = 0.3;
+            axes = [this.RStimAx this.LStimAx];
+            pos1i = axes(1).Position;
+            if numel(axes) > 1
+                pos2i = axes(2).Position;
+            end
+            thresh = abs(pos1i(1)/2);
+            RoundUp = (this.Setting_Struct.RoundUpVal/100); %Default is 75 --> 0.75
+            this.a.Reset();
+            %this.Box.encoder.resetCount();
+            if this.Setting_Struct.RoundUp
+                thresh = RoundUp*thresh;
+            end
+            this.wheelchoice = cell(1,1e6);
+            this.wheelchoicetime = cell(1,1e6);
+            i = 0;
+            tic
+            while timeout_value == 0 | toc<=timeout_value % do NOT replace | with || or the expression is changed.
+                dist = this.a.SerialRead;
+                %dist = this.Box.encoder.readCount;
+                delta = (dist/threshold)*StimDistance;
+                if abs(delta)>thresh
+                    if sign(delta)>0
+                        delta =  thresh;
+                    elseif sign(delta)<0
+                        delta = -thresh;
+                    end
+                end
+                if this.isLeftTrial & delta < -thresh*RoundUp
+                    delta = -thresh*RoundUp;
+                elseif ~this.isLeftTrial & delta > thresh*RoundUp
+                    delta = thresh*RoundUp;
+                end
+                i = i+1;
+                this.wheelchoice{i} = delta;
+                this.wheelchoicetime{i} = toc;
+                pos1 = pos1i + ([delta 0 0 0]);
+                axes(1).Position = pos1;
+                if numel(axes) > 1
+                    pos2 = pos2i + ([delta 0 0 0]);
+                    axes(2).Position = pos2;
+                end
+                drawnow  %limitrate nocallbacks
+% The frame rate is very low on the new Ubuntu mini PC head fixation rig.
+                if this.isLeftTrial & delta <= -thresh*RoundUp
+                    event = 2;
+                    break
+                elseif ~this.isLeftTrial & delta >= thresh*RoundUp
+                    event = 1;
+                    break
+                end
+                if double(abs(delta)) >= double(thresh) %If a choice is made: !!! Add code to round up the correct choice but not accept an incorrect choice until it is fully made. Accept the correct choice early but wait for a full incorrect choice.
+                    if sign(delta) > 0
+                        event = 1;
+                        break
+                    elseif sign(delta) < 0
+                        event = 2;
+                        break
+                    end
+                end
+                if get(this.Skip, 'Value')
+                    set(this.Skip, 'Value', 0) %Turn the button off
+                    break
+                end
+            end
+            this.wheelchoice(cellfun('isempty',this.wheelchoice)) = [];
+            this.wheelchoice = cell2mat(this.wheelchoice);
+            this.wheelchoicetime(cellfun('isempty',this.wheelchoicetime)) = [];
+            this.wheelchoicetime = cell2mat(this.wheelchoicetime);
+            response_time = toc;
+            if event == -1 %If the mouse was close to picking a side, round up their choice:
+                if abs(delta) >= thresh*RoundUp
+                    if sign(delta) > 0
+                        event = 1;
+                    elseif sign(delta) < 0
+                        event = 2;
+                    end
+                end
+            end
+            %translate response to decision
+            switch event
+                case -1
+                    WhatDecision = 'time out';
+                case 1
+                    if this.isLeftTrial == 1
+                        WhatDecision = 'left correct';
+                    else
+                        WhatDecision = 'left wrong';
+                    end
+                case 2
+                    if this.isLeftTrial == 0
+                        WhatDecision = 'right correct';
+                    else
+                        WhatDecision = 'right wrong';
+                    end
             end
         end
         function FlashNew(this, Stim, Box, Lines, whatdecision, OneWay)
@@ -1607,110 +1714,6 @@ classdef BehaviorBoxWheel < handle
             end
         end
         %read the lever (digital read)
-        function [WhatDecision, response_time] = readLeverLoopAnalogWheel(this)
-            event = -1;
-            delta = 0;
-            timeout_value = this.Box.Timeout_after_time;
-            threshold = this.Setting_Struct.TurnMag;
-            o = this.fig.findobj('Type', 'Axes');
-            C = o(contains({o.Tag}, 'Correct'));
-            W = o(contains({o.Tag}, 'Incorrect'));
-            % A full revolution is about 4000 pulses 4400/360 = 12.22 pulses/degree 90 deg is ~1000 pulses
-            StimDistance = 0.3;
-            axes = [this.RStimAx this.LStimAx];
-            pos1i = axes(1).Position;
-            if numel(axes) > 1
-                pos2i = axes(2).Position;
-            end
-            thresh = abs(pos1i(1)/2);
-            RoundUp = (this.Setting_Struct.RoundUpVal/100); %Default is 75 --> 0.75
-            this.Box.encoder.resetCount();
-            if this.Setting_Struct.RoundUp
-                thresh = RoundUp*thresh;
-            end
-            this.wheelchoice = cell(1,1e6);
-            this.wheelchoicetime = cell(1,1e6);
-            i = 0;
-            tic
-            while timeout_value == 0 | toc<=timeout_value % do NOT replace | with || or the expression is changed.
-                dist = this.Box.encoder.readCount;
-                delta = (dist/threshold)*StimDistance;
-                if abs(delta)>thresh
-                    if sign(delta)>0
-                        delta =  thresh;
-                    elseif sign(delta)<0
-                        delta = -thresh;
-                    end
-                end
-                if this.isLeftTrial & delta < -thresh*RoundUp
-                    delta = -thresh*RoundUp;
-                elseif ~this.isLeftTrial & delta > thresh*RoundUp
-                    delta = thresh*RoundUp;
-                end
-                i = i+1;
-                this.wheelchoice{i} = delta;
-                this.wheelchoicetime{i} = toc;
-                pos1 = pos1i + ([delta 0 0 0]);
-                axes(1).Position = pos1;
-                if numel(axes) > 1
-                    pos2 = pos2i + ([delta 0 0 0]);
-                    axes(2).Position = pos2;
-                end
-                drawnow limitrate nocallbacks
-% The frame rate is very low on the new Ubuntu mini PC head fixation rig.
-                if this.isLeftTrial & delta <= -thresh*RoundUp
-                    event = 2;
-                    break
-                elseif ~this.isLeftTrial & delta >= thresh*RoundUp
-                    event = 1;
-                    break
-                end
-                if double(abs(delta)) >= double(thresh) %If a choice is made: !!! Add code to round up the correct choice but not accept an incorrect choice until it is fully made. Accept the correct choice early but wait for a full incorrect choice.
-                    if sign(delta) > 0
-                        event = 1;
-                        break
-                    elseif sign(delta) < 0
-                        event = 2;
-                        break
-                    end
-                end
-                if get(this.Skip, 'Value')
-                    set(this.Skip, 'Value', 0) %Turn the button off
-                    break
-                end
-            end
-            this.wheelchoice(cellfun('isempty',this.wheelchoice)) = [];
-            this.wheelchoice = cell2mat(this.wheelchoice);
-            this.wheelchoicetime(cellfun('isempty',this.wheelchoicetime)) = [];
-            this.wheelchoicetime = cell2mat(this.wheelchoicetime);
-            response_time = toc;
-            if event == -1 %If the mouse was close to picking a side, round up their choice:
-                if abs(delta) >= thresh*RoundUp
-                    if sign(delta) > 0
-                        event = 1;
-                    elseif sign(delta) < 0
-                        event = 2;
-                    end
-                end
-            end
-            %translate response to decision
-            switch event
-                case -1
-                    WhatDecision = 'time out';
-                case 1
-                    if this.isLeftTrial == 1
-                        WhatDecision = 'left correct';
-                    else
-                        WhatDecision = 'left wrong';
-                    end
-                case 2
-                    if this.isLeftTrial == 0
-                        WhatDecision = 'right correct';
-                    else
-                        WhatDecision = 'right wrong';
-                    end
-            end
-        end
         function [WhatDecision, response_time] = readLeverLoopAnalogWheel_OnlyCorrect(this)
             event = -1;
             delta = 0;
