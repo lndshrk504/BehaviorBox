@@ -9,9 +9,9 @@ enum State {
 };
 
 State currentState = READING;
-bool hasPrinted4 = false; // Flags to prevent printing the same message twice
-bool hasPrinted5 = false;
-bool hasPrinted6 = false;
+bool hasPrintedL = false; // Flags to prevent printing the same message twice
+bool hasPrintedM = false;
+bool hasPrintedR = false;
 bool hasPrintedNone = false;
 String str;
 
@@ -33,25 +33,34 @@ void loop() {
       }
     } 
     else {
-      if (digitalRead(PIN_4) == LOW && !hasPrinted4) {
+      if (digitalRead(PIN_4) == LOW && !hasPrintedL) {
         Serial.println('L');
-        hasPrinted4 = true;
-        hasPrinted5 = hasPrinted6 = hasPrintedNone = false;
+        hasPrintedL = true;
+        hasPrintedM = false;
+        hasPrintedR = false;
+        hasPrintedNone = false;
       }
-      else if (digitalRead(PIN_5) == LOW && !hasPrinted5) {
+      else if (digitalRead(PIN_5) == LOW && !hasPrintedM) {
         Serial.println('M');
-        hasPrinted5 = true;
-        hasPrinted4 = hasPrinted6 = hasPrintedNone = false;
+        hasPrintedM = true;
+        hasPrintedL = false;
+        hasPrintedR = false;
+        hasPrintedNone = false;
       }
-      else if (digitalRead(PIN_6) == LOW && !hasPrinted6) {
+      else if (digitalRead(PIN_6) == LOW && !hasPrintedR) {
         Serial.println('R');
-        hasPrinted6 = true;
-        hasPrinted4 = hasPrinted5 = hasPrintedNone = false;
+        hasPrintedR = true;
+        hasPrintedL = false;
+        hasPrintedM = false;
+        hasPrintedNone = false;
       }
       else {
-        if((digitalRead(PIN_4) & digitalRead(PIN_5) & digitalRead(PIN_6)) && !hasPrintedNone) {
+        if((digitalRead(PIN_4) == HIGH & digitalRead(PIN_5) == HIGH & digitalRead(PIN_6) == HIGH) && !hasPrintedNone) {
           Serial.println('-');
-          hasPrinted4 = hasPrinted5 = hasPrinted6 = hasPrintedNone = false;
+          hasPrintedL = false;
+          hasPrintedM = false;
+          hasPrintedR = false;
+          hasPrintedNone = true;
         }
       }
       // delay(10); // delay is not needed, possibly maybe

@@ -295,6 +295,7 @@ classdef BehaviorBoxNose < handle
                             %this.a = arduino(comsnum,'Uno','Libraries',{}, 'ForceBuildOn',true);
                             this.a = BehaviorBoxArduino(comsnum, 9600, 'NosePoke');
                         else
+% Program the Arduino with Photogate.ino
                             this.a = BehaviorBoxArduino(comsnum, 9600, 'NosePoke');
                             %this.a = arduino(comsnum,'Uno','Libraries',{});
                         end

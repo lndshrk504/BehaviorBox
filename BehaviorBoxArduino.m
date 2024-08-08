@@ -11,13 +11,11 @@ classdef BehaviorBoxArduino < handle
     methods
         function obj = BehaviorBoxArduino(port, baudRate, ExperimentMode)
             if ~(strcmp(ExperimentMode, 'Wheel') || strcmp(ExperimentMode, 'NosePoke'))
-                error('Invalid Experiment Mode. It should be either ''Wheel'' or ''NosePoke''.')
+                disp('Invalid Experiment Mode. It should be either ''Wheel'' or ''NosePoke''.')
             end
-
             obj.port = port;
             obj.baudRate = baudRate;
             obj.ExperimentMode = ExperimentMode;
-            
             try
                 obj.Ard = serialport(obj.port, obj.baudRate);
                 obj.Ard
