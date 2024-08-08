@@ -5,7 +5,7 @@
 #define PIN_8 8   // Right Reward
 
 enum State {
-  WAITING, READING, REWARDING
+  SETUP, READING, REWARDING
 };
 
 State currentState = READING;
@@ -82,7 +82,6 @@ void loop() {
     str = Serial.readStringUntil('\n'); // read the incoming string until a newline
     durationNumber = str.toInt(); // convert this string to an integer
 
-    //while(!digitalRead(Gate) == LOW); // Keep waiting until the photogate for the reward valve reads LOW (mouse is standing there)
     Serial.println("reward drop");
     digitalWrite(Valve, HIGH);   // Turn the LED on
     delay(durationNumber*1000);  // Wait for specified duration
@@ -92,4 +91,5 @@ void loop() {
     currentState = READING;
     // Serial.println("end reward");
   }
+  else if (currentState == SETUP)
   }

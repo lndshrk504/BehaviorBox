@@ -17,10 +17,10 @@ classdef BehaviorBoxSerial < handle
             this.baudRate = baudRate;
             this.ExperimentMode = ExperimentMode;
             this.Ard = serialport(this.port, this.baudRate);
-            this = this.Reset();
             configureTerminator(this.Ard,"CR/LF");
             flush(this.Ard);
             configureCallback(this.Ard, "terminator", @this.SerialRead);
+            this.Reset();
         end
 
         function Reading = SerialRead(this, src, ~)
