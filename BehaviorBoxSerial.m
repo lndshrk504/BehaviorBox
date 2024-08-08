@@ -13,23 +13,18 @@ classdef BehaviorBoxSerial < handle
     
     methods
         function this = BehaviorBoxSerial(port, baudRate, ExperimentMode)
-            %Assign neutral value
-            switch true
-                case strcmp(ExperimentMode, 'Wheel')
-                    this.Reading = 0;
-                case strcmp(ExperimentMode, 'NosePoke')
-                    this.Reading = '-';
-            end
             this.port = port;
             this.baudRate = baudRate;
             this.ExperimentMode = ExperimentMode;
             this.Ard = serialport(this.port, this.baudRate);
+            this = this.Reset();
             configureTerminator(this.Ard,"CR/LF");
             flush(this.Ard);
             configureCallback(this.Ard, "terminator", @this.SerialRead);
         end
-% Callback that automatically reads when a line is sent to serial
+
         function Reading = SerialRead(this, src, ~)
+% Used for Callback that reads when a line is sent to serial
             arguments
                 this
                 src = this.Ard
@@ -40,23 +35,30 @@ classdef BehaviorBoxSerial < handle
                 return
             end
             %Reading = str2num(read(src, src.BytesAvailable, 'string'));
-            Reading = str2num(readline(src));
-            Reading = Reading(end);
+            switch true
+                case strcmp(this.ExperimentMode, 'Wheel')
+                    Reading = str2num(readline(src)); % Returns an integer for the angle, e.g. -104
+                case strcmp(this.ExperimentMode, 'NosePoke')
+                    Reading = readline(src); % Returns a character, e.g. 'L' 'R' 'M' or '-"
+            end
             this.Reading = Reading;
         end
         
-        function Reset(this)
+        function Reading = Reset(this)
             write(this.Ard, 'Reset', 'char')
-            this.Reading = 0;
+            %Assign neutral value to property
+            switch true
+                case strcmp(this.ExperimentMode, 'Wheel')
+                    Reading = 0;
+                case strcmp(this.ExperimentMode, 'NosePoke')
+                    Reading = '-';
+            end
+            this.Reading = Reading;
         end
 
         function delete(this)
-            this.disconnect();
-            delete(this.Ard);
-        end
-        
-        function disconnect(this)
             this.Ard = [];
+            delete(this.Ard);
             disp('Serial port is closed');
         end
     end
