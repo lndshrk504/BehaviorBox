@@ -1,55 +1,68 @@
 classdef BehaviorBoxArduino < handle
 % This is a class for using an Arduino as a serial device by receiving
 % and sending text strings between the arduino and the computer.
+% The NosePoke uses an Arduino programmed with Photogate.ino and
+% The Wheel uses an Arduino programmed with Rotary-Encoder-Arduino.ino
     properties
         port string
         baudRate double
         Ard = {}
         ExperimentMode % either 'Wheel' or 'NosePoke'
+        Reading
     end
     
     methods
-        function obj = BehaviorBoxArduino(port, baudRate, ExperimentMode)
+        function this = BehaviorBoxArduino(port, baudRate, ExperimentMode)
             if ~(strcmp(ExperimentMode, 'Wheel') || strcmp(ExperimentMode, 'NosePoke'))
                 disp('Invalid Experiment Mode. It should be either ''Wheel'' or ''NosePoke''.')
             end
-            obj.port = port;
-            obj.baudRate = baudRate;
-            obj.ExperimentMode = ExperimentMode;
+            this.port = port;
+            this.baudRate = baudRate;
+            this.ExperimentMode = ExperimentMode;
             try
-                obj.Ard = serialport(obj.port, obj.baudRate);
-                obj.Ard
+                this.Ard = serialport(this.port, this.baudRate);
+                configureTerminator(this.Ard,"CR/LF");
+                flush(this.Ard);
+                configureCallback(this.Ard, "terminator", @this.ReadFromSerial);
+            catch err
+                unwrapErr(err)
             end
         end
+
+        function Reading = ReadFromSerial(this, src, event)
+            Reading = readline(src);
+            this.Reading = Reading;
+            % Reading
+        end
         
-        function data = readData(obj)
-            if obj.Ard.BytesAvailable
-                switch obj.ExperimentMode
+        function data = readData(this)
+            if this.Ard.BytesAvailable
+                switch this.ExperimentMode
                     case 'Wheel'
                         % Perform data reading for 'Wheel' mode
                         % Here is an example, please change the code
                         % according to your experiment.
-                        data = fread(obj.Ard, obj.Ard.BytesAvailable);
+                        data = fread(this.Ard, this.Ard.BytesAvailable);
                     case 'NosePoke'
                         % Perform data reading for 'Nose' mode
                         % Here is an example, please change the code
                         % according to your experiment.
-                        data = fread(obj.Ard, obj.Ard.BytesAvailable, "char");
+                        data = fread(this.Ard, this.Ard.BytesAvailable, "char");
                 end
-                flusj(obj.Ard)
+                flusj(this.Ard)
             else
                 data = [];
             end
         end
         
-        function disconnect(obj)
-            fclose(obj.Ard);
-            disp('Serial port is closed');
+        function delete(this)
+            this.disconnect();
+            delete(this.Ard);
         end
         
-        function delete(obj)
-            obj.disconnect();
-            delete(obj.Ard);
+        function disconnect(this)
+            this.Ard = [];
+            disp('Serial port is closed');
         end
     end
 end
