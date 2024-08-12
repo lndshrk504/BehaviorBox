@@ -64,8 +64,10 @@ void loop() {
     int currentState = digitalRead(PIN_12); // Read current state
     if (currentState == HIGH) {
       digitalWrite(PIN_12, LOW); // If current state is HIGH, set it to LOW
+        Serial.println("Pin is low");
     } else {
       digitalWrite(PIN_12, HIGH); // If current state is LOW, set it to HIGH
+        Serial.println("Pin is high");
     }
     currentState = READING; // switch back to READING state
   }
