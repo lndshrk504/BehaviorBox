@@ -18,6 +18,7 @@ State currentState = READING; // Default state is Reading
 String str;
 int prevDegrees = -1; // Starting value for rotor
 float rightdur = 0.1;  // Length of a Reward Pulse
+bool TimeFlag = false;
 
 void setup() {
   pinMode(PIN_8, OUTPUT); // set pin 8 as output
@@ -61,13 +62,14 @@ void loop() {
     }
   }
   else if (currentState == TIMESTAMPING) {
-    int currentState = digitalRead(PIN_12); // Read current state
-    if (currentState == HIGH) {
-      digitalWrite(PIN_12, LOW); // If current state is HIGH, set it to LOW
-        Serial.println("Pin is low");
-    } else {
-      digitalWrite(PIN_12, HIGH); // If current state is LOW, set it to HIGH
+    if (TimeFlag) {
+      digitalWrite(PIN_12, HIGH); // If current state is HIGH, set it to LOW
         Serial.println("Pin is high");
+        TimeFlag = false;
+    } else {
+      digitalWrite(PIN_12, LOW); // If current state is LOW, set it to HIGH
+        Serial.println("Pin is low");
+        TimeFlag = true;
     }
     currentState = READING; // switch back to READING state
   }
