@@ -1,3 +1,10 @@
+// This code uses two interrupt handlers to monitor the state of the two input pins. 
+// When a rising edge is detected at either pin, the corresponding interrupt handler 
+// function is called to transmit the current timestamp over the serial port. 
+// This way, every time either of the input pins changes state from low to high, 
+// the exact time of change is immediately reported. 
+// Instead of the standard `millis()` function, the `micros()` function is used 
+// to obtain the time, providing greater precision.
 #define INPUT_PIN_2 2 // Stimulus signal
 #define INPUT_PIN_3 3 // Frame signal
 #define INPUT_PIN_4 4 // unsure if a 3rd time signal is needed but here it is
@@ -29,6 +36,23 @@ void handlePin2Change() {
     if (currentState == HIGH) {
        Serial.print("Timestamp (micros): ");
        Serial.print(micros());
+       Serial.println(" - PIN 2 RISING edge detected");
+    }
+    else {
+       Serial.print("Timestamp (micros): ");
+       Serial.print(micros());
+       Serial.println(" - PIN 2 FALLING edge detected");
+    }
+  }
+}
+
+void handlePin3Change() {
+  int currentState = digitalRead(INPUT_PIN_3);
+  if (currentState != pin4State){
+    pin4State = currentState;
+    if (currentState == HIGH) {
+       Serial.print("Timestamp (micros): ");
+       Serial.print(micros());
        Serial.println(" - PIN 3 RISING edge detected");
     }
     else {
@@ -39,10 +63,10 @@ void handlePin2Change() {
   }
 }
 
-void handlePin3Change() {
-  int currentState = digitalRead(INPUT_PIN_3);
-  if (currentState != pin4State){
-    pin4State = currentState;
+void handlePin4Change() {
+  int currentState = digitalRead(INPUT_PIN_4);
+  if (currentState != pin5State){
+    pin5State = currentState;
     if (currentState == HIGH) {
        Serial.print("Timestamp (micros): ");
        Serial.print(micros());
@@ -55,28 +79,3 @@ void handlePin3Change() {
     }
   }
 }
-
-void handlePin4Change() {
-  int currentState = digitalRead(INPUT_PIN_4);
-  if (currentState != pin5State){
-    pin5State = currentState;
-    if (currentState == HIGH) {
-       Serial.print("Timestamp (micros): ");
-       Serial.print(micros());
-       Serial.println(" - PIN 5 RISING edge detected");
-    }
-    else {
-       Serial.print("Timestamp (micros): ");
-       Serial.print(micros());
-       Serial.println(" - PIN 5 FALLING edge detected");
-    }
-  }
-}
-
-// This code uses two interrupt handlers to monitor the state of the two input pins. 
-// When a rising edge is detected at either pin, the corresponding interrupt handler 
-// function is called to transmit the current timestamp over the serial port. 
-// This way, every time either of the input pins changes state from low to high, 
-// the exact time of change is immediately reported. 
-// Instead of the standard `millis()` function, the `micros()` function is used 
-// to obtain the time, providing greater precision.

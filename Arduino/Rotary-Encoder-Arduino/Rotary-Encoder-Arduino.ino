@@ -8,7 +8,7 @@
 
 // This code is a finite state machine that: reads from the encoder, gives rewards, or toggles the timestamp pin
 enum State {
-  SETUP, READING, REWARDING, TIMESTAMPING
+  SETUP, READING, RIGHTREWARDING, TIMESTAMPING
 };
 
 // The pin numbers must be defined here, since the Encoder library uses these to specify which pins to use
@@ -17,7 +17,7 @@ Encoder myEnc(2, 3); // 2 and 3 are interrupt pins for Arduino Uno
 State currentState = READING; // Default state is Reading
 String str;
 int prevDegrees = -1; // Starting value for rotor
-unsigned int dur;  // Length of a Reward Pulse
+float rightdur;  // Length of a Reward Pulse
 
 void setup() {
   pinMode(PIN_8, OUTPUT); // set pin 8 as output
@@ -29,23 +29,17 @@ void setup() {
 }
 
 void loop() {  
-  if (currentState == TIMESTAMPING) {
-    if (Serial.available()) { // check if data is available to read
-      // Toggle the timestamp pin
-      currentState = READING; // switch back to READING state
-    }
-  } 
-  else if (currentState == READING) {
+  if (currentState == READING) {
     if (Serial.available()) { // Switch between states
       String str = Serial.readStringUntil('\n'); // read the incoming string
       if (str.equals("Reward")) {
-        currentState = REWARDING; // switch to REWARDING state
+        currentState = RIGHTREWARDING; // switch to RIGHTREWARDING state
       }
       else if (str.equals("Time")) {
-        currentState = TIMESTAMPING; // switch to REWARDING state
+        currentState = TIMESTAMPING; // switch to RIGHTREWARDING state
       }
       else if (str.equals("Setup")) {
-        currentState = SETUP; // switch to REWARDING state
+        currentState = SETUP; // switch to RIGHTREWARDING state
       }
       else if (str.equals("Reset")) {
         myEnc.write(0); // reset the encoder position
@@ -64,25 +58,31 @@ void loop() {
     }
     delay(10); // Delay for signal de-bouncing
     }
-  } 
-  else if (currentState == REWARDING) {
+  }
+  else if (currentState == TIMESTAMPING) {
+    int currentState = digitalRead(PIN_12); // Read current state
+    if (currentState == HIGH) {
+      digitalWrite(PIN_12, LOW); // If current state is HIGH, set it to LOW
+    } else {
+      digitalWrite(PIN_12, HIGH); // If current state is LOW, set it to HIGH
+    }
+    currentState = READING; // switch back to READING state
+  }
+  else if (currentState == RIGHTREWARDING) {
     String str;
     String side;
-
-    // while(digitalRead(PIN_4) == HIGH); // Keep waiting until the photogate for the reward valve reads LOW (mouse is standing there)
-    // Serial.println("reward drop");
+    Serial.println(rightdur)
     digitalWrite(PIN_8, HIGH);   // Turn the LED on
-    delay(dur*1000);  // Wait for specified duration
+    delay(rightdur*1000000);  // Wait for rightduration
     digitalWrite(PIN_8, LOW);    // Turn the LED off
     myEnc.write(0); // reset the encoder position
     currentState = READING; // Go back to initial state or another state as needed. For example:
-    // Serial.println("end reward");
   }
   else if (currentState == SETUP) {
-    Serial.println('Reward duration MICROseconds');
+    Serial.println('Reward rightduration MICROseconds');
     while(!Serial.available()); // Wait until data is available
     str = Serial.readStringUntil('\n'); // read the incoming string until a newline
-    dur = str.toInt(); // convert this string to an integer
+    rightdur = str.toInt(); // convert this string to an integer
     Serial.println('Setup complete');
     currentState = READING;
   }
