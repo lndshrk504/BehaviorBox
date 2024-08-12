@@ -76,11 +76,13 @@ void loop() {
     digitalWrite(PIN_8, HIGH);   // Turn the LED on
     delay(rightdur*1000);  // Wait for rightduration
     digitalWrite(PIN_8, LOW);    // Turn the LED off
+    Serial.println("Done");
     myEnc.write(0); // reset the encoder position
+    Serial.println(0);
     currentState = READING; // Go back to initial state or another state as needed. For example:
   }
   else if (currentState == SETUP) {
-    Serial.println("Reward rightduration MICROseconds");
+    Serial.println("Reward rightduration (seconds)");
     while(!Serial.available()); // Wait until data is available
     str = Serial.readStringUntil('\n'); // read the incoming string until a newline
     rightdur = str.toFloat(); // convert this string to an integer
