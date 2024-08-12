@@ -57,7 +57,7 @@ void loop() {
         prevDegrees = degrees;
       }
     }
-    delay(10); // Delay for signal de-bouncing
+    //delay(10); // Delay for signal de-bouncing (not as necessary for rotary encoder)
     }
   }
   else if (currentState == TIMESTAMPING) {
