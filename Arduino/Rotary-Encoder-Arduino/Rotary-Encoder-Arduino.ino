@@ -78,6 +78,7 @@ void loop() {
     digitalWrite(PIN_8, LOW);    // Turn the LED off
     Serial.println("Done");
     myEnc.write(0); // reset the encoder position
+    prevDegrees = 0;
     Serial.println(0);
     currentState = READING; // Go back to initial state or another state as needed. For example:
   }
