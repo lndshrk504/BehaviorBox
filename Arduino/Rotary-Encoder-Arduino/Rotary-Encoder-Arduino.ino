@@ -17,7 +17,7 @@ Encoder myEnc(2, 3); // 2 and 3 are interrupt pins for Arduino Uno
 State currentState = READING; // Default state is Reading
 String str;
 int prevDegrees = -1; // Starting value for rotor
-float rightdur;  // Length of a Reward Pulse
+float rightdur = 0.1;  // Length of a Reward Pulse
 
 void setup() {
   pinMode(PIN_8, OUTPUT); // set pin 8 as output
@@ -44,7 +44,6 @@ void loop() {
       else if (str.equals("Reset")) {
         myEnc.write(0); // reset the encoder position
         prevDegrees = 0;
-        newPosition = 0;
         Serial.println(0);
       }
     } 
