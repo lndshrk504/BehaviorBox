@@ -73,7 +73,7 @@ void loop() {
   else if (currentState == RIGHTREWARDING) {
     String str;
     String side;
-    Serial.println(rightdur)
+    Serial.println(rightdur);
     digitalWrite(PIN_8, HIGH);   // Turn the LED on
     delay(rightdur*1000000);  // Wait for rightduration
     digitalWrite(PIN_8, LOW);    // Turn the LED off
@@ -84,7 +84,7 @@ void loop() {
     Serial.println("Reward rightduration MICROseconds");
     while(!Serial.available()); // Wait until data is available
     str = Serial.readStringUntil('\n'); // read the incoming string until a newline
-    rightdur = str.toInt(); // convert this string to an integer
+    rightdur = str.toFloat(); // convert this string to an integer
     Serial.println("Setup complete");
     currentState = READING;
   }
