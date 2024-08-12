@@ -74,7 +74,7 @@ void loop() {
     String side;
     Serial.println(rightdur);
     digitalWrite(PIN_8, HIGH);   // Turn the LED on
-    delay(rightdur*1000000);  // Wait for rightduration
+    delay(rightdur*1000);  // Wait for rightduration
     digitalWrite(PIN_8, LOW);    // Turn the LED off
     myEnc.write(0); // reset the encoder position
     currentState = READING; // Go back to initial state or another state as needed. For example:

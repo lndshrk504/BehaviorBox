@@ -78,7 +78,7 @@ void loop() {
     Serial.println("right drop");
     Serial.println(rightdur);
     digitalWrite(Valve, HIGH);   // Turn the LED on
-    delay(rightdur*1000000);  // Wait for specified duration
+    delay(rightdur*1000);  // Wait for specified duration
     digitalWrite(Valve, LOW);    // Turn the LED off
     currentState = READING; // Go back to initial state
   }
@@ -86,23 +86,23 @@ void loop() {
     Serial.println("left drop");
     Serial.println(leftdur);
     digitalWrite(Valve, HIGH);   // Turn the LED on
-    delay(leftdur*1000000);  // Wait for specified duration
+    delay(leftdur*1000);  // Wait for specified duration
     digitalWrite(Valve, LOW);    // Turn the LED off
     currentState = READING; // Go back to initial state
   }
   else if (currentState == SETUP) {
-    Serial.println("Right Reward duration MICROseconds");
+    Serial.println("Right Reward duration (seconds)");
     while(!Serial.available()); // Wait until data is available
     str = Serial.readStringUntil('\n'); // read the incoming string until a newline
     rightdur = str.toFloat(); // convert this string to an integer
 
-    Serial.println("Left Reward duration MICROseconds");
+    Serial.println("Left Reward duration (seconds)");
     while(!Serial.available()); // Wait until data is available
     str = Serial.readStringUntil('\n'); // read the incoming string until a newline
     rightdur = str.toFloat(); // convert this string to an integer
 
     Serial.println("Setup complete");
-    
+
     currentState = READING;
   }
 }
