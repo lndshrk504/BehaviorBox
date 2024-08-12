@@ -81,11 +81,11 @@ void loop() {
     currentState = READING; // Go back to initial state or another state as needed. For example:
   }
   else if (currentState == SETUP) {
-    Serial.println('Reward rightduration MICROseconds');
+    Serial.println("Reward rightduration MICROseconds");
     while(!Serial.available()); // Wait until data is available
     str = Serial.readStringUntil('\n'); // read the incoming string until a newline
     rightdur = str.toInt(); // convert this string to an integer
-    Serial.println('Setup complete');
+    Serial.println("Setup complete");
     currentState = READING;
   }
   }

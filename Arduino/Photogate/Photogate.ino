@@ -91,15 +91,15 @@ void loop() {
     currentState = READING; // Go back to initial state
   }
   else if (currentState == SETUP) {
-    Serial.println('Right Reward duration MICROseconds');
+    Serial.println("Right Reward duration MICROseconds");
     while(!Serial.available()); // Wait until data is available
     str = Serial.readStringUntil('\n'); // read the incoming string until a newline
     rightdur = str.toInt(); // convert this string to an integer
-    Serial.println('Left Reward duration MICROseconds');
+    Serial.println("Left Reward duration MICROseconds");
     while(!Serial.available()); // Wait until data is available
     str = Serial.readStringUntil('\n'); // read the incoming string until a newline
     rightdur = str.toInt(); // convert this string to an integer
-    Serial.println('Setup complete');
+    Serial.println("Setup complete");
     currentState = READING;
   }
 }
