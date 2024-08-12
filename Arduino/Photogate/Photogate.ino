@@ -5,7 +5,7 @@
 #define PIN_8 8   // Right Reward
 
 enum State {
-  SETUP, READING, REWARDING
+  SETUP, READING, RIGHT_REWARDING, LEFT_REWARDING
 };
 
 State currentState = READING; // Current State of the program
@@ -13,7 +13,8 @@ bool hasPrintedL = false; // Flags to prevent printing the same message twice
 bool hasPrintedM = false;
 bool hasPrintedR = false;
 bool hasPrintedNone = false;
-unsigned int dur;  // Length of a Reward Pulse
+float rightdur;  // Length of a right Reward Pulse
+float leftdur;  // Length of a left Reward Pulse
 String str;
 
 void setup() {
@@ -29,8 +30,11 @@ void loop() {
   if (currentState == READING) {
     if (Serial.available()) { // Switch between SETUP and REWARDING states
       String str = Serial.readStringUntil('\n'); // read the incoming string
-      if (str.equals("Reward")) {
-        currentState = REWARDING; // switch to REWARDING state
+      if (str.equals("Right")) {
+        currentState = RIGHT_REWARDING; // switch to REWARDING state
+      }
+      if (str.equals("Left")) {
+        currentState = LEFT_REWARDING; // switch to REWARDING state
       }
       else if (str.equals("Setup")) {
         currentState = SETUP; // switch to Setup
@@ -70,28 +74,31 @@ void loop() {
       delay(10); // delay reduces "signal bouncing," could add debouncing circuit with resistors and capacitors or just keep the delay
     }
   } 
-  else if (currentState == REWARDING) {
-    int pulseNumber, durationNumber; // Declare the variables outside the if-else
-    String side;
-
-    Serial.println("Side");   // print "Side" message
-    while(!Serial.available()); // Wait until data is available
-    side = Serial.readStringUntil('\n'); // read the incoming string until a newline
-    int Valve = (side == 'L') ? PIN_7 : PIN_8; // Determine which Reward Valve to use
-
-    // Serial.println("reward drop");
+  else if (currentState == RIGHT_REWARDING) {
+    Serial.println("right drop");
+    Serial.println(rightdur);
     digitalWrite(Valve, HIGH);   // Turn the LED on
-    delay(dur*1000);  // Wait for specified duration
+    delay(rightdur*1000000);  // Wait for specified duration
     digitalWrite(Valve, LOW);    // Turn the LED off
-
     currentState = READING; // Go back to initial state
-    // Serial.println("end reward");
+  }
+  else if (currentState == LEFT_REWARDING) {
+    Serial.println("left drop");
+    Serial.println(leftdur);
+    digitalWrite(Valve, HIGH);   // Turn the LED on
+    delay(leftdur*1000000);  // Wait for specified duration
+    digitalWrite(Valve, LOW);    // Turn the LED off
+    currentState = READING; // Go back to initial state
   }
   else if (currentState == SETUP) {
-    Serial.println('Reward duration MICROseconds');
+    Serial.println('Right Reward duration MICROseconds');
     while(!Serial.available()); // Wait until data is available
     str = Serial.readStringUntil('\n'); // read the incoming string until a newline
-    dur = str.toInt(); // convert this string to an integer
+    rightdur = str.toInt(); // convert this string to an integer
+    Serial.println('Left Reward duration MICROseconds');
+    while(!Serial.available()); // Wait until data is available
+    str = Serial.readStringUntil('\n'); // read the incoming string until a newline
+    rightdur = str.toInt(); // convert this string to an integer
     Serial.println('Setup complete');
     currentState = READING;
   }
