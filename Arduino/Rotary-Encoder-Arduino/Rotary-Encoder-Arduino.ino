@@ -43,6 +43,8 @@ void loop() {
       }
       else if (str.equals("Reset")) {
         myEnc.write(0); // reset the encoder position
+        prevDegrees = 0;
+        newPosition = 0;
         Serial.println(0);
       }
     } 
