@@ -15,7 +15,7 @@ volatile int pin4State = LOW;
 volatile int pin5State = LOW; // Added third pin
 
 void setup() {
-  pinMode(INPUT_PIN_2, INPUT_PULLUP);
+  pinMode(INPUT_PIN_2, INPUT_PULLUP); // Should be pullup because otherwise too sensitive
   pinMode(INPUT_PIN_3, INPUT_PULLUP);
   pinMode(INPUT_PIN_4, INPUT_PULLUP); // Setup third pin as input
 

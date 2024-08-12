@@ -94,4 +94,4 @@ void loop() {
     Serial.println("Setup complete");
     currentState = READING;
   }
-  }
+}
