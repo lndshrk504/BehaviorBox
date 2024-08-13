@@ -6,9 +6,9 @@
 // Instead of the standard `millis()` function, the `micros()` function is used 
 // to obtain the time, providing greater precision.
 // micros() will reset every 70 minutes, so consider making a modification for longer sessions
-#define INPUT_PIN_2 2 // Stimulus signal
-#define INPUT_PIN_3 3 // Frame clock from ScanImage
-#define INPUT_PIN_4 4 // unsure if a 3rd time signal is needed but here it is
+#define INPUT_PIN_2 2 // Stimulus signal (BB Wheel)
+#define INPUT_PIN_3 3 // Frame clock signal (SI)
+#define INPUT_PIN_4 4 // New File signal (SI)
 
 volatile int pin3State = LOW;
 volatile int pin4State = LOW;

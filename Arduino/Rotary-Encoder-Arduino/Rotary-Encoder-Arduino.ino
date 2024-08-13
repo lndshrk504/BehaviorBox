@@ -1,10 +1,10 @@
 #define ENCODER_OPTIMIZE_INTERRUPTS // makes it super fast: https://www.pjrc.com/teensy/td_libs_Encoder.html
 #include <Encoder.h>
 #define PIN_8 8   // Reward
-#define PIN_9 9   // Start Acquisition (ScanImage)
-#define PIN_10 10 // New File (ScanImage)
-#define PIN_11 11 // End Acquisition (ScanImage)
-#define PIN_12 12 // Timestamp (Other Arduino)
+#define PIN_9 9   // Start Acquisition (SI)
+#define PIN_10 10 // Next File (SI)
+#define PIN_11 11 // End Acquisition (SI)
+#define PIN_12 12 // Timestamp (Time)
 
 // This code is a finite state machine that: reads from the encoder, gives rewards, or toggles the timestamp pin
 enum State {
