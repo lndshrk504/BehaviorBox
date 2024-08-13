@@ -2,7 +2,7 @@
 #include <Encoder.h>
 #define PIN_8 8   // Reward
 #define PIN_9 9   // Start Acquisition (ScanImage)
-#define PIN_10 10 // Next File (ScanImage)
+#define PIN_10 10 // New File (ScanImage)
 #define PIN_11 11 // End Acquisition (ScanImage)
 #define PIN_12 12 // Timestamp (Other Arduino)
 
@@ -58,7 +58,7 @@ void loop() {
         prevDegrees = degrees;
       }
     }
-    //delay(10); // Delay for signal de-bouncing (not as necessary for rotary encoder)
+    delay(1); // Delay for signal de-bouncing (not as necessary for rotary encoder)
     }
   }
   else if (currentState == TIMESTAMPING) {

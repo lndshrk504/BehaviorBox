@@ -7,7 +7,7 @@
 // to obtain the time, providing greater precision.
 // micros() will reset every 70 minutes, so consider making a modification for longer sessions
 #define INPUT_PIN_2 2 // Stimulus signal
-#define INPUT_PIN_3 3 // Frame signal
+#define INPUT_PIN_3 3 // Frame clock from ScanImage
 #define INPUT_PIN_4 4 // unsure if a 3rd time signal is needed but here it is
 
 volatile int pin3State = LOW;
@@ -15,7 +15,7 @@ volatile int pin4State = LOW;
 volatile int pin5State = LOW; // Added third pin
 
 void setup() {
-  pinMode(INPUT_PIN_2, INPUT_PULLUP); // Should be pullup because otherwise too sensitive
+  pinMode(INPUT_PIN_2, INPUT_PULLUP); // Should be pullup because otherwise too sensitive (erroneous timestamps appeared otherwise)
   pinMode(INPUT_PIN_3, INPUT_PULLUP);
   pinMode(INPUT_PIN_4, INPUT_PULLUP); // Setup third pin as input
 
@@ -27,7 +27,7 @@ void setup() {
 }
 
 void loop() {
-  // delay(1000); //You can replace this delay with any other task
+  delay(1); //You can replace this delay with any other task
 }
 
 void handlePin2Change() {
