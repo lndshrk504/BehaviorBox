@@ -8,7 +8,7 @@
 // micros() will reset every 70 minutes, so consider making a modification for longer sessions
 #define INPUT_PIN_2 2 // Stimulus signal
 #define INPUT_PIN_3 3 // Frame clock from ScanImage
-#define INPUT_PIN_4 4 // unsure if a 3rd time signal is needed but here it is
+#define INPUT_PIN_4 4 // New file signal, sent from BB to SI and to TimeKeeper
 
 volatile int pin3State = LOW;
 volatile int pin4State = LOW;
@@ -27,9 +27,9 @@ void setup() {
 }
 
 void loop() {
-  delay(1); //You can replace this delay with any other task
+  // delay(1); // Loop is empty because the interrupts handle everything
 }
-
+// Stimulus signal
 void handlePin2Change() {
   int currentState = digitalRead(INPUT_PIN_2);
   if (currentState != pin3State){
@@ -46,7 +46,7 @@ void handlePin2Change() {
     }
   }
 }
-
+// Frame clock from ScanImage
 void handlePin3Change() {
   int currentState = digitalRead(INPUT_PIN_3);
   if (currentState != pin4State){
