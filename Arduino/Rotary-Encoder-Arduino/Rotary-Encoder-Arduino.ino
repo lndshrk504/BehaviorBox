@@ -6,7 +6,7 @@
 #define PIN_11 11 // End Acquisition (SI)
 #define PIN_12 12 // Timestamp (Time)
 
-// This code is a finite state machine that: reads from the encoder, gives rewards, or toggles the timestamp pin
+// This code is a state machine that: reads from the encoder, gives rewards, or toggles the timestamp pin
 enum State {
   SETUP, READING, RIGHTREWARDING, TIMESTAMPING
 };
@@ -51,7 +51,7 @@ void loop() {
     else {
       int newPosition = myEnc.read();
       if (newPosition != 0) {
-      // Divide by 4 because of "4X reporting" phenomenon from the quadrature of the encoder
+      // Divide by 4 because of "4X reporting" phenomenon (quadrature) of encoder
       int degrees = newPosition / (4); // int and not double bc 1024 ppr is enough resolution without decimals
       if (degrees!= prevDegrees) {
         Serial.println(degrees);
@@ -87,7 +87,7 @@ void loop() {
     currentState = READING; // Go back to initial state or another state as needed. For example:
   }
   else if (currentState == SETUP) {
-    Serial.println("Reward rightduration (seconds)");
+    Serial.println("Reward (seconds): ");
     while(!Serial.available()); // Wait until data is available
     str = Serial.readStringUntil('\n'); // read the incoming string until a newline
     rightdur = str.toFloat(); // convert this string to an integer

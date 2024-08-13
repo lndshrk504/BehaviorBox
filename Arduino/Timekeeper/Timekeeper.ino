@@ -27,9 +27,9 @@ void setup() {
 }
 
 void loop() {
-  delay(1); //You can replace this delay with any other task
+  // delay(1); // Loop is empty because the interrupts handle everything
 }
-
+// Stimulus signal
 void handlePin2Change() {
   int currentState = digitalRead(INPUT_PIN_2);
   if (currentState != pin3State){
@@ -46,7 +46,7 @@ void handlePin2Change() {
     }
   }
 }
-
+// Frame clock from ScanImage
 void handlePin3Change() {
   int currentState = digitalRead(INPUT_PIN_3);
   if (currentState != pin4State){
