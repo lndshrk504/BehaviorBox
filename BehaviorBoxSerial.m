@@ -44,6 +44,16 @@ classdef BehaviorBoxSerial < handle
                 this.Reset();
                 this.SetupReward();
             end
+
+            function UpdateProps(this, BoxStruct)
+                arguments
+                    this
+                    BoxStruct = struct
+                end
+                for f = fieldnames(BoxStruct)'
+                    this.(f{:}) = BoxStruct.(f{:});
+                end
+            end
     
             function SetupReward(this, opts)
                 arguments
