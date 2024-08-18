@@ -1,4 +1,4 @@
-#define ENCODER_OPTIMIZE_INTERRUPTS // makes it super fast: https://www.pjrc.com/teensy/td_libs_Encoder.html
+#define ENCODER_OPTIMIZE_INTERRUPTS // makes it faster: https://www.pjrc.com/teensy/td_libs_Encoder.html
 #include <Encoder.h>
 #define PIN_8 8   // Reward
 #define PIN_9 9   // Start Acquisition (SI)
@@ -8,13 +8,13 @@
 
 // This code is a state machine that: reads from the encoder, gives rewards, or toggles the timestamp pin
 enum State {
-  SETUP, READING, RIGHTREWARDING, TIMESTAMPING
+  WHO, SETUP, READING, RIGHTREWARDING, TIMESTAMPING
 };
 
 // The pin numbers must be defined here, since the Encoder library uses these to specify which pins to use
 Encoder myEnc(2, 3); // 2 and 3 are interrupt pins for Arduino Uno
 
-State currentState = READING; // Default state is Reading
+State currentState = WHO; // Default state is Reading
 String str;
 int prevDegrees = -1; // Starting value for rotor
 float rightdur = 0.1;  // Length of a Reward Pulse
@@ -33,7 +33,7 @@ void loop() {
   if (currentState == READING) {
     if (Serial.available()) { // Switch between states
       String str = Serial.readStringUntil('\n'); // read the incoming string
-      if (str.equals("Reward")) {
+      if (str.equals("Right")) {
         currentState = RIGHTREWARDING; // switch to RIGHTREWARDING state
       }
       else if (str.equals("Time")) {
@@ -42,6 +42,9 @@ void loop() {
       else if (str.equals("Setup")) {
         currentState = SETUP; // switch to RIGHTREWARDING state
       }
+      else if (str.equals("Who")) {
+        currentState = WHO; // switch to Who
+    }
       else if (str.equals("Reset")) {
         myEnc.write(0); // reset the encoder position
         prevDegrees = 0;
@@ -58,7 +61,7 @@ void loop() {
         prevDegrees = degrees;
       }
     }
-    delay(1); // Delay for signal de-bouncing (not as necessary for rotary encoder)
+    // delay(1); // Delay for signal de-bouncing (not as necessary for rotary encoder)
     }
   }
   else if (currentState == TIMESTAMPING) {
@@ -92,6 +95,14 @@ void loop() {
     str = Serial.readStringUntil('\n'); // read the incoming string until a newline
     rightdur = str.toFloat(); // convert this string to an integer
     Serial.println("Setup complete");
+    currentState = READING;
+  }
+  else if (currentState == WHO) {
+    // Introduce
+    Serial.print("Wheel");
+    Serial.print("Reward duration (seconds)");
+    Serial.println(rightdur);
+
     currentState = READING;
   }
 }

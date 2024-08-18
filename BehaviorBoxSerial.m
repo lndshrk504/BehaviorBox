@@ -20,7 +20,7 @@ classdef BehaviorBoxSerial < handle
             Juice logical = true
             LeftPulse
             LeftPulse_Temp
-            Lrewardtime
+            Lrewardtime = 0.05
             Lrewardtime_Temp
             OCPulse
             OCPulse_Temp
@@ -28,7 +28,7 @@ classdef BehaviorBoxSerial < handle
             Pulse_Min
             RightPulse
             RightPulse_Temp
-            Rrewardtime
+            Rrewardtime = 0.05
             Rrewardtime_Temp
             SecBwPulse
             Two_ports logical
@@ -48,22 +48,33 @@ classdef BehaviorBoxSerial < handle
             function SetupReward(this, opts)
                 arguments
                     this
-                    opts.Duration char = 0.05;
+                    opts.DurationRight char = this.Rrewardtime;
+                    opts.DurationLeft char = this.Lrewardtime;
                 end
                 write(this.Ard, 'Setup', 'char')
                 while ~this.Ard.BytesAvailable
                     pause(0.01);
                 end
-                write(this.Ard, opts.Duration, 'char') % Duration of Right reward pulse
+                write(this.Ard, opts.DurationRight, 'char') % Duration of Right reward pulse
+                this.Rrewardtime = opts.DurationRight;
                 if this.Input_type == "NosePoke"
                     this.Two_ports = true;
                     while ~this.Ard.BytesAvailable
                         pause(0.01);
                     end
-                    write(this.Ard, opts.Duration, 'char') % Duration of Left reward pulse
+                    write(this.Ard, opts.DurationLeft, 'char') % Duration of Left reward pulse
+                    this.Lrewardtime = opts.DurationLeft;
                 else
                     this.Two_ports = false;
                 end
+            end
+
+            function GiveReward(this, opts)
+                arguments
+                    this
+                    opts.Side char = 'Right'
+                end
+                writeline(this.Ard, opts.Side, 'char')
             end
     
             function Reading = SerialRead(this, src, ~)
