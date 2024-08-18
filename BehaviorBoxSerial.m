@@ -109,19 +109,19 @@ classdef BehaviorBoxSerial < handle
             end
     
             function LeftRead = ReadLeft(this)
-                LeftRead = this.SerialRead() == "L";
+                LeftRead = strcmpi(this.SerialRead(), "L");
             end
             
             function RightRead = ReadRight(this)
-                RightRead = this.SerialRead() == "R";
+                RightRead = strcmpi(this.SerialRead(), "R");
             end
             
             function MiddleRead = ReadMiddle(this)
-                MiddleRead = this.SerialRead() == "M";
+                MiddleRead = strcmpi(this.SerialRead(), "M");
             end
             
             function NoneRead = ReadNone(this)
-                NoneRead = this.SerialRead() == "-";
+                NoneRead = strcmpi(this.SerialRead(), "-");
             end
     
             function Reset(this)
