@@ -5,7 +5,7 @@
 #define PIN_8 8   // Right Reward
 
 enum State {
-  SETUP, READING, RIGHT_REWARDING, LEFT_REWARDING
+  SETUP, READING, RIGHT_REWARDING, LEFT_REWARDING, WHO
 };
 
 State currentState = READING; // Current State of the program
@@ -38,6 +38,9 @@ void loop() {
       }
       else if (str.equals("Setup")) {
         currentState = SETUP; // switch to Setup
+      }
+      else if (str.equals("Who")) {
+        currentState = WHO; // switch to Identifying state
       }
     } 
     else {
@@ -103,6 +106,10 @@ void loop() {
 
     Serial.println("Setup complete");
 
+    currentState = READING;
+  }
+  else if (currentState == WHO) {
+    Serial.println("NosePoke");
     currentState = READING;
   }
 }
