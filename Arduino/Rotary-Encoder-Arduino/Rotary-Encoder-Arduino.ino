@@ -8,7 +8,7 @@
 
 // This code is a state machine that: reads from the encoder, gives rewards, or toggles the timestamp pin
 enum State {
-  WHO, SETUP, READING, RIGHTREWARDING, TIMESTAMPING
+  WHO, SETUP, READING, RIGHT_REWARDING, RIGHT_OPEN, TIMESTAMPING
 };
 
 // The pin numbers must be defined here, since the Encoder library uses these to specify which pins to use
@@ -19,6 +19,7 @@ String str;
 int prevDegrees = -1; // Starting value for rotor
 float rightdur = 0.1;  // Length of a Reward Pulse
 bool TimeFlag = false;
+bool RightOpen = false;
 
 void setup() {
   pinMode(PIN_8, OUTPUT); // set pin 8 as output
@@ -34,13 +35,16 @@ void loop() {
     if (Serial.available()) { // Switch between states
       String str = Serial.readStringUntil('\n'); // read the incoming string
       if (str.equals("R")) {
-        currentState = RIGHTREWARDING; // switch to RIGHTREWARDING state
+        currentState = RIGHT_REWARDING; // switch to RIGHT_REWARDING state
+      }
+      if (str.equals("RO")) {
+        currentState = RIGHT_OPEN;
       }
       else if (str.equals("T")) {
-        currentState = TIMESTAMPING; // switch to RIGHTREWARDING state
+        currentState = TIMESTAMPING; // switch to RIGHT_REWARDING state
       }
       else if (str.equals("S")) {
-        currentState = SETUP; // switch to RIGHTREWARDING state
+        currentState = SETUP; // switch to RIGHT_REWARDING state
       }
       else if (str.equals("W")) {
         currentState = WHO; // switch to Who
@@ -79,7 +83,7 @@ void loop() {
     }
     currentState = READING; // switch back to READING state
   }
-  else if (currentState == RIGHTREWARDING) {
+  else if (currentState == RIGHT_REWARDING) {
     String str;
     String side;
     Serial.println(rightdur);
@@ -92,6 +96,17 @@ void loop() {
     Serial.println(0);
     currentState = READING; // Go back to initial state or another state as needed. For example:
   }
+  else if (currentState == RIGHT_OPEN) {
+    if (RightOpen == false) {
+      digitalWrite(PIN_8, HIGH);
+      RightOpen = true;
+    }
+    else {
+      digitalWrite(PIN_8, LOW);
+      RightOpen = false;
+    }
+    currentState = READING;
+  }
   else if (currentState == SETUP) {
     Serial.println("Reward (seconds): ");
     while(!Serial.available()); // Wait until data is available
@@ -103,14 +118,14 @@ void loop() {
   else if (currentState == WHO) {
     // Introduce
     Serial.println("Wheel");
-    Serial.print("Reward duration (seconds): ");
-    Serial.println(rightdur);
     Serial.println("The encoder 'myEnc' is connected to the interrupt pins 2 and 3");
     Serial.println("PIN_8 (Reward) is connected to digital pin 8");
     Serial.println("PIN_9 (Start Acquisition (SI)) is connected to digital pin 9");
     Serial.println("PIN_10 (Next File (SI)) is connected to digital pin 10");
     Serial.println("PIN_11 (End Acquisition (SI)) is connected to digital pin 11");
     Serial.println("PIN_12 (Timestamp (Time)) is connected to digital pin 12");
+    Serial.print("Reward duration (seconds): ");
+    Serial.println(rightdur);
 
     currentState = READING;
   }

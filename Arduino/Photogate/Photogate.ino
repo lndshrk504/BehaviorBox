@@ -5,7 +5,7 @@
 #define PIN_8 8   // Right Reward
 
 enum State {
-  WHO, SETUP, READING, RIGHT_REWARDING, LEFT_REWARDING
+  WHO, SETUP, READING, RIGHT_REWARDING, LEFT_REWARDING, RIGHT_OPEN, LEFT_OPEN
 };
 
 State currentState = WHO; // Current State of the program
@@ -13,6 +13,8 @@ bool hasPrintedL = false; // Flags to prevent printing the same message twice
 bool hasPrintedM = false;
 bool hasPrintedR = false;
 bool hasPrintedNone = false;
+bool RightOpen = false;
+bool LeftOpen = false;
 float rightdur = 0.05;  // Length of a right Reward Pulse
 float leftdur = 0.05;  // Length of a left Reward Pulse
 String str;
@@ -33,8 +35,14 @@ void loop() {
       if (str.equals("R")) {
         currentState = RIGHT_REWARDING; // switch to REWARDING state
       }
+      if (str.equals("RO")) {
+        currentState = RIGHT_OPEN;
+      }
       if (str.equals("L")) {
         currentState = LEFT_REWARDING; // switch to REWARDING state
+      }
+      if (str.equals("LO")) {
+        currentState = LEFT_OPEN;
       }
       else if (str.equals("S")) {
         currentState = SETUP; // switch to Setup
@@ -86,6 +94,17 @@ void loop() {
 
     currentState = READING; // Go back to initial state
   }
+  else if (currentState == RIGHT_OPEN) {
+    if (RightOpen == false) {
+      digitalWrite(PIN_8, HIGH);
+      RightOpen = true;
+    }
+    else {
+      digitalWrite(PIN_8, LOW);
+      RightOpen = false;
+    }
+    currentState = READING;
+  }
   else if (currentState == LEFT_REWARDING) {
     // Serial.println("left drop");
     // Serial.println(leftdur);
@@ -94,6 +113,17 @@ void loop() {
     digitalWrite(PIN_7, LOW);    // Close valve
 
     currentState = READING; // Go back to initial state
+  }
+  else if (currentState == LEFT_OPEN) {
+    if (LeftOpen == false) {
+      digitalWrite(PIN_7, HIGH);
+      LeftOpen = true;
+    }
+    else {
+      digitalWrite(PIN_7, LOW);
+      LeftOpen = false;
+    }
+    currentState = READING;
   }
   else if (currentState == SETUP) {
 
@@ -114,15 +144,15 @@ void loop() {
   else if (currentState == WHO) {
     // Introduce
     Serial.println("NosePoke");
-    Serial.print("Right reward duration (seconds): ");
-    Serial.println(rightdur);
-    Serial.print("Left reward duration (seconds): ");
-    Serial.println(leftdur);
     Serial.println("PIN_4 (Left) is connected to digital pin 4");
     Serial.println("PIN_5 (Middle) is connected to digital pin 5");
     Serial.println("PIN_6 (Right) is connected to digital pin 6");
     Serial.println("PIN_7 (Left Reward) is connected to digital pin 7");
     Serial.println("PIN_8 (Right Reward) is connected to digital pin 8");
+    Serial.print("Right reward duration (seconds): ");
+    Serial.println(rightdur);
+    Serial.print("Left reward duration (seconds): ");
+    Serial.println(leftdur);
 
     currentState = READING;
   }
