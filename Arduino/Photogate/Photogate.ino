@@ -80,17 +80,19 @@ void loop() {
   else if (currentState == RIGHT_REWARDING) {
     // Serial.println("right drop");
     // Serial.println(rightdur);
-    digitalWrite(PIN_8, HIGH);   // Turn the LED on
+    digitalWrite(PIN_8, HIGH);   // Open valve
     delay(rightdur*1000);  // Wait for specified duration
-    digitalWrite(PIN_8, LOW);    // Turn the LED off
+    digitalWrite(PIN_8, LOW);    // Close valve
+
     currentState = READING; // Go back to initial state
   }
   else if (currentState == LEFT_REWARDING) {
     // Serial.println("left drop");
     // Serial.println(leftdur);
-    digitalWrite(PIN_7, HIGH);   // Turn the LED on
+    digitalWrite(PIN_7, HIGH);   // Open valve
     delay(leftdur*1000);  // Wait for specified duration
-    digitalWrite(PIN_7, LOW);    // Turn the LED off
+    digitalWrite(PIN_7, LOW);    // Close valve
+
     currentState = READING; // Go back to initial state
   }
   else if (currentState == SETUP) {
@@ -103,7 +105,7 @@ void loop() {
     // Serial.println("Left Reward duration (seconds)");
     while(!Serial.available()); // Wait until data is available
     str = Serial.readStringUntil('\n'); // read the incoming string until a newline
-    rightdur = str.toFloat(); // convert this string to an integer
+    leftdur = str.toFloat(); // convert this string to an integer
 
     Serial.println("Setup complete");
 
