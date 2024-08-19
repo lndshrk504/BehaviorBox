@@ -40,17 +40,17 @@ classdef BehaviorBoxSerial < handle
                 try
                     this.Ard = serialport(port, baudRate);
                     configureTerminator(this.Ard,"CR/LF");
-                    flush(this.Ard);
                     configureCallback(this.Ard, "terminator", @this.SerialRead);
                     this.Reset();
                     this.SetupReward();
+                    flush(this.Ard);
                 catch
                     this.Ard = [];
                 end
             end
 
             function Who(this)
-                writeline(this.Ard, 'W', 'char')
+                writeline(this.Ard, 'W')
                 pause(1); % Pause for a moment to allow data to be loaded into the buffer
                 while this.Ard.NumBytesAvailable > 0
                     data = readline(this.Ard);
@@ -74,18 +74,18 @@ classdef BehaviorBoxSerial < handle
                     opts.DurationRight char = this.Rrewardtime;
                     opts.DurationLeft char = this.Lrewardtime;
                 end
-                writeline(this.Ard, 'S', 'char')
-                while ~this.Ard.BytesAvailable
+                writeline(this.Ard, 'S')
+                while ~this.Ard.BytesAvailable == 0
                     pause(0.01);
                 end
-                writeline(this.Ard, opts.DurationRight, 'char') % Duration of Right reward pulse
+                writeline(this.Ard, opts.DurationRight) % Duration of Right reward pulse
                 this.Rrewardtime = opts.DurationRight;
                 if this.Input_type == "NosePoke"
                     this.Two_ports = true;
-                    while ~this.Ard.BytesAvailable
+                    while ~this.Ard.BytesAvailable == 0
                         pause(0.01);
                     end
-                    writeline(this.Ard, opts.DurationLeft, 'char') % Duration of Left reward pulse
+                    writeline(this.Ard, opts.DurationLeft) % Duration of Left reward pulse
                     this.Lrewardtime = opts.DurationLeft;
                 else
                     this.Two_ports = false;
@@ -97,7 +97,10 @@ classdef BehaviorBoxSerial < handle
                     this
                     opts.Side char = 'R'
                 end
-                writeline(this.Ard, opts.Side, 'char')
+                write(this.Ard, uint8(opts.Side), "uint8");
+                flush(this.Ard, "output");
+            % This is incredibly slow, because of the way that serial
+            % commmunication over USB works in MATLAB... Unacceptably slow
             end
     
             function Reading = SerialRead(this, src, ~)
