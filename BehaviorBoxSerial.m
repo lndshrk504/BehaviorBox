@@ -37,12 +37,16 @@ classdef BehaviorBoxSerial < handle
         methods
             function this = BehaviorBoxSerial(port, baudRate, Input_type)
                 this.Input_type = Input_type;
-                this.Ard = serialport(port, baudRate);
-                configureTerminator(this.Ard,"CR/LF");
-                flush(this.Ard);
-                configureCallback(this.Ard, "terminator", @this.SerialRead);
-                this.Reset();
-                this.SetupReward();
+                try
+                    this.Ard = serialport(port, baudRate);
+                    configureTerminator(this.Ard,"CR/LF");
+                    flush(this.Ard);
+                    configureCallback(this.Ard, "terminator", @this.SerialRead);
+                    this.Reset();
+                    this.SetupReward();
+                catch
+                    this.Ard = [];
+                end
             end
 
             function UpdateProps(this, BoxStruct)
@@ -61,7 +65,7 @@ classdef BehaviorBoxSerial < handle
                     opts.DurationRight char = this.Rrewardtime;
                     opts.DurationLeft char = this.Lrewardtime;
                 end
-                write(this.Ard, 'Setup', 'char')
+                write(this.Ard, 'S', 'char')
                 while ~this.Ard.BytesAvailable
                     pause(0.01);
                 end
@@ -82,7 +86,7 @@ classdef BehaviorBoxSerial < handle
             function GiveReward(this, opts)
                 arguments
                     this
-                    opts.Side char = 'Right'
+                    opts.Side char = 'R'
                 end
                 writeline(this.Ard, opts.Side, 'char')
             end
