@@ -101,6 +101,7 @@ classdef BehaviorBoxSerial < handle
                 flush(this.Ard, "output");
             % This is incredibly slow, because of the way that serial
             % commmunication over USB works in MATLAB... Unacceptably slow
+% https://www.reddit.com/r/arduino/comments/111udy/arduino_as_an_acquisition_device_with_matlab/
             end
     
             function Reading = SerialRead(this, src, ~)
