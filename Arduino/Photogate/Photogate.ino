@@ -5,16 +5,20 @@
 #define PIN_8 8   // Right Reward
 
 enum State {
+<<<<<<< HEAD
   SETUP, READING, RIGHT_REWARDING, LEFT_REWARDING, WHO
+=======
+  WHO, SETUP, READING, RIGHT_REWARDING, LEFT_REWARDING
+>>>>>>> a7f0fedcdb926da0a9237d1087786e86763e1bb8
 };
 
-State currentState = READING; // Current State of the program
+State currentState = WHO; // Current State of the program
 bool hasPrintedL = false; // Flags to prevent printing the same message twice
 bool hasPrintedM = false;
 bool hasPrintedR = false;
 bool hasPrintedNone = false;
-float rightdur;  // Length of a right Reward Pulse
-float leftdur;  // Length of a left Reward Pulse
+float rightdur = 0.05;  // Length of a right Reward Pulse
+float leftdur = 0.05;  // Length of a left Reward Pulse
 String str;
 
 void setup() {
@@ -40,8 +44,12 @@ void loop() {
         currentState = SETUP; // switch to Setup
       }
       else if (str.equals("Who")) {
+<<<<<<< HEAD
         currentState = WHO; // switch to Identifying state
       }
+=======
+        currentState = WHO; // switch to Who
+>>>>>>> a7f0fedcdb926da0a9237d1087786e86763e1bb8
     } 
     else {
       if (digitalRead(PIN_4) == LOW && !hasPrintedL) {
@@ -78,28 +86,29 @@ void loop() {
     }
   } 
   else if (currentState == RIGHT_REWARDING) {
-    Serial.println("right drop");
-    Serial.println(rightdur);
+    // Serial.println("right drop");
+    // Serial.println(rightdur);
     digitalWrite(Valve, HIGH);   // Turn the LED on
     delay(rightdur*1000);  // Wait for specified duration
     digitalWrite(Valve, LOW);    // Turn the LED off
     currentState = READING; // Go back to initial state
   }
   else if (currentState == LEFT_REWARDING) {
-    Serial.println("left drop");
-    Serial.println(leftdur);
+    // Serial.println("left drop");
+    // Serial.println(leftdur);
     digitalWrite(Valve, HIGH);   // Turn the LED on
     delay(leftdur*1000);  // Wait for specified duration
     digitalWrite(Valve, LOW);    // Turn the LED off
     currentState = READING; // Go back to initial state
   }
   else if (currentState == SETUP) {
-    Serial.println("Right Reward duration (seconds)");
+
+    // Serial.println("Right Reward duration (seconds)");
     while(!Serial.available()); // Wait until data is available
     str = Serial.readStringUntil('\n'); // read the incoming string until a newline
     rightdur = str.toFloat(); // convert this string to an integer
 
-    Serial.println("Left Reward duration (seconds)");
+    // Serial.println("Left Reward duration (seconds)");
     while(!Serial.available()); // Wait until data is available
     str = Serial.readStringUntil('\n'); // read the incoming string until a newline
     rightdur = str.toFloat(); // convert this string to an integer
@@ -109,7 +118,17 @@ void loop() {
     currentState = READING;
   }
   else if (currentState == WHO) {
+<<<<<<< HEAD
     Serial.println("NosePoke");
+=======
+    // Introduce
+    Serial.print("NosePoke");
+    Serial.print("Right reward duration (seconds)");
+    Serial.println(rightdur);
+    Serial.print("Left reward duration (seconds)");
+    Serial.println(leftdur);
+
+>>>>>>> a7f0fedcdb926da0a9237d1087786e86763e1bb8
     currentState = READING;
   }
 }

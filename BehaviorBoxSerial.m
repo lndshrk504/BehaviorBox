@@ -20,7 +20,7 @@ classdef BehaviorBoxSerial < handle
             Juice logical = true
             LeftPulse
             LeftPulse_Temp
-            Lrewardtime
+            Lrewardtime = 0.05
             Lrewardtime_Temp
             OCPulse
             OCPulse_Temp
@@ -28,7 +28,7 @@ classdef BehaviorBoxSerial < handle
             Pulse_Min
             RightPulse
             RightPulse_Temp
-            Rrewardtime
+            Rrewardtime = 0.05
             Rrewardtime_Temp
             SecBwPulse
             Two_ports logical
@@ -44,26 +44,47 @@ classdef BehaviorBoxSerial < handle
                 this.Reset();
                 this.SetupReward();
             end
+
+            function UpdateProps(this, BoxStruct)
+                arguments
+                    this
+                    BoxStruct = struct
+                end
+                for f = fieldnames(BoxStruct)'
+                    this.(f{:}) = BoxStruct.(f{:});
+                end
+            end
     
             function SetupReward(this, opts)
                 arguments
                     this
-                    opts.Duration char = 0.05;
+                    opts.DurationRight char = this.Rrewardtime;
+                    opts.DurationLeft char = this.Lrewardtime;
                 end
                 write(this.Ard, 'Setup', 'char')
                 while ~this.Ard.BytesAvailable
                     pause(0.01);
                 end
-                write(this.Ard, opts.Duration, 'char') % Duration of Right reward pulse
+                write(this.Ard, opts.DurationRight, 'char') % Duration of Right reward pulse
+                this.Rrewardtime = opts.DurationRight;
                 if this.Input_type == "NosePoke"
                     this.Two_ports = true;
                     while ~this.Ard.BytesAvailable
                         pause(0.01);
                     end
-                    write(this.Ard, opts.Duration, 'char') % Duration of Left reward pulse
+                    write(this.Ard, opts.DurationLeft, 'char') % Duration of Left reward pulse
+                    this.Lrewardtime = opts.DurationLeft;
                 else
                     this.Two_ports = false;
                 end
+            end
+
+            function GiveReward(this, opts)
+                arguments
+                    this
+                    opts.Side char = 'Right'
+                end
+                writeline(this.Ard, opts.Side, 'char')
             end
     
             function Reading = SerialRead(this, src, ~)
@@ -88,19 +109,19 @@ classdef BehaviorBoxSerial < handle
             end
     
             function LeftRead = ReadLeft(this)
-                LeftRead = this.SerialRead() == "L";
+                LeftRead = strcmpi(this.SerialRead(), "L");
             end
             
             function RightRead = ReadRight(this)
-                RightRead = this.SerialRead() == "R";
+                RightRead = strcmpi(this.SerialRead(), "R");
             end
             
             function MiddleRead = ReadMiddle(this)
-                MiddleRead = this.SerialRead() == "M";
+                MiddleRead = strcmpi(this.SerialRead(), "M");
             end
             
             function NoneRead = ReadNone(this)
-                NoneRead = this.SerialRead() == "-";
+                NoneRead = strcmpi(this.SerialRead(), "-");
             end
     
             function Reset(this)
