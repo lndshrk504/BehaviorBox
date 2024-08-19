@@ -80,17 +80,17 @@ void loop() {
   else if (currentState == RIGHT_REWARDING) {
     // Serial.println("right drop");
     // Serial.println(rightdur);
-    digitalWrite(Valve, HIGH);   // Turn the LED on
+    digitalWrite(PIN_8, HIGH);   // Turn the LED on
     delay(rightdur*1000);  // Wait for specified duration
-    digitalWrite(Valve, LOW);    // Turn the LED off
+    digitalWrite(PIN_8, LOW);    // Turn the LED off
     currentState = READING; // Go back to initial state
   }
   else if (currentState == LEFT_REWARDING) {
     // Serial.println("left drop");
     // Serial.println(leftdur);
-    digitalWrite(Valve, HIGH);   // Turn the LED on
+    digitalWrite(PIN_7, HIGH);   // Turn the LED on
     delay(leftdur*1000);  // Wait for specified duration
-    digitalWrite(Valve, LOW);    // Turn the LED off
+    digitalWrite(PIN_7, LOW);    // Turn the LED off
     currentState = READING; // Go back to initial state
   }
   else if (currentState == SETUP) {
