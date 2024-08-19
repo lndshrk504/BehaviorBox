@@ -112,10 +112,15 @@ void loop() {
   else if (currentState == WHO) {
     // Introduce
     Serial.println("NosePoke");
-    Serial.print("Right reward duration (seconds)");
+    Serial.print("Right reward duration (seconds): ");
     Serial.println(rightdur);
-    Serial.print("Left reward duration (seconds)");
+    Serial.print("Left reward duration (seconds): ");
     Serial.println(leftdur);
+    Serial.println("PIN_4 (Left) is connected to digital pin 4");
+    Serial.println("PIN_5 (Middle) is connected to digital pin 5");
+    Serial.println("PIN_6 (Right) is connected to digital pin 6");
+    Serial.println("PIN_7 (Left Reward) is connected to digital pin 7");
+    Serial.println("PIN_8 (Right Reward) is connected to digital pin 8");
 
     currentState = READING;
   }

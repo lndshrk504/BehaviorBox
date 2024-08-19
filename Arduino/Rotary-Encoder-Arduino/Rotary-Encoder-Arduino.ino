@@ -103,8 +103,14 @@ void loop() {
   else if (currentState == WHO) {
     // Introduce
     Serial.println("Wheel");
-    Serial.print("Reward duration (seconds)");
+    Serial.print("Reward duration (seconds): ");
     Serial.println(rightdur);
+    Serial.println("The encoder 'myEnc' is connected to the interrupt pins 2 and 3");
+    Serial.println("PIN_8 (Reward) is connected to digital pin 8");
+    Serial.println("PIN_9 (Start Acquisition (SI)) is connected to digital pin 9");
+    Serial.println("PIN_10 (Next File (SI)) is connected to digital pin 10");
+    Serial.println("PIN_11 (End Acquisition (SI)) is connected to digital pin 11");
+    Serial.println("PIN_12 (Timestamp (Time)) is connected to digital pin 12");
 
     currentState = READING;
   }
