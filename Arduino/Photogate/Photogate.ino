@@ -111,7 +111,7 @@ void loop() {
   }
   else if (currentState == WHO) {
     // Introduce
-    Serial.print("NosePoke");
+    Serial.println("NosePoke");
     Serial.print("Right reward duration (seconds)");
     Serial.println(rightdur);
     Serial.print("Left reward duration (seconds)");

@@ -102,7 +102,7 @@ void loop() {
   }
   else if (currentState == WHO) {
     // Introduce
-    Serial.print("Wheel");
+    Serial.println("Wheel");
     Serial.print("Reward duration (seconds)");
     Serial.println(rightdur);
 
