@@ -49,6 +49,15 @@ classdef BehaviorBoxSerial < handle
                 end
             end
 
+            function Who(this)
+                writeline(this.Ard, 'W', 'char')
+                pause(1); % Pause for a moment to allow data to be loaded into the buffer
+                while this.Ard.NumBytesAvailable > 0
+                    data = readline(this.Ard);
+                    disp(data);
+                end
+            end
+
             function UpdateProps(this, BoxStruct)
                 arguments
                     this
@@ -65,18 +74,18 @@ classdef BehaviorBoxSerial < handle
                     opts.DurationRight char = this.Rrewardtime;
                     opts.DurationLeft char = this.Lrewardtime;
                 end
-                write(this.Ard, 'S', 'char')
+                writeline(this.Ard, 'S', 'char')
                 while ~this.Ard.BytesAvailable
                     pause(0.01);
                 end
-                write(this.Ard, opts.DurationRight, 'char') % Duration of Right reward pulse
+                writeline(this.Ard, opts.DurationRight, 'char') % Duration of Right reward pulse
                 this.Rrewardtime = opts.DurationRight;
                 if this.Input_type == "NosePoke"
                     this.Two_ports = true;
                     while ~this.Ard.BytesAvailable
                         pause(0.01);
                     end
-                    write(this.Ard, opts.DurationLeft, 'char') % Duration of Left reward pulse
+                    writeline(this.Ard, opts.DurationLeft, 'char') % Duration of Left reward pulse
                     this.Lrewardtime = opts.DurationLeft;
                 else
                     this.Two_ports = false;
