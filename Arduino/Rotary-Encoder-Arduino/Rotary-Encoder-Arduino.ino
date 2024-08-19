@@ -33,16 +33,16 @@ void loop() {
   if (currentState == READING) {
     if (Serial.available()) { // Switch between states
       String str = Serial.readStringUntil('\n'); // read the incoming string
-      if (str.equals("Right")) {
+      if (str.equals("R")) {
         currentState = RIGHTREWARDING; // switch to RIGHTREWARDING state
       }
-      else if (str.equals("Time")) {
+      else if (str.equals("T")) {
         currentState = TIMESTAMPING; // switch to RIGHTREWARDING state
       }
-      else if (str.equals("Setup")) {
+      else if (str.equals("S")) {
         currentState = SETUP; // switch to RIGHTREWARDING state
       }
-      else if (str.equals("Who")) {
+      else if (str.equals("W")) {
         currentState = WHO; // switch to Who
     }
       else if (str.equals("Reset")) {

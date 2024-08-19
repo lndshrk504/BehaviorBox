@@ -30,16 +30,16 @@ void loop() {
   if (currentState == READING) {
     if (Serial.available()) { // Switch between SETUP and REWARDING states
       String str = Serial.readStringUntil('\n'); // read the incoming string
-      if (str.equals("Right")) {
+      if (str.equals("R")) {
         currentState = RIGHT_REWARDING; // switch to REWARDING state
       }
-      if (str.equals("Left")) {
+      if (str.equals("L")) {
         currentState = LEFT_REWARDING; // switch to REWARDING state
       }
-      else if (str.equals("Setup")) {
+      else if (str.equals("S")) {
         currentState = SETUP; // switch to Setup
       }
-      else if (str.equals("Who")) {
+      else if (str.equals("W")) {
         currentState = WHO; // switch to Identifying state
       }
     } 
