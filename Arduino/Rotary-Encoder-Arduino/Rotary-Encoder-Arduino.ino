@@ -8,11 +8,7 @@
 
 // This code is a state machine that: reads from the encoder, gives rewards, or toggles the timestamp pin
 enum State {
-<<<<<<< HEAD
-  SETUP, READING, RIGHTREWARDING, TIMESTAMPING, WHO
-=======
   WHO, SETUP, READING, RIGHTREWARDING, TIMESTAMPING
->>>>>>> a7f0fedcdb926da0a9237d1087786e86763e1bb8
 };
 
 // The pin numbers must be defined here, since the Encoder library uses these to specify which pins to use
@@ -105,15 +101,11 @@ void loop() {
     currentState = READING;
   }
   else if (currentState == WHO) {
-<<<<<<< HEAD
-    Serial.println("Wheel");
-=======
     // Introduce
     Serial.print("Wheel");
     Serial.print("Reward duration (seconds)");
     Serial.println(rightdur);
 
->>>>>>> a7f0fedcdb926da0a9237d1087786e86763e1bb8
     currentState = READING;
   }
 }

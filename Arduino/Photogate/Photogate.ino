@@ -5,11 +5,7 @@
 #define PIN_8 8   // Right Reward
 
 enum State {
-<<<<<<< HEAD
-  SETUP, READING, RIGHT_REWARDING, LEFT_REWARDING, WHO
-=======
   WHO, SETUP, READING, RIGHT_REWARDING, LEFT_REWARDING
->>>>>>> a7f0fedcdb926da0a9237d1087786e86763e1bb8
 };
 
 State currentState = WHO; // Current State of the program
@@ -44,12 +40,8 @@ void loop() {
         currentState = SETUP; // switch to Setup
       }
       else if (str.equals("Who")) {
-<<<<<<< HEAD
         currentState = WHO; // switch to Identifying state
       }
-=======
-        currentState = WHO; // switch to Who
->>>>>>> a7f0fedcdb926da0a9237d1087786e86763e1bb8
     } 
     else {
       if (digitalRead(PIN_4) == LOW && !hasPrintedL) {
@@ -118,9 +110,6 @@ void loop() {
     currentState = READING;
   }
   else if (currentState == WHO) {
-<<<<<<< HEAD
-    Serial.println("NosePoke");
-=======
     // Introduce
     Serial.print("NosePoke");
     Serial.print("Right reward duration (seconds)");
@@ -128,7 +117,6 @@ void loop() {
     Serial.print("Left reward duration (seconds)");
     Serial.println(leftdur);
 
->>>>>>> a7f0fedcdb926da0a9237d1087786e86763e1bb8
     currentState = READING;
   }
 }
