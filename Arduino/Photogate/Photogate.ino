@@ -8,6 +8,7 @@ enum State {
   WHO, SETUP, READING, RIGHT_REWARDING, LEFT_REWARDING, RIGHT_OPEN, LEFT_OPEN
 };
 State currentState = WHO;
+String str; // String to hold incoming serial data
 // Flags to prevent repeat printing
 bool hasPrintedL = false;
 bool hasPrintedM = false;
@@ -21,7 +22,6 @@ float rightdur = 0.05;  // Length of a right Pulse
 float leftdur = 0.05;  // Length of a left Pulse
 int Pulse = 4; // How many pulses to give
 float BetweenPulse = 0.2; // Time between pulses
-String str; // String to hold incoming serial data
 
 void setup() {
   pinMode(PIN_4, INPUT_PULLUP); // set pin 4 as input with internal pullup resistor

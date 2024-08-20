@@ -10,8 +10,8 @@ enum State {
   WHO, SETUP, READING, RIGHT_REWARDING, RIGHT_OPEN, TIMESTAMPING
 };
 State currentState = WHO; // Default state is Reading
-Encoder myEnc(2, 3); // 2 and 3 are interrupt pins for Arduino Uno
 String str; // String to hold incoming serial data
+Encoder myEnc(2, 3); // 2 and 3 are interrupt pins for Arduino Uno
 int prevDegrees = -1; // Starting value for rotor
 bool RightOpen = false; // Valve status
 // Reward Variables
