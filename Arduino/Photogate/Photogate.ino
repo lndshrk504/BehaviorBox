@@ -3,21 +3,25 @@
 #define PIN_6 6   // Right
 #define PIN_7 7   // Left Reward
 #define PIN_8 8   // Right Reward
-
+// Current State of the program
 enum State {
   WHO, SETUP, READING, RIGHT_REWARDING, LEFT_REWARDING, RIGHT_OPEN, LEFT_OPEN
 };
-
-State currentState = WHO; // Current State of the program
-bool hasPrintedL = false; // Flags to prevent printing the same message twice
+State currentState = WHO;
+// Flags to prevent repeat printing
+bool hasPrintedL = false;
 bool hasPrintedM = false;
 bool hasPrintedR = false;
 bool hasPrintedNone = false;
+// Valve status variables
 bool RightOpen = false;
 bool LeftOpen = false;
-float rightdur = 0.05;  // Length of a right Reward Pulse
-float leftdur = 0.05;  // Length of a left Reward Pulse
-String str;
+// Reward Variables
+float rightdur = 0.05;  // Length of a right Pulse
+float leftdur = 0.05;  // Length of a left Pulse
+int Pulse = 4; // How many pulses to give
+float BetweenPulse = 0.2; // Time between pulses
+String str; // String to hold incoming serial data
 
 void setup() {
   pinMode(PIN_4, INPUT_PULLUP); // set pin 4 as input with internal pullup resistor
@@ -84,14 +88,17 @@ void loop() {
       }
       delay(10); // delay reduces "signal bouncing," could add debouncing circuit with resistors and capacitors or just keep the delay
     }
-  } 
+  }
   else if (currentState == RIGHT_REWARDING) {
-    // Serial.println("right drop");
-    // Serial.println(rightdur);
-    digitalWrite(PIN_8, HIGH);   // Open valve
-    delay(rightdur*1000);  // Wait for specified duration
-    digitalWrite(PIN_8, LOW);    // Close valve
-
+    // Serial.print("right drop: "); Serial.println(rightdur);
+    for (int i = 0; i < Pulse; i++) {
+      digitalWrite(PIN_8, HIGH);   // Open valve
+      delay(rightdur*1000);  // Wait for specified duration
+      digitalWrite(PIN_8, LOW);    // Close valve
+      if (i < Pulse - 1) {
+        delay(BetweenPulse*1000);
+      }
+    }
     currentState = READING; // Go back to initial state
   }
   else if (currentState == RIGHT_OPEN) {
@@ -106,12 +113,15 @@ void loop() {
     currentState = READING;
   }
   else if (currentState == LEFT_REWARDING) {
-    // Serial.println("left drop");
-    // Serial.println(leftdur);
-    digitalWrite(PIN_7, HIGH);   // Open valve
-    delay(leftdur*1000);  // Wait for specified duration
-    digitalWrite(PIN_7, LOW);    // Close valve
-
+    // Serial.print("left drop: "); Serial.println(leftdur);
+    for (int i = 0; i < Pulse; i++) {
+      digitalWrite(PIN_7, HIGH);   // Open valve
+      delay(rightdur*1000);  // Wait for specified duration
+      digitalWrite(PIN_7, LOW);    // Close valve
+      if (i < Pulse - 1) {
+        delay(BetweenPulse*1000);
+      }
+    }
     currentState = READING; // Go back to initial state
   }
   else if (currentState == LEFT_OPEN) {
@@ -126,19 +136,24 @@ void loop() {
     currentState = READING;
   }
   else if (currentState == SETUP) {
-
     // Serial.println("Right Reward duration (seconds)");
     while(!Serial.available()); // Wait until data is available
     str = Serial.readStringUntil('\n'); // read the incoming string until a newline
     rightdur = str.toFloat(); // convert this string to an integer
-
     // Serial.println("Left Reward duration (seconds)");
     while(!Serial.available()); // Wait until data is available
     str = Serial.readStringUntil('\n'); // read the incoming string until a newline
     leftdur = str.toFloat(); // convert this string to an integer
+    // Serial.println("Number of pulses");
+    while(!Serial.available()); // Wait until data is available
+    str = Serial.readStringUntil('\n'); // read the incoming string until a newline
+    Pulse = str.toInt(); // convert this string to an integer
+    // Serial.println("Time between pulses (seconds)");
+    while(!Serial.available()); // Wait until data is available
+    str = Serial.readStringUntil('\n'); // read the incoming string until a newline
+    BetweenPulse = str.toFloat(); // convert this string to an integer
 
     Serial.println("Setup complete");
-
     currentState = READING;
   }
   else if (currentState == WHO) {
@@ -149,10 +164,14 @@ void loop() {
     Serial.println("PIN_6 (Right) is connected to digital pin 6");
     Serial.println("PIN_7 (Left Reward) is connected to digital pin 7");
     Serial.println("PIN_8 (Right Reward) is connected to digital pin 8");
-    Serial.print("Right reward duration (seconds): ");
-    Serial.println(rightdur);
-    Serial.print("Left reward duration (seconds): ");
-    Serial.println(leftdur);
+    Serial.print("Right reward: ");
+    Serial.print(rightdur);
+    Serial.println("sec");
+    Serial.print("Left reward: ");
+    Serial.print(leftdur);
+    Serial.println("sec");
+    Serial.print(Pulse);
+    Serial.println(" pulses");
 
     currentState = READING;
   }

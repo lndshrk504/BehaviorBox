@@ -5,21 +5,24 @@
 #define PIN_10 10 // Next File (SI)
 #define PIN_11 11 // End Acquisition (SI)
 #define PIN_12 12 // Timestamp (Time)
-
-// This code is a state machine that: reads from the encoder, gives rewards, or toggles the timestamp pin
+// Current State of the programenum State {
 enum State {
   WHO, SETUP, READING, RIGHT_REWARDING, RIGHT_OPEN, TIMESTAMPING
 };
-
-// The pin numbers must be defined here, since the Encoder library uses these to specify which pins to use
-Encoder myEnc(2, 3); // 2 and 3 are interrupt pins for Arduino Uno
-
 State currentState = WHO; // Default state is Reading
-String str;
+Encoder myEnc(2, 3); // 2 and 3 are interrupt pins for Arduino Uno
+String str; // String to hold incoming serial data
 int prevDegrees = -1; // Starting value for rotor
-float rightdur = 0.1;  // Length of a Reward Pulse
+bool RightOpen = false; // Valve status
+// Reward Variables
+float rightdur = 0.05;  // Length of a right Pulse
+int Pulse = 1; // How many pulses to give
+float BetweenPulse = 0.2; // Time between pulses
+// ScanImage Variables
+bool StartAcqFlag = false;
+bool NextFileFlag = false;
+bool EndAcqFlag = false;
 bool TimeFlag = false;
-bool RightOpen = false;
 
 void setup() {
   pinMode(PIN_8, OUTPUT); // set pin 8 as output
@@ -84,13 +87,15 @@ void loop() {
     currentState = READING; // switch back to READING state
   }
   else if (currentState == RIGHT_REWARDING) {
-    String str;
-    String side;
-    Serial.println(rightdur);
-    digitalWrite(PIN_8, HIGH);   // Turn the LED on
-    delay(rightdur*1000);  // Wait for rightduration
-    digitalWrite(PIN_8, LOW);    // Close valve
-    Serial.println("Done");
+    // Serial.print("right drop: "); Serial.println(rightdur);
+    for (int i = 0; i < Pulse; i++) {
+      digitalWrite(PIN_8, HIGH);   // Open valve
+      delay(rightdur*1000);  // Wait for specified duration
+      digitalWrite(PIN_8, LOW);    // Close valve
+      if (i < Pulse - 1) {
+        delay(BetweenPulse*1000);
+      }
+    }
     myEnc.write(0); // reset the encoder position
     prevDegrees = 0;
     Serial.println(0);
@@ -112,6 +117,14 @@ void loop() {
     while(!Serial.available()); // Wait until data is available
     str = Serial.readStringUntil('\n'); // read the incoming string until a newline
     rightdur = str.toFloat(); // convert this string to an integer
+    // Serial.println("Number of pulses");
+    while(!Serial.available()); // Wait until data is available
+    str = Serial.readStringUntil('\n'); // read the incoming string until a newline
+    Pulse = str.toInt(); // convert this string to an integer
+    // Serial.println("Time between pulses (seconds)");
+    while(!Serial.available()); // Wait until data is available
+    str = Serial.readStringUntil('\n'); // read the incoming string until a newline
+    BetweenPulse = str.toFloat(); // convert this string to an integer
     Serial.println("Setup complete");
     currentState = READING;
   }
@@ -124,8 +137,11 @@ void loop() {
     Serial.println("PIN_10 (Next File (SI)) is connected to digital pin 10");
     Serial.println("PIN_11 (End Acquisition (SI)) is connected to digital pin 11");
     Serial.println("PIN_12 (Timestamp (Time)) is connected to digital pin 12");
-    Serial.print("Reward duration (seconds): ");
-    Serial.println(rightdur);
+    Serial.print("Right reward: ");
+    Serial.print(rightdur);
+    Serial.println("sec");
+    Serial.print(Pulse);
+    Serial.println(" pulses");
 
     currentState = READING;
   }
