@@ -166,10 +166,10 @@ void loop() {
     Serial.println("PIN_8 (Right Reward) is connected to digital pin 8");
     Serial.print("Right reward: ");
     Serial.print(rightdur);
-    Serial.println("sec");
+    Serial.println(" sec");
     Serial.print("Left reward: ");
     Serial.print(leftdur);
-    Serial.println("sec");
+    Serial.println(" sec");
     Serial.print(Pulse);
     Serial.println(" pulses");
 

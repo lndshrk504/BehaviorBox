@@ -139,7 +139,7 @@ void loop() {
     Serial.println("PIN_12 (Timestamp (Time)) is connected to digital pin 12");
     Serial.print("Right reward: ");
     Serial.print(rightdur);
-    Serial.println("sec");
+    Serial.println(" sec");
     Serial.print(Pulse);
     Serial.println(" pulses");
 
