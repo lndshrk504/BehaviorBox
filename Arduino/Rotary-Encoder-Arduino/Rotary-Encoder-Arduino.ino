@@ -5,32 +5,33 @@
 #define PIN_10 10 // Next File (SI)
 #define PIN_11 11 // End Acquisition (SI)
 #define PIN_12 12 // Timestamp (Time)
-// Current State of the programenum State {
-enum State {
+
+enum State { // Current State of the program
   WHO, SETUP, READING, RIGHT_REWARDING, RIGHT_OPEN, TIMESTAMPING
 };
-State currentState = WHO; // Default state is Reading
+State currentState = WHO;
 String str; // String to hold incoming serial data
 Encoder myEnc(2, 3); // 2 and 3 are interrupt pins for Arduino Uno
 int prevDegrees = -1; // Starting value for rotor
 bool RightOpen = false; // Valve status
-// Reward Variables
 float rightdur = 0.05;  // Length of a right Pulse
 int Pulse = 1; // How many pulses to give
 float BetweenPulse = 0.2; // Time between pulses
-// ScanImage Variables
-bool StartAcqFlag = false;
+bool StartAcqFlag = false; // ScanImage Variables
 bool NextFileFlag = false;
 bool EndAcqFlag = false;
 bool TimeFlag = false;
 
 void setup() {
+  Serial.begin(9600); // start the serial at 9600 baud
+  while (!Serial) {
+    ;  // wait for serial port to connect. Needed for native USB port only
+  }
   pinMode(PIN_8, OUTPUT); // set pin 8 as output
   pinMode(PIN_9, OUTPUT); // set pin 9 as output
   pinMode(PIN_10, OUTPUT); // set pin 10 as output
   pinMode(PIN_11, OUTPUT); // set pin 11 as output
   pinMode(PIN_12, OUTPUT); // set pin 12 as output
-  Serial.begin(9600); // start the serial at 9600 baud
 }
 
 void loop() {  
