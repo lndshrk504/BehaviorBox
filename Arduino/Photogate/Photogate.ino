@@ -7,7 +7,7 @@
 enum State { // Current State of the program
   WHO, SETUP, READING, RIGHT_REWARDING, LEFT_REWARDING, RIGHT_OPEN, LEFT_OPEN
 };
-State currentState = WHO;
+State currentState = READING;
 char str; // String to hold incoming serial data
 bool hasPrintedL = false; // Flags to prevent repeat printing
 bool hasPrintedM = false;
@@ -31,6 +31,7 @@ void setup() {
   pinMode(PIN_6, INPUT_PULLUP); // set pin 6 as input with internal pullup resistor
   pinMode(PIN_7, OUTPUT); // set pin 7 as output
   pinMode(PIN_8, OUTPUT); // set pin 8 as output
+  currentState = WHO;
 }
 
 void loop() {  
@@ -38,27 +39,26 @@ void loop() {
     if (Serial.available()) { // Switch between SETUP and REWARDING states
       str = (char)Serial.read(); // try this, don't wait for newline
       Serial.println(str);
-      //str = Serial.readStringUntil('\n'); // read the incoming string
-      //Serial.println(str);
-      if (str.equals("R")) {
+      
+      if (str == 'R') {
         currentState = RIGHT_REWARDING; // switch to REWARDING state
       }
-      if (str.equals("RO")) {
+      else if (str == 'r') {
         currentState = RIGHT_OPEN;
       }
-      if (str.equals("L")) {
+      else if (str == 'L') {
         currentState = LEFT_REWARDING; // switch to REWARDING state
       }
-      if (str.equals("LO")) {
+      else if (str == 'l') {
         currentState = LEFT_OPEN;
       }
-      else if (str.equals("S")) {
+      else if (str == 'S') {
         currentState = SETUP; // switch to Setup
       }
-      else if (str.equals("W")) {
+      else if (str == 'W') {
         currentState = WHO; // switch to Identifying state
       }
-    } 
+    }
     else {
       if (digitalRead(PIN_4) == LOW && !hasPrintedL) {
         Serial.println('L');
