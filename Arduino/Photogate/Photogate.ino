@@ -136,22 +136,43 @@ void loop() {
     currentState = READING;
   }
   else if (currentState == SETUP) {
+
     // Serial.println("Right Reward duration (seconds)");
-    while(!Serial.available()); // Wait until data is available
-    str = Serial.readStringUntil('\n'); // read the incoming string until a newline
-    rightdur = str.toFloat(); // convert this string to an integer
+    // while(!Serial.available()); // Wait until data is available
+    // str = Serial.readStringUntil('\n'); // read the incoming string until a newline
+    // rightdur = str.toFloat(); // convert this string to an integer
     // Serial.println("Left Reward duration (seconds)");
-    while(!Serial.available()); // Wait until data is available
-    str = Serial.readStringUntil('\n'); // read the incoming string until a newline
-    leftdur = str.toFloat(); // convert this string to an integer
+    // while(!Serial.available()); // Wait until data is available
+    // str = Serial.readStringUntil('\n'); // read the incoming string until a newline
+    // leftdur = str.toFloat(); // convert this string to an integer
     // Serial.println("Number of pulses");
-    while(!Serial.available()); // Wait until data is available
-    str = Serial.readStringUntil('\n'); // read the incoming string until a newline
-    Pulse = str.toInt(); // convert this string to an integer
+    // while(!Serial.available()); // Wait until data is available
+    // str = Serial.readStringUntil('\n'); // read the incoming string until a newline
+    // Pulse = str.toInt(); // convert this string to an integer
     // Serial.println("Time between pulses (seconds)");
+    // while(!Serial.available()); // Wait until data is available
+    // str = Serial.readStringUntil('\n'); // read the incoming string until a newline
+    // BetweenPulse = str.toFloat(); // convert this string to an integer
+
+    Serial.println("Please input the four parameters separated by space (format: rightdur leftdur Pulse BetweenPulse)");
     while(!Serial.available()); // Wait until data is available
     str = Serial.readStringUntil('\n'); // read the incoming string until a newline
-    BetweenPulse = str.toFloat(); // convert this string to an integer
+
+    // split the string by ' ' and convert them to float or int
+    int strStart = 0;
+    int spaceIndex = str.indexOf(' ', strStart);
+    rightdur = str.substring(strStart, spaceIndex).toFloat();
+
+    strStart = spaceIndex + 1;
+    spaceIndex = str.indexOf(' ', strStart);
+    leftdur = str.substring(strStart, spaceIndex).toFloat();
+
+    strStart = spaceIndex + 1;
+    spaceIndex = str.indexOf(' ', strStart);
+    Pulse = str.substring(strStart, spaceIndex).toInt();
+
+    strStart = spaceIndex + 1;
+    BetweenPulse = str.substring(strStart).toFloat();
 
     Serial.println("Setup complete");
     currentState = READING;

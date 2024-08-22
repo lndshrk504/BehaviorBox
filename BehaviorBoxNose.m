@@ -1712,18 +1712,18 @@ classdef BehaviorBoxNose < handle
         function TestBox(this)
             this.getGUI();
             set(this.message_handle,'Text','Trigger the Left Sensor');
-            while ~this.a.Reading == "L"
-                pause(0.1); drawnow;
+            while ~this.a.ReadLeft
+                pause(0.1);
                 %just wait until the sensor is triggered
             end
             set(this.message_handle,'Text','Trigger the Right Sensor');
-            while ~this.a.Reading == "R"
-                pause(0.1); drawnow;
+            while ~this.a.ReadRight
+                pause(0.1);
                 %just wait until the sensor is triggered
             end
             set(this.message_handle,'Text','Trigger the Middle Sensor');
-            while ~this.a.Reading == "M"
-                pause(0.1); drawnow;
+            while ~this.a.ReadMiddle
+                pause(0.1);
                 %just wait until the sensor is triggered
             end
             this.cleanUP();

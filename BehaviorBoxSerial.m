@@ -4,9 +4,9 @@ classdef BehaviorBoxSerial < handle
 % The NosePoke uses an Arduino programmed with Photogate.ino.
 % The Wheel uses an Arduino programmed with Rotary-Encoder-Arduino.ino.
         properties
-            Ard = struct()
+            Ard = {}
             Reading % char for NosePoke and integer for Wheel
-            DispOutput logical = false
+            DispOutput logical = true
             use_wheel logical = false
             KeyboardInput logical = false
             Input_type % either 'Wheel' or 'NosePoke'
@@ -17,25 +17,34 @@ classdef BehaviorBoxSerial < handle
             ValveL = 'D7'
             ValveR = 'D8'
             Timestamp = 'D9'
-            Lrewardtime = 0.05
-            Rrewardtime = 0.05
-            Pulse = 1
-            SecBwPulse = 0.2
+            Lrewardtime double = 0.05
+            Rrewardtime double = 0.05
+            Pulse double = 1
+            SecBwPulse double = 0.2
         end
         
         methods
             function this = BehaviorBoxSerial(port, baudRate, Input_type)
-                this.Input_type = Input_type;
-                try
-                    this.Ard = serialport(port, baudRate);
-                    configureTerminator(this.Ard,"CR/LF");
-                    configureCallback(this.Ard, "terminator", @this.SerialRead);
-                    this.Reset();
-                    this.SetupReward();
-                    flush(this.Ard);
-                catch
-                    this.Ard = struct();
+                arguments
+                    port char = 'COM4'
+                    baudRate double = 9600
+                    Input_type char = 'NosePoke'
                 end
+                this.Input_type = Input_type;
+                % delete(serialportfind)
+                this.Ard = serialport(port, baudRate, ...
+                    "FlowControl","software", ...
+                    "Timeout", 0.01, ...
+                    "Tag",Input_type);
+                configureTerminator(this.Ard,"CR/LF");
+                configureCallback(this.Ard, "terminator", @this.SerialRead);
+                pause(2)
+                %disp("write")
+                %write(this.Ard, 'R', "char");
+                %pause(1); % to test
+                this.Reset();
+                %this.SetupReward();
+                %write(this.Ard, "R", "string");
             end
 
             function Who(this)
@@ -67,39 +76,37 @@ classdef BehaviorBoxSerial < handle
 % BetweenPulse
                 arguments
                     this
-                    opts.DurationRight char = this.Rrewardtime;
-                    opts.DurationLeft char = this.Lrewardtime;
-                    opts.Pulse char = this.Pulse;
-                    opts.SecBwPulse char = this.SecBwPulse;
+                    opts.DurationRight string = this.Rrewardtime;
+                    opts.DurationLeft string = this.Lrewardtime;
+                    opts.Pulse string = this.Pulse;
+                    opts.SecBwPulse string = this.SecBwPulse;
                 end
-                % Switch mode to reward setup
-                writeline(this.Ard, 'S')
-                while ~this.Ard.BytesAvailable == 0
-                    pause(0.01);
-                end
-                writeline(this.Ard, opts.DurationRight) % Duration of Right reward pulse
-                this.Rrewardtime = opts.DurationRight;
+                % Switch into reward setup mode
+                write(this.Ard, "S", "string"); pause(2);
+
+                % Duration of Right reward pulse, Duration of Left reward pulse (if applicable),
+                % Number of reward pulses, Seconds between reward pulses
+                rewardStr = opts.DurationRight;
                 if this.Input_type == "NosePoke"
-                    pause(0.01);
-                    writeline(this.Ard, opts.DurationLeft) % Duration of Left reward pulse
-                    this.Lrewardtime = opts.DurationLeft;
+                    rewardStr = rewardStr+' '+opts.DurationLeft;
                 end
-                pause(0.01);
-                writeline(this.Ard, opts.Pulse) % Number of reward pulses
+                rewardStr = rewardStr+' '+opts.Pulse+' '+opts.SecBwPulse;
+
+                write(this.Ard, rewardStr, "string"); pause(2);
+
+                this.Rrewardtime = opts.DurationRight;
+                this.Lrewardtime = opts.DurationLeft;
                 this.Pulse = opts.Pulse;
-                pause(0.01);
-                writeline(this.Ard, opts.SecBwPulse) % Seconds between reward pulses
                 this.SecBwPulse = opts.SecBwPulse;
-                pause(0.01);
             end
 
             function GiveReward(this, opts)
                 arguments
                     this
-                    opts.Side char = 'R'
+                    opts.Side string = "R"
+                    opts.Terminator string = "\n"
                 end
-                write(this.Ard, uint8(opts.Side), "uint8");
-                flush(this.Ard, "output"); % this is necessary to ensure that the data is sent immediately
+                write(this.Ard, opts.Side, "string");
 % This is incredibly slow, because of the way that serial
 % commmunication over USB works in MATLAB... Unacceptably slow for
 % giving multiple pulses, so now arduino does pulsing
@@ -147,11 +154,11 @@ classdef BehaviorBoxSerial < handle
             end
     
             function Reset(this)
-                write(this.Ard, 'Reset', 'char')
                 %Assign neutral value to property
                 switch true
                     case strcmp(this.Input_type, 'Wheel')
                         Reading = 0;
+                        write(this.Ard, 'Reset', 'char')
                     case strcmp(this.Input_type, 'NosePoke')
                         Reading = '-';
                 end
