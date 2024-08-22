@@ -3,39 +3,41 @@
 #define PIN_6 6   // Right
 #define PIN_7 7   // Left Reward
 #define PIN_8 8   // Right Reward
-// Current State of the program
-enum State {
+
+enum State { // Current State of the program
   WHO, SETUP, READING, RIGHT_REWARDING, LEFT_REWARDING, RIGHT_OPEN, LEFT_OPEN
 };
 State currentState = WHO;
 String str; // String to hold incoming serial data
-// Flags to prevent repeat printing
-bool hasPrintedL = false;
+bool hasPrintedL = false; // Flags to prevent repeat printing
 bool hasPrintedM = false;
 bool hasPrintedR = false;
 bool hasPrintedNone = false;
-// Valve status variables
-bool RightOpen = false;
+bool RightOpen = false; // Valve status variables
 bool LeftOpen = false;
-// Reward Variables
+// Reward Variables: 
 float rightdur = 0.05;  // Length of a right Pulse
 float leftdur = 0.05;  // Length of a left Pulse
 int Pulse = 4; // How many pulses to give
 float BetweenPulse = 0.2; // Time between pulses
 
 void setup() {
+  Serial.begin(9600); // start the serial at 9600 baud
+  while (!Serial) {
+    ;  // wait for serial port to connect. Needed for native USB port only
+  }
   pinMode(PIN_4, INPUT_PULLUP); // set pin 4 as input with internal pullup resistor
   pinMode(PIN_5, INPUT_PULLUP); // set pin 5 as input with internal pullup resistor
   pinMode(PIN_6, INPUT_PULLUP); // set pin 6 as input with internal pullup resistor
   pinMode(PIN_7, OUTPUT); // set pin 7 as output
   pinMode(PIN_8, OUTPUT); // set pin 8 as output
-  Serial.begin(9600); // start the serial at 9600 baud
 }
 
 void loop() {  
   if (currentState == READING) {
     if (Serial.available()) { // Switch between SETUP and REWARDING states
       String str = Serial.readStringUntil('\n'); // read the incoming string
+      String str = Serial.read(); // try this, don't wait for newline
       if (str.equals("R")) {
         currentState = RIGHT_REWARDING; // switch to REWARDING state
       }
