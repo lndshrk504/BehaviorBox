@@ -23,8 +23,8 @@ float BetweenPulse = 0.2; // Time between pulses
 
 void setup() {
   Serial.begin(9600); // start the serial at 9600 baud
-  while (!Serial) {
-    ;  // wait for serial port to connect. Needed for native USB port only
+  while (!Serial) { // wait for serial port to connect. Needed for native USB port only
+    ;
   }
   pinMode(PIN_4, INPUT_PULLUP); // set pin 4 as input with internal pullup resistor
   pinMode(PIN_5, INPUT_PULLUP); // set pin 5 as input with internal pullup resistor

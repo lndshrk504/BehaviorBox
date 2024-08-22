@@ -24,8 +24,8 @@ bool TimeFlag = false;
 
 void setup() {
   Serial.begin(9600); // start the serial at 9600 baud
-  while (!Serial) {
-    ;  // wait for serial port to connect. Needed for native USB port only
+  while (!Serial) { // wait for serial port to connect. Needed for native USB port only
+    ;
   }
   pinMode(PIN_8, OUTPUT); // set pin 8 as output
   pinMode(PIN_9, OUTPUT); // set pin 9 as output
