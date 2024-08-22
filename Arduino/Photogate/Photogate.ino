@@ -90,7 +90,7 @@ void loop() {
           hasPrintedNone = true;
         }
       }
-      delayMicroseconds(10); // delay reduces "signal bouncing," could add debouncing circuit with resistors and capacitors or just keep the delay
+      delay(10); // delay reduces "signal bouncing," could add debouncing circuit with resistors and capacitors or just keep the delay
     }
   }
   else if (currentState == RIGHT_REWARDING) {

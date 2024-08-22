@@ -767,7 +767,7 @@ classdef BehaviorBoxNose < handle
                     set(this.message_handle,'Text','Waiting for Trial initialization'); drawnow
                     event = 0;
                     tic
-                    while this.a.Reading == "L" | this.a.Reading == "R"
+                    while this.a.ReadLeft || this.a.ReadRight
                         pause(0.1); drawnow; %Wait for the mouse to notice the bright ready cue before blinking it
                         %Otherwise the ready cue immediately turns dim when it appears, and mice poke L/R to see the blink instead of recognizing the bright dot
                     end
@@ -809,7 +809,7 @@ classdef BehaviorBoxNose < handle
                             end
                         end
                         %Immediately accept choice
-                        if this.a.Reading == "M"
+                        if this.a.ReadMiddle
                             event = 1;
                             break
                         end
@@ -1253,7 +1253,7 @@ classdef BehaviorBoxNose < handle
             elseif whatdecision == "Correct_Confirmation"
                 Reps = 1;
                 Steps = Stim.FreqFlashInitial;
-                this.BasicFlash("Lines",Lines, "NewColor", dark_color, "steps", Steps, "Interruptor", this.a.Reading == "M")
+                this.BasicFlash("Lines",Lines, "NewColor", dark_color, "steps", Steps, "Interruptor", @this.a.ReadMiddle)
             else
                 Steps = Stim.FreqFlashAfter;
                 d = findobj('Tag', 'Distractor');

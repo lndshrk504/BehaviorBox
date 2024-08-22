@@ -6,7 +6,7 @@ classdef BehaviorBoxSerial < handle
         properties
             Ard = {}
             Reading % char for NosePoke and integer for Wheel
-            DispOutput logical = true
+            DispOutput logical = false % This helps to debug
             use_wheel logical = false
             KeyboardInput logical = false
             Input_type % either 'Wheel' or 'NosePoke'
@@ -31,20 +31,16 @@ classdef BehaviorBoxSerial < handle
                     Input_type char = 'NosePoke'
                 end
                 this.Input_type = Input_type;
-                % delete(serialportfind)
+% delete(serialportfind) % Consider adding code to delete a
+% serial object if one exists using the same port, would
+% prevent a crash
                 this.Ard = serialport(port, baudRate, ...
                     "FlowControl","software", ...
-                    "Timeout", 0.01, ...
+                    "Timeout", 0.1, ...
                     "Tag",Input_type);
                 configureTerminator(this.Ard,"CR/LF");
                 configureCallback(this.Ard, "terminator", @this.SerialRead);
-                pause(2)
-                %disp("write")
-                %write(this.Ard, 'R', "char");
-                %pause(1); % to test
                 this.Reset();
-                %this.SetupReward();
-                %write(this.Ard, "R", "string");
             end
 
             function Who(this)
