@@ -90,7 +90,7 @@ void loop() {
           hasPrintedNone = true;
         }
       }
-      delay(10); // delay reduces "signal bouncing," could add debouncing circuit with resistors and capacitors or just keep the delay
+      delayMicroseconds(10); // delay reduces "signal bouncing," could add debouncing circuit with resistors and capacitors or just keep the delay
     }
   }
   else if (currentState == RIGHT_REWARDING) {
@@ -109,10 +109,12 @@ void loop() {
     if (RightOpen == false) {
       digitalWrite(PIN_8, HIGH);
       RightOpen = true;
+      Serial.print("right valve open");
     }
     else {
       digitalWrite(PIN_8, LOW);
       RightOpen = false;
+      Serial.print("right valve closed");
     }
     currentState = READING;
   }
@@ -132,10 +134,12 @@ void loop() {
     if (LeftOpen == false) {
       digitalWrite(PIN_7, HIGH);
       LeftOpen = true;
+      Serial.print("left valve open");
     }
     else {
       digitalWrite(PIN_7, LOW);
       LeftOpen = false;
+      Serial.print("left valve closed");
     }
     currentState = READING;
   }
@@ -161,23 +165,23 @@ void loop() {
     Serial.println("Please input the four parameters separated by space (format: rightdur leftdur Pulse BetweenPulse)");
     while(!Serial.available()); // Wait until data is available
     // str = Serial.readStringUntil('\n'); // read the incoming string until a newline
-    str = Serial.read(); // try this, don't wait for newline
+    String SETstr = (String)Serial.read(); // try this, don't wait for newline
 
     // split the string by ' ' and convert them to float or int
     int strStart = 0;
-    int spaceIndex = str.indexOf(' ', strStart);
-    rightdur = str.substring(strStart, spaceIndex).toFloat();
+    int spaceIndex = SETstr.indexOf(' ', strStart);
+    rightdur = SETstr.substring(strStart, spaceIndex).toFloat();
 
     strStart = spaceIndex + 1;
-    spaceIndex = str.indexOf(' ', strStart);
-    leftdur = str.substring(strStart, spaceIndex).toFloat();
+    spaceIndex = SETstr.indexOf(' ', strStart);
+    leftdur = SETstr.substring(strStart, spaceIndex).toFloat();
 
     strStart = spaceIndex + 1;
-    spaceIndex = str.indexOf(' ', strStart);
-    Pulse = str.substring(strStart, spaceIndex).toInt();
+    spaceIndex = SETstr.indexOf(' ', strStart);
+    Pulse = SETstr.substring(strStart, spaceIndex).toInt();
 
     strStart = spaceIndex + 1;
-    BetweenPulse = str.substring(strStart).toFloat();
+    BetweenPulse = SETstr.substring(strStart).toFloat();
 
     Serial.println("Setup complete");
     currentState = READING;
