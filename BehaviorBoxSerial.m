@@ -35,8 +35,7 @@ classdef BehaviorBoxSerial < handle
 % serial object if one exists using the same port, would
 % prevent a crash
                 this.Ard = serialport(port, baudRate, ...
-                    "Timeout", 0.1, ...
-                    "Tag",Input_type);
+                    "Timeout", 0.1);
                 configureTerminator(this.Ard,"CR/LF");
                 configureCallback(this.Ard, "terminator", @this.SerialRead);
                 this.Reset();
