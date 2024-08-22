@@ -37,7 +37,8 @@ void setup() {
 void loop() {  
   if (currentState == READING) {
     if (Serial.available()) { // Switch between states
-      String str = Serial.readStringUntil('\n'); // read the incoming string
+      // str = Serial.readStringUntil('\n'); // read the incoming string
+      str = Serial.read(); // try this, don't wait for newline
       if (str.equals("R")) {
         currentState = RIGHT_REWARDING; // switch to RIGHT_REWARDING state
       }
@@ -146,4 +147,21 @@ void loop() {
 
     currentState = READING;
   }
+}
+// Fcn to read serial input from MATLAB
+String readCRLF() {
+  String returnString;
+  while (Serial.available()) {
+    char inChar = Serial.read();
+    if (inChar == '\n') {
+      if (returnString.endsWith("\r")) {
+        // It ended with "\r\n", remove the "\r"
+        returnString = returnString.substring(0, returnString.length() - 1);
+      }
+      break; // done reading
+    } else {
+      returnString += inChar; // append other bytes
+    }
+  }
+  return returnString;
 }

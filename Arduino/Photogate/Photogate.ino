@@ -36,8 +36,8 @@ void setup() {
 void loop() {  
   if (currentState == READING) {
     if (Serial.available()) { // Switch between SETUP and REWARDING states
-      String str = Serial.readStringUntil('\n'); // read the incoming string
-      String str = Serial.read(); // try this, don't wait for newline
+      // str = Serial.readStringUntil('\n'); // read the incoming string
+      str = Serial.read(); // try this, don't wait for newline
       if (str.equals("R")) {
         currentState = RIGHT_REWARDING; // switch to REWARDING state
       }
@@ -158,7 +158,8 @@ void loop() {
 
     Serial.println("Please input the four parameters separated by space (format: rightdur leftdur Pulse BetweenPulse)");
     while(!Serial.available()); // Wait until data is available
-    str = Serial.readStringUntil('\n'); // read the incoming string until a newline
+    // str = Serial.readStringUntil('\n'); // read the incoming string until a newline
+    str = Serial.read(); // try this, don't wait for newline
 
     // split the string by ' ' and convert them to float or int
     int strStart = 0;
@@ -198,4 +199,21 @@ void loop() {
 
     currentState = READING;
   }
+}
+// Fcn to read serial input from MATLAB
+String readCRLF() {
+  String returnString;
+  while (Serial.available()) {
+    char inChar = Serial.read();
+    if (inChar == '\n') {
+      if (returnString.endsWith("\r")) {
+        // It ended with "\r\n", remove the "\r"
+        returnString = returnString.substring(0, returnString.length() - 1);
+      }
+      break; // done reading
+    } else {
+      returnString += inChar; // append other bytes
+    }
+  }
+  return returnString;
 }
