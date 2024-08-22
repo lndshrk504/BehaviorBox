@@ -569,6 +569,7 @@ classdef BehaviorBoxNose < handle
             [this.SetStr(end+1), this.Include(end+1)] = this.structureSettings(tempSetting_Struct);
             this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
             [this.Level] = this.Setting_Struct.Starting_opacity;
+            this.a.SetupReward("DurationLeft", this.Box.Lrewardtime, "DurationRight", this.Box.Rrewardtime)
         end
         %Choose if Left or Right will be correct
         function isLeftTrial = PickSideForCorrect(this, isLeftTrial, SB)
@@ -772,7 +773,7 @@ classdef BehaviorBoxNose < handle
                         %Otherwise the ready cue immediately turns dim when it appears, and mice poke L/R to see the blink instead of recognizing the bright dot
                     end
                     while ~get(this.stop_handle, 'Value') %While the stop button has not been pressed
-                        this.FlashNew(this.StimulusStruct, this.Box,  findobj('Tag', 'ReadyCueDot'), 'Correct_Confirmation')
+                        this.FlashNew(this.StimulusStruct, this.Box,  findobj('Tag', 'ReadyCueDot'), 'WaitForInput')
                         drawnow; %Update the buttons
                         if this.Setting_Struct.IntertrialMalCancel && this.a.Reading == "L" | this.a.Reading == "R"
                             %this.ReadyCue('k') %Make the ReadyCue black
@@ -1253,7 +1254,20 @@ classdef BehaviorBoxNose < handle
             elseif whatdecision == "Correct_Confirmation"
                 Reps = 1;
                 Steps = Stim.FreqFlashInitial;
-                this.BasicFlash("Lines",Lines, "NewColor", dark_color, "steps", Steps, "Interruptor", @this.a.ReadMiddle)
+                this.BasicFlash("Lines",Lines, "NewColor", dark_color, "steps", Steps, "Interruptor", @(x)this.a.ReadMiddle())
+            elseif whatdecision == "AfterCorrect"
+                Reps = 1;
+                Steps = Stim.FreqFlashInitial;
+                if this.isLeftTrial
+                    INTR = @(x)this.a.ReadLeft();
+                else
+                    INTR = @(x)this.a.ReadRight();
+                end
+                this.BasicFlash("Lines",Lines, "NewColor", dark_color, "steps", Steps, "Interruptor", INTR())
+            elseif whatdecision == "WaitForInput"
+                Reps = 1;
+                Steps = Stim.FreqFlashInitial;
+                this.BasicFlash("Lines",Lines, "NewColor", dark_color, "steps", Steps, "Interruptor", @(x)this.a.ReadNone())
             else
                 Steps = Stim.FreqFlashAfter;
                 d = findobj('Tag', 'Distractor');
@@ -1338,12 +1352,16 @@ classdef BehaviorBoxNose < handle
                             PulseNum = this.Box.LeftPulse;
                             Valve = this.Box.ValveR; %Left
                             Time = this.Box.Lrewardtime; %Left
+                            WaitCorrect = @(x)this.a.ReadLeft();
+                            REWARD = @(x)this.a.GiveReward("Side",'L');
                         case contains(this.WhatDecision, 'right correct', 'IgnoreCase', true)
                             CorrectLever = this.Box.Right; %Right
                             OtherLever = this.Box.Left; %Left
                             PulseNum = this.Box.RightPulse;
                             Valve = this.Box.ValveL; %Right
                             Time = this.Box.Rrewardtime; %Right
+                            WaitCorrect = @(x)this.a.ReadRight();
+                            REWARD = @(x)this.a.GiveReward("Side",'R');
                         case contains(this.WhatDecision, 'wrong', 'IgnoreCase', true)
                             if this.Box.Air_Puff_Penalty
                                 PulseNum = this.Box.AirPuffPulses;
@@ -1379,34 +1397,28 @@ classdef BehaviorBoxNose < handle
                 otherwise %Keyboard, any input method I haven't used before
                     return
             end
-            while contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && ~this.Box.readPin(CorrectLever) %Wait for NosePoke Don't dispense the reward unless the mouse is waiting for it! Wait indefinitely between pulses for them to learn to collect all the water
+            while contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && ~WaitCorrect() %Wait for NosePoke Don't dispense the reward unless the mouse is waiting for it! Wait indefinitely between pulses for them to learn to collect all the water
                 pause(0.2); drawnow;
                 if get(this.Buttons.Stop, 'Value') || get(this.Buttons.FastForward, 'Value')
                     break
                 end
             end
-            GiveDrop(this.a, Valve, Time)
+            REWARD()
             PulseNum = PulseNum-1;
             % then flash
             this.FlashNew(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
             for i = 1:PulseNum
-                if i < PulseNum
+                if i <= PulseNum
                     pause(this.Box.SecBwPulse)
-                    while contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && ~this.Box.readPin(CorrectLever) %Wait for NosePoke Don't dispense the reward unless the mouse is waiting for it! Wait indefinitely between pulses for them to learn to collect all the water
+                    while contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && ~WaitCorrect() %Wait for NosePoke Don't dispense the reward unless the mouse is waiting for it! Wait indefinitely between pulses for them to learn to collect all the water
                         pause(0.2); drawnow;
                         if get(this.Buttons.Stop, 'Value') || get(this.Buttons.FastForward, 'Value')
                             break
                         end
                     end
                 end
-                GiveDrop(this.a, Valve, Time)
+                REWARD()
                 this.FlashNew(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
-            end
-            function GiveDrop(ard,V,T)
-                % Give one pulse
-                ard.writeDigitalPin(V,1)
-                pause(T);
-                ard.writeDigitalPin(V,0); drawnow
             end
         end
         %Use this function instead of pausing, so that buttons are checked and settings are updated during the pause

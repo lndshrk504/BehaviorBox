@@ -6,7 +6,7 @@ classdef BehaviorBoxSerial < handle
         properties
             Ard = {}
             Reading % char for NosePoke and integer for Wheel
-            DispOutput logical = false % This helps to debug
+            DispOutput logical = true % This helps to debug
             use_wheel logical = false
             KeyboardInput logical = false
             Input_type % either 'Wheel' or 'NosePoke'
@@ -74,8 +74,8 @@ classdef BehaviorBoxSerial < handle
                     this
                     opts.DurationRight string = this.Rrewardtime;
                     opts.DurationLeft string = this.Lrewardtime;
-                    opts.Pulse string = this.Pulse;
-                    opts.SecBwPulse string = this.SecBwPulse;
+                    % opts.Pulse string = this.Pulse;
+                    % opts.SecBwPulse string = this.SecBwPulse;
                 end
                 % Switch into reward setup mode
                 write(this.Ard, "S", "string"); pause(2);
@@ -86,14 +86,14 @@ classdef BehaviorBoxSerial < handle
                 if this.Input_type == "NosePoke"
                     rewardStr = rewardStr+' '+opts.DurationLeft;
                 end
-                rewardStr = rewardStr+' '+opts.Pulse+' '+opts.SecBwPulse;
+                % rewardStr = rewardStr+' '+opts.Pulse+' '+opts.SecBwPulse;
 
                 write(this.Ard, rewardStr, "string"); pause(2);
 
                 this.Rrewardtime = opts.DurationRight;
                 this.Lrewardtime = opts.DurationLeft;
-                this.Pulse = opts.Pulse;
-                this.SecBwPulse = opts.SecBwPulse;
+                % this.Pulse = opts.Pulse;
+                % this.SecBwPulse = opts.SecBwPulse;
             end
 
             function GiveReward(this, opts)
@@ -146,7 +146,9 @@ classdef BehaviorBoxSerial < handle
             end
             
             function NoneRead = ReadNone(this)
-                NoneRead = strcmpi(this.SerialRead(), "-");
+                NoneRead = ~strcmpi(this.SerialRead(), "-");
+                % To match behavior this one is flipped, because it is only
+                % used for the flashing while waiting for input
             end
     
             function Reset(this)

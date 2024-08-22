@@ -94,57 +94,59 @@ void loop() {
     }
   }
   else if (currentState == RIGHT_REWARDING) {
+// When communication b/w MATLAB and Serial was slow, I had the arduino do the pulsing. Now I do not need to but I'll leave the code
     // Serial.print("right drop: "); Serial.println(rightdur);
-    for (int i = 0; i < Pulse; i++) {
+    // for (int i = 0; i < Pulse; i++) {
       digitalWrite(PIN_8, HIGH);   // Open valve
       delay(rightdur*1000);  // Wait for specified duration
       digitalWrite(PIN_8, LOW);    // Close valve
-      if (i < Pulse - 1) {
-        delay(BetweenPulse*1000);
-      }
-    }
+    //  if (i < Pulse - 1) {
+    //    delay(BetweenPulse*1000);
+    //  }
+    // }
     currentState = READING; // Go back to initial state
   }
   else if (currentState == RIGHT_OPEN) {
     if (RightOpen == false) {
       digitalWrite(PIN_8, HIGH);
       RightOpen = true;
-      Serial.print("right valve open");
+      // Serial.print("right valve open");
     }
     else {
       digitalWrite(PIN_8, LOW);
       RightOpen = false;
-      Serial.print("right valve closed");
+      // Serial.print("right valve closed");
     }
     currentState = READING;
   }
   else if (currentState == LEFT_REWARDING) {
+// When communication b/w MATLAB and Serial was slow, I had the arduino do the pulsing. Now I do not need to but I'll leave the code
     // Serial.print("left drop: "); Serial.println(leftdur);
-    for (int i = 0; i < Pulse; i++) {
+   // for (int i = 0; i < Pulse; i++) {
       digitalWrite(PIN_7, HIGH);   // Open valve
       delay(rightdur*1000);  // Wait for specified duration
       digitalWrite(PIN_7, LOW);    // Close valve
-      if (i < Pulse - 1) {
-        delay(BetweenPulse*1000);
-      }
-    }
+    //  if (i < Pulse - 1) {
+     //   delay(BetweenPulse*1000);
+    //  }
+    // }
     currentState = READING; // Go back to initial state
   }
   else if (currentState == LEFT_OPEN) {
     if (LeftOpen == false) {
       digitalWrite(PIN_7, HIGH);
       LeftOpen = true;
-      Serial.print("left valve open");
+      // Serial.print("left valve open");
     }
     else {
       digitalWrite(PIN_7, LOW);
       LeftOpen = false;
-      Serial.print("left valve closed");
+      // Serial.print("left valve closed");
     }
     currentState = READING;
   }
   else if (currentState == SETUP) {
-
+// This does not work as expected, so fix it later
     // Serial.println("Right Reward duration (seconds)");
     // while(!Serial.available()); // Wait until data is available
     // str = Serial.readStringUntil('\n'); // read the incoming string until a newline
@@ -162,7 +164,7 @@ void loop() {
     // str = Serial.readStringUntil('\n'); // read the incoming string until a newline
     // BetweenPulse = str.toFloat(); // convert this string to an integer
 
-    Serial.println("Please input the four parameters separated by space (format: rightdur leftdur Pulse BetweenPulse)");
+    Serial.println("Please input the two parameters separated by space (format: rightdur leftdur)");
     while(!Serial.available()); // Wait until data is available
     // str = Serial.readStringUntil('\n'); // read the incoming string until a newline
     String SETstr = (String)Serial.read(); // try this, don't wait for newline
@@ -173,15 +175,15 @@ void loop() {
     rightdur = SETstr.substring(strStart, spaceIndex).toFloat();
 
     strStart = spaceIndex + 1;
-    spaceIndex = SETstr.indexOf(' ', strStart);
+    // spaceIndex = SETstr.indexOf(' ', strStart);
     leftdur = SETstr.substring(strStart, spaceIndex).toFloat();
 
-    strStart = spaceIndex + 1;
-    spaceIndex = SETstr.indexOf(' ', strStart);
-    Pulse = SETstr.substring(strStart, spaceIndex).toInt();
+    // strStart = spaceIndex + 1;
+    // spaceIndex = SETstr.indexOf(' ', strStart);
+    // Pulse = SETstr.substring(strStart, spaceIndex).toInt();
 
-    strStart = spaceIndex + 1;
-    BetweenPulse = SETstr.substring(strStart).toFloat();
+    // strStart = spaceIndex + 1;
+    // BetweenPulse = SETstr.substring(strStart).toFloat();
 
     Serial.println("Setup complete");
     currentState = READING;
@@ -200,13 +202,14 @@ void loop() {
     Serial.print("Left reward: ");
     Serial.print(leftdur);
     Serial.println(" sec");
-    Serial.print(Pulse);
-    Serial.println(" pulses");
+    // Serial.print(Pulse);
+    // Serial.println(" pulses");
 
     currentState = READING;
   }
 }
 // Fcn to read serial input from MATLAB
+// Not needed now that I fixed the way info is read on the serial from MATLAB
 String readCRLF() {
   String returnString;
   while (Serial.available()) {
