@@ -569,7 +569,8 @@ classdef BehaviorBoxNose < handle
             [this.SetStr(end+1), this.Include(end+1)] = this.structureSettings(tempSetting_Struct);
             this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
             [this.Level] = this.Setting_Struct.Starting_opacity;
-            this.a.SetupReward("DurationLeft", this.Box.Lrewardtime, "DurationRight", this.Box.Rrewardtime)
+            % This doesnt work as expected anymore and needs to be fixed
+            % this.a.SetupReward("DurationLeft", this.Box.Lrewardtime, "DurationRight", this.Box.Rrewardtime)
         end
         %Choose if Left or Right will be correct
         function isLeftTrial = PickSideForCorrect(this, isLeftTrial, SB)
