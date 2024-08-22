@@ -8,7 +8,7 @@ enum State { // Current State of the program
   WHO, SETUP, READING, RIGHT_REWARDING, LEFT_REWARDING, RIGHT_OPEN, LEFT_OPEN
 };
 State currentState = WHO;
-String str; // String to hold incoming serial data
+char str; // String to hold incoming serial data
 bool hasPrintedL = false; // Flags to prevent repeat printing
 bool hasPrintedM = false;
 bool hasPrintedR = false;
@@ -36,7 +36,7 @@ void setup() {
 void loop() {  
   if (currentState == READING) {
     if (Serial.available()) { // Switch between SETUP and REWARDING states
-      str = Serial.read(); // try this, don't wait for newline
+      str = (char)Serial.read(); // try this, don't wait for newline
       Serial.println(str);
       //str = Serial.readStringUntil('\n'); // read the incoming string
       //Serial.println(str);
