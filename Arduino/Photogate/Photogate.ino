@@ -36,8 +36,10 @@ void setup() {
 void loop() {  
   if (currentState == READING) {
     if (Serial.available()) { // Switch between SETUP and REWARDING states
-      // str = Serial.readStringUntil('\n'); // read the incoming string
       str = Serial.read(); // try this, don't wait for newline
+      Serial.println(str);
+      //str = Serial.readStringUntil('\n'); // read the incoming string
+      //Serial.println(str);
       if (str.equals("R")) {
         currentState = RIGHT_REWARDING; // switch to REWARDING state
       }
