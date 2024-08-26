@@ -5,7 +5,7 @@
 #define PIN_8 8   // Right Reward
 
 enum State { // Current State of the program
-  WHO, SETUP, READING, RIGHT_REWARDING, LEFT_REWARDING, RIGHT_OPEN, LEFT_OPEN
+  WHO, LEFT_SETUP, RIGHT_SETUP, READING, RIGHT_REWARDING, LEFT_REWARDING, RIGHT_OPEN, LEFT_OPEN
 };
 State currentState = READING;
 char str; // String to hold incoming serial data
@@ -52,8 +52,11 @@ void loop() {
       else if (str == 'l') {
         currentState = LEFT_OPEN;
       }
-      else if (str == 'S') {
-        currentState = SETUP; // switch to Setup
+      else if (str == 'S') { // Capital S for Left
+        currentState = LEFT_SETUP; // switch to Setup
+      }
+      else if (str == 's') { // Lowercased s for Right
+        currentState = R_SETUP; // switch to Setup
       }
       else if (str == 'W') {
         currentState = WHO; // switch to Identifying state
@@ -145,47 +148,38 @@ void loop() {
     }
     currentState = READING;
   }
-  else if (currentState == SETUP) {
-// This does not work as expected, so fix it later
-    // Serial.println("Right Reward duration (seconds)");
-    // while(!Serial.available()); // Wait until data is available
-    // str = Serial.readStringUntil('\n'); // read the incoming string until a newline
-    // rightdur = str.toFloat(); // convert this string to an integer
-    // Serial.println("Left Reward duration (seconds)");
-    // while(!Serial.available()); // Wait until data is available
-    // str = Serial.readStringUntil('\n'); // read the incoming string until a newline
-    // leftdur = str.toFloat(); // convert this string to an integer
-    // Serial.println("Number of pulses");
-    // while(!Serial.available()); // Wait until data is available
-    // str = Serial.readStringUntil('\n'); // read the incoming string until a newline
-    // Pulse = str.toInt(); // convert this string to an integer
-    // Serial.println("Time between pulses (seconds)");
-    // while(!Serial.available()); // Wait until data is available
-    // str = Serial.readStringUntil('\n'); // read the incoming string until a newline
-    // BetweenPulse = str.toFloat(); // convert this string to an integer
+  else if (currentState == LEFT_SETUP) {
+    Serial.println("Please input leftdur");
+    // wait until 4 characters are received
+    while (Serial.available() < 4);
 
-    Serial.println("Please input the two parameters separated by space (format: rightdur leftdur)");
-    while(!Serial.available()); // Wait until data is available
-    // str = Serial.readStringUntil('\n'); // read the incoming string until a newline
-    String SETstr = (String)Serial.read(); // try this, don't wait for newline
+    String SETstr = "";
+    for(int i = 0; i < 4; i++) {
+      // concatenate char to the SETstr
+      SETstr += (char)Serial.read();
+    }
 
-    // split the string by ' ' and convert them to float or int
-    int strStart = 0;
-    int spaceIndex = SETstr.indexOf(' ', strStart);
-    rightdur = SETstr.substring(strStart, spaceIndex).toFloat();
+    // convert the string to float
+    leftdur = SETstr.toFloat();
 
-    strStart = spaceIndex + 1;
-    // spaceIndex = SETstr.indexOf(' ', strStart);
-    leftdur = SETstr.substring(strStart, spaceIndex).toFloat();
+    Serial.println("Left setup complete");
+    currentState = READING;
+  }
+  else if (currentState == RIGHT_SETUP) {
+    Serial.println("Please input rightdur");
+    // wait until 4 characters are received
+    while (Serial.available() < 4);
 
-    // strStart = spaceIndex + 1;
-    // spaceIndex = SETstr.indexOf(' ', strStart);
-    // Pulse = SETstr.substring(strStart, spaceIndex).toInt();
+    String SETstr = "";
+    for(int i = 0; i < 4; i++) {
+      // concatenate char to the SETstr
+      SETstr += (char)Serial.read();
+    }
 
-    // strStart = spaceIndex + 1;
-    // BetweenPulse = SETstr.substring(strStart).toFloat();
+    // convert the string to float
+    rightdur = SETstr.toFloat();
 
-    Serial.println("Setup complete");
+    Serial.println("Right setup complete");
     currentState = READING;
   }
   else if (currentState == WHO) {
@@ -202,6 +196,18 @@ void loop() {
     Serial.print("Left reward: ");
     Serial.print(leftdur);
     Serial.println(" sec");
+    // Print out the instructions
+    Serial.println("Please enter one of the following characters to control the state:");
+    Serial.println("If the letter 'R' is entered, the current state will switch to RIGHT_REWARDING");
+    Serial.println("If the letter 'r' is entered, the current state will switch to RIGHT_OPEN");
+    Serial.println("If the letter 'L' is entered, the current state will switch to LEFT_REWARDING");
+    Serial.println("If the letter 'l' is entered, the current state will switch to LEFT_OPEN");
+    Serial.println("If the letter 'S' is entered, the current state will switch to LEFT_SETUP");
+    Serial.println("If the letter 's' is entered, the current state will switch to RIGHT_SETUP");
+    Serial.println("If the letter 'W' is entered, the current state will switch to WHO, which is an identifying state.");
+
+   Serial.println("Note: The system is case sensitive, uppercase and lowercase letters will trigger different states.");
+
     // Serial.print(Pulse);
     // Serial.println(" pulses");
 
