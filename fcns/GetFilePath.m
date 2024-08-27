@@ -27,7 +27,7 @@ end
         F = '';
         switch 1
             case ispc
-                F = 'E:\Dropbox (Dropbox @RU)\Gilbert Lab\BehaviorBoxData\Data\';
+                F = 'D:\Dropbox @RU Dropbox\William Snyder\Gilbert Lab\BehaviorBoxData\Data\';
             case isunix
                 F = fullfile(getenv('HOME'), 'Dropbox (Dropbox @RU)', 'Gilbert Lab', 'BehaviorBoxData', 'Data');
         end

@@ -5,7 +5,14 @@
 #define PIN_8 8   // Right Reward
 
 enum State { // Current State of the program
-  WHO, LEFT_SETUP, RIGHT_SETUP, READING, RIGHT_REWARDING, LEFT_REWARDING, RIGHT_OPEN, LEFT_OPEN
+  READING,
+  RIGHT_REWARDING,
+  RIGHT_OPEN,
+  LEFT_REWARDING,
+  LEFT_OPEN,
+  LEFT_SETUP,
+  RIGHT_SETUP,
+  WHO
 };
 State currentState = READING;
 char str; // String to hold incoming serial data
@@ -18,14 +25,14 @@ bool LeftOpen = false;
 // Reward Variables: 
 float rightdur = 0.05;  // Length of a right Pulse
 float leftdur = 0.05;  // Length of a left Pulse
-int Pulse = 4; // How many pulses to give
-float BetweenPulse = 0.2; // Time between pulses
 
 void setup() {
   Serial.begin(9600); // start the serial at 9600 baud
   while (!Serial) { // wait for serial port to connect. Needed for native USB port only
     ;
   }
+  // Set the serial timeout to 5000 milliseconds (5 seconds)
+  Serial.setTimeout(5000);
   pinMode(PIN_4, INPUT_PULLUP); // set pin 4 as input with internal pullup resistor
   pinMode(PIN_5, INPUT_PULLUP); // set pin 5 as input with internal pullup resistor
   pinMode(PIN_6, INPUT_PULLUP); // set pin 6 as input with internal pullup resistor
@@ -37,29 +44,33 @@ void setup() {
 void loop() {  
   if (currentState == READING) {
     if (Serial.available()) { // Switch between SETUP and REWARDING states
-      str = (char)Serial.read(); // try this, don't wait for newline
-      Serial.println(str);
-      
-      if (str == 'R') {
-        currentState = RIGHT_REWARDING; // switch to REWARDING state
-      }
-      else if (str == 'r') {
-        currentState = RIGHT_OPEN;
-      }
-      else if (str == 'L') {
-        currentState = LEFT_REWARDING; // switch to REWARDING state
-      }
-      else if (str == 'l') {
-        currentState = LEFT_OPEN;
-      }
-      else if (str == 'S') { // Capital S for Left
-        currentState = LEFT_SETUP; // switch to Setup
-      }
-      else if (str == 's') { // Lowercased s for Right
-        currentState = R_SETUP; // switch to Setup
-      }
-      else if (str == 'W') {
-        currentState = WHO; // switch to Identifying state
+      str = (char)Serial.read(); // try this, don't wait for newline      
+      switch (str) {
+        case 'R':
+          currentState = RIGHT_REWARDING; // switch to REWARDING state
+          break;
+        case 'r':
+          currentState = RIGHT_OPEN;
+          break;
+        case 'L':
+          currentState = LEFT_REWARDING; // switch to REWARDING state
+          break;
+        case 'l':
+          currentState = LEFT_OPEN;
+          break;
+        case 'S': // Capital S for Left
+          currentState = LEFT_SETUP; // switch to Setup
+          break;
+        case 's': // Lowercased s for Right
+          currentState = RIGHT_SETUP; // switch to Setup
+          break;
+        case 'W':
+          currentState = WHO; // switch to Identifying state
+          break;
+        // Optionally, add a default case to handle unexpected values
+        default:
+          // Handle unknown characters or add logging for unexpected values
+          break;
       }
     }
     else {
@@ -97,16 +108,13 @@ void loop() {
     }
   }
   else if (currentState == RIGHT_REWARDING) {
-// When communication b/w MATLAB and Serial was slow, I had the arduino do the pulsing. Now I do not need to but I'll leave the code
-    // Serial.print("right drop: "); Serial.println(rightdur);
-    // for (int i = 0; i < Pulse; i++) {
-      digitalWrite(PIN_8, HIGH);   // Open valve
-      delay(rightdur*1000);  // Wait for specified duration
-      digitalWrite(PIN_8, LOW);    // Close valve
-    //  if (i < Pulse - 1) {
-    //    delay(BetweenPulse*1000);
-    //  }
-    // }
+    digitalWrite(PIN_8, HIGH);   // Open valve
+    customDelay(rightdur);       // Custom delay
+    digitalWrite(PIN_8, LOW);    // Close valve
+    hasPrintedL = false;
+    hasPrintedM = false;
+    hasPrintedR = false;
+    hasPrintedNone = false;
     currentState = READING; // Go back to initial state
   }
   else if (currentState == RIGHT_OPEN) {
@@ -120,19 +128,20 @@ void loop() {
       RightOpen = false;
       // Serial.print("right valve closed");
     }
+    hasPrintedL = false;
+    hasPrintedM = false;
+    hasPrintedR = false;
+    hasPrintedNone = false;
     currentState = READING;
   }
   else if (currentState == LEFT_REWARDING) {
-// When communication b/w MATLAB and Serial was slow, I had the arduino do the pulsing. Now I do not need to but I'll leave the code
-    // Serial.print("left drop: "); Serial.println(leftdur);
-   // for (int i = 0; i < Pulse; i++) {
-      digitalWrite(PIN_7, HIGH);   // Open valve
-      delay(rightdur*1000);  // Wait for specified duration
-      digitalWrite(PIN_7, LOW);    // Close valve
-    //  if (i < Pulse - 1) {
-     //   delay(BetweenPulse*1000);
-    //  }
-    // }
+    digitalWrite(PIN_7, HIGH);   // Open valve
+    customDelay(leftdur);        // Custom delay
+    digitalWrite(PIN_7, LOW);    // Close valve
+    hasPrintedL = false;
+    hasPrintedM = false;
+    hasPrintedR = false;
+    hasPrintedNone = false;
     currentState = READING; // Go back to initial state
   }
   else if (currentState == LEFT_OPEN) {
@@ -150,53 +159,54 @@ void loop() {
   }
   else if (currentState == LEFT_SETUP) {
     Serial.println("Please input leftdur");
-    // wait until 4 characters are received
-    while (Serial.available() < 4);
-
-    String SETstr = "";
-    for(int i = 0; i < 4; i++) {
-      // concatenate char to the SETstr
-      SETstr += (char)Serial.read();
-    }
-
+    float DURinp;
+    DURinp = Serial.parseFloat(); // Read a number until terminating character
+    leftdur = DURinp;
     // convert the string to float
-    leftdur = SETstr.toFloat();
-
-    Serial.println("Left setup complete");
+    Serial.print("Left reward is ");
+    Serial.println(leftdur);
     currentState = READING;
+    hasPrintedL = false;
+    hasPrintedM = false;
+    hasPrintedR = false;
+    hasPrintedNone = false;
   }
   else if (currentState == RIGHT_SETUP) {
     Serial.println("Please input rightdur");
-    // wait until 4 characters are received
-    while (Serial.available() < 4);
-
-    String SETstr = "";
-    for(int i = 0; i < 4; i++) {
-      // concatenate char to the SETstr
-      SETstr += (char)Serial.read();
-    }
-
-    // convert the string to float
-    rightdur = SETstr.toFloat();
-
-    Serial.println("Right setup complete");
+    float DURinp;
+    DURinp = Serial.parseFloat(); // Read a number until terminating character
+    rightdur = DURinp;    
+    Serial.print("Right reward is ");
+    Serial.println(rightdur, 4);
+    
+    hasPrintedL = false;
+    hasPrintedM = false;
+    hasPrintedR = false;
+    hasPrintedNone = false;
     currentState = READING;
   }
   else if (currentState == WHO) {
-    // Introduce
-    Serial.println("NosePoke");
+    // Introduction and Explanation of program
+    Serial.println();
+    Serial.println("Welcome to BehaviorBox - NosePoke");
+    Serial.println();
+    Serial.println("WIRING:");
     Serial.println("PIN_4 (Left) is connected to digital pin 4");
     Serial.println("PIN_5 (Middle) is connected to digital pin 5");
     Serial.println("PIN_6 (Right) is connected to digital pin 6");
     Serial.println("PIN_7 (Left Reward) is connected to digital pin 7");
     Serial.println("PIN_8 (Right Reward) is connected to digital pin 8");
+    Serial.println();
+    Serial.println("SETTINGS:");
     Serial.print("Right reward: ");
-    Serial.print(rightdur);
+    Serial.print(rightdur, 4);
     Serial.println(" sec");
     Serial.print("Left reward: ");
-    Serial.print(leftdur);
+    Serial.print(leftdur, 4);
     Serial.println(" sec");
-    // Print out the instructions
+    Serial.println();
+    Serial.println("USAGE:");
+    Serial.println("The default behavior is to read from the Photogates and output L, M, R or -");
     Serial.println("Please enter one of the following characters to control the state:");
     Serial.println("If the letter 'R' is entered, the current state will switch to RIGHT_REWARDING");
     Serial.println("If the letter 'r' is entered, the current state will switch to RIGHT_OPEN");
@@ -205,30 +215,21 @@ void loop() {
     Serial.println("If the letter 'S' is entered, the current state will switch to LEFT_SETUP");
     Serial.println("If the letter 's' is entered, the current state will switch to RIGHT_SETUP");
     Serial.println("If the letter 'W' is entered, the current state will switch to WHO, which is an identifying state.");
-
-   Serial.println("Note: The system is case sensitive, uppercase and lowercase letters will trigger different states.");
-
-    // Serial.print(Pulse);
-    // Serial.println(" pulses");
-
+    Serial.println("Note: The system is case sensitive, uppercase and lowercase letters will trigger different states.");
+    Serial.println("Readout begins below...");
+    Serial.println();
+    Serial.println();
+    hasPrintedL = false;
+    hasPrintedM = false;
+    hasPrintedR = false;
+    hasPrintedNone = false;
     currentState = READING;
   }
 }
-// Fcn to read serial input from MATLAB
-// Not needed now that I fixed the way info is read on the serial from MATLAB
-String readCRLF() {
-  String returnString;
-  while (Serial.available()) {
-    char inChar = Serial.read();
-    if (inChar == '\n') {
-      if (returnString.endsWith("\r")) {
-        // It ended with "\r\n", remove the "\r"
-        returnString = returnString.substring(0, returnString.length() - 1);
-      }
-      break; // done reading
-    } else {
-      returnString += inChar; // append other bytes
-    }
+void customDelay(float duration) {
+  if (duration < 0.001) {
+    delayMicroseconds(duration * 1e6); // Convert seconds to microseconds
+  } else {
+    delay(duration * 1000); // Convert seconds to milliseconds
   }
-  return returnString;
 }

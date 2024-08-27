@@ -216,6 +216,7 @@ classdef BehaviorBoxData < handle
                             subfiledir = newpath;
                         end
                     else
+                        fprintf("Indicated filepath not found - Check the file path..?\n")
                         newpath = fullfile(GetFilePath("Data"), this.Inv, this.Inp, 'New', this.Sub);
                         this.Str = 'New';
                         if isfolder(newpath)
@@ -612,6 +613,7 @@ classdef BehaviorBoxData < handle
             end
         end
         function Cross = MMCross(this)
+% Moving Mean Cross (the threshold)
             arguments
                 this
             end
@@ -620,19 +622,20 @@ classdef BehaviorBoxData < handle
             SUBS = this.AnalyzedData.Subjects;
             WT = contains(SUBS, 'WT');
             Het = contains(SUBS, 'Het');
+            IDX = [repmat("Het", 1, sum(Het)) repmat("WT", 1, sum(WT))];
             Lev = this.AnalyzedData.LevelMM;
             for L = 1:max(cellfun(@(x) numel(x), Lev, UniformOutput=true))
                 CROSS_1 = cellfun(@(x) find(x{L}{:,6} < 0.05, 1, "first")+this.BB, Lev, UniformOutput=0, ErrorHandler=@errorFuncNaN);
                 CROSS_1(cellfun('isempty', CROSS_1)) = {NaN};
-                OverBinomial{L,"p<0.05"} = {cell2mat(CROSS_1)};
+                OverBinomial{L,"p<0.05"} = {[ {[CROSS_1{Het}]} {[CROSS_1{WT}]} ]} ; 
                 OverBinomial_AVG{L,"p<0.05"} = {[mean(cell2mat(CROSS_1(Het)), "omitmissing") mean(cell2mat(CROSS_1(WT)), "omitmissing") ; std(cell2mat(CROSS_1(Het)), "omitmissing") std(cell2mat(CROSS_1(WT)), "omitmissing") ; sum(cellfun(@(x) ~isnan(x), CROSS_1(Het))) sum(cellfun(@(x) ~isnan(x), CROSS_1(WT)))]};
                 CROSS_2 = cellfun(@(x) find(x{L}{:,6} < 0.01, 1, "first")+this.BB, Lev, UniformOutput=0, ErrorHandler=@errorFuncNaN);
                 CROSS_2(cellfun('isempty', CROSS_2)) = {NaN};
-                OverBinomial{L,"p<0.01"} = {cell2mat(CROSS_2)};
+                OverBinomial{L,"p<0.01"} = {[ {[CROSS_2{Het}]} {[CROSS_2{WT}]} ]};
                 OverBinomial_AVG{L,"p<0.01"} = {[mean(cell2mat(CROSS_2(Het)), "omitmissing") mean(cell2mat(CROSS_2(WT)), "omitmissing") ; std(cell2mat(CROSS_2(Het)), "omitmissing") std(cell2mat(CROSS_2(WT)), "omitmissing") ; sum(cellfun(@(x) ~isnan(x), CROSS_2(Het))) sum(cellfun(@(x) ~isnan(x), CROSS_2(WT)))]};
                 CROSS_3 = cellfun(@(x) find(x{L}{:,6} < 0.001, 1, "first")+this.BB, Lev, UniformOutput=0, ErrorHandler=@errorFuncNaN);
                 CROSS_3(cellfun('isempty', CROSS_3)) = {NaN};
-                OverBinomial{L,"p<0.001"} = {cell2mat(CROSS_3)};
+                OverBinomial{L,"p<0.001"} = {[ {[CROSS_1{Het}]} {[CROSS_1{WT}]} ]};
                 OverBinomial_AVG{L,"p<0.001"} = {[mean(cell2mat(CROSS_3(Het)), "omitmissing") mean(cell2mat(CROSS_3(WT)), "omitmissing") ; std(cell2mat(CROSS_3(Het)), "omitmissing") std(cell2mat(CROSS_3(WT)), "omitmissing") ; sum(cellfun(@(x) ~isnan(x), CROSS_3(Het))) sum(cellfun(@(x) ~isnan(x), CROSS_3(WT)))]};
             end
             Cross = {OverBinomial ; OverBinomial_AVG};
@@ -1242,7 +1245,7 @@ classdef BehaviorBoxData < handle
             end
             if opts.LevelProgressIndividual
                 this.BinomialProgressIndividual();
-                this.SaveManyFigures([],'Binomial', SameFolder=1)
+                this.SaveManyFigures([],'BinomialIndividual', SameFolder=1)
                 close all
             end
             if opts.LevGroup
@@ -1432,7 +1435,7 @@ classdef BehaviorBoxData < handle
             arguments
                 this
                 options.Sc double = 1
-                options.Lvs double = [2:20] % Do not display levels below this
+                options.Lvs double = [3 6 8 10 12 14] %
                 options.Threshold double = 0.7 % Passing threshold for each level
                 options.count double = 10 % Num of consecutive trials above threshold before passing
                 options.tol double = 0 % How many below-threshold trials in the streak of options.count to be tolerated
@@ -1484,7 +1487,7 @@ classdef BehaviorBoxData < handle
             arguments
                 this
                 options.Sc double = 1
-                options.Lvs double = [2:20] % Do not display levels below this
+                options.Lvs double = [3 6 8 10 12 14] %  [2 3 5 6 8] %
                 options.Threshold double = 0.7 % Passing threshold for each level
                 options.count double = 10 % Num of consecutive trials above threshold before passing
                 options.tol double = 0 % How many below-threshold trials in the streak of options.count to be tolerated
@@ -1505,25 +1508,26 @@ classdef BehaviorBoxData < handle
                 % Prepare and format 2x2 subplot
                 try
 
-                    ThisData = cell2mat(Data{L,1});
+                    ThisData = cell2mat(Data{L,1}{:});
                     if ThisData == 0
                         continue
                     end
                     %x = [1 2];
-                    x = lc + normalize([1 2 3 4], "range");
-                    x([1 4]) = [];
+                    x = lc + normalize(1:(6+numel(ThisData)), "range");
+                    x([1 2 3 end-2 end-1 end]) = [];
 
                     y = ThisData(1,:);
-                    Err = ThisData(2,:);
+                    %Err = ThisData(2,:);
                     B = bar(x, y, "Parent",Ax, "FaceColor","flat");
                     B.CData(1,:) = Ax.ColorOrder(1,:);
-                    B.CData(2,:) = Ax.ColorOrder(2,:);
-                    E_Bar = errorbar(x, y, Err, ...
-                        "Parent", Ax, ...
-                        "LineStyle","none");
-                    N_Label = text(x, -0.1.*[1 1], "n = "+string(ThisData(3,:)), "VerticalAlignment","top", "HorizontalAlignment","center");
+                    B.CData(2,:) = Ax.ColorOrder(1,:);
+                    B.CData(3,:) = Ax.ColorOrder(1,:);
+                    B.CData(4,:) = Ax.ColorOrder(1,:);
+                    B.CData(5,:) = Ax.ColorOrder(2,:);
+                    B.CData(6,:) = Ax.ColorOrder(2,:);
+                    B.CData(7,:) = Ax.ColorOrder(2,:);
                     Level_Label = text(lc+0.5, -10, "Level "+L, "VerticalAlignment","top", "HorizontalAlignment","center");
-                    Text = text(x, y, string(round(y, 2))+' +/- '+string(round(Err, 2)), "VerticalAlignment","bottom", "HorizontalAlignment","center");
+                    Text = text(x, y, string(round(y, 2)), "VerticalAlignment","bottom", "HorizontalAlignment","center");
                 catch err
                     unwrapErr
                 end
