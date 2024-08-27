@@ -1230,12 +1230,18 @@ classdef BehaviorBoxData < handle
                 opts.LevGroup logical = 0
                 opts.History logical = 0
                 opts.Stim logical = 0
-                opts.LevelProgress logical = 1
+                opts.LevelProgress logical = 0
+                opts.LevelProgressIndividual logical = 1
             end
             Num = num2cell(1:numel(this.Sub));
             tic
             if opts.LevelProgress
                 this.BinomialProgress();
+                this.SaveManyFigures([],'Binomial', SameFolder=1)
+                close all
+            end
+            if opts.LevelProgressIndividual
+                this.BinomialProgressIndividual();
                 this.SaveManyFigures([],'Binomial', SameFolder=1)
                 close all
             end
@@ -1426,7 +1432,6 @@ classdef BehaviorBoxData < handle
             arguments
                 this
                 options.Sc double = 1
-                options.AllMice logical = 0
                 options.Lvs double = [2:20] % Do not display levels below this
                 options.Threshold double = 0.7 % Passing threshold for each level
                 options.count double = 10 % Num of consecutive trials above threshold before passing
@@ -1473,7 +1478,58 @@ classdef BehaviorBoxData < handle
                 lc = lc + 1;
             end
         end
-        
+        function Out = BinomialProgressIndividual(this, options)
+            % This fcn normalizes the performance to each day to show the mouse's
+            % progress at each day of the level
+            arguments
+                this
+                options.Sc double = 1
+                options.Lvs double = [2:20] % Do not display levels below this
+                options.Threshold double = 0.7 % Passing threshold for each level
+                options.count double = 10 % Num of consecutive trials above threshold before passing
+                options.tol double = 0 % How many below-threshold trials in the streak of options.count to be tolerated
+                options.BarOnly logical = true
+            end
+            Out = struct();
+            SUBS = this.AnalyzedData.Subjects;
+            deets = split(SUBS{1},'-');
+            Data = this.AnalyzedData.CrossTable{1};
+            Ax = MakeAxis();
+            hold(Ax, "on")
+            Ax.Parent.Title.String = string(this.Str)+deets{2};
+            Ax.Parent.Parent.Name = Ax.Parent.Title.String;
+            Ax.Box=0;
+            LabelList = [];
+            lc = 0;
+            for L = options.Lvs
+                % Prepare and format 2x2 subplot
+                try
+
+                    ThisData = cell2mat(Data{L,1});
+                    if ThisData == 0
+                        continue
+                    end
+                    %x = [1 2];
+                    x = lc + normalize([1 2 3 4], "range");
+                    x([1 4]) = [];
+
+                    y = ThisData(1,:);
+                    Err = ThisData(2,:);
+                    B = bar(x, y, "Parent",Ax, "FaceColor","flat");
+                    B.CData(1,:) = Ax.ColorOrder(1,:);
+                    B.CData(2,:) = Ax.ColorOrder(2,:);
+                    E_Bar = errorbar(x, y, Err, ...
+                        "Parent", Ax, ...
+                        "LineStyle","none");
+                    N_Label = text(x, -0.1.*[1 1], "n = "+string(ThisData(3,:)), "VerticalAlignment","top", "HorizontalAlignment","center");
+                    Level_Label = text(lc+0.5, -10, "Level "+L, "VerticalAlignment","top", "HorizontalAlignment","center");
+                    Text = text(x, y, string(round(y, 2))+' +/- '+string(round(Err, 2)), "VerticalAlignment","bottom", "HorizontalAlignment","center");
+                catch err
+                    unwrapErr
+                end
+                lc = lc + 1;
+            end
+        end
         function Out = consecutiveTrial(this, vec, count, tol)
             arguments
                 this
@@ -1492,7 +1548,6 @@ classdef BehaviorBoxData < handle
             end
             Out = NaN;
         end
-        
         function Out = plotLvByDayOneAxis(this, options)
             arguments
                 this
