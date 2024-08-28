@@ -38,7 +38,6 @@ void setup() {
   pinMode(PIN_6, INPUT_PULLUP); // set pin 6 as input with internal pullup resistor
   pinMode(PIN_7, OUTPUT); // set pin 7 as output
   pinMode(PIN_8, OUTPUT); // set pin 8 as output
-  currentState = WHO;
 }
 
 void loop() {  
