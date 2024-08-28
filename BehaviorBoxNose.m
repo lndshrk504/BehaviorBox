@@ -519,12 +519,6 @@ classdef BehaviorBoxNose < handle
                     end
                 end
             end
-            if tempSetting_Struct.Box_Lrewardtime ~= this.Setting_Struct.Box_Lrewardtime
-                this.a.SetupReward("Which", "Left", "DurationLeft", this.Box.Lrewardtime)
-            end
-            if tempSetting_Struct.Box_Rrewardtime ~= this.Setting_Struct.Box_Rrewardtime
-                this.a.SetupReward("Which", "Right", "DurationLeft", this.Box.Rrewardtime)
-            end
             msg = "Trial "+this.i+" Updating:\n"+join([updatelist{:}],"\n")+"\n";
             fprintf(msg) %Print this to the Message window
             this.Old_Setting_Struct{end+1} = this.Setting_Struct;
