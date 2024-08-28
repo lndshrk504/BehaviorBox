@@ -31,9 +31,6 @@ classdef BehaviorBoxSerial < handle
                     Input_type char = 'NosePoke'
                 end
                 this.Input_type = Input_type;
-% delete(serialportfind) % Consider adding code to delete a
-% serial object if one exists using the same port, would
-% prevent a crash
                 this.Ard = serialport(port, baudRate, ...
                     "Timeout", 0.1);
                 configureTerminator(this.Ard,"CR/LF");
@@ -63,35 +60,29 @@ classdef BehaviorBoxSerial < handle
             end
     
             function SetupReward(this, opts)
-% The arduino expects setup in this order:
-% rightdur
-% leftdur - only NosePoke
-% Pulse
-% BetweenPulse
+% This function sets up the reward parameters for the Arduino.
+% The Arduino will be in reward setup mode until the next
+% command is sent.
+% Send "S" for Left Reward
+% Send "s" for Right Reward
+% Give reward as a number larger than "0.001"
                 arguments
                     this
                     opts.DurationRight string = this.Rrewardtime;
                     opts.DurationLeft string = this.Lrewardtime;
-                    % opts.Pulse string = this.Pulse;
-                    % opts.SecBwPulse string = this.SecBwPulse;
+                    opts.Which string = "Right"
                 end
-                % Switch into reward setup mode
-                write(this.Ard, "S", "string"); pause(2);
-
-                % Duration of Right reward pulse, Duration of Left reward pulse (if applicable),
-                % Number of reward pulses, Seconds between reward pulses
-                rewardStr = opts.DurationRight;
-                if this.Input_type == "NosePoke"
-                    rewardStr = rewardStr+' '+opts.DurationLeft;
+                if ismember(opts.Which, ["Right", "Both"])
+                    write(this.Ard, "s", "string");
+                    write(this.Ard, opts.DurationRight, "string");
                 end
-                % rewardStr = rewardStr+' '+opts.Pulse+' '+opts.SecBwPulse;
-
-                write(this.Ard, rewardStr, "string"); pause(2);
-
+                if ismember(opts.Which, ["Left", "Both"])
+                    write(this.Ard, "S", "string");
+                    write(this.Ard, opts.DurationLeft, "string");
+                end
+                % Update properties
                 this.Rrewardtime = opts.DurationRight;
                 this.Lrewardtime = opts.DurationLeft;
-                % this.Pulse = opts.Pulse;
-                % this.SecBwPulse = opts.SecBwPulse;
             end
 
             function GiveReward(this, opts)

@@ -282,63 +282,24 @@ classdef BehaviorBoxNose < handle
                 this.Box.ardunioReadDigital = 0;
                 this.Box.KeyboardInput = 0;
                 this.Box.readHigh = 0; % When unselected, NosePoke reads HIGH, when selected it reads LOW
-                %set which lever is what and what the input setup is from
-                this.Box.ResetPin        = 'D4';
+                this.Box.ResetPin        = 'D4'; %set which lever is what and what the input setup is from
                 this.Box.TriggerPin      = 'D5';
                 switch this.Setting_Struct.Box_Input_type
                     case 3 %Three Pokes
                         this.a = BehaviorBoxSerial(comsnum, 9600, 'NosePoke');
-                        if options.Rebuild
-                            try
-                                this.a = [];
-                            catch
-                            end
-                            %this.a = arduino(comsnum,'Uno','Libraries',{}, 'ForceBuildOn',true);
-                            this.a = BehaviorBoxSerial(comsnum, 9600, 'NosePoke');
-                        else
-% Program the Arduino with Photogate.ino
-                            %this.a = arduino(comsnum,'Uno','Libraries',{});
-                        end
-                        % configurePin(this.a, "D2", "Unset");
-                        % configurePin(this.a, "D3", "Unset");
-                        % configurePin(this.a, "D7", "Unset");
                         this.Box.ardunioReadDigital = 1;
                         this.Box.readHigh = 0;
-                        % if this.Box.readHigh %Voltage goes HIGH on choice
-                        %     configurePin(this.a, "D2", "DigitalInput");
-                        %     configurePin(this.a, "D3", "DigitalInput");
-                        %     configurePin(this.a, "D7", "DigitalInput");
-                        % else %Voltage goes LOW on choice
-                        %     configurePin(this.a, "D2", "Pullup");
-                        %     configurePin(this.a, "D3", "Pullup");
-                        %     configurePin(this.a, "D7", "Pullup");
-                        % end
-                        %Set up box structure
                         this.Box.Left = 'D2';
                         this.Box.Middle = 'D3';
                         this.Box.Right = 'D7';
                         this.Box.ValveL = 'D6';
                         this.Box.ValveR = 'D8';
                         this.Box.AirPuff  = 'D11';
-                        % this.Box.readPin = @(PIN)this.a.readDigitalPin(PIN)==this.Box.readHigh;
-                        % this.Box.readL = @(x)this.Box.readPin(this.Box.Left);
-                        % this.Box.readR = @(x)this.Box.readPin(this.Box.Right);
-                        % this.Box.readM = @(x)this.Box.readPin(this.Box.Middle);
                     case 8 %Keyboard, used if no arduino connected
                         this.Box.KeyboardInput = 1;
                         this.Box.readHigh = 1;
                         return
                 end
-                % configurePin(this.a, "D4", "Unset"); %Reset pin
-                % configurePin(this.a, "D5", "Unset"); %Trigger pin
-                % configurePin(this.a, "D6", "Unset");
-                % configurePin(this.a, "D8", "Unset");
-                % configurePin(this.a, "D9", "Unset");
-                % configurePin(this.a, "D4", "DigitalOutput"); %Reset pin
-                % configurePin(this.a, "D5", "DigitalInput"); %Trigger pin
-                % configurePin(this.a, "D6", "DigitalOutput");
-                % configurePin(this.a, "D8", "DigitalOutput");
-                % configurePin(this.a, "D9", "DigitalOutput");
                 toc
             catch
                 this.Box.use_ball = 0; %All these are automatically off
@@ -558,6 +519,12 @@ classdef BehaviorBoxNose < handle
                     end
                 end
             end
+            if tempSetting_Struct.Lrewardtime ~= this.Setting_Struct.Lrewardtime
+                this.a.SetupReward("Which", "Left", "DurationLeft", this.Box.Lrewardtime)
+            end
+            if tempSetting_Struct.Rrewardtime ~= this.Setting_Struct.Rrewardtime
+                this.a.SetupReward("Which", "Right", "DurationLeft", this.Box.Rrewardtime)
+            end
             msg = "Trial "+this.i+" Updating:\n"+join([updatelist{:}],"\n")+"\n";
             fprintf(msg) %Print this to the Message window
             this.Old_Setting_Struct{end+1} = this.Setting_Struct;
@@ -569,8 +536,6 @@ classdef BehaviorBoxNose < handle
             [this.SetStr(end+1), this.Include(end+1)] = this.structureSettings(tempSetting_Struct);
             this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
             [this.Level] = this.Setting_Struct.Starting_opacity;
-            % This doesnt work as expected anymore and needs to be fixed
-            % this.a.SetupReward("DurationLeft", this.Box.Lrewardtime, "DurationRight", this.Box.Rrewardtime)
         end
         %Choose if Left or Right will be correct
         function isLeftTrial = PickSideForCorrect(this, isLeftTrial, SB)
