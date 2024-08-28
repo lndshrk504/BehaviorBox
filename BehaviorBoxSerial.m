@@ -74,11 +74,13 @@ classdef BehaviorBoxSerial < handle
                 end
                 if ismember(opts.Which, ["Right", "Both"])
                     write(this.Ard, "s", "string");
-                    write(this.Ard, opts.DurationRight, "string");
+                    writeline(this.Ard, opts.DurationRight);
+                    %write(this.Ard, opts.DurationRight, "string");
                 end
                 if ismember(opts.Which, ["Left", "Both"])
                     write(this.Ard, "S", "string");
-                    write(this.Ard, opts.DurationLeft, "string");
+                    writeline(this.Ard, opts.DurationLeft);
+                    %write(this.Ard, opts.DurationLeft, "string");
                 end
                 % Update properties
                 this.Rrewardtime = opts.DurationRight;
