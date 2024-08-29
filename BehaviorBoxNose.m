@@ -1707,7 +1707,6 @@ classdef BehaviorBoxNose < handle
                 options.SaveStimulus logical = 0
             end
             tic
-            this.app.ShowStim.Enable = 0; %Disable this when debugging...
             this.getGUI();
             this.Stimulus_Object = BehaviorBoxVisualStimulus(this.StimulusStruct, Preview=1);
             this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
@@ -1732,9 +1731,8 @@ classdef BehaviorBoxNose < handle
                 name = "Stim-Lv-"+this.Setting_Struct.Starting_opacity;
                 this.Data_Object.SaveManyFigures([],name)
             end
-            this.app.ShowStim.Enable = 1;
         end
-    end
+    end 
     %STATIC FUNCTIONS====
     methods(Static = true)
         function Types = GetType(App, Props)
@@ -2023,7 +2021,9 @@ classdef BehaviorBoxNose < handle
             set(chosen_figure,'PaperPositionMode','auto');
             set(chosen_figure,'PaperSize',[str2double(figure_property.Width) str2double(figure_property.Height)]); % Canvas Size
             set(chosen_figure,'Units','inches');
-            hgexport(fig, join([folder name + ".pdf"], filesep), figure_property); %Save as pdf
+            outputFilePath = fullfile(folder, [name, '.pdf']);
+            exportgraphics(chosen_figure, outputFilePath, 'ContentType', 'vector');
+            % hgexport(fig, join([folder name + ".pdf"], filesep), figure_property); %Save as pdf
         end
         function unwrapError(err)
             %Is there an error? Send the err object over here and it will be unwrapped in the command window. Maybe too much info?
