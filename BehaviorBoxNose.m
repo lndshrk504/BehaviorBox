@@ -2021,7 +2021,7 @@ classdef BehaviorBoxNose < handle
             set(chosen_figure,'PaperPositionMode','auto');
             set(chosen_figure,'PaperSize',[str2double(figure_property.Width) str2double(figure_property.Height)]); % Canvas Size
             set(chosen_figure,'Units','inches');
-            outputFilePath = fullfile(folder, [name, '.pdf']);
+            outputFilePath = fullfile(folder, name+".pdf");
             exportgraphics(chosen_figure, outputFilePath, 'ContentType', 'vector');
             % hgexport(fig, join([folder name + ".pdf"], filesep), figure_property); %Save as pdf
         end
