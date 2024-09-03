@@ -73,12 +73,12 @@ classdef BehaviorBoxSerial < handle
                     opts.Which string = "Right"
                 end
                 if ismember(opts.Which, ["Right", "Both"])
-                    write(this.Ard, "s", "string");
+                    write(this.Ard, "s", "char");
                     writeline(this.Ard, opts.DurationRight);
                     %write(this.Ard, opts.DurationRight, "string");
                 end
                 if ismember(opts.Which, ["Left", "Both"])
-                    write(this.Ard, "S", "string");
+                    write(this.Ard, "S", "char");
                     writeline(this.Ard, opts.DurationLeft);
                     %write(this.Ard, opts.DurationLeft, "string");
                 end
@@ -91,13 +91,8 @@ classdef BehaviorBoxSerial < handle
                 arguments
                     this
                     opts.Side string = "R"
-                    opts.Terminator string = "\n"
                 end
-                write(this.Ard, opts.Side, "string");
-% This is incredibly slow, because of the way that serial
-% commmunication over USB works in MATLAB... Unacceptably slow for
-% giving multiple pulses, so now arduino does pulsing
-% https://www.reddit.com/r/arduino/comments/111udy/arduino_as_an_acquisition_device_with_matlab/
+                write(this.Ard, opts.Side, "char");
             end
     
             function Reading = SerialRead(this, src, ~)
