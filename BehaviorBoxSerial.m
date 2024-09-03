@@ -90,7 +90,7 @@ classdef BehaviorBoxSerial < handle
             function GiveReward(this, opts)
                 arguments
                     this
-                    opts.Side string = "R"
+                    opts.Side char = 'R'
                 end
                 write(this.Ard, opts.Side, "char");
             end
@@ -106,33 +106,47 @@ classdef BehaviorBoxSerial < handle
                     Reading = this.Reading;
                     return
                 end
-                %Reading = str2num(read(src, src.BytesAvailable, 'string')); % Use this syntax if there are multiple lines in the buffer waiting to be read, shouldn't need to use this if the callback is working 
-                switch true
-                    case strcmp(this.Input_type, 'Wheel')
-                        Reading = str2double(readline(src)); % Returns an integer for the angle, e.g. -104
-                    case strcmp(this.Input_type, 'NosePoke')
-                        Reading = readline(src); % Returns a character, e.g. 'L' 'R' 'M' or '-"
+                % Pre-fetch Input_type & DispOutput to avoid repeated property access
+                inputType = this.Input_type;
+                dispOutput = this.DispOutput;
+                
+                % Read data from the serial port
+                newReading = readline(src);
+                
+                % Process the reading based on Input_type
+                if strcmp(inputType, 'Wheel')
+                    Reading = str2double(newReading);
+                else % Assume NosePoke for any non-Wheel Input_type
+                    Reading = char(newReading);
                 end
+
+                % Update the Reading property
                 this.Reading = Reading;
-                if this.DispOutput
+
+                % Display the output if DispOutput is true
+                if dispOutput
                     disp(Reading);
                 end
             end
     
             function LeftRead = ReadLeft(this)
-                LeftRead = strcmpi(this.SerialRead(), "L");
+                Reading = this.Reading; % Read the value once
+                LeftRead = strcmp(Reading, 'L');
             end
             
             function RightRead = ReadRight(this)
-                RightRead = strcmpi(this.SerialRead(), "R");
+                Reading = this.Reading; % Read the value once
+                RightRead = strcmp(Reading, 'R');
             end
             
             function MiddleRead = ReadMiddle(this)
-                MiddleRead = strcmpi(this.SerialRead(), "M");
+                Reading = this.Reading; % Read the value once
+                MiddleRead = strcmp(Reading, 'M');
             end
             
             function NoneRead = ReadNone(this)
-                NoneRead = ~strcmpi(this.SerialRead(), "-");
+                Reading = this.Reading; % Read the value once
+                NoneRead = ~strcmp(Reading, '-');
                 % To match behavior this one is flipped, because it is only
                 % used for the flashing while waiting for input
             end

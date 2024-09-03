@@ -850,21 +850,14 @@ classdef BehaviorBoxNose < handle
                 return
             end
             o = {this.fig.Children.Children}; % Hide ReadyCue and set background
-            o(cellfun(@isempty, o)) = [];
-            for obj = o
-                x = obj{:};
-                [x.Visible] = deal(1);
+            validObjs = o(~cellfun(@isempty, o));
+            for x = validObjs
+                set([x{:}], 'Visible', 1);
             end
             this.fig.Color = this.StimulusStruct.BackgroundColor;
             Ls = this.fig.findobj('Type','line');
-            [Ls(:).Color] = deal(this.StimulusStruct.LineColor); drawnow
+            set(Ls, 'Color', this.StimulusStruct.LineColor); drawnow
             this.ReadyCue(0); drawnow % ReadyCue goes away after input ignore interval
-            % while this.a.Reading == "M"
-            %     this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'NewStim');
-            % end
-            [Ls(:).Color] = deal(this.StimulusStruct.LineColor); drawnow
-            %ignore input if set
-            %this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'NewStim');
             tic
             while this.Setting_Struct.Input_ignored && toc<=this.Setting_Struct.Pokes_ignored_time
                 if this.Setting_Struct.ConfirmChoice && this.a.Reading == "L" && this.isLeftTrial
@@ -1627,15 +1620,13 @@ classdef BehaviorBoxNose < handle
             %isVis is 1 or 0
             switch 1
                 case numel(isVis) == 3 %RGB triplet
-                    this.ReadyCueAx.Color = isVis;
-                    [this.ReadyCueAx.Visible] = deal(1);
+                    set(this.ReadyCueAx, 'Color', isVis, 'Visible', 1);
                     return
                 case any(int8(isVis) == [0 1]) || islogical(isVis)%Logical off or on
                     isVis = logical(isVis);
                 case ischar(isVis) %Letter color abbrev.
                     ax = findobj(this.ReadyCueAx, 'Type', 'Axes');
-                    ax.Color = char(isVis);
-                    [this.ReadyCueAx.Visible] = deal(1);
+                    set(ax, 'Color', char(isVis), 'Visible', 1);
                     try
                         [this.ReadyCueAx.Children.Visible] = deal(0);
                     catch
@@ -1645,9 +1636,9 @@ classdef BehaviorBoxNose < handle
             % Plot a circle in the center to show that a new trial is ready
             %Make the figure if this is the first call to readycue, or make a new one
             %if the window has been closed
-            if ~isempty(this.ReadyCueAx) & all(isvalid(this.ReadyCueAx))
-                [this.ReadyCueAx.Visible] = deal(isVis);
-                [this.ReadyCueAx.Children.Visible] = deal(isVis);
+            if ~isempty(this.ReadyCueAx) && all(isvalid(this.ReadyCueAx))
+                set(this.ReadyCueAx, 'Visible', isVis);
+                set(this.ReadyCueAx.Children, 'Visible', isVis);
             else %First time, make axis
                 switch this.Box.Input_type
                     case 6 % Wheel is different
@@ -1679,7 +1670,6 @@ classdef BehaviorBoxNose < handle
                         this.ReadyCueAx = [findobj(this.fig, 'Tag', 'ReadyCue')];
                 end
             end
-            %drawnow
         end
         function TestBox(this)
             this.getGUI();
