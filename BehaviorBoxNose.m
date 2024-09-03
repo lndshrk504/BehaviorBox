@@ -2018,7 +2018,8 @@ classdef BehaviorBoxNose < handle
                 'Resolution', figureOpts.Resolution);
         end
         function unwrapError(err)
-            %Is there an error? Send the err object over here and it will be unwrapped in the command window. Maybe too much info?
+            % Unwraps and prints the details of an error object
+            disp(['Error message: ' err.message]); % Print the error message
             errFields = fields(err);
             for i = 1:numel(errFields)
                 if ~matches(errFields{i}, 'stack')
@@ -2027,7 +2028,7 @@ classdef BehaviorBoxNose < handle
                     end
                 elseif matches(errFields{i}, 'stack')
                     for L = numel(err.stack):-1:1
-                        disp(['In fx ' err.stack(L).name ', line ' num2str(err.stack(L).line)])
+                        disp(['In function ' err.stack(L).name ', line ' num2str(err.stack(L).line)])
                     end
                 end
             end
