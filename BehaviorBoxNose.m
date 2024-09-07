@@ -1868,11 +1868,12 @@ classdef BehaviorBoxNose < handle
             T = Include;
         end
         function ResetSensor(this)
-            if this.Box.Input_type == 5
-                this.a.writeDigitalPin(this.Setting_Struct.ResetPin, 0);
-                this.a.writeDigitalPin(this.Setting_Struct.ResetPin, 1);
-            elseif this.Box.use_wheel == 1
-                this.Box.encoder.resetCount
+            switch this.Box.Input_type
+                case 5
+                    this.a.writeDigitalPin(this_SETTING_Struct.ResetPin, 0);
+                    this.a.writeDigitalPin(this_SETTING_Struct.ResetPin, 1);
+                case 2
+                    this.Box.encoder.resetCount;
             end
         end
         function Flash(Stim, Box, Lines, whatdecision, OneWay)
