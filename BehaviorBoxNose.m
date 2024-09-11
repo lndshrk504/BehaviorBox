@@ -140,8 +140,8 @@ classdef BehaviorBoxNose < handle
                     this.BeforeTrial();
                     this.WaitForInput();
                     this.WaitForInputAndGiveReward();
-                    this.AfterTrial()
-                    pause(0.1); drawnow;
+                    this.AfterTrial();
+                    pause(0.1);
                     errorc = 0;
                 catch err
                     this.unwrapError(err)
@@ -716,415 +716,751 @@ classdef BehaviorBoxNose < handle
         %Show Cue
         function WaitForInput(this)
             this.TrialStartTime = 0;
-            set(this.message_handle,'Text','Waiting for Trial initialization');
-            this.t1 = clock; t2 = this.t1;%In case of crash
-            switch true
-                case this.Box.ardunioReadDigital==1 %Nose and Lick are Digital
-                    if this.Setting_Struct.Box_Input_type == 5
-                        this.ResetSensor(this)
-                    end
-                    t1 = datetime("now");
-                    this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.LineColor;
-                    set(this.message_handle,'Text','Waiting for Trial initialization'); drawnow
-                    event = 0;
-                    tic
-                    while this.a.ReadLeft || this.a.ReadRight
-                        pause(0.1); drawnow; %Wait for the mouse to notice the bright ready cue before blinking it
-                        %Otherwise the ready cue immediately turns dim when it appears, and mice poke L/R to see the blink instead of recognizing the bright dot
-                    end
-                    while ~get(this.stop_handle, 'Value') %While the stop button has not been pressed
-                        this.FlashNew(this.StimulusStruct, this.Box,  findobj('Tag', 'ReadyCueDot'), 'WaitForInput')
-                        drawnow; %Update the buttons
-                        if this.Setting_Struct.IntertrialMalCancel && this.a.Reading == "L" | this.a.Reading == "R"
-                            %this.ReadyCue('k') %Make the ReadyCue black
-                            %this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'ReadyCueDot'), 'Mal')
-                            this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.BackgroundColor; drawnow %Make the ReadyCue dim
-                            this.message_handle.Text = ['Do not poke L or R for the Intertrial Malingering interval: ' num2str(this.Setting_Struct.IntertrialMalSec) ' sec...'];
-                            timerStart = datetime("now");
-                            while 1
-                                time = this.Setting_Struct.IntertrialMalSec-seconds(datetime("now")-timerStart);
-                                txt = "Do not poke L or R! Intertrial Malingering timeout: "+round(time,1)+" sec...";
-                                set(this.message_handle,'Text',txt)
-                                drawnow %Update the buttons
-                                if this.a.Reading == "L" | this.a.Reading == "R" %if L or R poke then restart timerStart
-                                    timerStart = datetime("now");
-                                end
-                                if get(this.FF, 'Value')
-                                    set(this.message_handle, 'Text','Skipping interval...')
-                                    set(this.FF, 'Value', 0)
-                                    drawnow
-                                    break;
-                                end
-                                if get(this.stop_handle, 'Value')
-                                    set(this.message_handle, 'Text','Ending session...')
-                                    drawnow
-                                    break;
-                                end
-                                if seconds(datetime("now")-timerStart) > this.Setting_Struct.IntertrialMalSec %End when mouse has not poked L or R for the interval
-                                    this.FlashNew(this.StimulusStruct, this.Box,  findobj('Tag', 'ReadyCueDot'), 'Mal')
-                                    this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.LineColor;
-                                    set(this.message_handle,'Text','Waiting for Trial initialization'); drawnow
-                                    break
-                                end
-                                pause(0.1)
-                            end
-                        end
-                        %Immediately accept choice
-                        if this.a.ReadMiddle
-                            event = 1;
-                            break
-                        end
-                    end
-                    t2 = clock;
-                otherwise % Keyboard inputthis.Box.KeyboardInput==1
-                    InterTMalInterv = this.Setting_Struct.IntertrialMalSec;
-                    text = 'Initialize: Press L for Left, R for Right, C or M for Middle:'; set(this.message_handle,'Text',text); fprintf([text '\n'])
-                    prompt = 'L, R, or M/C:   ';
-                    keypress = 0;
-                    while keypress==0
-                        Mal = 0;
-                        currkey = input(prompt,"s");
-                        t2 = clock;
-                        switch true
-                            case any(currkey == ["L","l"])
-                                text = 'Left choice...'; fprintf([text '\n']); set(this.message_handle,'Text',text);
-                                Mal = 1;
-                            case any(currkey == ["R","r"])
-                                text = 'Right choice...'; fprintf([text '\n']); set(this.message_handle,'Text',text);
-                                Mal = 1;
-                            case any(currkey == ["C","c", "M", "m", ""])
-                                text = 'Middle choice'; fprintf([text '\n']); set(this.message_handle,'Text',text);
-                                keypress = 1;
-                            otherwise
-                                text = 'Please only press one of the indicated keys...'; fprintf([text '\n']); set(this.message_handle,'Text',text);
-                        end
-                        pause(0.1); drawnow;
-                        if Mal
-                            this.ReadyCueAx.Children.Visible=0;
-                            this.fig.Color = 'k';
-                            text = 'Only choose Middle to start trial, malingering timeout...'; fprintf([text '\n']); set(this.message_handle,'Text',text);
-                            timerStart = clock;
-                            while 1
-                                pause(0.1); drawnow;
-                                if get(this.FF, 'Value')
-                                    set(this.message_handle, 'Text','Skipping interval...')
-                                    set(this.FF, 'Value', 0)
-                                    drawnow
-                                    break;
-                                end
-                                if get(this.stop_handle, 'Value')
-                                    set(this.message_handle, 'Text','Ending session...')
-                                    drawnow
-                                    break;
-                                end
-                                if etime(clock, timerStart) > InterTMalInterv %End when mouse has not poked L or R for the interval
-                                    this.ReadyCue(1)
-                                    set(this.message_handle,'Text','Waiting for Trial initialization');
-                                    break
-                                end
-                            end
-                            text = 'Initialize: Press L for Left, R for Right, C or M for Middle:'; set(this.message_handle,'Text',text); fprintf([text '\n'])
-                        end
-                        if get(this.stop_handle, 'Value')
-                            this.message_handle.Text ='Ending session...';
-                            break;
-                        end
-                    end
+            set(this.message_handle, 'Text', 'Waiting for Trial initialization');
+            startTime = datetime("now");
+
+            if this.Box.ardunioReadDigital == 1
+                this.WaitForInputArduino();
+            else
+                this.WaitForInputKeyboard();
             end
-            if this.i ~= 1 && ~get(this.stop_handle,'Value')
-                this.TrialStartTime = toc;
-            elseif get(this.stop_handle, 'Value')
-                this.TrialStartTime = 0;
+
+            if ~get(this.stop_handle, 'Value')
+                this.TrialStartTime = seconds(datetime("now") - startTime);
             end
-            if this.i == 1 %start the timer after the first trial has begun. Maybe this should be put somewhere else but I don't want the timer to start until the mouse begins the first trial so where else?
-                this.start_time = clock;
+
+            if this.i == 1
+                this.start_time = clock; %datetime("now")
                 this.Data_Object.GetStartTime;
             end
         end
+        function stable = isStableForOneSecond(this, readFunc, checkDelay)
+            % Check if the sensor value remains stable for 1 second
+            if checkDelay
+                delayTime = this.Setting_Struct.Input_Delay_Respond;
+            else
+                delayTime = 0;
+            end
+
+            timerStart = datetime('now');
+            STABLE = true;
+
+            % Ensure the value remains 1 for the specified duration
+            while seconds(datetime('now') - timerStart) < delayTime
+                pause(0.1); % check in small intervals
+                if ~readFunc(this.a)
+                    STABLE = false;
+                    break;
+                elseif readFunc(this.a)
+                    if (this.isLeftTrial && this.a.ReadLeft()) || (~this.isLeftTrial && this.a.ReadRight())
+                        this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'Correct_Confirmation')
+                    elseif this.a.ReadMiddle()
+                        this.FlashNew(this.StimulusStruct, this.Box, findobj('Tag', 'ReadyCueDot'), 'Correct_Confirmation');
+                    end
+                end
+            end
+            stable = STABLE && readFunc(this.a);
+        end
+        function WaitForInputArduino(this)
+            this.ResetSensor();
+            this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.LineColor;
+            pause(0.1);
+
+            % while this.a.ReadNone()
+            %     pause(0.1);
+            % end
+
+            while ~get(this.stop_handle, 'Value')
+                this.FlashNew(this.StimulusStruct, this.Box, findobj('Tag', 'ReadyCueDot'), 'WaitForInput');
+                pause(0.1);
+
+                if this.Setting_Struct.IntertrialMalCancel && (this.a.ReadLeft() || this.a.ReadRight())
+                    this.HandleIntertrialMalingering();
+                end
+
+                if this.isStableForOneSecond(@(x) x.ReadMiddle(), true)
+                    break;
+                end
+            end
+        end
+        function WaitForInputKeyboard(this)
+            InterTMalInterv = this.Setting_Struct.IntertrialMalSec;
+            prompt = 'Initialize: Press L for Left, R for Right, C or M for Middle: ';
+            set(this.message_handle, 'Text', prompt);
+            fprintf([prompt '\n']);
+
+            while true
+                currkey = input('L, R, or M/C: ', 's');
+
+                switch lower(currkey)
+                    case {'l', 'r'}
+                        this.HandleKeyboardMalingering(InterTMalInterv);
+                    case {'c', 'm', ''}
+                        return;
+                    otherwise
+                        disp('Please only press one of the indicated keys...');
+                end
+
+                if get(this.stop_handle, 'Value')
+                    this.message_handle.Text = 'Ending session...';
+                    break;
+                end
+            end
+        end
+        function HandleIntertrialMalingering(this)
+            this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.BackgroundColor;
+            drawnow;
+            timerStart = datetime("now");
+
+            while true
+                time = this.Setting_Struct.IntertrialMalSec - seconds(datetime("now") - timerStart);
+                txt = sprintf("Do not poke L or R! Intertrial Malingering timeout: %.1f sec...", time);
+                set(this.message_handle, 'Text', txt);
+
+                if this.a.ReadLeft() || this.a.ReadRight()
+                    timerStart = datetime("now");
+                end
+
+                if this.CheckForInterruptions()
+                    break;
+                end
+
+                if seconds(datetime("now") - timerStart) > this.Setting_Struct.IntertrialMalSec
+                    this.FlashNew(this.StimulusStruct, this.Box, findobj('Tag', 'ReadyCueDot'), 'Mal');
+                    this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.LineColor;
+                    set(this.message_handle, 'Text', 'Waiting for Trial initialization');
+                    drawnow;
+                    break;
+                end
+
+                pause(0.1);
+            end
+        end
+        function HandleKeyboardMalingering(this, InterTMalInterv)
+            this.ReadyCueAx.Children.Visible = 0;
+            this.fig.Color = 'k';
+            text = 'Only choose Middle to start trial, malingering timeout...';
+            fprintf([text '\n']);
+            set(this.message_handle, 'Text', text);
+            timerStart = clock;
+
+            while true
+                pause(0.1);
+                drawnow;
+
+                if this.CheckForInterruptions()
+                    break;
+                end
+
+                if etime(clock, timerStart) > InterTMalInterv
+                    this.ReadyCue(1);
+                    set(this.message_handle, 'Text', 'Waiting for Trial initialization');
+                    break;
+                end
+            end
+        end
+        function interrupted = CheckForInterruptions(this)
+            interrupted = false;
+            if get(this.FF, 'Value')
+                set(this.message_handle, 'Text', 'Skipping interval...');
+                set(this.FF, 'Value', 0);
+                interrupted = true;
+            elseif get(this.stop_handle, 'Value')
+                set(this.message_handle, 'Text', 'Ending session...');
+                interrupted = true;
+            end
+            drawnow;
+        end
         %wait loop while lever is read and open valves if correct
         function WaitForInputAndGiveReward(this)
+            if get(this.stop_handle, 'Value')
+                return;
+            end
+
+            this.setupStimulus();
+            this.processIgnoredInput();
+            this.displayChoicePrompt();
+            this.recordStimulusEvent();
+
+            this.WhatDecision = this.getDecision();
+            this.handleIncorrectDecision();
+
+            if this.Box.Input_type == 6
+                this.clearPolygonColors();
+            end
+
+            this.processDecision();
+        end
+
+        function confirmCorrectChoice(this)
+            if this.isStableForOneSecond(@(x) x.ReadLeft, false) && this.isLeftTrial
+                this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'Correct_Confirmation');
+            elseif this.isStableForOneSecond(@(x) x.ReadRight, false) && ~this.isLeftTrial
+                this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'Correct_Confirmation');
+            end
+        end
+
+        function setupStimulus(this)
             this.ResponseTime = 0;
             this.WhatDecision = 'time out';
             this.DrinkTime = 0;
-            if get(this.stop_handle, 'Value')
-                return
-            end
+
             o = {this.fig.Children.Children}; % Hide ReadyCue and set background
             validObjs = o(~cellfun(@isempty, o));
             for x = validObjs
                 set([x{:}], 'Visible', 1);
             end
             this.fig.Color = this.StimulusStruct.BackgroundColor;
-            Ls = this.fig.findobj('Type','line');
-            set(Ls, 'Color', this.StimulusStruct.LineColor); drawnow
-            this.ReadyCue(0); drawnow % ReadyCue goes away after input ignore interval
-            tic
-            while this.Setting_Struct.Input_ignored && toc<=this.Setting_Struct.Pokes_ignored_time
-                if this.Setting_Struct.ConfirmChoice && this.a.Reading == "L" && this.isLeftTrial
-                    this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Contour'), 'Correct_Confirmation');
-                elseif this.Setting_Struct.ConfirmChoice && this.a.Reading == "R" && ~this.isLeftTrial
-                    this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Contour'), 'Correct_Confirmation');
-                end
-                if this.a.Reading == "M"
-                    this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'NewStim');
-                    tic % Restart the timer? I do not want mice to skip the confirmation period by poking the center for 5 seconds
-                end
-                if toc>this.Setting_Struct.Pokes_ignored_time
-                    break
-                end
-                time = this.Setting_Struct.Pokes_ignored_time-toc;
-                txt = "Ignoring input for "+round(time,1)+" sec...";
-                set(this.message_handle,'Text',txt)
-                drawnow
-            end
-            %this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'NewStim'); % Make visible stimulus and flash if set
-            set(this.message_handle,'Text',['Waiting for ',this.current_side,' choice...']);
-            this.Data_Object.addStimEvent(this.isLeftTrial); %Add the timestamp for the trial
-            switch 1
-                case ~isempty(this.a) && any(this.Box.Input_type == [1 2 3 5]) %NosePoke
-                    [this.WhatDecision, this.ResponseTime] = this.readLeverLoopDigital();
-                otherwise
-                    [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial);
-            end
-            if this.Setting_Struct.OnlyCorrect && contains({this.WhatDecision} , 'wrong', 'IgnoreCase', true)
-                set(this.message_handle,'Text',['Reanswer... Waiting for ',this.current_side,' choice...']);
-                switch 1
-                    case any(this.Box.Input_type == [1 2 3 5]) %NosePoke
-                        [this.WhatDecision, this.ResponseTime] = this.readLeverLoopDigital_OnlyCorrect();
-                    otherwise
-                        [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial);
-                end
-            end
-            if this.Box.Input_type == 6
-                p = findobj('Type', 'Polygon');
-                [p.FaceColor] = deal(this.StimulusStruct.BackgroundColor);
-            end
-            switch true
-                case contains({this.WhatDecision} , 'correct', 'IgnoreCase', true)
-                    set(this.message_handle,'Text','Giving Reward...');
-                    tic
-                    this.GiveRewardAndFlash();
-                    if ~this.Box.KeyboardInput && this.Box.Input_type == 3
-                        while this.a.Reading == "L" || this.a.Reading == "R" %Pause while the mouse is standing there and drinking their reward
-                            pause(0.5);drawnow;
-                        end
-                    end
-                    this.DrinkTime = toc;
-                    %[this.fig.Children(contains({this.fig.Children.Tag}, "Incorrect")).Children.Visible] = deal(0);
-                    %Flash
-                    %this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
-                    if this.StimulusStruct.PersistCorrectInterv > 0
-                        thisInt = (this.StimulusStruct.PersistCorrectInterv);
-                    else
-                        thisInt = 0;
-                    end
-                    set(this.message_handle, 'Text',['Persisting correct stimulus for ' num2str(thisInt)  ' (sec)...']); drawnow
-                    if this.Box.KeyboardInput==1
-                    elseif this.Box.Input_type == 3 %Nose
-                        % this.UpdatePause(thisInt)
-                        DIST = this.fig.Children(contains({this.fig.Children.Tag}, "Correct")).Children.findobj('Tag','Contour');
-                        tic
-                        while toc <= thisInt
-                            this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Contour'), 'Correct_Confirmation');
-                        end
-                    end
-                    o = findobj(this.fig.Children);
-                    [o(:).Visible] = deal(0);
-                case contains({this.WhatDecision} , 'wrong', 'IgnoreCase', true)
-                    set(this.message_handle,'Text',[this.WhatDecision,' - Penalty...']);
-                    if ~this.Box.KeyboardInput && this.Box.Input_type == 3
-                        while this.a.Reading == "L" || this.a.Reading == "R" %Pause while the mouse is standing there
-                            pause(0.5);drawnow;
-                        end
-                    end
-                    %[this.fig.Children(contains({this.fig.Children.Tag}, "Correct")).Children.Visible] = deal(0);
-                    %Flash
-                    %this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'), this.WhatDecision);
-                    if ~get(this.stop_handle, 'Value') && this.StimulusStruct.PersistIncorrect
-                        set(this.message_handle,'Text','Persisting correct stimulus...');
-                        if this.Box.Input_type == 3 %Nose
-                            % this.UpdatePause(thisInt)
-                            thisInt = this.StimulusStruct.PersistIncorrectInterv;
-                            DIST = this.fig.Children(contains({this.fig.Children.Tag}, "Correct")).Children.findobj('Tag','Distractor');
-                            set(DIST, "Color", this.StimulusStruct.LineColor)
-                            tic
-                            while toc <= thisInt
-                                this.Flash(this.StimulusStruct, this.Box, DIST, 'Correct_Confirmation')
-                            end
-                            %this.Flash(this.StimulusStruct, this.Box, DIST, 'Correct_Confirmation')
-                        end
-                        %this.UpdatePause(this.StimulusStruct.PersistIncorrectInterv)
-                    else
-                    end
-                    o = findobj(this.fig.Children);
-                    [o(:).Visible] = deal(0);
-                    this.fig.Color = 'k';
-                case contains({this.WhatDecision} , 'OC', 'IgnoreCase', true)
-                    set(this.message_handle,'Text','Reanswer, Giving small Reward...');
-                    tic
-                    this.GiveRewardAndFlash();
-                    if this.Box.Input_type == 3
-                        while this.a.Reading == "L" || this.a.Reading == "R" %Pause while the mouse is standing there and drinking their reward
-                            pause(0.5);drawnow;
-                        end
-                    end
-                    this.DrinkTime = toc;
-                    %[this.fig.Children(contains({this.fig.Children.Tag}, "Incorrect")).Children.Visible] = deal(0);
-                    %Flash
-                    %this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
-                    if this.StimulusStruct.PersistCorrectInterv > 0
-                        thisInt = (this.StimulusStruct.PersistIncorrectInterv);
-                    else
-                        thisInt = 0;
-                    end
-                    set(this.message_handle, 'Text',['Persisting correct stimulus for ' num2str(thisInt)  ' (sec)...']); drawnow
-                    if this.Box.Input_type == 3 %Nose
-                        this.UpdatePause(thisInt)
-                    elseif this.Box.Input_type == 6 %Wheel
-                        timerStart = clock;
-                        while 1
-                            drawnow %unless drawnow is here the button statuses will not update...
-                            if etime(clock, timerStart) > thisInt
-                                break
-                            end
-                            if get(this.FF, 'Value')
-                                set(this.message_handle, 'Text','Skipping persist interval...'); drawnow
-                                break;
-                            end
-                            if get(this.stop_handle, 'Value')
-                                set(this.message_handle, 'Text','Ending session...'); drawnow
-                                break;
-                            end
-                            pause(0.1)
-                        end
-                    end
-                    o = findobj(this.fig.Children);
-                    [o(:).Visible] = deal(0);
-                    % Change this.WhatDecision back to the actual incorrect
-                    % choice so that it is recorded correctly
-                    if this.isLeftTrial
-                        this.WhatDecision = "right wrong";
-                    else
-                        this.WhatDecision = "left wrong";
-                    end
+            set(this.fig.findobj('Type', 'line'), 'Color', this.StimulusStruct.LineColor);
+            drawnow;
+            this.ReadyCue(0);
+            drawnow;
+        end
 
+        function processIgnoredInput(this)
+            tic;
+            while this.Setting_Struct.Input_ignored && toc <= this.Setting_Struct.Pokes_ignored_time
+                if this.Setting_Struct.ConfirmChoice
+                    this.confirmCorrectChoice();
+                end
+                if this.a.ReadMiddle()
+                    this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), 'NewStim');
+                    tic; % Restart the timer to avoid skipping confirmation period
+                end
+                this.updateInputIgnoredMessage();
+                drawnow;
             end
         end
+
+        function updateInputIgnoredMessage(this)
+            time = this.Setting_Struct.Pokes_ignored_time - toc;
+            txt = sprintf("Ignoring input for %.1f sec...", round(time, 1));
+            set(this.message_handle, 'Text', txt);
+        end
+
+        function displayChoicePrompt(this)
+            set(this.message_handle, 'Text', sprintf('Waiting for %s choice...', this.current_side));
+        end
+
+        function recordStimulusEvent(this)
+            this.Data_Object.addStimEvent(this.isLeftTrial);
+        end
+
+        function decision = getDecision(this)
+            if ~isempty(this.a) && any(this.Box.Input_type == [1, 2, 3, 5])
+                [decision, this.ResponseTime] = this.readLeverLoopDigital();
+            else
+                [decision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial);
+            end
+        end
+
+        function handleIncorrectDecision(this)
+            if this.Setting_Struct.OnlyCorrect && contains(this.WhatDecision, 'wrong', 'IgnoreCase', true)
+                set(this.message_handle, 'Text', sprintf('Reanswer... Waiting for %s choice...', this.current_side));
+                this.WhatDecision = this.getDecision();
+            end
+        end
+
+        function clearPolygonColors(this)
+            p = findobj('Type', 'Polygon');
+            [p.FaceColor] = deal(this.StimulusStruct.BackgroundColor);
+        end
+
+        function processDecision(this)
+            switch true
+                case contains(this.WhatDecision, 'correct', 'IgnoreCase', true)
+                    this.handleCorrectDecision();
+                case contains(this.WhatDecision, 'wrong', 'IgnoreCase', true)
+                    this.handleWrongDecision();
+                case contains(this.WhatDecision, 'OC', 'IgnoreCase', true)
+                    this.handleOnlyCorrect();
+            end
+        end
+
+        function handleCorrectDecision(this)
+            set(this.message_handle, 'Text', 'Giving Reward...');
+            tic;
+            this.GiveRewardAndFlash();
+
+            if ~this.Box.KeyboardInput && this.Box.Input_type == 3
+                while this.a.ReadLeft() || this.a.ReadRight() % Pause while the mouse is drinking their reward
+                    pause(0.5);
+                end
+            end
+
+            this.DrinkTime = toc;
+            this.persistCorrectStimulus();
+            this.hideStimulus();
+        end
+
+        function persistCorrectStimulus(this)
+            if this.StimulusStruct.PersistCorrectInterv > 0
+                thisInt = this.StimulusStruct.PersistCorrectInterv;
+            else
+                thisInt = 0;
+            end
+            set(this.message_handle, 'Text', sprintf('Persisting correct stimulus for %.1f sec...', thisInt));
+            drawnow;
+
+            if this.Box.KeyboardInput == 1
+                return;
+            end
+
+            if this.Box.Input_type == 3 % Nose
+                DIST = this.fig.Children(contains({this.fig.Children.Tag}, "Correct")).Children.findobj('Tag', 'Contour');
+                tic
+                while toc <= thisInt
+                    this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'Correct_Confirmation');
+                end
+            elseif this.Box.Input_type == 6 % Wheel
+                this.updatePause(thisInt);
+            end
+        end
+
+        function handleWrongDecision(this)
+            set(this.message_handle, 'Text', sprintf('%s - Penalty...', this.WhatDecision));
+            this.pauseForDrinking();
+
+            if ~get(this.stop_handle, 'Value') && this.StimulusStruct.PersistIncorrect
+                this.persistIncorrectStimulus();
+            else
+                this.hideStimulus();
+                this.fig.Color = 'k';
+            end
+        end
+
+        function persistIncorrectStimulus(this)
+            set(this.message_handle,'Text','Persisting correct stimulus...');
+            if this.Box.Input_type == 3 % Nose
+                thisInt = this.StimulusStruct.PersistIncorrectInterv;
+                DIST = this.fig.Children(contains({this.fig.Children.Tag}, "Correct")).Children.findobj('Tag', 'Distractor');
+                set(DIST, "Color", this.StimulusStruct.LineColor)
+                tic
+                while toc <= thisInt
+                    this.Flash(this.StimulusStruct, this.Box, DIST, 'Correct_Confirmation')
+                end
+            end
+        end
+
+        function handleOnlyCorrect(this)
+            set(this.message_handle,'Text','Reanswer, Giving small Reward...');
+            tic
+            this.GiveRewardAndFlash();
+            this.pauseForDrinking();
+            this.DrinkTime = toc;
+            this.persistCorrectStimulus();
+            this.hideStimulus();
+
+            % Change the WhatDecision back to the actual incorrect
+            % choice so that it is recorded correctly
+            if this.isLeftTrial
+                this.WhatDecision = "right wrong";
+            else
+                this.WhatDecision = "left wrong";
+            end
+        end
+
+        function pauseForDrinking(this)
+            if ~this.Box.KeyboardInput && this.Box.Input_type == 3
+                while this.a.ReadLeft() || this.a.ReadRight() % Pause while the mouse is standing there
+                    pause(0.5); drawnow;
+                end
+            end
+        end
+
+        function hideStimulus(this)
+            o = findobj(this.fig.Children);
+            [o(:).Visible] = deal(0);
+        end
+
+        function updatePause(this, interval)
+            starttime = clock;
+            while etime(clock, starttime) < interval
+                pause(0.1); drawnow;
+                if this.Pause.Value
+                    this.pauseMessage();
+                    continue;
+                end
+                if get(this.stop_handle, 'Value') || get(this.FF, 'Value')
+                    break;
+                end
+            end
+        end
+
+        function pauseMessage(this)
+            set(this.message_handle, 'Text', 'Paused, click pause button again to continue...');
+            o = findobj(this.fig.Children);
+            [o(:).Visible] = deal(0);
+            this.fig.Color = this.ReadyCueStruct.Color; % Clear stim and turn screen black to indicate pause
+            while get(this.Pause, 'Value')
+                pause(0.1); drawnow;
+            end
+            this.fig.Color = this.StimulusStruct.BackgroundColor;
+        end
+        %OLD
+        % function WaitForInputAndGiveReward(this)
+        %     this.ResponseTime = 0;
+        %     this.WhatDecision = 'time out';
+        %     this.DrinkTime = 0;
+        %     if get(this.stop_handle, 'Value')
+        %         return
+        %     end
+        %     o = {this.fig.Children.Children}; % Hide ReadyCue and set background
+        %     validObjs = o(~cellfun(@isempty, o));
+        %     for x = validObjs
+        %         set([x{:}], 'Visible', 1);
+        %     end
+        %     this.fig.Color = this.StimulusStruct.BackgroundColor;
+        %     Ls = this.fig.findobj('Type','line');
+        %     set(Ls, 'Color', this.StimulusStruct.LineColor); drawnow
+        %     this.ReadyCue(0); drawnow % ReadyCue goes away after input ignore interval
+        %     tic
+        %     while this.Setting_Struct.Input_ignored && toc<=this.Setting_Struct.Pokes_ignored_time
+        %         if this.Setting_Struct.ConfirmChoice && this.a.ReadLeft() && this.isLeftTrial
+        %             this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Contour'), 'Correct_Confirmation');
+        %         elseif this.Setting_Struct.ConfirmChoice && this.a.ReadRight() && ~this.isLeftTrial
+        %             this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Contour'), 'Correct_Confirmation');
+        %         end
+        %         if this.a.ReadMiddle()
+        %             this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'NewStim');
+        %             tic % Restart the timer? I do not want mice to skip the confirmation period by poking the center for 5 seconds
+        %         end
+        %         if toc>this.Setting_Struct.Pokes_ignored_time
+        %             break
+        %         end
+        %         time = this.Setting_Struct.Pokes_ignored_time-toc;
+        %         txt = "Ignoring input for "+round(time,1)+" sec...";
+        %         set(this.message_handle,'Text',txt)
+        %         drawnow
+        %     end
+        %     %this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'NewStim'); % Make visible stimulus and flash if set
+        %     set(this.message_handle,'Text',['Waiting for ',this.current_side,' choice...']);
+        %     this.Data_Object.addStimEvent(this.isLeftTrial); %Add the timestamp for the trial
+        %     switch 1
+        %         case ~isempty(this.a) && any(this.Box.Input_type == [1 2 3 5]) %NosePoke
+        %             [this.WhatDecision, this.ResponseTime] = this.readLeverLoopDigital();
+        %         otherwise
+        %             [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial);
+        %     end
+        %     if this.Setting_Struct.OnlyCorrect && contains({this.WhatDecision} , 'wrong', 'IgnoreCase', true)
+        %         set(this.message_handle,'Text',['Reanswer... Waiting for ',this.current_side,' choice...']);
+        %         switch 1
+        %             case any(this.Box.Input_type == [1 2 3 5]) %NosePoke
+        %                 [this.WhatDecision, this.ResponseTime] = this.readLeverLoopDigital_OnlyCorrect();
+        %             otherwise
+        %                 [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial);
+        %         end
+        %     end
+        %     if this.Box.Input_type == 6
+        %         p = findobj('Type', 'Polygon');
+        %         [p.FaceColor] = deal(this.StimulusStruct.BackgroundColor);
+        %     end
+        %     switch true
+        %         case contains({this.WhatDecision} , 'correct', 'IgnoreCase', true)
+        %             set(this.message_handle,'Text','Giving Reward...');
+        %             tic
+        %             this.GiveRewardAndFlash();
+        %             if ~this.Box.KeyboardInput && this.Box.Input_type == 3
+        %                 while this.a.ReadLeft() || this.a.ReadRight() %Pause while the mouse is standing there and drinking their reward
+        %                     pause(0.5);drawnow;
+        %                 end
+        %             end
+        %             this.DrinkTime = toc;
+        %             %[this.fig.Children(contains({this.fig.Children.Tag}, "Incorrect")).Children.Visible] = deal(0);
+        %             %Flash
+        %             %this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
+        %             if this.StimulusStruct.PersistCorrectInterv > 0
+        %                 thisInt = (this.StimulusStruct.PersistCorrectInterv);
+        %             else
+        %                 thisInt = 0;
+        %             end
+        %             set(this.message_handle, 'Text',['Persisting correct stimulus for ' num2str(thisInt)  ' (sec)...']); drawnow
+        %             if this.Box.KeyboardInput==1
+        %             elseif this.Box.Input_type == 3 %Nose
+        %                 % this.UpdatePause(thisInt)
+        %                 DIST = this.fig.Children(contains({this.fig.Children.Tag}, "Correct")).Children.findobj('Tag','Contour');
+        %                 tic
+        %                 while toc <= thisInt
+        %                     this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Contour'), 'Correct_Confirmation');
+        %                 end
+        %             end
+        %             o = findobj(this.fig.Children);
+        %             [o(:).Visible] = deal(0);
+        %         case contains({this.WhatDecision} , 'wrong', 'IgnoreCase', true)
+        %             set(this.message_handle,'Text',[this.WhatDecision,' - Penalty...']);
+        %             if ~this.Box.KeyboardInput && this.Box.Input_type == 3
+        %                 while this.a.ReadLeft() || this.a.ReadRight() %Pause while the mouse is standing there
+        %                     pause(0.5);drawnow;
+        %                 end
+        %             end
+        %             %[this.fig.Children(contains({this.fig.Children.Tag}, "Correct")).Children.Visible] = deal(0);
+        %             %Flash
+        %             %this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'), this.WhatDecision);
+        %             if ~get(this.stop_handle, 'Value') && this.StimulusStruct.PersistIncorrect
+        %                 set(this.message_handle,'Text','Persisting correct stimulus...');
+        %                 if this.Box.Input_type == 3 %Nose
+        %                     % this.UpdatePause(thisInt)
+        %                     thisInt = this.StimulusStruct.PersistIncorrectInterv;
+        %                     DIST = this.fig.Children(contains({this.fig.Children.Tag}, "Correct")).Children.findobj('Tag','Distractor');
+        %                     set(DIST, "Color", this.StimulusStruct.LineColor)
+        %                     tic
+        %                     while toc <= thisInt
+        %                         this.Flash(this.StimulusStruct, this.Box, DIST, 'Correct_Confirmation')
+        %                     end
+        %                     %this.Flash(this.StimulusStruct, this.Box, DIST, 'Correct_Confirmation')
+        %                 end
+        %                 %this.UpdatePause(this.StimulusStruct.PersistIncorrectInterv)
+        %             else
+        %             end
+        %             o = findobj(this.fig.Children);
+        %             [o(:).Visible] = deal(0);
+        %             this.fig.Color = 'k';
+        %         case contains({this.WhatDecision} , 'OC', 'IgnoreCase', true)
+        %             set(this.message_handle,'Text','Reanswer, Giving small Reward...');
+        %             tic
+        %             this.GiveRewardAndFlash();
+        %             if this.Box.Input_type == 3
+        %                 while this.a.ReadLeft() || this.a.ReadRight() %Pause while the mouse is standing there and drinking their reward
+        %                     pause(0.5);drawnow;
+        %                 end
+        %             end
+        %             this.DrinkTime = toc;
+        %             %[this.fig.Children(contains({this.fig.Children.Tag}, "Incorrect")).Children.Visible] = deal(0);
+        %             %Flash
+        %             %this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
+        %             if this.StimulusStruct.PersistCorrectInterv > 0
+        %                 thisInt = (this.StimulusStruct.PersistIncorrectInterv);
+        %             else
+        %                 thisInt = 0;
+        %             end
+        %             set(this.message_handle, 'Text',['Persisting correct stimulus for ' num2str(thisInt)  ' (sec)...']); drawnow
+        %             if this.Box.Input_type == 3 %Nose
+        %                 this.UpdatePause(thisInt)
+        %             elseif this.Box.Input_type == 6 %Wheel
+        %                 timerStart = clock;
+        %                 while 1
+        %                     drawnow %unless drawnow is here the button statuses will not update...
+        %                     if etime(clock, timerStart) > thisInt
+        %                         break
+        %                     end
+        %                     if get(this.FF, 'Value')
+        %                         set(this.message_handle, 'Text','Skipping persist interval...'); drawnow
+        %                         break;
+        %                     end
+        %                     if get(this.stop_handle, 'Value')
+        %                         set(this.message_handle, 'Text','Ending session...'); drawnow
+        %                         break;
+        %                     end
+        %                     pause(0.1)
+        %                 end
+        %             end
+        %             o = findobj(this.fig.Children);
+        %             [o(:).Visible] = deal(0);
+        %             % Change this.WhatDecision back to the actual incorrect
+        %             % choice so that it is recorded correctly
+        %             if this.isLeftTrial
+        %                 this.WhatDecision = "right wrong";
+        %             else
+        %                 this.WhatDecision = "left wrong";
+        %             end
+        %
+        %     end
+        % end
+
         %read the lever (digital read)
         function [WhatDecision, response_time] = readLeverLoopDigital(this)
             response_time = 0;
             this.DuringTMal = 0;
             event = -1;
             try
-                %Turn on/Reset lick sensor
-                this.ResetSensor(this)
+                % Reset lick sensor and initialize timers
+                this.ResetSensor();
                 timeout_value = this.Box.Timeout_after_time;
-                InpDelay = this.Setting_Struct.Input_Delay_Respond;
-                timeout_timer = clock;
                 response_timer = clock;
-                %run loop
-                while timeout_value == 0 | etime(clock, timeout_timer)<timeout_value
-                    pause(0.1);drawnow;
-                    if get(this.Skip, 'Value') %this.Skip.Value
-                        this.Skip.Value = 0; %Turn the button off
-                        break
+                timeout_timer = clock;
+
+                % Main loop to wait for actions
+                while timeout_value == 0 || etime(clock, timeout_timer) < timeout_value
+                    pause(0.1); drawnow;
+
+                    % Check for skip or stop conditions
+                    if get(this.Skip, 'Value')
+                        this.Skip.Value = 0;
+                        break;
+                    elseif get(this.stop_handle, 'Value')
+                        break;
                     end
-                    %check if stop pressed
-                    if get(this.stop_handle, 'Value')
-                        break %abort
-                    end
-                    if this.a.Reading == "M"
-                        this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'center')
+
+                    % Handle middle reading for inter-trial malingering
+                    if this.a.ReadMiddle()
+                        this.Flash(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), 'center');
                         this.DuringTMal = this.DuringTMal + 1;
                     end
-                    %Immediately accept the choice:
-                    if this.a.Reading == "L" %& this.isLeftTrial %LeverA is left
-                        event = 1; %Left Choice
-                        break
-                    end
-                    if this.a.Reading == "R" %& ~this.isLeftTrial %LeverB is right
-                        event = 2; %Right Choice
-                        break
+
+                    % Check for left or right decisions with stability
+                    if this.isStableForOneSecond(@(x) x.ReadLeft, true)  % With delay
+                        event = 1; % Left Choice
+                        break;
+                    elseif this.isStableForOneSecond(@(x) x.ReadRight, true)  % With delay
+                        event = 2; % Right Choice
+                        break;
                     end
                 end
+
+                % Update visual elements after reading
+                a = this.fig.findobj("Type", "Axes");
+                a = a(contains({a.Tag}, 'Correct'));
+                % Update the distractor color to dim
                 try
-                    a = this.fig.findobj("Type", "Axes");
-                    a = a(contains({a.Tag}, 'Correct'));
-                    %c = a.findobj("Tag", "Contour");
-                    %[c.Color] = deal(this.StimulusStruct.FlashColor);
                     d = a.findobj("Tag", "Distractor");
                     [d.Color] = deal(this.StimulusStruct.DimColor);
                 catch
+                    % Ignore errors related to finding and updating distractors
                 end
+
                 response_time = etime(clock, response_timer);
             catch err
-                this.unwrapError(err)
+                this.unwrapError(err);
             end
-            %translate to decision enum
+
+            % Translate event to decision enum
             switch event
                 case -1
                     WhatDecision = 'time out';
                     response_time = 0;
                 case 1
-                    %-1 is for trainingstrials always correct
-                    if this.isLeftTrial ==1 || this.isLeftTrial == -1
+                    if this.isLeftTrial == 1 || this.isLeftTrial == -1
                         WhatDecision = 'left correct';
                     else
                         WhatDecision = 'left wrong';
                     end
                 case 2
-                    if this.isLeftTrial ==0 || this.isLeftTrial == -1
+                    if this.isLeftTrial == 0 || this.isLeftTrial == -1
                         WhatDecision = 'right correct';
                     else
                         WhatDecision = 'right wrong';
                     end
             end
         end
+        % OLD
+        % function [WhatDecision, response_time] = readLeverLoopDigital(this)
+        %     response_time = 0;
+        %     this.DuringTMal = 0;
+        %     event = -1;
+        %     try
+        %         %Turn on/Reset lick sensor
+        %         this.ResetSensor(this)
+        %         timeout_value = this.Box.Timeout_after_time;
+        %         InpDelay = this.Setting_Struct.Input_Delay_Respond;
+        %         timeout_timer = clock;
+        %         response_timer = clock;
+        %         %run loop
+        %         while timeout_value == 0 | etime(clock, timeout_timer)<timeout_value
+        %             pause(0.1);drawnow;
+        %             if get(this.Skip, 'Value') %this.Skip.Value
+        %                 this.Skip.Value = 0; %Turn the button off
+        %                 break
+        %             end
+        %             %check if stop pressed
+        %             if get(this.stop_handle, 'Value')
+        %                 break %abort
+        %             end
+        %             if this.a.ReadMiddle()
+        %                 this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'center')
+        %                 this.DuringTMal = this.DuringTMal + 1;
+        %             end
+        %             %Immediately accept the choice:
+        %             if this.a.ReadLeft() %& this.isLeftTrial %LeverA is left
+        %                 event = 1; %Left Choice
+        %                 break
+        %             end
+        %             if this.a.ReadRight() %& ~this.isLeftTrial %LeverB is right
+        %                 event = 2; %Right Choice
+        %                 break
+        %             end
+        %         end
+        %         try
+        %             a = this.fig.findobj("Type", "Axes");
+        %             a = a(contains({a.Tag}, 'Correct'));
+        %             %c = a.findobj("Tag", "Contour");
+        %             %[c.Color] = deal(this.StimulusStruct.FlashColor);
+        %             d = a.findobj("Tag", "Distractor");
+        %             [d.Color] = deal(this.StimulusStruct.DimColor);
+        %         catch
+        %         end
+        %         response_time = etime(clock, response_timer);
+        %     catch err
+        %         this.unwrapError(err)
+        %     end
+        %     %translate to decision enum
+        %     switch event
+        %         case -1
+        %             WhatDecision = 'time out';
+        %             response_time = 0;
+        %         case 1
+        %             %-1 is for trainingstrials always correct
+        %             if this.isLeftTrial ==1 || this.isLeftTrial == -1
+        %                 WhatDecision = 'left correct';
+        %             else
+        %                 WhatDecision = 'left wrong';
+        %             end
+        %         case 2
+        %             if this.isLeftTrial ==0 || this.isLeftTrial == -1
+        %                 WhatDecision = 'right correct';
+        %             else
+        %                 WhatDecision = 'right wrong';
+        %             end
+        %     end
+        % end
         %read the lever (digital read)
         function [WhatDecision, response_time] = readLeverLoopDigital_OnlyCorrect(this)
             response_time = 0;
             this.DuringTMal = 0;
             event = -1;
             try
-                %Turn on/Reset lick sensor
-                this.ResetSensor(this)
+                % Reset lick sensor and initialize timers
+                this.ResetSensor();
                 timeout_value = this.Box.Timeout_after_time;
-                InpDelay = this.Setting_Struct.Input_Delay_Respond;
                 timeout_timer = clock;
                 response_timer = clock;
-                %run loop
-                while timeout_value == 0 | etime(clock, timeout_timer)<timeout_value
-                    pause(0.1);drawnow;
-                    if get(this.Skip, 'Value') %this.Skip.Value
-                        this.Skip.Value = 0; %Turn the button off
-                        break
+
+                % Main loop to wait for actions
+                while timeout_value == 0 || etime(clock, timeout_timer) < timeout_value
+                    pause(0.1); drawnow;
+
+                    % Check for skip or stop conditions
+                    if get(this.Skip, 'Value')
+                        this.Skip.Value = 0;
+                        break;
+                    elseif get(this.stop_handle, 'Value')
+                        break;
                     end
-                    %check if stop pressed
-                    if get(this.stop_handle, 'Value')
-                        break %abort
-                    end
-                    if this.a.Reading == "M"
-                        this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), 'center')
+
+                    % Handle middle reading for inter-trial malingering
+                    if this.a.ReadMiddle()
+                        this.Flash(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), 'center');
                         this.DuringTMal = this.DuringTMal + 1;
                     end
-                    %Immediately accept the choice:
-                    if this.a.Reading == "L"
+
+                    % Check for left or right decisions with stability
+                    if this.isStableForOneSecond(@(x) x.ReadLeft(), true)  % With delay
                         if this.isLeftTrial
                             event = 3;
-                            break
+                            break;
                         else
-                            this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Contour'), 'center')
+                            this.Flash(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'center');
                         end
-                    end
-                    if this.a.Reading == "R"
+                    elseif this.isStableForOneSecond(@(x) x.ReadRight(), true)  % With delay
                         if ~this.isLeftTrial
                             event = 3;
-                            break
+                            break;
                         else
-                            this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Contour'), 'center')
+                            this.Flash(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'center');
                         end
                     end
                 end
+
+                % Update visual elements after reading
                 try
                     a = this.fig.findobj("Type", "Axes");
                     a = a(contains({a.Tag}, 'Correct'));
@@ -1134,24 +1470,25 @@ classdef BehaviorBoxNose < handle
                     [d.Color] = deal(this.StimulusStruct.DimColor);
                 catch
                 end
+
                 response_time = etime(clock, response_timer);
             catch err
-                this.unwrapError(err)
+                this.unwrapError(err);
             end
-            %translate to decision enum
+
+            % Translate event to decision enum
             switch event
                 case -1
                     WhatDecision = 'time out';
                     response_time = 0;
                 case 1
-                    %-1 is for trainingstrials always correct
-                    if this.isLeftTrial ==1 || this.isLeftTrial == -1
+                    if this.isLeftTrial == 1 || this.isLeftTrial == -1
                         WhatDecision = 'left correct';
                     else
                         WhatDecision = 'left wrong';
                     end
                 case 2
-                    if this.isLeftTrial ==0 || this.isLeftTrial == -1
+                    if this.isLeftTrial == 0 || this.isLeftTrial == -1
                         WhatDecision = 'right correct';
                     else
                         WhatDecision = 'right wrong';
@@ -1428,7 +1765,7 @@ classdef BehaviorBoxNose < handle
                     case 3 % Nose
                         this.ReadyCue(1)
                         this.ReadyCueAx.findobj('Type','scatter').MarkerFaceColor = deal(this.StimulusStruct.DimColor); drawnow;
-                        while this.a.Reading == "L" | this.a.Reading == "R" %Pause while the mouse is standing there and drinking their water reward
+                        while this.a.ReadLeft() | this.a.ReadRight() %Pause while the mouse is standing there and drinking their water reward
                             pause(0.1); drawnow;
                         end
                         % o = findobj(this.fig.Children);
@@ -1722,6 +2059,15 @@ classdef BehaviorBoxNose < handle
                 this.Data_Object.SaveManyFigures([],name)
             end
         end
+        function ResetSensor(this)
+            switch this.Box.Input_type
+                case 5
+                    this.a.writeDigitalPin(this_SETTING_Struct.ResetPin, 0);
+                    this.a.writeDigitalPin(this_SETTING_Struct.ResetPin, 1);
+                case 2
+                    this.Box.encoder.resetCount;
+            end
+        end
     end 
     %STATIC FUNCTIONS====
     methods(Static = true)
@@ -1866,15 +2212,6 @@ classdef BehaviorBoxNose < handle
             end
             Set = SetStr;
             T = Include;
-        end
-        function ResetSensor(this)
-            switch this.Box.Input_type
-                case 5
-                    this.a.writeDigitalPin(this_SETTING_Struct.ResetPin, 0);
-                    this.a.writeDigitalPin(this_SETTING_Struct.ResetPin, 1);
-                case 2
-                    this.Box.encoder.resetCount;
-            end
         end
         function Flash(Stim, Box, Lines, whatdecision, OneWay)
             arguments

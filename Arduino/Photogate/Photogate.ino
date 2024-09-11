@@ -20,8 +20,8 @@ enum State {
 
 State currentState = READING;
 char str;
-float rightdur = 1.0; // Default duration
-float leftdur = 1.0;  // Default duration
+float rightdur = 0.04; // Default duration
+float leftdur = 0.04;  // Default duration
 bool hasPrintedFlags[4] = {false, false, false, false};
 bool RightOpen = false;
 bool LeftOpen = false;
