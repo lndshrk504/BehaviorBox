@@ -1593,6 +1593,60 @@ classdef BehaviorBoxWheel < handle
             end
             this.app.ShowStim.Enable = 1;
         end
+        function WaitForInputKeyboard(this)
+            InterTMalInterv = this.Setting_Struct.IntertrialMalSec;
+            prompt = 'Initialize: Press L for Left, R for Right, C or M for Middle: ';
+            set(this.message_handle, 'Text', prompt);
+            fprintf([prompt '\n']);
+        
+            while true
+                currkey = input('L, R, or M/C: ', 's');
+        
+                switch lower(currkey)
+                    case {'l', 'r'}
+                        this.HandleKeyboardMalingering(InterTMalInterv);
+                    case {'c', 'm', ''}
+                        return;
+                    otherwise
+                        disp('Please only press one of the indicated keys...');
+                end
+        
+                if get(this.stop_handle, 'Value')
+                    this.message_handle.Text = 'Ending session...';
+                    break;
+                end
+            end
+        end
+        function HandleIntertrialMalingering(this)
+            this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.BackgroundColor;
+            drawnow;
+            timerStart = datetime("now");
+
+            while true
+                time = this.Setting_Struct.IntertrialMalSec - seconds(datetime("now") - timerStart);
+                txt = sprintf("Do not poke L or R! Intertrial Malingering timeout: %.1f sec...", time);
+                set(this.message_handle, 'Text', txt);
+
+                if this.a.ReadLeft() || this.a.ReadRight()
+                    timerStart = datetime("now");
+                end
+
+                if this.CheckForInterruptions()
+                    break;
+                end
+
+                if seconds(datetime("now") - timerStart) > this.Setting_Struct.IntertrialMalSec
+                    this.FlashNew(this.StimulusStruct, this.Box, findobj('Tag', 'ReadyCueDot'), 'Mal');
+                    this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.LineColor;
+                    set(this.message_handle, 'Text', 'Waiting for Trial initialization');
+                    drawnow;
+                    break;
+                end
+
+                pause(0.1);
+            end
+        end
+
     end
     %STATIC FUNCTIONS====
     methods(Static = true)

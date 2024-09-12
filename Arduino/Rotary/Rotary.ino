@@ -76,8 +76,7 @@ void handleStateChange() {
       currentState = READING;
       break;
     case TIMESTAMPING:
-      digitalW
-      rite(PIN_12, TimeFlag ? HIGH : LOW);
+      digitalWrite(PIN_12, TimeFlag ? HIGH : LOW);
       Serial.println(TimeFlag ? "Time Pin is high" : "Time Pin is low");
       TimeFlag = !TimeFlag;
       currentState = READING;
