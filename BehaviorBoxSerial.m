@@ -1,161 +1,161 @@
 classdef BehaviorBoxSerial < handle
-% The NosePoke uses an Arduino programmed with Photogate.ino.
-% The Wheel uses an Arduino programmed with Rotary-Encoder-Arduino.ino.
-        properties
-            Ard = {}
-            Reading % char for NosePoke and integer for Wheel
-            DispOutput logical = true % This helps to debug
-            use_wheel logical = false
-            KeyboardInput logical = false
-            Input_type % either 'Wheel' or 'NosePoke'
-            Two_ports logical
-            Left = 'D4'
-            Middle = 'D5'
-            Right = 'D6'
-            ValveL = 'D7'
-            ValveR = 'D8'
-            Timestamp = 'D9'
-            Lrewardtime double = 0.05
-            Rrewardtime double = 0.05
-            Pulse double = 1
-            SecBwPulse double = 0.2
+    % The NosePoke uses an Arduino programmed with Photogate.ino.
+    % The Wheel uses an Arduino programmed with Rotary-Encoder-Arduino.ino.
+    properties
+        Ard = {}
+        Reading % char for NosePoke and integer for Wheel
+        DispOutput logical = true % This helps to debug
+        use_wheel logical = false
+        KeyboardInput logical = false
+        Input_type % either 'Wheel' or 'NosePoke'
+        Two_ports logical
+        Left = 'D4'
+        Middle = 'D5'
+        Right = 'D6'
+        ValveL = 'D7'
+        ValveR = 'D8'
+        Timestamp = 'D9'
+        Lrewardtime double = 0.05
+        Rrewardtime double = 0.05
+        Pulse double = 1
+        SecBwPulse double = 0.2
+    end
+
+    methods
+        function this = BehaviorBoxSerial(port, baudRate, Input_type)
+            arguments
+                port char = 'COM4'
+                baudRate double = 9600
+                Input_type char = 'NosePoke'
+            end
+            this.Input_type = Input_type;
+            this.Ard = serialport(port, baudRate, ...
+                "Timeout", 0.1);
+            configureTerminator(this.Ard,"CR/LF");
+            configureCallback(this.Ard, "terminator", @this.SerialRead);
+            this.Reset();
         end
-        
-        methods
-            function this = BehaviorBoxSerial(port, baudRate, Input_type)
-                arguments
-                    port char = 'COM4'
-                    baudRate double = 9600
-                    Input_type char = 'NosePoke'
-                end
-                this.Input_type = Input_type;
-                this.Ard = serialport(port, baudRate, ...
-                    "Timeout", 0.1);
-                configureTerminator(this.Ard,"CR/LF");
-                configureCallback(this.Ard, "terminator", @this.SerialRead);
-                this.Reset();
-            end
 
-            function Who(this)
-                this.DispOutput = true;
-                writeline(this.Ard, 'W')
-                pause(1); % Pause for a moment to allow data to be loaded into the buffer
-                while this.Ard.NumBytesAvailable > 0
-                    data = readline(this.Ard);
-                    disp(data);
-                end
-                this.DispOutput = false;
+        function Who(this)
+            this.DispOutput = true;
+            writeline(this.Ard, 'W')
+            pause(1); % Pause for a moment to allow data to be loaded into the buffer
+            while this.Ard.NumBytesAvailable > 0
+                data = readline(this.Ard);
+                disp(data);
             end
+            this.DispOutput = false;
+        end
 
-            function UpdateProps(this, BoxStruct)
-                arguments
-                    this
-                    BoxStruct = struct
-                end
-                for f = fieldnames(BoxStruct)'
-                    this.(f{:}) = BoxStruct.(f{:});
-                end
+        function UpdateProps(this, BoxStruct)
+            arguments
+                this
+                BoxStruct = struct
             end
-    
-            function SetupReward(this, opts)
-                arguments
-                    this
-                    opts.DurationRight string = this.Rrewardtime;
-                    opts.DurationLeft string = this.Lrewardtime;
-                    opts.Which string = "Right"
-                end
-                if ismember(opts.Which, ["Right", "Both"])
-                    write(this.Ard, "s", "char");
-                    writeline(this.Ard, opts.DurationRight);
-                    %write(this.Ard, opts.DurationRight, "string");
-                end
-                if ismember(opts.Which, ["Left", "Both"])
-                    write(this.Ard, "S", "char");
-                    writeline(this.Ard, opts.DurationLeft);
-                    %write(this.Ard, opts.DurationLeft, "string");
-                end
-                % Update properties
+            for f = fieldnames(BoxStruct)'
+                this.(f{:}) = BoxStruct.(f{:});
+            end
+        end
+
+        function SetupReward(this, opts)
+            arguments
+                this
+                opts.DurationRight string = this.Rrewardtime;
+                opts.DurationLeft string = this.Lrewardtime;
+                opts.Which string = "Right"
+            end
+            if ismember(opts.Which, ["Right", "Both"])
+                write(this.Ard, "s", "char");
+                writeline(this.Ard, opts.DurationRight);
+                %write(this.Ard, opts.DurationRight, "string");
+            end
+            if ismember(opts.Which, ["Left", "Both"])
+                write(this.Ard, "S", "char");
+                writeline(this.Ard, opts.DurationLeft);
+                %write(this.Ard, opts.DurationLeft, "string");
+            end
+            % Update properties
             this.Rrewardtime = str2double(opts.DurationRight);
             this.Lrewardtime = str2double(opts.DurationLeft);
-            end
+        end
 
-            function GiveReward(this, opts)
-                arguments
-                    this
-                    opts.Side char = 'R'
-                end
-                write(this.Ard, opts.Side, "char");
+        function GiveReward(this, opts)
+            arguments
+                this
+                opts.Side char = 'R'
             end
+            write(this.Ard, opts.Side, "char");
+        end
 
-            function TimeStamp(this, opts)
-                write(this.Ard, opts.Side, "T");
+        function TimeStamp(this, opts)
+            write(this.Ard, opts.Side, "T");
+        end
+
+        function Reading = SerialRead(this, src, ~)
+            % Used for Callback that reads when a line is sent to serial
+            arguments
+                this
+                src = this.Ard
+                ~
             end
-    
-            function Reading = SerialRead(this, src, ~)
-                % Used for Callback that reads when a line is sent to serial
-                arguments
-                    this
-                    src = this.Ard
-                    ~
-                end
-                if src.BytesAvailable == 0
-                    Reading = this.Reading;
-                    return
-                end
-                % Read data from the serial port
-                newReading = readline(src);
-                Reading = this.processReading(newReading);
-                % Display the output if DispOutput is true
-                if this.DispOutput
-                    disp(Reading);
-                end
-                this.Reading = Reading;
+            if src.BytesAvailable == 0
+                Reading = this.Reading;
+                return
             end
-            
-            function result = processReading(this, newReading)
-                if strcmp(this.Input_type, 'Wheel')
-                    result = str2double(newReading);
-                else
-                    result = char(newReading);
-                end
+            % Read data from the serial port
+            newReading = readline(src);
+            Reading = this.processReading(newReading);
+            % Display the output if DispOutput is true
+            if this.DispOutput
+                disp(Reading);
             end
-    
-            function LeftRead = ReadLeft(this)
-                Reading = this.Reading; % Read the value once
-                LeftRead = strcmp(Reading, 'L');
-            end
-            
-            function RightRead = ReadRight(this)
-                Reading = this.Reading; % Read the value once
-                RightRead = strcmp(Reading, 'R');
-            end
-            
-            function MiddleRead = ReadMiddle(this)
-                Reading = this.Reading; % Read the value once
-                MiddleRead = strcmp(Reading, 'M');
-            end
-            
-            function NoneRead = ReadNone(this)
-                Reading = this.Reading; % Read the value once
-                NoneRead = ~strcmp(Reading, '-');
-                % To match behavior this one is flipped, because it is only
-                % used for the flashing while waiting for input
-            end
-    
-            function Reset(this)
-                %Assign neutral value to property
-                switch true
-                    case strcmp(this.Input_type, 'Wheel')
-                        this.Reading = 0;
-                        write(this.Ard, 'Reset', 'char')
-                    case strcmp(this.Input_type, 'NosePoke')
-                        this.Reading = '-';
-                end
-            end
-    
-            function delete(this)
-                this.Ard = [];
-                disp('Serial port is closed');
+            this.Reading = Reading;
+        end
+
+        function result = processReading(this, newReading)
+            if strcmp(this.Input_type, 'Wheel')
+                result = str2double(newReading);
+            else
+                result = char(newReading);
             end
         end
+
+        function LeftRead = ReadLeft(this)
+            Reading = this.Reading; % Read the value once
+            LeftRead = strcmp(Reading, 'L');
+        end
+
+        function RightRead = ReadRight(this)
+            Reading = this.Reading; % Read the value once
+            RightRead = strcmp(Reading, 'R');
+        end
+
+        function MiddleRead = ReadMiddle(this)
+            Reading = this.Reading; % Read the value once
+            MiddleRead = strcmp(Reading, 'M');
+        end
+
+        function NoneRead = ReadNone(this)
+            Reading = this.Reading; % Read the value once
+            NoneRead = ~strcmp(Reading, '-');
+            % To match behavior this one is flipped, because it is only
+            % used for the flashing while waiting for input
+        end
+
+        function Reset(this)
+            %Assign neutral value to property
+            switch true
+                case strcmp(this.Input_type, 'Wheel')
+                    this.Reading = 0;
+                    write(this.Ard, 'Reset', 'char')
+                case strcmp(this.Input_type, 'NosePoke')
+                    this.Reading = '-';
+            end
+        end
+
+        function delete(this)
+            this.Ard = [];
+            disp('Serial port is closed');
+        end
+    end
 end

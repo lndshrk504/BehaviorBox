@@ -288,16 +288,6 @@ classdef BehaviorBoxWheel < handle
                 switch this.Setting_Struct.Box_Input_type
                     case 6 %Rotating Wheel
                         this.a = BehaviorBoxSerial(comsnum, 9600, 'Wheel');
-                        % if options.Rebuild
-                        %     try
-                        %         this.a = [];
-                        %     catch
-                        %     end
-                        %     this.a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'}, 'ForceBuildOn',true);
-                        % else
-                        %     this.a = arduino(comsnum,'Uno','Libraries',{'RotaryEncoder'});
-                        % end
-                        %this.Box.encoder = rotaryEncoder(this.a,'D2','D3', 1024);
                         this.Box.Reward =  'D6';
                         this.Box.use_wheel = 1;
                     case 8 %Keyboard, used if no arduino connected
@@ -305,16 +295,6 @@ classdef BehaviorBoxWheel < handle
                         this.Box.readHigh = 1;
                         return
                 end
-                % configurePin(this.a, "D4", "Unset"); %Reset pin
-                % configurePin(this.a, "D5", "Unset"); %Trigger pin
-                % configurePin(this.a, "D6", "Unset");
-                % configurePin(this.a, "D8", "Unset");
-                % configurePin(this.a, "D9", "Unset");
-                % configurePin(this.a, "D4", "DigitalOutput"); %Reset pin
-                % configurePin(this.a, "D5", "DigitalInput"); %Trigger pin
-                % configurePin(this.a, "D6", "DigitalOutput");
-                % configurePin(this.a, "D8", "DigitalOutput");
-                % configurePin(this.a, "D9", "DigitalOutput");
                 toc
             catch err
                 this.Box.use_ball = 0; %All these are automatically off
@@ -328,14 +308,7 @@ classdef BehaviorBoxWheel < handle
             this.message_handle.Text = 'Done';
         end
         function Timestamp2p(this, opts)
-            arguments
-                this
-                opts.State logical = false
-            end
-            try
-                this.a.writeDigitalPin(this.Box.Timestamp, opts.State)
-            catch % Fails when there is no arduino connected
-            end
+            this.a.TimeStamp();
         end
         %Prepare the window and stimulus
         function SetupBeforeLoop(this)
@@ -847,6 +820,8 @@ classdef BehaviorBoxWheel < handle
                 this
                 options.Test logical = false
             end
+            keyboardInput = this.Box.KeyboardInput;
+            inputType = this.Box.Input_type;
             this.ResponseTime = 0;
             this.WhatDecision = 'time out';
             this.DrinkTime = 0;
@@ -876,14 +851,14 @@ classdef BehaviorBoxWheel < handle
             end
             this.Timestamp2p("State", true); %Turn on
             switch 1
-                case ~this.Box.KeyboardInput && this.Box.Input_type == 6 %Wheel (new)
+                case ~keyboardInput && inputType == 6 %Wheel (new)
                     [this.WhatDecision, this.ResponseTime] = this.readLeverLoopAnalogWheel();
                 otherwise
                     [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial);
             end
             if this.Setting_Struct.OnlyCorrect && contains({this.WhatDecision} , 'wrong', 'IgnoreCase', true)
                 switch 1
-                    case ~this.Box.KeyboardInput && this.Box.Input_type == 6 %Wheel (new)
+                    case ~keyboardInput && inputType == 6 %Wheel (new)
                         [this.WhatDecision, this.ResponseTime] = this.readLeverLoopAnalogWheel_OnlyCorrect(this);
                     otherwise
                         [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial);
@@ -900,7 +875,6 @@ classdef BehaviorBoxWheel < handle
                     set(this.message_handle,'Text','Giving Reward...');
                     tic
                     this.GiveRewardAndFlash();
-                    %this.GiveReward(this.a, this.Box, this.Buttons, this.WhatDecision); %give reward
                     if ~this.Box.KeyboardInput
                         while abs(this.Box.encoder.readSpeed) > this.Setting_Struct.Hold_Still_Thresh %Pause while the mouse is standing there
                             pause(0.5);drawnow;
@@ -1170,79 +1144,25 @@ classdef BehaviorBoxWheel < handle
                     break
                 end
             end
-<<<<<<< Updated upstream
-=======
-% FUTURE: Interpolate along a sine wave rather than a linear interpolation for
-% maximum smoothness
-% Define the two points
-% y1 = 2;
-% y2 = 8;
-% 
-% % Calculate the mid-point
-% midPoint = (y1 + y2) / 2;
-% 
-% % Calculate the amplitude (distance from mid-point to either of the points)
-% amplitude = (y1 - y2) / 2;
-% 
-% % Choose how many points you want to interpolate
-% nInterpPoints = 100;
-% 
-% % Generate the x values from 0 to pi
-% x = linspace(0, pi, nInterpPoints);
-% 
-% % Generate the sine wave and scale/translate as needed
-% sineInterp = midPoint + amplitude * sin(x);
-% 
-% % Define x-axis for plotting
-% X = linspace(1, 2, nInterpPoints);
-% 
-% % Create the plot
-% plot(X, sineInterp);
->>>>>>> Stashed changes
         end
         %open reward valves
         function GiveRewardAndFlash(this)
             %Get reward valve, pulse number and time:
-            switch true
-                case ~this.Box.KeyboardInput && this.Box.Input_type == 6 % Wheel
-                    switch true
-                        case contains(this.WhatDecision, 'correct', 'IgnoreCase', true)
-                            PulseNum = this.Box.RightPulse;
-                            Valve = this.Box.Reward; %Right
-                            Time = this.Box.Rrewardtime; %Right
-                        case contains(this.WhatDecision, 'wrong', 'IgnoreCase', true)
-                            return %No air puff for wheel
-                    end
-                otherwise %Keyboard, any input method I haven't used before
-                    return
+            if contains(this.WhatDecision, 'correct', 'IgnoreCase', true)
+                PulseNum = this.Box.RightPulse;
+            else
+                return; % Do nothing for incorrect events
             end
-            GiveDrop(this.a, Valve, Time)
-            PulseNum = PulseNum-1;
+            % Give first drop only once
+            this.a.GiveReward();
             % then flash
             this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
-            for i = 1:PulseNum
-                GiveDrop(this.a, Valve, Time)
+            for i = 2:PulseNum
+                this.a.GiveReward();
                 this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
                 if i < PulseNum
-                    switch this.Box.Input_type
-                        case 3 %Nose
-                            pause(this.Box.SecBwPulse)
-                            while contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && ~this.Box.readPin(CorrectLever) %Wait for NosePoke Don't dispense the reward unless the mouse is waiting for it! Wait indefinitely between pulses for them to learn to collect all the water
-                                pause(0.2); drawnow;
-                                if get(this.Buttons.Stop, 'Value') || get(this.Buttons.FastForward, 'Value')
-                                    break
-                                end
-                            end
-                        case 6 %wheel
-                            pause(this.Box.SecBwPulse)
-                    end
+                    pause(this.Box.SecBwPulse)
                 end
-            end
-            function GiveDrop(ard,V,T)
-                % Give one pulse
-                ard.writeDigitalPin(V,1)
-                pause(T);
-                ard.writeDigitalPin(V,0); drawnow
             end
         end
         %Use this function instead of pausing, so that buttons are checked and settings are updated during the pause
@@ -1686,49 +1606,6 @@ classdef BehaviorBoxWheel < handle
             names(contains(names, 'handle', IgnoreCase=true)) = [];
             for n = names'
                 GUI_numbers.handle.(n{:}).Text = num2str(GUI_numbers.(n{:}));
-            end
-        end
-        %open reward valves
-        function GiveReward(A, Box, Buttons, whatdecision)
-            %Get reward valve, pulse number and time:
-            switch Box.Input_type
-                case 6 % Wheel
-                    switch true
-                        case contains(whatdecision, 'correct', 'IgnoreCase', true)
-                            PulseNum = Box.RightPulse;
-                            Valve = Box.Reward; %Right
-                            Time = Box.Rrewardtime; %Right
-                        case contains(whatdecision, 'wrong', 'IgnoreCase', true)
-                            return %No air puff for wheel
-                    end
-                otherwise %Keyboard, any input method I haven't used before
-                    return
-            end
-            for i = 1:PulseNum
-                A.writeDigitalPin(Valve,1)
-                pause(Time);
-                A.writeDigitalPin(Valve,0); drawnow
-                if i < PulseNum
-                    switch Box.Input_type
-                        case 3 %Nose
-                            pause(Box.SecBwPulse)
-                            while contains(whatdecision, 'correct', 'IgnoreCase', true) && ~Box.readPin(CorrectLever) %Wait for NosePoke Don't dispense the reward unless the mouse is waiting for it! Wait indefinitely between pulses for them to learn to collect all the water
-                                pause(0.2); drawnow;
-                                if get(Buttons.Stop, 'Value') || get(Buttons.FastForward, 'Value')
-                                    break
-                                end
-                            end
-                        case 6 %wheel
-                            bigTimer = [];
-                            timer = clock;
-                            while etime(clock, timer) < Box.SecBwPulse
-                                pause(0.01); drawnow;
-                                if get(Buttons.Stop, 'Value') || get(Buttons.FastForward, 'Value')
-                                    break
-                                end
-                            end
-                    end
-                end
             end
         end
         function [WhatDecision, response_time] = readKeyboardInput(stop_handle, message_handle, isLeftTrial)
