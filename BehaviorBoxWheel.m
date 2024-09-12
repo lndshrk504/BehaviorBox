@@ -1064,6 +1064,7 @@ classdef BehaviorBoxWheel < handle
                     this.fig.Color = 'k';
             end
         end
+        
         function [WhatDecision, response_time] = readLeverLoopAnalogWheel(this)
             event = -1;
             delta = 0;
