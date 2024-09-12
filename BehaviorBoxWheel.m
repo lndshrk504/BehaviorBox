@@ -841,6 +841,119 @@ classdef BehaviorBoxWheel < handle
                 this.Data_Object.GetStartTime;
             end
         end
+        function WaitForInput(this)
+            this.TrialStartTime = 0;
+            set(this.message_handle, 'Text', 'Waiting for Trial initialization');
+            this.t1 = clock; 
+            t2 = this.t1; % Initialize in case of crash
+          
+            if ~this.Box.KeyboardInput && this.Box.Input_type == 6
+                this.handleWheelInitialization();
+            else % Keyboard input mode
+                this.handleKeyboardInitialization();
+            end
+          
+            if this.i == 1
+                this.start_time = clock; % Start the timer after the first trial begins
+                this.Data_Object.GetStartTime();
+            end
+        end
+        function handleWheelInitialization(this)
+            if this.i ~= 1
+                this.ReadyCue('k'); % Prepare Ready Cue
+                [this.FLAx.Visible] = deal(1);
+                this.fig.Color = this.StimulusStruct.BackgroundColor;
+                timelimit = this.Setting_Struct.HoldStill;
+                starttime = tic;
+                while toc <= timelimit
+                    this.message_handle.Text = sprintf("Keep the wheel still for %.1f seconds.", timelimit - toc);
+                    if abs(this.Box.encoder.readSpeed) > this.Setting_Struct.Hold_Still_Thresh
+                        this.Flash(this.StimulusStruct, this.Box, findobj('Type', 'Polygon'), 'Wheel');
+                        starttime = tic;
+                    end
+                    if this.checkControls() % Check user controls for stop or skip
+                        break;
+                    end
+                end
+                this.ReadyCue(this.ReadyCueStruct.Color);
+            end
+        end
+        function handleKeyboardInitialization(this)
+            InterTMalInterv = this.Setting_Struct.IntertrialMalSec;
+            text = 'Initialize: Press L for Left, R for Right, C or M for Middle:';
+            set(this.message_handle, 'Text', text); 
+            fprintf([text, '\n'])
+            prompt = 'L, R, or M/C:   ';
+            keypress = 0;
+            while keypress == 0
+                Mal = 0;
+                currkey = input(prompt, "s");
+                t2 = clock;
+                switch true
+                    case any(currkey == ["L", "l"])
+                        this.displayMessage('Left choice...');
+                        Mal = 1;
+                    case any(currkey == ["R", "r"])
+                        this.displayMessage('Right choice...');
+                        Mal = 1;
+                    case any(currkey == ["C", "c", "M", "m", ""])
+                        this.displayMessage('Middle choice...');
+                        keypress = 1;
+                    otherwise
+                        this.displayMessage('Please only press one of the indicated keys...');
+                end
+                pause(0.1); drawnow;
+                
+                if Mal
+                    this.handleMalingerTimeout(InterTMalInterv);
+                    text = 'Initialize: Press L for Left, R for Right, C or M for Middle:';
+                    set(this.message_handle, 'Text', text); 
+                    fprintf([text, '\n'])
+                end
+                if get(this.stop_handle, 'Value')
+                    this.message_handle.Text = 'Ending session...';
+                    break;
+                end
+            end
+        end
+        function handleMalingerTimeout(this, InterTMalInterv)
+            this.ReadyCueAx.Children.Visible = 0;
+            this.fig.Color = 'k';
+            this.displayMessage('Only choose Middle to start trial, malingering timeout...');
+            timerStart = clock;
+            while true
+                pause(0.1); drawnow;
+              
+                if this.checkControls() % Check user controls for fast forward or stop
+                    break;
+                end
+                if etime(clock, timerStart) > InterTMalInterv % End after timeout interval
+                    this.ReadyCue(1);
+                    set(this.message_handle, 'Text', 'Waiting for Trial initialization');
+                    break;
+                end
+            end
+        end
+        function displayMessage(this, text)
+            fprintf([text, '\n']);
+            set(this.message_handle, 'Text', text);
+        end
+        function flag = checkControls(this)
+            flag = false;
+            if get(this.FF, 'Value')
+                set(this.message_handle, 'Text', 'Skipping interval...');
+                set(this.FF, 'Value', 0);
+                drawnow;
+                flag = true;
+                return;
+            end
+            if get(this.stop_handle, 'Value')
+                set(this.message_handle, 'Text', 'Ending session...');
+                drawnow;
+                flag = true;
+                return;
+            end
+        end
         %wait loop while lever is read and open valves if correct
         function WaitForInputAndGiveReward(this, options)
             arguments
@@ -1003,200 +1116,6 @@ classdef BehaviorBoxWheel < handle
                     axes(2).Position = pos2;
                 end
                 drawnow  %limitrate nocallbacks
-% The frame rate is very low on the new Ubuntu mini PC head fixation rig.
-                if this.isLeftTrial & delta <= -thresh*RoundUp
-                    event = 2;
-                    break
-                elseif ~this.isLeftTrial & delta >= thresh*RoundUp
-                    event = 1;
-                    break
-                end
-                if double(abs(delta)) >= double(thresh) %If a choice is made: !!! Add code to round up the correct choice but not accept an incorrect choice until it is fully made. Accept the correct choice early but wait for a full incorrect choice.
-                    if sign(delta) > 0
-                        event = 1;
-                        break
-                    elseif sign(delta) < 0
-                        event = 2;
-                        break
-                    end
-                end
-                if get(this.Skip, 'Value')
-                    set(this.Skip, 'Value', 0) %Turn the button off
-                    break
-                end
-            end
-            this.wheelchoice(cellfun('isempty',this.wheelchoice)) = [];
-            this.wheelchoice = cell2mat(this.wheelchoice);
-            this.wheelchoicetime(cellfun('isempty',this.wheelchoicetime)) = [];
-            this.wheelchoicetime = cell2mat(this.wheelchoicetime);
-            response_time = toc;
-            if event == -1 %If the mouse was close to picking a side, round up their choice:
-                if abs(delta) >= thresh*RoundUp
-                    if sign(delta) > 0
-                        event = 1;
-                    elseif sign(delta) < 0
-                        event = 2;
-                    end
-                end
-            end
-            %translate response to decision
-            switch event
-                case -1
-                    WhatDecision = 'time out';
-                case 1
-                    if this.isLeftTrial == 1
-                        WhatDecision = 'left correct';
-                    else
-                        WhatDecision = 'left wrong';
-                    end
-                case 2
-                    if this.isLeftTrial == 0
-                        WhatDecision = 'right correct';
-                    else
-                        WhatDecision = 'right wrong';
-                    end
-            end
-        end
-        function FlashNew(this, Stim, Box, Lines, whatdecision, OneWay)
-            arguments
-                this
-                Stim % from Setting structure
-                Box
-                Lines = findobj('Tag', 'Contour')
-                whatdecision = "time out"
-                OneWay logical = false
-            end
-            if isempty(Lines)
-                return
-            end
-            drawnow
-            if ~Stim.FlashStim
-                return
-            end
-            switch 1
-                case contains(whatdecision, 'wrong')
-                    Reps = Stim.RepFlashAfterW;
-                case contains(whatdecision, 'correct') || contains(whatdecision, 'OC')
-                    Reps = Stim.RepFlashAfterC;
-            end
-            if contains(whatdecision, {'wrong', 'correct'}) && Reps == 0
-                return
-            end
-            start_color = Stim.LineColor;
-            flash_color = Stim.FlashColor;
-            dark_color = Stim.DimColor;
-            if whatdecision == "time out"
-                Reps = Stim.RepFlashInitial;
-                Steps = Stim.FreqFlashInitial;
-                this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
-            elseif whatdecision == "Mal" %Wheel hold still interval
-                Reps = 1;
-                Steps = 10;
-                this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
-            elseif whatdecision == "NewStim" %L or R poke during intertrial
-                Reps = Stim.RepFlashInitial;
-                Steps = Stim.FreqFlashInitial;
-                this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
-            elseif whatdecision == "center" %Center poke during trial
-                Reps = 1;
-                Steps = Stim.FreqFlashInitial;
-                this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
-            elseif whatdecision == "Correct_Confirmation"
-                Reps = 1;
-                Steps = Stim.FreqFlashInitial;
-                this.BasicFlash("Lines",Lines, "NewColor", dark_color, "steps", Steps, "Interruptor", this.Box.readM)
-            else
-                Steps = Stim.FreqFlashAfter;
-                d = findobj('Tag', 'Distractor');
-                if isempty(d)
-                    d = struct();
-                end
-                switch 1
-                    case contains(whatdecision, 'wrong')
-                        Reps = Stim.RepFlashAfterW;
-                        if Reps > 0
-                            this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
-                        end
-                    case contains(whatdecision, 'correct') || contains(whatdecision, 'OC')
-                        Reps = Stim.RepFlashAfterC;
-                        OneWay = true;
-                        if Reps > 0
-                            %[Lines.Color] = deal(dark_color);
-                            this.BasicFlash("Lines",Lines, "NewColor", flash_color, "steps", Steps)
-                            %this.BasicFlash(Lines, flash_color, Steps)
-                            %[Lines.Color] = deal(Stim.LineColor);
-                        end
-                end
-            end
-        end
-        function BasicFlash(this, vars)
-            arguments
-                this
-                vars.Lines = findobj('Tag','Contour')
-                vars.NewColor
-                vars.steps
-                vars.OneWay logical = false
-                vars.Interruptor = [];
-            end
-            if vars.steps == 1
-                return
-            end
-            obj = vars.Lines;
-            NewColor = vars.NewColor;
-            steps = vars.steps;
-            OneWay = vars.OneWay;
-            if OneWay
-                STEPS = 1:1:steps;
-            else
-                STEPS = [1:1:steps steps-1:-1:1];
-            end
-            % This blinks the Obj to the NewColor and back, over a total of
-            % 2*steps increments
-            if obj(1).Type == "scatter"
-                start_color = [obj(1).MarkerFaceColor];
-                COLOR_PROP = 'MarkerFaceColor';
-            elseif obj(1).Type == "polygon"
-                start_color = [obj(1).FaceColor];
-            elseif obj(1).Type == "line"
-                start_color = [obj(1).Color];
-                COLOR_PROP = 'Color';
-            else
-                return %prevent an error crash
-            end
-            mat = interp1( [1 ; steps], [start_color ; NewColor], STEPS);
-            for i = mat'
-                set(obj, COLOR_PROP, i);  drawnow
-                if ~isempty(vars.Interruptor) && vars.Interruptor() %This is all very slow and will be sped up later
-                    set(obj, COLOR_PROP, start_color)
-                    break
-                end
-            end
-% FUTURE: Interpolate along a sine wave rather than a linear interpolation for
-% maximum smoothness
-% Define the two points
-% y1 = 2;
-% y2 = 8;
-% 
-% % Calculate the mid-point
-% midPoint = (y1 + y2) / 2;
-% 
-% % Calculate the amplitude (distance from mid-point to either of the points)
-% amplitude = (y1 - y2) / 2;
-% 
-% % Choose how many points you want to interpolate
-% nInterpPoints = 100;
-% 
-% % Generate the x values from 0 to pi
-% x = linspace(0, pi, nInterpPoints);
-% 
-% % Generate the sine wave and scale/translate as needed
-% sineInterp = midPoint + amplitude * sin(x);
-% 
-% % Define x-axis for plotting
-% X = linspace(1, 2, nInterpPoints);
-% 
-% % Create the plot
-% plot(X, sineInterp);
         end
         %open reward valves
         function GiveRewardAndFlash(this)

@@ -60,12 +60,6 @@ classdef BehaviorBoxSerial < handle
             end
     
             function SetupReward(this, opts)
-% This function sets up the reward parameters for the Arduino.
-% The Arduino will be in reward setup mode until the next
-% command is sent.
-% Send "S" for Left Reward
-% Send "s" for Right Reward
-% Give reward as a number larger than "0.001"
                 arguments
                     this
                     opts.DurationRight string = this.Rrewardtime;
@@ -83,8 +77,8 @@ classdef BehaviorBoxSerial < handle
                     %write(this.Ard, opts.DurationLeft, "string");
                 end
                 % Update properties
-                this.Rrewardtime = opts.DurationRight;
-                this.Lrewardtime = opts.DurationLeft;
+            this.Rrewardtime = str2double(opts.DurationRight);
+            this.Lrewardtime = str2double(opts.DurationLeft);
             end
 
             function GiveReward(this, opts)
@@ -102,30 +96,24 @@ classdef BehaviorBoxSerial < handle
                     src = this.Ard
                     ~
                 end
-                if this.Ard.BytesAvailable == 0
+                if src.BytesAvailable == 0
                     Reading = this.Reading;
                     return
                 end
-                % Pre-fetch Input_type & DispOutput to avoid repeated property access
-                inputType = this.Input_type;
-                dispOutput = this.DispOutput;
-                
                 % Read data from the serial port
                 newReading = readline(src);
-                
-                % Process the reading based on Input_type
-                if strcmp(inputType, 'Wheel')
-                    Reading = str2double(newReading);
-                else % Assume NosePoke for any non-Wheel Input_type
-                    Reading = char(newReading);
-                end
-
-                % Update the Reading property
-                this.Reading = Reading;
-
+                Reading = this.processReading(newReading);
                 % Display the output if DispOutput is true
-                if dispOutput
+                if this.DispOutput
                     disp(Reading);
+                end
+                this.Reading = Reading;
+            end
+            function result = processReading(this, newReading)
+                if strcmp(this.Input_type, 'Wheel')
+                    result = str2double(newReading);
+                else
+                    result = char(newReading);
                 end
             end
     
@@ -155,17 +143,15 @@ classdef BehaviorBoxSerial < handle
                 %Assign neutral value to property
                 switch true
                     case strcmp(this.Input_type, 'Wheel')
-                        Reading = 0;
+                        this.Reading = 0;
                         write(this.Ard, 'Reset', 'char')
                     case strcmp(this.Input_type, 'NosePoke')
-                        Reading = '-';
+                        this.Reading = '-';
                 end
-                this.Reading = Reading;
             end
     
             function delete(this)
                 this.Ard = [];
-                delete(this.Ard);
                 disp('Serial port is closed');
             end
         end
