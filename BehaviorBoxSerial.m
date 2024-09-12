@@ -1,6 +1,4 @@
 classdef BehaviorBoxSerial < handle
-% This is a class for using an Arduino as a serial device by receiving
-% and sending text between the arduino and the computer.
 % The NosePoke uses an Arduino programmed with Photogate.ino.
 % The Wheel uses an Arduino programmed with Rotary-Encoder-Arduino.ino.
         properties
@@ -87,6 +85,10 @@ classdef BehaviorBoxSerial < handle
                     opts.Side char = 'R'
                 end
                 write(this.Ard, opts.Side, "char");
+            end
+            
+            function TimeStamp(this, opts)
+                write(this.Ard, opts.Side, "T");
             end
     
             function Reading = SerialRead(this, src, ~)
