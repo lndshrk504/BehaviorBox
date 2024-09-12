@@ -1170,6 +1170,35 @@ classdef BehaviorBoxWheel < handle
                     break
                 end
             end
+<<<<<<< Updated upstream
+=======
+% FUTURE: Interpolate along a sine wave rather than a linear interpolation for
+% maximum smoothness
+% Define the two points
+% y1 = 2;
+% y2 = 8;
+% 
+% % Calculate the mid-point
+% midPoint = (y1 + y2) / 2;
+% 
+% % Calculate the amplitude (distance from mid-point to either of the points)
+% amplitude = (y1 - y2) / 2;
+% 
+% % Choose how many points you want to interpolate
+% nInterpPoints = 100;
+% 
+% % Generate the x values from 0 to pi
+% x = linspace(0, pi, nInterpPoints);
+% 
+% % Generate the sine wave and scale/translate as needed
+% sineInterp = midPoint + amplitude * sin(x);
+% 
+% % Define x-axis for plotting
+% X = linspace(1, 2, nInterpPoints);
+% 
+% % Create the plot
+% plot(X, sineInterp);
+>>>>>>> Stashed changes
         end
         %open reward valves
         function GiveRewardAndFlash(this)
