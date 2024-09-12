@@ -744,103 +744,103 @@ classdef BehaviorBoxWheel < handle
             end
         end
         %loop function that reads lever
-        function WaitForInput(this)
-            this.TrialStartTime = 0;
-            set(this.message_handle,'Text','Waiting for Trial initialization');
-            this.t1 = clock; t2 = this.t1;%In case of crash
-            switch true
-                case ~this.Box.KeyboardInput && this.Box.Input_type==6%Wheel 2.0, wait for the mouse to hold the wheel still for the interval to start a new trial
-                    if this.i ~=1
-                        this.ReadyCue('k');
-                        [this.FLAx.Visible] = deal(1);
-                        this.fig.Color = this.StimulusStruct.BackgroundColor;
-                        timelimit = this.Setting_Struct.HoldStill;
-                        starttime = tic;
-                        while toc<=timelimit
-                            this.message_handle.Text = "Keep the wheel still for "+num2str(round(timelimit - toc,1))+" seconds.";
-                            if abs(this.Box.encoder.readSpeed) > this.Setting_Struct.Hold_Still_Thresh
-                                this.Flash(this.StimulusStruct, this.Box, findobj('Type', 'Polygon'), 'Wheel');
-                                starttime = tic;
-                            end
-                            if get(this.stop_handle, 'Value')
-                                this.message_handle.Text = 'Ending session...';
-                                break;
-                            end
-                            if get(this.FF, 'Value')
-                                set(this.message_handle, 'Text','Skipping interval...')
-                                set(this.FF, 'Value', 0)
-                                drawnow
-                                break;
-                            end
-                        end
-                        t2 = toc;
-                        this.ReadyCue(this.ReadyCueStruct.Color);
-                    end
-                otherwise % Keyboard inputthis.Box.KeyboardInput==1
-                    InterTMalInterv = this.Setting_Struct.IntertrialMalSec;
-                    text = 'Initialize: Press L for Left, R for Right, C or M for Middle:'; set(this.message_handle,'Text',text); fprintf([text '\n'])
-                    prompt = 'L, R, or M/C:   ';
-                    keypress = 0;
-                    while keypress==0
-                        Mal = 0;
-                        currkey = input(prompt,"s");
-                        t2 = clock;
-                        switch true
-                            case any(currkey == ["L","l"])
-                                text = 'Left choice...'; fprintf([text '\n']); set(this.message_handle,'Text',text);
-                                Mal = 1;
-                            case any(currkey == ["R","r"])
-                                text = 'Right choice...'; fprintf([text '\n']); set(this.message_handle,'Text',text);
-                                Mal = 1;
-                            case any(currkey == ["C","c", "M", "m", ""])
-                                text = 'Middle choice'; fprintf([text '\n']); set(this.message_handle,'Text',text);
-                                keypress = 1;
-                            otherwise
-                                text = 'Please only press one of the indicated keys...'; fprintf([text '\n']); set(this.message_handle,'Text',text);
-                        end
-                        pause(0.1); drawnow;
-                        if Mal
-                            this.ReadyCueAx.Children.Visible=0;
-                            this.fig.Color = 'k';
-                            text = 'Only choose Middle to start trial, malingering timeout...'; fprintf([text '\n']); set(this.message_handle,'Text',text);
-                            timerStart = clock;
-                            while 1
-                                pause(0.1); drawnow;
-                                if get(this.FF, 'Value')
-                                    set(this.message_handle, 'Text','Skipping interval...')
-                                    set(this.FF, 'Value', 0)
-                                    drawnow
-                                    break;
-                                end
-                                if get(this.stop_handle, 'Value')
-                                    set(this.message_handle, 'Text','Ending session...')
-                                    drawnow
-                                    break;
-                                end
-                                if etime(clock, timerStart) > InterTMalInterv %End when mouse has not poked L or R for the interval
-                                    this.ReadyCue(1)
-                                    set(this.message_handle,'Text','Waiting for Trial initialization');
-                                    break
-                                end
-                            end
-                            text = 'Initialize: Press L for Left, R for Right, C or M for Middle:'; set(this.message_handle,'Text',text); fprintf([text '\n'])
-                        end
-                        if get(this.stop_handle, 'Value')
-                            this.message_handle.Text ='Ending session...';
-                            break;
-                        end
-                    end
-            end
-            if this.i ~= 1 && ~get(this.stop_handle,'Value')
-                this.TrialStartTime = toc;
-            elseif get(this.stop_handle, 'Value')
-                this.TrialStartTime = 0;
-            end
-            if this.i == 1 %start the timer after the first trial has begun. Maybe this should be put somewhere else but I don't want the timer to start until the mouse begins the first trial so where else?
-                this.start_time = clock;
-                this.Data_Object.GetStartTime;
-            end
-        end
+        % function WaitForInput(this)
+        %     this.TrialStartTime = 0;
+        %     set(this.message_handle,'Text','Waiting for Trial initialization');
+        %     this.t1 = clock; t2 = this.t1;%In case of crash
+        %     switch true
+        %         case ~this.Box.KeyboardInput && this.Box.Input_type==6%Wheel 2.0, wait for the mouse to hold the wheel still for the interval to start a new trial
+        %             if this.i ~=1
+        %                 this.ReadyCue('k');
+        %                 [this.FLAx.Visible] = deal(1);
+        %                 this.fig.Color = this.StimulusStruct.BackgroundColor;
+        %                 timelimit = this.Setting_Struct.HoldStill;
+        %                 starttime = tic;
+        %                 while toc<=timelimit
+        %                     this.message_handle.Text = "Keep the wheel still for "+num2str(round(timelimit - toc,1))+" seconds.";
+        %                     if abs(this.Box.encoder.readSpeed) > this.Setting_Struct.Hold_Still_Thresh
+        %                         this.Flash(this.StimulusStruct, this.Box, findobj('Type', 'Polygon'), 'Wheel');
+        %                         starttime = tic;
+        %                     end
+        %                     if get(this.stop_handle, 'Value')
+        %                         this.message_handle.Text = 'Ending session...';
+        %                         break;
+        %                     end
+        %                     if get(this.FF, 'Value')
+        %                         set(this.message_handle, 'Text','Skipping interval...')
+        %                         set(this.FF, 'Value', 0)
+        %                         drawnow
+        %                         break;
+        %                     end
+        %                 end
+        %                 t2 = toc;
+        %                 this.ReadyCue(this.ReadyCueStruct.Color);
+        %             end
+        %         otherwise % Keyboard inputthis.Box.KeyboardInput==1
+        %             InterTMalInterv = this.Setting_Struct.IntertrialMalSec;
+        %             text = 'Initialize: Press L for Left, R for Right, C or M for Middle:'; set(this.message_handle,'Text',text); fprintf([text '\n'])
+        %             prompt = 'L, R, or M/C:   ';
+        %             keypress = 0;
+        %             while keypress==0
+        %                 Mal = 0;
+        %                 currkey = input(prompt,"s");
+        %                 t2 = clock;
+        %                 switch true
+        %                     case any(currkey == ["L","l"])
+        %                         text = 'Left choice...'; fprintf([text '\n']); set(this.message_handle,'Text',text);
+        %                         Mal = 1;
+        %                     case any(currkey == ["R","r"])
+        %                         text = 'Right choice...'; fprintf([text '\n']); set(this.message_handle,'Text',text);
+        %                         Mal = 1;
+        %                     case any(currkey == ["C","c", "M", "m", ""])
+        %                         text = 'Middle choice'; fprintf([text '\n']); set(this.message_handle,'Text',text);
+        %                         keypress = 1;
+        %                     otherwise
+        %                         text = 'Please only press one of the indicated keys...'; fprintf([text '\n']); set(this.message_handle,'Text',text);
+        %                 end
+        %                 pause(0.1); drawnow;
+        %                 if Mal
+        %                     this.ReadyCueAx.Children.Visible=0;
+        %                     this.fig.Color = 'k';
+        %                     text = 'Only choose Middle to start trial, malingering timeout...'; fprintf([text '\n']); set(this.message_handle,'Text',text);
+        %                     timerStart = clock;
+        %                     while 1
+        %                         pause(0.1); drawnow;
+        %                         if get(this.FF, 'Value')
+        %                             set(this.message_handle, 'Text','Skipping interval...')
+        %                             set(this.FF, 'Value', 0)
+        %                             drawnow
+        %                             break;
+        %                         end
+        %                         if get(this.stop_handle, 'Value')
+        %                             set(this.message_handle, 'Text','Ending session...')
+        %                             drawnow
+        %                             break;
+        %                         end
+        %                         if etime(clock, timerStart) > InterTMalInterv %End when mouse has not poked L or R for the interval
+        %                             this.ReadyCue(1)
+        %                             set(this.message_handle,'Text','Waiting for Trial initialization');
+        %                             break
+        %                         end
+        %                     end
+        %                     text = 'Initialize: Press L for Left, R for Right, C or M for Middle:'; set(this.message_handle,'Text',text); fprintf([text '\n'])
+        %                 end
+        %                 if get(this.stop_handle, 'Value')
+        %                     this.message_handle.Text ='Ending session...';
+        %                     break;
+        %                 end
+        %             end
+        %     end
+        %     if this.i ~= 1 && ~get(this.stop_handle,'Value')
+        %         this.TrialStartTime = toc;
+        %     elseif get(this.stop_handle, 'Value')
+        %         this.TrialStartTime = 0;
+        %     end
+        %     if this.i == 1 %start the timer after the first trial has begun. Maybe this should be put somewhere else but I don't want the timer to start until the mouse begins the first trial so where else?
+        %         this.start_time = clock;
+        %         this.Data_Object.GetStartTime;
+        %     end
+        % end
         function WaitForInput(this)
             this.TrialStartTime = 0;
             set(this.message_handle, 'Text', 'Waiting for Trial initialization');
