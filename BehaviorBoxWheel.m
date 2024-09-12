@@ -1117,6 +1117,200 @@ classdef BehaviorBoxWheel < handle
                     axes(2).Position = pos2;
                 end
                 drawnow  %limitrate nocallbacks
+% The frame rate is very low on the new Ubuntu mini PC head fixation rig.
+                if this.isLeftTrial & delta <= -thresh*RoundUp
+                    event = 2;
+                    break
+                elseif ~this.isLeftTrial & delta >= thresh*RoundUp
+                    event = 1;
+                    break
+                end
+                if double(abs(delta)) >= double(thresh) %If a choice is made: !!! Add code to round up the correct choice but not accept an incorrect choice until it is fully made. Accept the correct choice early but wait for a full incorrect choice.
+                    if sign(delta) > 0
+                        event = 1;
+                        break
+                    elseif sign(delta) < 0
+                        event = 2;
+                        break
+                    end
+                end
+                if get(this.Skip, 'Value')
+                    set(this.Skip, 'Value', 0) %Turn the button off
+                    break
+                end
+            end
+            this.wheelchoice(cellfun('isempty',this.wheelchoice)) = [];
+            this.wheelchoice = cell2mat(this.wheelchoice);
+            this.wheelchoicetime(cellfun('isempty',this.wheelchoicetime)) = [];
+            this.wheelchoicetime = cell2mat(this.wheelchoicetime);
+            response_time = toc;
+            if event == -1 %If the mouse was close to picking a side, round up their choice:
+                if abs(delta) >= thresh*RoundUp
+                    if sign(delta) > 0
+                        event = 1;
+                    elseif sign(delta) < 0
+                        event = 2;
+                    end
+                end
+            end
+            %translate response to decision
+            switch event
+                case -1
+                    WhatDecision = 'time out';
+                case 1
+                    if this.isLeftTrial == 1
+                        WhatDecision = 'left correct';
+                    else
+                        WhatDecision = 'left wrong';
+                    end
+                case 2
+                    if this.isLeftTrial == 0
+                        WhatDecision = 'right correct';
+                    else
+                        WhatDecision = 'right wrong';
+                    end
+            end
+        end
+        function FlashNew(this, Stim, Box, Lines, whatdecision, OneWay)
+            arguments
+                this
+                Stim % from Setting structure
+                Box
+                Lines = findobj('Tag', 'Contour')
+                whatdecision = "time out"
+                OneWay logical = false
+            end
+            if isempty(Lines)
+                return
+            end
+            drawnow
+            if ~Stim.FlashStim
+                return
+            end
+            switch 1
+                case contains(whatdecision, 'wrong')
+                    Reps = Stim.RepFlashAfterW;
+                case contains(whatdecision, 'correct') || contains(whatdecision, 'OC')
+                    Reps = Stim.RepFlashAfterC;
+            end
+            if contains(whatdecision, {'wrong', 'correct'}) && Reps == 0
+                return
+            end
+            start_color = Stim.LineColor;
+            flash_color = Stim.FlashColor;
+            dark_color = Stim.DimColor;
+            if whatdecision == "time out"
+                Reps = Stim.RepFlashInitial;
+                Steps = Stim.FreqFlashInitial;
+                this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
+            elseif whatdecision == "Mal" %Wheel hold still interval
+                Reps = 1;
+                Steps = 10;
+                this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
+            elseif whatdecision == "NewStim" %L or R poke during intertrial
+                Reps = Stim.RepFlashInitial;
+                Steps = Stim.FreqFlashInitial;
+                this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
+            elseif whatdecision == "center" %Center poke during trial
+                Reps = 1;
+                Steps = Stim.FreqFlashInitial;
+                this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
+            elseif whatdecision == "Correct_Confirmation"
+                Reps = 1;
+                Steps = Stim.FreqFlashInitial;
+                this.BasicFlash("Lines",Lines, "NewColor", dark_color, "steps", Steps, "Interruptor", this.Box.readM)
+            else
+                Steps = Stim.FreqFlashAfter;
+                d = findobj('Tag', 'Distractor');
+                if isempty(d)
+                    d = struct();
+                end
+                switch 1
+                    case contains(whatdecision, 'wrong')
+                        Reps = Stim.RepFlashAfterW;
+                        if Reps > 0
+                            this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
+                        end
+                    case contains(whatdecision, 'correct') || contains(whatdecision, 'OC')
+                        Reps = Stim.RepFlashAfterC;
+                        OneWay = true;
+                        if Reps > 0
+                            %[Lines.Color] = deal(dark_color);
+                            this.BasicFlash("Lines",Lines, "NewColor", flash_color, "steps", Steps)
+                            %this.BasicFlash(Lines, flash_color, Steps)
+                            %[Lines.Color] = deal(Stim.LineColor);
+                        end
+                end
+            end
+        end
+        function BasicFlash(this, vars)
+            arguments
+                this
+                vars.Lines = findobj('Tag','Contour')
+                vars.NewColor
+                vars.steps
+                vars.OneWay logical = false
+                vars.Interruptor = [];
+            end
+            if vars.steps == 1
+                return
+            end
+            obj = vars.Lines;
+            NewColor = vars.NewColor;
+            steps = vars.steps;
+            OneWay = vars.OneWay;
+            if OneWay
+                STEPS = 1:1:steps;
+            else
+                STEPS = [1:1:steps steps-1:-1:1];
+            end
+            % This blinks the Obj to the NewColor and back, over a total of
+            % 2*steps increments
+            if obj(1).Type == "scatter"
+                start_color = [obj(1).MarkerFaceColor];
+                COLOR_PROP = 'MarkerFaceColor';
+            elseif obj(1).Type == "polygon"
+                start_color = [obj(1).FaceColor];
+            elseif obj(1).Type == "line"
+                start_color = [obj(1).Color];
+                COLOR_PROP = 'Color';
+            else
+                return %prevent an error crash
+            end
+            mat = interp1( [1 ; steps], [start_color ; NewColor], STEPS);
+            for i = mat'
+                set(obj, COLOR_PROP, i);  drawnow
+                if ~isempty(vars.Interruptor) && vars.Interruptor() %This is all very slow and will be sped up later
+                    set(obj, COLOR_PROP, start_color)
+                    break
+                end
+            end
+% FUTURE: Interpolate along a sine wave rather than a linear interpolation for
+% maximum smoothness
+% Define the two points
+% y1 = 2;
+% y2 = 8;
+% 
+% % Calculate the mid-point
+% midPoint = (y1 + y2) / 2;
+% 
+% % Calculate the amplitude (distance from mid-point to either of the points)
+% amplitude = (y1 - y2) / 2;
+% 
+% % Choose how many points you want to interpolate
+% nInterpPoints = 100;
+% 
+% % Generate the x values from 0 to pi
+% x = linspace(0, pi, nInterpPoints);
+% 
+% % Generate the sine wave and scale/translate as needed
+% sineInterp = midPoint + amplitude * sin(x);
+% 
+% % Define x-axis for plotting
+% X = linspace(1, 2, nInterpPoints);
+% 
+% % Create the plot
+% plot(X, sineInterp);
         end
         %open reward valves
         function GiveRewardAndFlash(this)
@@ -1566,7 +1760,18 @@ classdef BehaviorBoxWheel < handle
                 pause(0.1);
             end
         end
-
+        function interrupted = CheckForInterruptions(this)
+            interrupted = false;
+            if get(this.FF, 'Value')
+                set(this.message_handle, 'Text', 'Skipping interval...');
+                set(this.FF, 'Value', 0);
+                interrupted = true;
+            elseif get(this.stop_handle, 'Value')
+                set(this.message_handle, 'Text', 'Ending session...');
+                interrupted = true;
+            end
+            drawnow;
+        end
     end
     %STATIC FUNCTIONS====
     methods(Static = true)
