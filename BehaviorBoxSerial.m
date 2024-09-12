@@ -86,7 +86,7 @@ classdef BehaviorBoxSerial < handle
                 end
                 write(this.Ard, opts.Side, "char");
             end
-            
+
             function TimeStamp(this, opts)
                 write(this.Ard, opts.Side, "T");
             end
@@ -111,6 +111,7 @@ classdef BehaviorBoxSerial < handle
                 end
                 this.Reading = Reading;
             end
+            
             function result = processReading(this, newReading)
                 if strcmp(this.Input_type, 'Wheel')
                     result = str2double(newReading);
