@@ -1,16 +1,7 @@
 function unwrapErr(err)
     % Unwraps and prints the details of an error object
-    disp(['Error message: ' err.message]); % Print the error message
-    errFields = fields(err);
-    for i = 1:numel(errFields)
-        if ~matches(errFields{i}, 'stack')
-            if ~isempty(err.(errFields{i}))
-                disp([errFields{i} ': ' err.(errFields{i})])
-            end
-        elseif matches(errFields{i}, 'stack')
-            for L = numel(err.stack):-1:1
-                disp(['In function ' err.stack(L).name ', line ' num2str(err.stack(L).line)])
-            end
-        end
+    fprintf(2, 'Error: %s\n', err.message);
+    for k = 1:length(err.stack)
+        fprintf(2, 'In %s at line %d\n', err.stack(k).name, err.stack(k).line);
     end
 end

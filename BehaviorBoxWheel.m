@@ -1168,20 +1168,23 @@ classdef BehaviorBoxWheel < handle
         %Use this function instead of pausing, so that buttons are checked and settings are updated during the pause
         function UpdatePause(this, interval)
             starttime = tic;
-            while toc <= interval
-                pause(0.01); drawnow;
+            while toc(starttime) <= interval
+                pause(0.01);
+                drawnow limitrate;  % Reduce the frequency of GUI updates
                 if this.Pause.Value
                     set(this.message_handle,'Text','Paused, click pause button again to continue...');
-                    o = findobj(this.fig.Children);
-                    [o(:).Visible] = deal(0);
+                    % o = findobj(this.fig.Children);
+                    % [o(:).Visible] = deal(0);
+                    [this.fig.Children.Visible] = deal(0);  % Direct access to children
                     this.fig.Color = this.ReadyCueStruct.Color;% Clear stim and turn the screen black to tell the mouse the time to drink water is now over. This should help mice not associate an air puff with the correct/rewarded stimulus, and instead associate an air puff with the black screen.
                     while get(this.Pause, 'Value')
-                        pause(0.01); drawnow;
+                        pause(0.01);
+                        drawnow limitrate;  % Reduce the frequency of GUI updates
                     end
                     this.fig.Color = this.StimulusStruct.BackgroundColor;
                 end
                 %check if stop pressed
-                if get(this.stop_handle, 'Value') || get(this.FF, 'Value')
+                if this.stop_handle.Value || this.FF.Value
                     %abort
                     break;
                 end
@@ -1189,48 +1192,49 @@ classdef BehaviorBoxWheel < handle
         end
         %Update data structure, update graphs, do intertrial time
         function AfterTrial(this)
+            decision = this.WhatDecision;
+            settingStruct = this.Setting_Struct;
             switch true
-                case contains(this.WhatDecision,'correct')
+                case contains(decision,'correct')
                     interval = 'Intertrial interval';
-                    interval_time = this.Setting_Struct.Intertrial_time;
-                case contains(this.WhatDecision,'wrong')
+                    interval_time = settingStruct.Intertrial_time;
+                case contains(decision,'wrong')
                     interval = 'Penalty interval';
-                    interval_time = this.Setting_Struct.Penalty_time;
-                case contains(this.WhatDecision , 'malinger', 'IgnoreCase', true)
+                    interval_time = settingStruct.Penalty_time;
+                case contains(decision, 'malinger', 'IgnoreCase', true)
                     interval = 'Only poke center to begin a trial, Penalty interval';
-                    interval_time = this.Setting_Struct.Penalty_time;
-                case contains(this.WhatDecision,'time out')
+                    interval_time = settingStruct.Penalty_time;
+                case contains(decision,'time out')
                     interval = 'Time out, proceed to next trial';
                     interval_time = 0.5;
-                    this.timeout_counter = this.timeout_counter+1;
+                    this.timeout_counter = this.timeout_counter + 1;
+                otherwise
+                    interval = 'Unknown decision'; % Handle unexpected decision types
+                    interval_time = 0;
             end
             %Update data & Plot, update GUI numbers
             this.UpdateData();
-            if contains(this.WhatDecision,'time out')
-                set(this.message_handle,'Text',interval);
-            else
-                set(this.message_handle,'Text',interval+" ("+num2str(interval_time)+" sec)");
-            end
+            this.updateMessageText(this, decision, interval, interval_time);
             if get(this.stop_handle, 'Value')
                 return
             end
-            switch this.Box.Input_type
-                case 3 % Nose
-                    this.ReadyCue(1)
-                    this.ReadyCueAx.findobj('Type','scatter').MarkerFaceColor = deal(this.StimulusStruct.DimColor); drawnow;
-                    while this.Box.readL() | this.Box.readR() %Pause while the mouse is standing there and drinking their water reward
-                        pause(0.01); drawnow;
-                    end
-                    o = findobj(this.fig.Children);
-                    [o(:).Visible] = deal(0);
-                case 6 % Wheel
-                    this.ReadyCue(1)
-            end
+            this.ReadyCue(1)
             %Wait for interval
             this.UpdatePause(interval_time)
-            this.GuiHandles.MsgBox.String = fileread(this.textdiary);
+            this.updateMessageBox(this);
             if this.Temp_Active
                 this.Setting_Struct = this.Temp_Old_Settings;
+            end
+        end
+        function updateMessageBox(this)
+            this.GuiHandles.MsgBox.String = fileread(this.textdiary);
+        end
+
+        function updateMessageText(this, decision, interval, interval_time)
+            if contains(decision, 'time out')
+                set(this.message_handle, 'Text', interval);
+            else
+                set(this.message_handle, 'Text', interval + " (" + num2str(interval_time) + " sec)");
             end
         end
         %Update the data object
@@ -1274,7 +1278,6 @@ classdef BehaviorBoxWheel < handle
                 this.SetIdx, ...
                 this.SetStr(end))
 
-            %Wheel stuff, only save this if its a wheel trial
             this.wheelchoice_record{this.i,1} = this.WhatDecision;
             this.wheelchoice_record{this.i,2} = this.wheelchoice;
             this.wheelchoice_record{this.i,3} = this.wheelchoicetime;
@@ -1381,7 +1384,6 @@ classdef BehaviorBoxWheel < handle
             % f.Visible = 1;
             close(f)
         end
-        %when done, clean up
         function cleanUP(this)
             %switch on all buttons
             this.toggleButtonsOnOff(this.Buttons,1);
@@ -1419,9 +1421,7 @@ classdef BehaviorBoxWheel < handle
                     [this.ReadyCueAx.Children.Visible] = deal(isVis);
                 end
             else %First time, make axis
-                switch this.Box.Input_type
-                    case 6 % Wheel is different
-                        RQ_Ax = axes('Parent', this.fig, ...
+                RQ_Ax = axes('Parent', this.fig, ...
                             'color', this.ReadyCueStruct.Color, ...
                             'Position', [0 0 1 1], ...
                             'Xlim', [-10 10], ...
@@ -1430,55 +1430,8 @@ classdef BehaviorBoxWheel < handle
                             'Tag', 'ReadyCue');
                         hold(findobj(this.fig, 'Tag', 'ReadyCue'), 'on')
                         this.ReadyCueAx = [findobj(this.fig, 'Tag', 'ReadyCue')];
-                    otherwise
-                        RQ_Ax = axes('Parent', this.fig, ...
-                            'color', this.StimulusStruct.BackgroundColor, ...
-                            'Position', [0 0 1 1], ...
-                            'Xlim', [-10 10], ...
-                            'YLim', [-7 13], ...
-                            'XTick',[], 'YTick',[], ...
-                            'Tag', 'ReadyCue');
-                        hold(findobj(this.fig, 'Tag', 'ReadyCue'), 'on')
-                        Dot = scatter(0,0,this.ReadyCueStruct.Size*1000, ...
-                            'LineWidth', 10000, ...
-                            'Marker', 'o', ...
-                            'MarkerFaceColor', this.ReadyCueStruct.Color, ...
-                            'MarkerEdgeColor', 'none', ...
-                            'Parent', RQ_Ax, ...
-                            'Tag', 'ReadyCueDot');
-                        this.ReadyCueAx = [findobj(this.fig, 'Tag', 'ReadyCue')];
-                end
-                if this.Box.Input_type~=6
-                    this.Flash(this.StimulusStruct, this.Box, findobj('Tag', 'ReadyCueDot'), 'NewStim')
-                end
-                %                 if this.Box.Input_type~=6
-                %                     this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'ReadyCueDot'), 'NewStim')
-                %                 end
+                        this.Flash(this.StimulusStruct, this.Box, findobj('Tag', 'ReadyCueDot'), 'NewStim')
             end
-            %drawnow
-        end
-        function TestBox(this)
-            this.app.Stimulus_FinishLine.Value = true;
-            this.getGUI();
-            this.TestStimulus();
-            this.WaitForInputAndGiveReward("Test", true);
-            set(this.message_handle,'Text','Trigger the Left Sensor');
-            while ~this.Box.readL()
-                pause(0.01); drawnow;
-                %just wait until the sensor is triggered
-            end
-            set(this.message_handle,'Text','Trigger the Right Sensor');
-            while ~this.Box.readR()
-                pause(0.01); drawnow;
-                %just wait until the sensor is triggered
-            end
-            set(this.message_handle,'Text','Trigger the Middle Sensor');
-            while ~this.Box.readM()
-                pause(0.01); drawnow;
-                %just wait until the sensor is triggered
-            end
-            this.cleanUP();
-            set(this.message_handle,'Text','Did the sensors work?');
         end
         function TestStimulus(this, options)
             arguments
@@ -1981,43 +1934,27 @@ classdef BehaviorBoxWheel < handle
         end
         function saveFigure(fig, folder, name)
             name = erase(name, '.mat');
-            figure_property = struct; %Reset export Settings:
+            figure_property = struct; 
+
+            % Reset export Settings:
             figure_property.units = 'inches';
             figure_property.format = 'pdf';
-            figure_property.Preview= 'none';
-            figure_property.Width= '11'; % Figure width on canvas
-            figure_property.Height= '8.5'; % Figure height on canvas
-            figure_property.Units= 'inches';
-            figure_property.Color= 'rgb';
-            figure_property.Background= 'w';
-            %         figure_property.FixedfontSize= '9';
-            %         figure_property.ScaledfontSize= 'auto';
-            %         figure_property.FontMode= 'scaled';
-            %         figure_property.FontSizeMin= '.5';
-            figure_property.FixedLineWidth= '1';
-            figure_property.ScaledLineWidth= 'auto';
-            figure_property.LineMode= 'none';
-            figure_property.LineWidthMin= '0.1';
-            figure_property.FontName= 'Helvetica';% Might want to change this to something that is available
-            figure_property.FontWeight= 'auto';
-            figure_property.FontAngle= 'auto';
-            figure_property.FontEncoding= 'latin1';
-            %         figure_property.PSLevel= '3';
-            figure_property.Renderer= 'painters';
-            figure_property.Resolution= '600';
-            figure_property.LineStyleMap= 'none';
-            figure_property.ApplyStyle= '0';
-            figure_property.Bounds= 'tight';
-            figure_property.LockAxes= 'off';
-            figure_property.LockAxesTicks= 'off';
-            figure_property.ShowUI= 'off';
-            figure_property.SeparateText= 'off';
-            chosen_figure=fig;
-            set(chosen_figure,'PaperUnits','inches');
-            set(chosen_figure,'PaperPositionMode','auto');
-            set(chosen_figure,'PaperSize',[str2double(figure_property.Width) str2double(figure_property.Height)]); % Canvas Size
-            set(chosen_figure,'Units','inches');
-            hgexport(fig, join([folder name + ".pdf"], filesep), figure_property); %Save as pdf
+            figure_property.Width= 11; % Figure width on canvas
+            figure_property.Height= 8.5; % Figure height on canvas
+
+            % Figure properties setup
+            chosen_figure = fig;
+            set(chosen_figure, 'PaperUnits', figure_property.units);
+            set(chosen_figure, 'PaperPositionMode', 'auto');
+            set(chosen_figure, 'PaperSize', [figure_property.Width figure_property.Height]); % Canvas Size
+            set(chosen_figure, 'Units', figure_property.units);
+            
+            % Apply rendering and resolution options directly to exportgraphics
+            output_file = fullfile(folder, name + ".pdf");
+            exportgraphics(chosen_figure, output_file, ...
+                'ContentType', 'vector', ...
+                'Resolution', 600, ...
+                'BackgroundColor', 'w');
         end
         function unwrapError(err)
             %Is there an error? Send the err object over here and it will be unwrapped in the command window. Maybe too much info?

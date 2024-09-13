@@ -101,11 +101,7 @@ classdef BehaviorBoxData < handle
         end
         function this = updateBBData(this, varargin)
             for pair = reshape(varargin, 2, [])
-                try
-                    this.(pair{1}) = pair{2};
-                catch
-                    error('%s is not a recognized parameter name', pair{1})
-                end
+                this.(pair{1}) = pair{2};
             end
         end
         %INPUT INTERFACE FUNCTIONS ==== %log all activity here, which then gets passed to organize
@@ -123,24 +119,12 @@ classdef BehaviorBoxData < handle
                 case any(CodedChoice == [5 6])
                     Score = 2;
             end
-            addStruct = struct();
-            addStruct.Score = Score;
-            addStruct.Level = Level;
-            addStruct.isLeftTrial = isLeftTrial;
-            addStruct.CodedChoice = CodedChoice;
-            addStruct.RewardPulses = RewardPulses;
-            addStruct.InterTMal = InterTMal;
-            addStruct.DuringTMal = DuringTMal;
-            addStruct.TrialStartTime = TrialStartTime;
-            addStruct.ResponseTime = ResponseTime;
-            addStruct.DrinkTime = DrinkTime;
-            addStruct.SideBias = SideBias;
-            addStruct.BetweenTrialTime = BetweenTrialTime;
-            addStruct.SetIdx = SetIdx;
-            addStruct.SetStr = SetStr;
+            addStruct = struct('Score', Score, 'Level', Level, 'isLeftTrial', isLeftTrial, ...
+                'CodedChoice', CodedChoice, 'RewardPulses', RewardPulses, 'InterTMal', InterTMal, ...
+                'DuringTMal', DuringTMal, 'TrialStartTime', TrialStartTime, 'ResponseTime', ResponseTime, ...
+                'DrinkTime', DrinkTime, 'BetweenTrialTime', BetweenTrialTime, 'SideBias', SideBias, ...
+                'SetIdx', SetIdx, 'SetStr', SetStr);
             this.current_data_struct = this.addDataRow(addStruct);
-            %this.LevelHist.LastScores{addStruct.Level}(end+1) = addStruct.Score;
-            %this.LevelHist.MM = cellfun(@(x)this.LevelMMAnalysis(x), this.LevelHist.LastScores, "ErrorHandler",@errorFuncNaN);
         end
         function addStimEvent(this, ~) %Get the timestamp of when the stimulus appeared
             %this.current_data_struct.TimeStamp(end+1) = etime(clock,  this.start_time)/60; %elapsed time in minutes since starting first trial
@@ -806,10 +790,7 @@ classdef BehaviorBoxData < handle
                 options.CE double = 30
             end
             data = this.current_data_struct;
-            try
-                names = fieldnames(data);
-            catch
-            end
+            names = fieldnames(data);
             for n = names(structfun(@isrow, this.current_data_struct) & structfun(@length, this.current_data_struct) > 1)'
                 data.(n{:}) = data.(n{:})';
             end
@@ -2591,8 +2572,18 @@ classdef BehaviorBoxData < handle
         end
         %save data when done, give unique name for stimulus, input, etc.
         function SaveAllData(this)
+            fakeNames = {'w', 'W'};
+            if any(strcmp(num2str(this.Setting_Struct.Subject), fakeNames)) || any(strcmp(this.Setting_Struct.Strain, fakeNames))
+                return; % Do not save if using fake data names
+            end
+            D = string(datetime(this.Data_Object.start_time, "Format", "yyMMdd_HHmmss"));
+            stim = erase(this.app.Stimulus_type.Value, ' ');
+            input = this.app.Box_Input_type.Value;
+            Sub = this.Setting_Struct.Subject;
+            Str = this.Data_Object.Str;
+            savefolder = fullfile(this.Data_Object.filedir);
+            saveasname = join([D Sub Str stim input], '_');
             [newData] = this.getDataToSave();
-            %Settings = [this.Setting_Struct cell2mat(this.Old_Setting_Struct)];
             newData.SetUpdate = this.SetUpdate;
             nonEmptyRows = any(~cellfun(@isempty, this.StimHistory'))';
             newData.StimHist = this.StimHistory(nonEmptyRows,:);
@@ -2606,38 +2597,35 @@ classdef BehaviorBoxData < handle
                 newData.wheel_record = this.wheelchoice_record;
                 newData.wheel_record(any(cellfun(@isempty, newData.wheel_record)'),:) = [];
             end
-            date = string(datetime(this.start_time, "Format", "yyMMdd_HHmmss_"));
-            saveasname = date+this.Sub{:}+'_'+this.Str+'_'+this.StimType+this.Inp+".mat";
+            dateStr = char(datetime(this.start_time, 'Format', 'yyMMdd_HHmmss'));
             newData.Settings = Settings;
             set(this.message_handle,'String',[ 'Saving data as: ' gui_save_string '.mat']);
-            if numel(this.SetUpdate) == 1 % Settings never changed during the session.
+            if isscalar(this.SetUpdate) % Settings never changed during the session.
                 newData.SetStr = this.SetStr;
                 newData.Include = repmat(this.Include, size(newData.TimeStamp));
                 newData.SetIdx = repmat(this.SetIdx, size(newData.TimeStamp));
             elseif numel(this.SetUpdate) > 1
-                Ts = this.Include;
                 newData.SetStr =  this.SetStr;
                 Idcs = unique([cell2mat(this.SetUpdate) length(newData.TimeStamp)]);
                 [~, ~, newData.SetIdx] = histcounts(1:length(newData.TimeStamp), Idcs);
-                newData.Include = Ts(newData.SetIdx);
+                newData.Include = this.Include(newData.SetIdx);
             end
+            newData.Weight = this.Setting_Struct.Weight;
+            nonEmptyRows = any(~cellfun(@isempty, this.StimHistory'))';
+            newData.StimHist = this.StimHistory(nonEmptyRows, :);
+            Notes = this.GuiHandles.NotesText.String;
             try
-                saveasname = date+this.Sub{:}+'_'+this.Str+'_'+this.StimType+this.Inp+".mat";
-                savefolder = [this.Data_Object.filedir filesep]; % this.Setting_Struct.Strain filesep num2str(this.Setting_Struct.Subject) filesep];
-                fakeNames = {'w', 'W'};
-                if ~any(strcmp(num2str(this.Setting_Struct.Subject), fakeNames)) || ~any(strcmp(this.Setting_Struct.Strain, fakeNames)) %do not save if I use a fake name for fake data
-                    try
-                        save([savefolder, saveasname], 'Settings', 'newData', 'Text')
-                        this.saveFigure(this.graphFig, savefolder, saveasname)
-                        dispstring = ['Data saved as: ', saveasname];
-                        fprintf([dispstring, '\n']);
-                        set(this.message_handle,'String',dispstring);
-                    catch err
-                        this.unwrapError(err)
-                        [file,path] = uiputfile(pwd , 'Choose folder to save training data' , saveasname);
-                        exportapp(this.app.figure1, [path file '.jpg'])
-                        save([path file],  'Settings', 'newData', 'Text')
-                    end
+                try
+                    save([savefolder, saveasname], 'Settings', 'newData', 'Text')
+                    this.saveFigure(this.graphFig, savefolder, saveasname)
+                    dispstring = ['Data saved as: ', saveasname];
+                    fprintf([dispstring, '\n']);
+                    set(this.message_handle,'String',dispstring);
+                catch err
+                    this.unwrapError(err)
+                    [file,path] = uiputfile(pwd , 'Choose folder to save training data' , saveasname);
+                    exportapp(this.app.figure1, [path file '.jpg'])
+                    save([path file],  'Settings', 'newData', 'Text')
                 end
             catch err
                 this.unwrapError(err)
@@ -2645,44 +2633,21 @@ classdef BehaviorBoxData < handle
             this.graphFig.MenuBar = 'figure';
         end
         function saveFigure(~, fig, folder, name)
-            name = erase(name, '.mat');
-            figure_property = struct; %Reset export Settings:
-            figure_property.units = 'inches';
-            figure_property.format = 'pdf';
-            figure_property.Preview= 'none';
-            figure_property.Width= '11'; % Figure width on canvas
-            figure_property.Height= '8.5'; % Figure height on canvas
-            figure_property.Units= 'inches';
-            figure_property.Color= 'rgb';
-            figure_property.Background= 'w';
-            %         figure_property.FixedfontSize= '9';
-            %         figure_property.ScaledfontSize= 'auto';
-            %         figure_property.FontMode= 'scaled';
-            %         figure_property.FontSizeMin= '.5';
-            figure_property.FixedLineWidth= '1';
-            figure_property.ScaledLineWidth= 'auto';
-            figure_property.LineMode= 'none';
-            figure_property.LineWidthMin= '0.1';
-            figure_property.FontName= 'Helvetica';% Might want to change this to something that is available
-            figure_property.FontWeight= 'auto';
-            figure_property.FontAngle= 'auto';
-            figure_property.FontEncoding= 'latin1';
-            %         figure_property.PSLevel= '3';
-            figure_property.Renderer= 'painters';
-            figure_property.Resolution= '600';
-            figure_property.LineStyleMap= 'none';
-            figure_property.ApplyStyle= '0';
-            figure_property.Bounds= 'tight';
-            figure_property.LockAxes= 'off';
-            figure_property.LockAxesTicks= 'off';
-            figure_property.ShowUI= 'off';
-            figure_property.SeparateText= 'off';
-            chosen_figure=fig;
-            set(chosen_figure,'PaperUnits','inches');
-            set(chosen_figure,'PaperPositionMode','auto');
-            set(chosen_figure,'PaperSize',[str2double(figure_property.Width) str2double(figure_property.Height)]); % Canvas Size
-            set(chosen_figure,'Units','inches');
-            hgexport(fig, join([folder name + ".pdf"], filesep), figure_property); %Save as pdf
+                % saveFigure Save the given figure to a specified folder as a PDF file.
+                %   saveFigure(fig, folder, name)
+                %   fig    - Handle to the MATLAB figure to be saved.
+                %   folder - Destination folder where the figure should be saved.
+                %   name   - The name to use for the saved PDF file.
+                name = erase(name, '.mat');
+                % Create the complete filename
+                fullPath = fullfile(folder, name + ".pdf");
+                
+                % Set figure properties before saving
+                set(fig, 'Units', 'inches', 'PaperUnits', 'inches', 'PaperSize', [11 8.5], ...
+                        'PaperPositionMode', 'auto', 'PaperPosition', [0 0 11 8.5]);
+                
+                % Save the figure as a PDF using exportgraphics
+                exportgraphics(fig, fullPath, 'ContentType', 'vector', 'Resolution', 600);
         end
         function SaveManyFigures(this, fig, filename, options)
             arguments
@@ -2718,20 +2683,20 @@ classdef BehaviorBoxData < handle
                 for f = FIG'
                     c = c+1;
                     fprops = this.getFigProps(f, options);
-                    SvFig(SavePathName(c),fprops, options)
+                    this.SvFig(SavePathName(c),fprops, options)
                 end
                 fprintf("Saved "+numel(FIG)+ " files... etime: " + toc + " seconds.\n")
                 return
             end
-            function SvFig(Name, Props, options)
-                if options.format == ".pdf"
-                    print(Name, Props, '-dpdf', ...
-                        '-vector', ...
-                        '-fillpage')
-                end
-            end
             %winopen(SaveAsName)
             close(fig)
+        end
+        function SvFig(Name, Props, options)
+            if options.format == ".pdf"
+                print(Name, Props, '-dpdf', ...
+                    '-vector', ...
+                    '-fillpage')
+            end
         end
         function [g, groups] = inspectAllSettings(allData)
             x = cellfun(@(x) x.Settings, allData(:,3), 'UniformOutput', false); %get all the settings in a cell
@@ -2796,46 +2761,28 @@ classdef BehaviorBoxData < handle
             Out = addvars(Tbl, TotalTrialNum, 'After','LvlTrialNum');
             Out.TotalTrialNum = (1:numel(Tbl.Level))';
         end
-        function [chosen_figure] = getFigProps(fig, options)
-            chosen_figure=fig;
-            figure_property = struct; %Reset export Settings:
-            %FigProps = struct;
-            figure_property.units = 'inches';
-            figure_property.format = 'pdf';
-            figure_property.Preview= 'none';
-            figure_property.Width= num2str(options.Columns); % Figure width on canvas
-            figure_property.Height= num2str(options.Rows); % Figure height on canvas
-            figure_property.Units= 'inches';
-            figure_property.Color= 'rgb';
-            figure_property.Background= 'w';
-            %figure_property.FixedfontSize= '20';
-            %         figure_property.ScaledfontSize= 'auto';
-            %         figure_property.FontMode= 'scaled';
-            %         figure_property.FontSizeMin= '.5';
-            %figure_property.FixedLineWidth= '1';
-            figure_property.ScaledLineWidth= 'auto';
-            figure_property.LineMode= 'none';
-            %figure_property.LineWidthMin= '0.1';
-            figure_property.FontName= 'Helvetica';% Might want to change this to something that is available
-            figure_property.FontWeight= 'auto';
-            figure_property.FontAngle= 'auto';
-            figure_property.FontEncoding= 'latin1';
-            %         figure_property.PSLevel= '3';
-            %figure_property.Renderer= 'opengl';
-            figure_property.Resolution= '600';
-            figure_property.LineStyleMap= 'none';
-            figure_property.ApplyStyle= '0';
-            figure_property.Bounds= 'tight';
-            figure_property.LockAxes= 'off';
-            figure_property.LockAxesTicks= 'off';
-            figure_property.ShowUI= 'off';
-            figure_property.SeparateText= 'off';
-            set(chosen_figure,'PaperUnits','inches');
-            set(chosen_figure,'PaperPositionMode','auto');
-            %set(chosen_figure,'PaperOrientation','landscape');
-            set(chosen_figure,'PaperSize',[str2double(figure_property.Width) str2double(figure_property.Height)]); % Canvas Size
-            set(chosen_figure,'Units','inches');
-            %FigProps = figure_property;
+        function [fig] = getFigProps(fig, options)
+            figProps = struct; 
+            figProps.units = 'inches';
+            figProps.format = 'pdf';
+            figProps.Width = num2str(options.Columns); 
+            figProps.Height = num2str(options.Rows);
+            figProps.Renderer = 'painters';
+            figProps.Resolution = '600';
+            set(fig, 'PaperUnits', 'inches', 'PaperPositionMode', 'auto', 'PaperSize', ...
+                [str2double(figProps.Width) str2double(figProps.Height)]);
+        end
+        function unwrapError(err)
+            for i = 1:numel(fields(err))
+                field = fields(err){i};
+                if ismember(field, 'stack')
+                    for L = numel(err.stack):-1:1
+                        disp(['In fx ' err.stack(L).name ', line ' num2str(err.stack(L).line)])
+                    end
+                elseif ~isempty(err.(field))
+                    disp([field ': ' err.(field)])
+                end
+            end
         end
     end
-end %end class
+end
