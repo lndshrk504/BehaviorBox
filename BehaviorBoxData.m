@@ -2773,16 +2773,7 @@ classdef BehaviorBoxData < handle
                 [str2double(figProps.Width) str2double(figProps.Height)]);
         end
         function unwrapError(err)
-            for i = 1:numel(fields(err))
-                field = fields(err){i};
-                if ismember(field, 'stack')
-                    for L = numel(err.stack):-1:1
-                        disp(['In fx ' err.stack(L).name ', line ' num2str(err.stack(L).line)])
-                    end
-                elseif ~isempty(err.(field))
-                    disp([field ': ' err.(field)])
-                end
-            end
+            getReport(err, "extended")
         end
     end
 end

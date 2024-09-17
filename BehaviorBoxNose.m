@@ -886,7 +886,6 @@ classdef BehaviorBoxNose < handle
 
             this.processDecision();
         end
-
         function confirmCorrectChoice(this)
             if this.isStableForOneSecond(@(x) x.ReadLeft, false) && this.isLeftTrial
                 this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'Correct_Confirmation');
@@ -894,7 +893,6 @@ classdef BehaviorBoxNose < handle
                 this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'Correct_Confirmation');
             end
         end
-
         function setupStimulus(this)
             this.ResponseTime = 0;
             this.WhatDecision = 'time out';
@@ -911,7 +909,6 @@ classdef BehaviorBoxNose < handle
             this.ReadyCue(0);
             drawnow;
         end
-
         function processIgnoredInput(this)
             tic;
             while this.Setting_Struct.Input_ignored && toc <= this.Setting_Struct.Pokes_ignored_time
@@ -926,21 +923,17 @@ classdef BehaviorBoxNose < handle
                 drawnow;
             end
         end
-
         function updateInputIgnoredMessage(this)
             time = this.Setting_Struct.Pokes_ignored_time - toc;
             txt = sprintf("Ignoring input for %.1f sec...", round(time, 1));
             set(this.message_handle, 'Text', txt);
         end
-
         function displayChoicePrompt(this)
             set(this.message_handle, 'Text', sprintf('Waiting for %s choice...', this.current_side));
         end
-
         function recordStimulusEvent(this)
             this.Data_Object.addStimEvent(this.isLeftTrial);
         end
-
         function decision = getDecision(this)
             if ~isempty(this.a) && any(this.Box.Input_type == [1, 2, 3, 5])
                 [decision, this.ResponseTime] = this.readLeverLoopDigital();
@@ -948,19 +941,16 @@ classdef BehaviorBoxNose < handle
                 [decision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial);
             end
         end
-
         function handleIncorrectDecision(this)
             if this.Setting_Struct.OnlyCorrect && contains(this.WhatDecision, 'wrong', 'IgnoreCase', true)
                 set(this.message_handle, 'Text', sprintf('Reanswer... Waiting for %s choice...', this.current_side));
                 this.WhatDecision = this.getDecision();
             end
         end
-
         function clearPolygonColors(this)
             p = findobj('Type', 'Polygon');
             [p.FaceColor] = deal(this.StimulusStruct.BackgroundColor);
         end
-
         function processDecision(this)
             switch true
                 case contains(this.WhatDecision, 'correct', 'IgnoreCase', true)
@@ -971,7 +961,6 @@ classdef BehaviorBoxNose < handle
                     this.handleOnlyCorrect();
             end
         end
-
         function handleCorrectDecision(this)
             set(this.message_handle, 'Text', 'Giving Reward...');
             tic;
@@ -987,7 +976,6 @@ classdef BehaviorBoxNose < handle
             this.persistCorrectStimulus();
             this.hideStimulus();
         end
-
         function persistCorrectStimulus(this)
             if this.StimulusStruct.PersistCorrectInterv > 0
                 thisInt = this.StimulusStruct.PersistCorrectInterv;
@@ -1011,7 +999,6 @@ classdef BehaviorBoxNose < handle
                 this.updatePause(thisInt);
             end
         end
-
         function handleWrongDecision(this)
             set(this.message_handle, 'Text', sprintf('%s - Penalty...', this.WhatDecision));
             this.pauseForDrinking();
@@ -1023,7 +1010,6 @@ classdef BehaviorBoxNose < handle
                 this.fig.Color = 'k';
             end
         end
-
         function persistIncorrectStimulus(this)
             set(this.message_handle,'Text','Persisting correct stimulus...');
             if this.Box.Input_type == 3 % Nose
@@ -1036,7 +1022,6 @@ classdef BehaviorBoxNose < handle
                 end
             end
         end
-
         function handleOnlyCorrect(this)
             set(this.message_handle,'Text','Reanswer, Giving small Reward...');
             tic
@@ -1054,7 +1039,6 @@ classdef BehaviorBoxNose < handle
                 this.WhatDecision = "left wrong";
             end
         end
-
         function pauseForDrinking(this)
             if ~this.Box.KeyboardInput && this.Box.Input_type == 3
                 while this.a.ReadLeft() || this.a.ReadRight() % Pause while the mouse is standing there
@@ -1062,12 +1046,10 @@ classdef BehaviorBoxNose < handle
                 end
             end
         end
-
         function hideStimulus(this)
             o = findobj(this.fig.Children);
             [o(:).Visible] = deal(0);
         end
-
         function updatePause(this, interval)
             starttime = clock;
             while etime(clock, starttime) < interval
@@ -1081,7 +1063,6 @@ classdef BehaviorBoxNose < handle
                 end
             end
         end
-
         function pauseMessage(this)
             set(this.message_handle, 'Text', 'Paused, click pause button again to continue...');
             o = findobj(this.fig.Children);
