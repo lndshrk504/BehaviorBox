@@ -1214,29 +1214,39 @@ classdef BehaviorBoxData < handle
                 opts.LevGroup logical = 0
                 opts.History logical = 0
                 opts.Stim logical = 0
-                opts.LevelProgress logical = 0
-                opts.LevelProgressIndividual logical = 1
+                opts.LevelProgress logical = 1
+                opts.LevelProgressIndividual logical = 0
+                opts.Save logical = 1
             end
             Num = num2cell(1:numel(this.Sub));
             tic
             if opts.LevelProgress
                 this.BinomialProgress();
-                this.SaveManyFigures([],'Binomial', SameFolder=1)
-                close all
+                if opts.Save
+                    this.SaveManyFigures([],'Binomial', SameFolder=1)
+                    close all
+                end
             end
             if opts.LevelProgressIndividual
                 this.BinomialProgressIndividual();
-                this.SaveManyFigures([],'BinomialIndividual', SameFolder=1)
-                close all
+                if opts.Save
+                    this.SaveManyFigures([],'BinomialIndividual', SameFolder=1)
+                    close all
+                end
             end
             if opts.LevGroup
                 cellfun(@(x){this.PlotLevelGroupsByDay(Sc=x)}, Num); drawnow
-                this.SaveManyFigures([],'LevelGroup', SameFolder=1)
+                if opts.Save
+                    this.SaveManyFigures([],'LevelGroup', SameFolder=1)
+                    close all
+                end
             end
             if opts.History
-                close all
                 ACell = cellfun(@(x){this.plotLvByDayOneAxis(Sc=x, LevDay=0)}, Num);
-                this.SaveManyFigures([],'AllLevelsByDay', SameFolder=1)
+                if opts.Save
+                    this.SaveManyFigures([],'AllLevelsByDay', SameFolder=1)
+                    close all
+                end
                 cellfun(@(x) set(x, 'Visible', 'on'), ACell)
             end
             if opts.Stim
@@ -1416,7 +1426,7 @@ classdef BehaviorBoxData < handle
             arguments
                 this
                 options.Sc double = 1
-                options.Lvs double = [3 6 8 10 12 14] %
+                options.Lvs double = [3 6 8 10 12 16] %
                 options.Threshold double = 0.7 % Passing threshold for each level
                 options.count double = 10 % Num of consecutive trials above threshold before passing
                 options.tol double = 0 % How many below-threshold trials in the streak of options.count to be tolerated
@@ -1450,9 +1460,11 @@ classdef BehaviorBoxData < handle
                     B = bar(x, y, "Parent",Ax, "FaceColor","flat");
                     B.CData(1,:) = Ax.ColorOrder(1,:);
                     B.CData(2,:) = Ax.ColorOrder(2,:);
-                    E_Bar = errorbar(x, y, Err, ...
-                        "Parent", Ax, ...
-                        "LineStyle","none");
+                    if ~options.BarOnly
+                        E_Bar = errorbar(x, y, Err, ...
+                            "Parent", Ax, ...
+                            "LineStyle","none");
+                    end
                     N_Label = text(x, -0.1.*[1 1], "n = "+string(ThisData(3,:)), "VerticalAlignment","top", "HorizontalAlignment","center");
                     Level_Label = text(lc+0.5, -10, "Level "+L, "VerticalAlignment","top", "HorizontalAlignment","center");
                     Text = text(x, y, string(round(y, 2))+' +/- '+string(round(Err, 2)), "VerticalAlignment","bottom", "HorizontalAlignment","center");
@@ -1461,6 +1473,8 @@ classdef BehaviorBoxData < handle
                 end
                 lc = lc + 1;
             end
+            Ax.YLim(1) = -20;
+            Ax.YTick = 0:25:200;
         end
         function Out = BinomialProgressIndividual(this, options)
             % This fcn normalizes the performance to each day to show the mouse's
@@ -1506,10 +1520,10 @@ classdef BehaviorBoxData < handle
                     for II = find(contains(this.Sub, "- WT"))
                         B.CData(II,:) = Ax.ColorOrder(2,:);
                     end
-                    Level_Label = text(lc+0.5, -10, "Level "+L, "VerticalAlignment","top", "HorizontalAlignment","center");
+                    Level_Label = text(lc+0.5, -1, "Level "+L, "VerticalAlignment","top", "HorizontalAlignment","center");
                     Text = text(x, y, string(round(y, 2)), "VerticalAlignment","bottom", "HorizontalAlignment","center");
                     if options.NameLegend
-                        Names = text(x, -5*ones(size(x)), this.Sub, "HorizontalAlignment","center", "Rotation",90);
+                        Names = text(x, -55*ones(size(x)), this.Sub, "HorizontalAlignment","center", "Rotation",90);
                     end
                 catch err
                     unwrapErr
@@ -2685,7 +2699,7 @@ classdef BehaviorBoxData < handle
                 for f = FIG'
                     c = c+1;
                     fprops = this.getFigProps(f, options);
-                    this.SvFig(SavePathName(c),fprops, options)
+                    this.SvFig(SavePathName(c),fprops)
                 end
                 fprintf("Saved "+numel(FIG)+ " files... etime: " + toc + " seconds.\n")
                 return
@@ -2693,7 +2707,13 @@ classdef BehaviorBoxData < handle
             %winopen(SaveAsName)
             close(fig)
         end
-        function SvFig(Name, Props, options)
+        function SvFig(~, Name, Props, options)
+            arguments
+                ~
+                Name
+                Props
+                options.format = ".pdf"
+            end
             if options.format == ".pdf"
                 print(Name, Props, '-dpdf', ...
                     '-vector', ...
