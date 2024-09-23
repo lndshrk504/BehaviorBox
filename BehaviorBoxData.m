@@ -1468,11 +1468,12 @@ classdef BehaviorBoxData < handle
             arguments
                 this
                 options.Sc double = 1
-                options.Lvs double = [3 6 8 10 12 14] %  [2 3 5 6 8] %
+                options.Lvs double = [1:20] %  [2 3 5 6 8] %
                 options.Threshold double = 0.7 % Passing threshold for each level
                 options.count double = 10 % Num of consecutive trials above threshold before passing
                 options.tol double = 0 % How many below-threshold trials in the streak of options.count to be tolerated
                 options.BarOnly logical = true
+                options.NameLegend logical = true
             end
             Out = struct();
             SUBS = this.AnalyzedData.Subjects;
@@ -1488,7 +1489,6 @@ classdef BehaviorBoxData < handle
             for L = options.Lvs
                 % Prepare and format 2x2 subplot
                 try
-
                     ThisData = cell2mat(Data{L,1}{:});
                     if ThisData == 0
                         continue
@@ -1500,15 +1500,17 @@ classdef BehaviorBoxData < handle
                     y = ThisData(1,:);
                     %Err = ThisData(2,:);
                     B = bar(x, y, "Parent",Ax, "FaceColor","flat");
-                    B.CData(1,:) = Ax.ColorOrder(1,:);
-                    B.CData(2,:) = Ax.ColorOrder(1,:);
-                    B.CData(3,:) = Ax.ColorOrder(1,:);
-                    B.CData(4,:) = Ax.ColorOrder(1,:);
-                    B.CData(5,:) = Ax.ColorOrder(2,:);
-                    B.CData(6,:) = Ax.ColorOrder(2,:);
-                    B.CData(7,:) = Ax.ColorOrder(2,:);
+                    for II = find(contains(this.Sub, "- Het"))
+                        B.CData(II,:) = Ax.ColorOrder(1,:);
+                    end
+                    for II = find(contains(this.Sub, "- WT"))
+                        B.CData(II,:) = Ax.ColorOrder(2,:);
+                    end
                     Level_Label = text(lc+0.5, -10, "Level "+L, "VerticalAlignment","top", "HorizontalAlignment","center");
                     Text = text(x, y, string(round(y, 2)), "VerticalAlignment","bottom", "HorizontalAlignment","center");
+                    if options.NameLegend
+                        Names = text(x, -5*ones(size(x)), this.Sub, "HorizontalAlignment","center", "Rotation",90);
+                    end
                 catch err
                     unwrapErr
                 end
