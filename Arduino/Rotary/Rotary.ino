@@ -7,7 +7,7 @@
 #define PIN_9 9   // Start Acquisition (SI)
 #define PIN_10 10 // Next File (SI)
 #define PIN_11 11 // End Acquisition (SI)
-#define PIN_12 12 // Timestamp (Time)
+#define PIN_12 12 // Timestamp for stimulus display new Trial, sent to Timekeeper
 
 // Define state for different states
 enum State {
