@@ -619,7 +619,7 @@ classdef BehaviorBoxData < handle
                 OverBinomial_AVG{L,"p<0.01"} = {[mean(cell2mat(CROSS_2(Het)), "omitmissing") mean(cell2mat(CROSS_2(WT)), "omitmissing") ; std(cell2mat(CROSS_2(Het)), "omitmissing") std(cell2mat(CROSS_2(WT)), "omitmissing") ; sum(cellfun(@(x) ~isnan(x), CROSS_2(Het))) sum(cellfun(@(x) ~isnan(x), CROSS_2(WT)))]};
                 CROSS_3 = cellfun(@(x) find(x{L}{:,6} < 0.001, 1, "first")+this.BB, Lev, UniformOutput=0, ErrorHandler=@errorFuncNaN);
                 CROSS_3(cellfun('isempty', CROSS_3)) = {NaN};
-                OverBinomial{L,"p<0.001"} = {[ {[CROSS_1{Het}]} {[CROSS_1{WT}]} ]};
+                OverBinomial{L,"p<0.001"} = {[ {[CROSS_3{Het}]} {[CROSS_3{WT}]} ]};
                 OverBinomial_AVG{L,"p<0.001"} = {[mean(cell2mat(CROSS_3(Het)), "omitmissing") mean(cell2mat(CROSS_3(WT)), "omitmissing") ; std(cell2mat(CROSS_3(Het)), "omitmissing") std(cell2mat(CROSS_3(WT)), "omitmissing") ; sum(cellfun(@(x) ~isnan(x), CROSS_3(Het))) sum(cellfun(@(x) ~isnan(x), CROSS_3(WT)))]};
             end
             Cross = {OverBinomial ; OverBinomial_AVG};
@@ -1214,8 +1214,8 @@ classdef BehaviorBoxData < handle
                 opts.LevGroup logical = 0
                 opts.History logical = 0
                 opts.Stim logical = 0
-                opts.LevelProgress logical = 1
-                opts.LevelProgressIndividual logical = 0
+                opts.LevelProgress logical = 0
+                opts.LevelProgressIndividual logical = 1
                 opts.Save logical = 1
             end
             Num = num2cell(1:numel(this.Sub));
@@ -1228,10 +1228,12 @@ classdef BehaviorBoxData < handle
                 end
             end
             if opts.LevelProgressIndividual
-                this.BinomialProgressIndividual();
-                if opts.Save
-                    this.SaveManyFigures([],'BinomialIndividual', SameFolder=1)
-                    close all
+                for P = 1:3
+                    this.BinomialProgressIndividual("WhichPValue",P);
+                    if opts.Save
+                        this.SaveManyFigures([],'BinomialIndividual', SameFolder=1)
+                        close all
+                    end
                 end
             end
             if opts.LevGroup
@@ -1488,6 +1490,7 @@ classdef BehaviorBoxData < handle
                 options.tol double = 0 % How many below-threshold trials in the streak of options.count to be tolerated
                 options.BarOnly logical = true
                 options.NameLegend logical = true
+                options.WhichPValue = 3 % 1 is 0.05, 2 is 0.01 3 is 0.001
             end
             Out = struct();
             SUBS = this.AnalyzedData.Subjects;
@@ -1495,7 +1498,7 @@ classdef BehaviorBoxData < handle
             Data = this.AnalyzedData.CrossTable{1};
             Ax = MakeAxis();
             hold(Ax, "on")
-            Ax.Parent.Title.String = string(this.Str)+deets{2};
+            Ax.Parent.Title.String = string(this.Str)+deets{2}+Data.Properties.VariableNames{options.WhichPValue};
             Ax.Parent.Parent.Name = Ax.Parent.Title.String;
             Ax.Box=0;
             LabelList = [];
@@ -1503,7 +1506,7 @@ classdef BehaviorBoxData < handle
             for L = options.Lvs
                 % Prepare and format 2x2 subplot
                 try
-                    ThisData = cell2mat(Data{L,1}{:});
+                    ThisData = cell2mat(Data{L,options.WhichPValue}{:});
                     if ThisData == 0
                         continue
                     end
@@ -1520,16 +1523,17 @@ classdef BehaviorBoxData < handle
                     for II = find(contains(this.Sub, "- WT"))
                         B.CData(II,:) = Ax.ColorOrder(2,:);
                     end
-                    Level_Label = text(lc+0.5, -1, "Level "+L, "VerticalAlignment","top", "HorizontalAlignment","center");
+                    Level_Label = text(lc+0.5, -180, "Level "+L, "VerticalAlignment","top", "HorizontalAlignment","center");
                     Text = text(x, y, string(round(y, 2)), "VerticalAlignment","bottom", "HorizontalAlignment","center");
                     if options.NameLegend
-                        Names = text(x, -55*ones(size(x)), this.Sub, "HorizontalAlignment","center", "Rotation",90);
+                        Names = text(x, -75*ones(size(x)), this.Sub, "HorizontalAlignment","center", "Rotation",90);
                     end
                 catch err
                     unwrapErr
                 end
                 lc = lc + 1;
             end
+            Ax.YLim(1) = -180;
         end
         function Out = consecutiveTrial(this, vec, count, tol)
             arguments
@@ -2671,7 +2675,7 @@ classdef BehaviorBoxData < handle
                 fig
                 filename string
                 options.format string = ".pdf"
-                options.Columns = 20     %Inches across
+                options.Columns = 30     %Inches across
                 options.Rows = 5 %Inches high
                 options.SameFolder logical = false
             end
@@ -2684,6 +2688,8 @@ classdef BehaviorBoxData < handle
                 else
                     Names = {FIG.Name};
                 end
+                Names = strrep(Names, '<0.', '-below-');
+                Names = strrep(Names, ' ', '-');
                 if options.SameFolder %Make a folder using filename to save all files
                     SavePathName = fullfile(this.filedir, filename, string(Names)'+filename);
                     if ~isfolder(fullfile(this.filedir, filename))
