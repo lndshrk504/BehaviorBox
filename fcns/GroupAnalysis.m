@@ -7,7 +7,7 @@ F = BehaviorBoxData(Inv='Will', Inp='NosePoke', Sub={'- F -'}, BB=20, SB=10);
 % Males, nose
 M = BehaviorBoxData(Inv='Will', Inp='NosePoke', Sub={'- M -'}, BB=20, SB=10);
 
-F.GroupData
+%F.GroupData
 
 
-M.GroupData
+%M.GroupData

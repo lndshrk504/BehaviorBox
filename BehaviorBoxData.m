@@ -60,11 +60,11 @@ classdef BehaviorBoxData < handle
         function this = BehaviorBoxData(options)
             arguments
                 options.Inv (1,:) char = 'Will';
-                options.Inp (1,:) char;
-                options.Str (1,:) char;
-                options.Sub (1,:) cell;
-                options.BB double = 60;
-                options.SB double = 30;
+                options.Inp (1,:) char = 'NosePoke';
+                options.Str (1,:) char = 'shank';
+                options.Sub (1,:) cell = {'- F -'};
+                options.BB double = 20;
+                options.SB double = 10;
                 options.load logical = 1;
                 options.analyze logical = 1;
                 options.plot logical = 0;
@@ -248,7 +248,7 @@ classdef BehaviorBoxData < handle
         function [varargout] = loadFiles(this, options)
             arguments
                 this
-% How many trials to remove from the end of each day, to accomodate for the mouse's waning attention/interest in the task
+                % How many trials to remove from the end of each day, to accomodate for the mouse's waning attention/interest in the task
                 options.CropEnd double = 30
             end
             tic
@@ -462,65 +462,73 @@ classdef BehaviorBoxData < handle
         function [varargout] = AnalyzeAllData(this, options)
             arguments
                 this
-                options.CropEnd double = 30 % How many trials to remove from the end of each day, to accomodate for the mouse's waning attention/interest in the task
+                options.CropEnd double = 30
             end
             tic
-            Out = struct;
-            numSubs = size(this.Sub);
-            Out.TrialTbls = cell(numSubs);
-            Out.SplitTbls = cell(numSubs);
-            Out.LevelTbls = cell(numSubs);
-            Out.DayMM = cell(numSubs);
-            Out.LevelMM = cell(numSubs);
-            SC = 0;
-            for S = struct2cell(this.DayData)'
-                SC = SC + 1;
-                data = S{:}(:,3);
-                SDData = struct();
-                for f = {'Date','TrialNum','LvlTrialNum','BigBin','SmallBin','TimeStamp','Score','Level','isLeftTrial','CodedChoice','Include'}
-                    fn = f{:};
-                    SDData.(fn) = cell2mat(cellfun(@(x)x.(fn), data, 'UniformOutput', false));
-                end
-                trialTbl = struct2table(SDData);
-                trialTbl.Level = round(trialTbl.Level);
-                trialTbl = this.getLevelTNums(trialTbl);
-                Out.TrialTbls{SC} = trialTbl;
-                this.trial_table = trialTbl;
-                [allDates, Ds] = findgroups(trialTbl.Date');
-                %Out.SplitTbls{SC} = cellfun(@SplitDays, num2cell(Ds), "UniformOutput", false);
-                Out.DayMM{SC} = table;
-                try
-                    [G,Out.DayMM{SC}.Ds,Out.DayMM{SC}.Ls] = findgroups(trialTbl.Date, trialTbl.Level);
-                    Out.DayMM{SC}.DayNums = num2cell(findgroups(Out.DayMM{SC}.Ds));
-                    Out.DayMM{SC}.dayBin = splitapply(@(x){this.DayBin(x)}, [trialTbl.Score trialTbl.Level trialTbl.Date allDates'], G);
-                    Out.DayMM{SC} = sortrows(Out.DayMM{SC}, {'Ls'});
-                catch Err
-                    unwrapErr(Err);
-                end
-                U_Lvs = unique(trialTbl.Level);
-                [G, Lvs] = findgroups(trialTbl.Level);
-                AllLevels = num2cell(1:20);
-                Out.LevelTbls{SC} = cellfun(@(x){trialTbl(trialTbl.Level==x,:)}, AllLevels, "UniformOutput", true);
-                % Out.LevelTbls{SC}(cellfun(@(x)size(x,1), Out.LevelTbls{SC}) == 0) This gives indices of empty levels
-                this.LevelHist.LastScores = cellfun(@(x){trialTbl(trialTbl.Level==x,:).Score(end-100:end)}, AllLevels, "ErrorHandler",@errorFuncZeroCell);
-                %this.LevelHist.MM = cellfun(@(x)this.LevelMMAnalysis(x), this.LevelHist.LastScores, "ErrorHandler",@errorFuncNaN);
-                Out.LevelMM{SC} = cell(1, max(Lvs));
-                LMM = splitapply(@(x)this.LevelMMAnalysis(x), [trialTbl.Score allDates' trialTbl.Include], G)';
-                for i = 1:numel(LMM)
-                    Out.LevelMM{SC}{Lvs(i)} = LMM{i};
-                end
-            end
-            this.AnalyzedData = Out;
-            this.SortSubjects();
-            this.AnalyzedData.CrossTable = this.MMCross();
+            initializeAnalysisOutput(this);
+            processAnalysisForEachSubject(this, options);
             this.current_data_struct = this.new_init_data_struct();
             fprintf("Analyzed... : " + toc + " seconds.\n")
             if nargout >= 1
-                varargout{1} = Out;
+                varargout{1} = this.AnalyzedData;
+            end
+        end
+
+        function initializeAnalysisOutput(this)
+            this.AnalyzedData = struct;
+            this.AnalyzedData.TrialTbls = cell(size(this.Sub));
+            this.AnalyzedData.SplitTbls = cell(size(this.Sub));
+            this.AnalyzedData.LevelTbls = cell(size(this.Sub));
+            this.AnalyzedData.DayMM = cell(size(this.Sub));
+            this.AnalyzedData.LevelMM = cell(size(this.Sub));
+        end
+
+        function processAnalysisForEachSubject(this, options)
+            SC = 0;
+            for S = struct2cell(this.DayData)'
+                SC = SC + 1;
+                try
+                    processAnalysisForSubject(this, S, SC);
+                catch err
+                    unwrapError(err);
+                    continue;
+                end
+            end
+        end
+
+        function processAnalysisForSubject(this, S, SC)
+            data = S{:}(:,3);
+            SDData = struct();
+            for f = {'Date','TrialNum','LvlTrialNum','BigBin','SmallBin','TimeStamp','Score','Level','isLeftTrial','CodedChoice','Include'}
+                fn = f{:};
+                SDData.(fn) = cell2mat(cellfun(@(x)x.(fn), data, 'UniformOutput', false));
+            end
+            trialTbl = struct2table(SDData);
+            trialTbl.Level = round(trialTbl.Level);
+            trialTbl = this.getLevelTNums(trialTbl);
+            this.AnalyzedData.TrialTbls{SC} = trialTbl;
+            this.trial_table = trialTbl;
+            [allDates, Ds] = findgroups(trialTbl.Date');
+            this.AnalyzedData.DayMM{SC} = table;
+            [G, this.AnalyzedData.DayMM{SC}.Ds, this.AnalyzedData.DayMM{SC}.Ls] = findgroups(trialTbl.Date, trialTbl.Level);
+            this.AnalyzedData.DayMM{SC}.DayNums = num2cell(findgroups(this.AnalyzedData.DayMM{SC}.Ds));
+            this.AnalyzedData.DayMM{SC}.dayBin = splitapply(@(x){this.DayBin(x)}, [trialTbl.Score trialTbl.Level trialTbl.Date allDates'], G);
+            this.AnalyzedData.DayMM{SC} = sortrows(this.AnalyzedData.DayMM{SC}, {'Ls'});
+
+            % Process levels
+            U_Lvs = unique(trialTbl.Level);
+            [G, Lvs] = findgroups(trialTbl.Level);
+            AllLevels = num2cell(1:20);
+            this.AnalyzedData.LevelTbls{SC} = cellfun(@(x){trialTbl(trialTbl.Level==x,:)}, AllLevels, "UniformOutput", true);
+            this.LevelHist.LastScores = cellfun(@(x){trialTbl(trialTbl.Level==x,:).Score(end-100:end)}, AllLevels, "ErrorHandler",@errorFuncZeroCell);
+            this.AnalyzedData.LevelMM{SC} = cell(1, max(Lvs));
+            LMM = splitapply(@(x)this.LevelMMAnalysis(x), [trialTbl.Score allDates' trialTbl.Include], G)';
+            for i = 1:numel(LMM)
+                this.AnalyzedData.LevelMM{SC}{Lvs(i)} = LMM{i};
             end
         end
         function SortSubjects(this)
-%Reorder everything in this.AnalyzedData to put Hets first, WTs last
+            %Reorder everything in this.AnalyzedData to put Hets first, WTs last
             this.AnalyzedData.Subjects = this.Sub;
             WTs = find(contains(this.AnalyzedData.Subjects, "WT"));
             Hets = find(~contains(this.AnalyzedData.Subjects, "WT"));
@@ -597,7 +605,7 @@ classdef BehaviorBoxData < handle
             end
         end
         function Cross = MMCross(this)
-% Moving Mean Cross (the threshold)
+            % Moving Mean Cross (the threshold)
             arguments
                 this
             end
@@ -611,7 +619,7 @@ classdef BehaviorBoxData < handle
             for L = 1:max(cellfun(@(x) numel(x), Lev, UniformOutput=true))
                 CROSS_1 = cellfun(@(x) find(x{L}{:,6} < 0.05, 1, "first")+this.BB, Lev, UniformOutput=0, ErrorHandler=@errorFuncNaN);
                 CROSS_1(cellfun('isempty', CROSS_1)) = {NaN};
-                OverBinomial{L,"p<0.05"} = {[ {[CROSS_1{Het}]} {[CROSS_1{WT}]} ]} ; 
+                OverBinomial{L,"p<0.05"} = {[ {[CROSS_1{Het}]} {[CROSS_1{WT}]} ]} ;
                 OverBinomial_AVG{L,"p<0.05"} = {[mean(cell2mat(CROSS_1(Het)), "omitmissing") mean(cell2mat(CROSS_1(WT)), "omitmissing") ; std(cell2mat(CROSS_1(Het)), "omitmissing") std(cell2mat(CROSS_1(WT)), "omitmissing") ; sum(cellfun(@(x) ~isnan(x), CROSS_1(Het))) sum(cellfun(@(x) ~isnan(x), CROSS_1(WT)))]};
                 CROSS_2 = cellfun(@(x) find(x{L}{:,6} < 0.01, 1, "first")+this.BB, Lev, UniformOutput=0, ErrorHandler=@errorFuncNaN);
                 CROSS_2(cellfun('isempty', CROSS_2)) = {NaN};
@@ -633,7 +641,7 @@ classdef BehaviorBoxData < handle
                 options.FromChance = [] % Append the Scores with a 0.5 to start the moving mean from 50%
                 options.Endpoints = [] %Shrink or Discard
             end
-        % Init settings variables:
+            % Init settings variables:
             Endpoints = [];
             FromChance = [];
             switch 1 %Either the BinSize is a number or the Type is specified
@@ -651,14 +659,14 @@ classdef BehaviorBoxData < handle
                     FromChance = 1;
                 otherwise
             end
-        %Check defaults against inputs, override if specified
+            %Check defaults against inputs, override if specified
             if ~isempty(options.Endpoints)
                 Endpoints = options.Endpoints;
             end
             if ~isempty(options.FromChance)
                 FromChance = options.FromChance;
             end
-        % Decode settings
+            % Decode settings
             if Endpoints
                 EP = 'shrink';
             else
@@ -682,7 +690,7 @@ classdef BehaviorBoxData < handle
                     MM = sMM;
                     return
                 end
-            % For standard deviation:
+                % For standard deviation:
                 B1 = movmean(scores(1:(numel(scores)-this.SB)), [this.SB-1 0], 'Endpoints', 'discard');
                 B2 = movmean(scores((this.SB+1):numel(scores)), [this.SB-1 0], 'Endpoints', 'discard');
                 STD = std([B1 B2],0,2);
@@ -818,20 +826,20 @@ classdef BehaviorBoxData < handle
             if options.IsAnalysis && options.CE ~= 0 && max(data.TrialNum) >= 120
                 % Crop the last few trials
 
-            %Either use the Include vector to later crop (more work)
+                %Either use the Include vector to later crop (more work)
                 data.Include(end-options.CE+1:end) = 2;
                 m = numel(data.TrialNum);
-            % Or just remove them
-            for n = names'
-                try
-                    if numel(data.(n{:}))~=m
-                        continue
+                % Or just remove them
+                for n = names'
+                    try
+                        if numel(data.(n{:}))~=m
+                            continue
+                        end
+                        data.(n{:})(end-options.CE+1:end) = [];
+                    catch err
+                        unwrapErr(err)
                     end
-                    data.(n{:})(end-options.CE+1:end) = [];
-                catch err
-                    unwrapErr(err)
                 end
-            end
             end
         end
         %Plot functions
@@ -865,28 +873,32 @@ classdef BehaviorBoxData < handle
             toc
         end
         function PlotNewData(this)
-            structfun(@cla, this.Axes)
+            initializeAxes(this.Axes);
             if ~isfield(this.current_data_struct, 'LevelGroups')
                 this.current_data_struct = CleanData(this.current_data_struct);
             end
+            prepareDataForPlotting(this);
+            plotData(this);
+        end
+        function initializeAxes(axes)
+            structfun(@cla, axes)
+        end
+        function prepareDataForPlotting(this)
             trialTbl = this.current_data_struct;
-            [G,ID] = findgroups(this.current_data_struct.Level);
+            [G, ID] = findgroups(this.current_data_struct.Level);
             DATE = ones(size(this.current_data_struct.Score));
             this.AnalyzedData.DayMM = splitapply(@(x){this.DayBin(x)}, [this.current_data_struct.Score this.current_data_struct.Level DATE DATE], G);
             this.AnalyzedData.LevMM = splitapply(@(x)this.LevelMMAnalysis(x), [trialTbl.Score DATE DATE], G);
+        end
+        function plotData(this)
             try
-                this.setGUI(this.current_data_struct, this.GUInum)
-                % try
-                %     this.plotTimerHists(this.Axes, this.current_data_struct)
-                % catch
-                % end
-                %this.plotTrialHistory(this.Axes.TrialHistory, this.current_data_struct)
-                this.plotBinnedPerformance(this.Axes.BinnedPerf, this.current_data_struct)
-                this.plotAllLevelPerformance()
-                this.plotSideBias(this.Axes.SideBias, this.current_data_struct)
-                this.plotLevelPerf(this.Axes.LevelCount, this.current_data_struct)
+                this.setGUI(this.current_data_struct, this.GUInum);
+                this.plotBinnedPerformance(this.Axes.BinnedPerf, this.current_data_struct);
+                this.plotAllLevelPerformance();
+                this.plotSideBias(this.Axes.SideBias, this.current_data_struct);
+                this.plotLevelPerf(this.Axes.LevelCount, this.current_data_struct);
             catch err
-                unwrapErr(err)
+                unwrapError(err);
             end
         end
         function plotTimerHists(this, ~, Data)
@@ -1271,12 +1283,12 @@ classdef BehaviorBoxData < handle
                 options.tol double = 0 % How many below-threshold trials in the streak of options.count to be tolerated
             end
             Out = struct();
-        % Pull the cumulative Level and Day data
+            % Pull the cumulative Level and Day data
             LEVDATA = cellfun(@(x)this.AnalyzedData.LevelMM{x}, num2cell(1:numel(this.Sub)), UniformOutput=false);
             DAYDATA = cellfun(@(x)this.AnalyzedData.DayMM{x}, num2cell(1:numel(this.Sub)), UniformOutput=false);
             SUBS = this.AnalyzedData.Subjects;
             for L = options.Lvs
-            % Prepare and format 2x2 subplot
+                % Prepare and format 2x2 subplot
                 Ax = MakeAxis();
                 Bx = nexttile; hold(Bx,"on");
                 Cx = nexttile; hold(Cx,"on");
@@ -1296,7 +1308,7 @@ classdef BehaviorBoxData < handle
                 Dx.Box=0;
                 Ax.YLim = [0.4 1]; Bx.YLim = [0.4 1];
                 SC = 0;
-            % Matrix to record passing data:
+                % Matrix to record passing data:
                 PassIdx = zeros(numel(SUBS),9);
                 % 1 Did they pass
                 % 2 at which trial number
@@ -1314,7 +1326,7 @@ classdef BehaviorBoxData < handle
                     PassIdx(SC,7) = contains(thisSub, "Het");
                     PassIdx(SC,8) = contains(thisSub, "- M -");
                     ColorIdx = PassIdx(SC,7)+1;
-                %Check if they've seen this level:
+                    %Check if they've seen this level:
                     if ~any(SUBDATA{1}.Ls == L)
                         continue
                     end
@@ -1330,7 +1342,7 @@ classdef BehaviorBoxData < handle
                         PassIdx(SC,9) = min(lb);
                         lp = plot(lx,ly,"Parent",Ax,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
                         lpB = plot((1:numel(ly))+(this.BB-1),ly,"Parent",Bx,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
-                    % From cumulative LevelTable, find the trials over the threshold
+                        % From cumulative LevelTable, find the trials over the threshold
                         % overThreshEx = cellfun(@(x)find(x(:,1)>=options.Threshold & x(:,5)==1)+this.BB, LevData, 'UniformOutput', false, 'ErrorHandler',@errorFuncNaN);
                         % TrialEx = cellfun(@(x) this.consecutiveTrial(x, options.count, options.tol), overThreshEx, "UniformOutput",true);
                         overThresh = cellfun(@(x)find(x(:,1)>=options.Threshold)+this.BB, LevData, 'UniformOutput', false, 'ErrorHandler',@errorFuncNaN);
@@ -2653,21 +2665,21 @@ classdef BehaviorBoxData < handle
             this.graphFig.MenuBar = 'figure';
         end
         function saveFigure(~, fig, folder, name)
-                % saveFigure Save the given figure to a specified folder as a PDF file.
-                %   saveFigure(fig, folder, name)
-                %   fig    - Handle to the MATLAB figure to be saved.
-                %   folder - Destination folder where the figure should be saved.
-                %   name   - The name to use for the saved PDF file.
-                name = erase(name, '.mat');
-                % Create the complete filename
-                fullPath = fullfile(folder, name + ".pdf");
-                
-                % Set figure properties before saving
-                set(fig, 'Units', 'inches', 'PaperUnits', 'inches', 'PaperSize', [11 8.5], ...
-                        'PaperPositionMode', 'auto', 'PaperPosition', [0 0 11 8.5]);
-                
-                % Save the figure as a PDF using exportgraphics
-                exportgraphics(fig, fullPath, 'ContentType', 'vector', 'Resolution', 600);
+            % saveFigure Save the given figure to a specified folder as a PDF file.
+            %   saveFigure(fig, folder, name)
+            %   fig    - Handle to the MATLAB figure to be saved.
+            %   folder - Destination folder where the figure should be saved.
+            %   name   - The name to use for the saved PDF file.
+            name = erase(name, '.mat');
+            % Create the complete filename
+            fullPath = fullfile(folder, name + ".pdf");
+
+            % Set figure properties before saving
+            set(fig, 'Units', 'inches', 'PaperUnits', 'inches', 'PaperSize', [11 8.5], ...
+                'PaperPositionMode', 'auto', 'PaperPosition', [0 0 11 8.5]);
+
+            % Save the figure as a PDF using exportgraphics
+            exportgraphics(fig, fullPath, 'ContentType', 'vector', 'Resolution', 600);
         end
         function SaveManyFigures(this, fig, filename, options)
             arguments
@@ -2790,10 +2802,10 @@ classdef BehaviorBoxData < handle
             Out.TotalTrialNum = (1:numel(Tbl.Level))';
         end
         function [fig] = getFigProps(fig, options)
-            figProps = struct; 
+            figProps = struct;
             figProps.units = 'inches';
             figProps.format = 'pdf';
-            figProps.Width = num2str(options.Columns); 
+            figProps.Width = num2str(options.Columns);
             figProps.Height = num2str(options.Rows);
             figProps.Renderer = 'painters';
             figProps.Resolution = '600';
