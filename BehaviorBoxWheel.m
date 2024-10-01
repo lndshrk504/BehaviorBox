@@ -930,7 +930,7 @@ classdef BehaviorBoxWheel < handle
             this.DrinkTime = 0;
 
             % Optimized background and ready cue handling
-            setVisibleChildren(this.fig.Children, true);
+            this.setVisibleChildren(this.fig.Children, true);
             this.fig.Color = this.StimulusStruct.BackgroundColor;
             this.ReadyCue(0);
             drawnow limitrate;  % Globally limit drawnow frequency for performance gains
