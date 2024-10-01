@@ -70,11 +70,6 @@ classdef BehaviorBoxWheel < handle
         counter_for_alternate = 0;
         current_side;
         Level;
-        RampCount=0;
-        RampCorrectCount=0;
-        RampWhichLevel;
-        RampMax;
-        RampMin;
         isCorrect = 1;
         isLeftTrial = 1; %Overwritten when the first trial starts, but initialized as 1 to prevent a crash
         isTraining = 0; %Set during setup, if 1 run BBSuper loop, if 0 run BBSub1 loop %Use this for the new NosePoke settings.
@@ -404,7 +399,7 @@ classdef BehaviorBoxWheel < handle
             else %If correct or no repeat wrong
                 this.isLeftTrial = this.PickSideForCorrect(this.isLeftTrial, this.SideBias); %Pick if isLeftTrial
                 %Pick next difficulty level, if variable
-                if this.Setting_Struct.Ramp || this.Setting_Struct.EasyTrials
+                if this.Setting_Struct.EasyTrials
                     [this.Level] = this.PickDifficultyLevel();
                 else
                     this.Level = this.Setting_Struct.Starting_opacity;
