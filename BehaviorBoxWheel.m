@@ -387,12 +387,6 @@ classdef BehaviorBoxWheel < handle
             %Update GUI window numbers
             this.updateGUIbeforeIteration();
             %Pick next reward drop size, if variable
-            if this.Box.Variable_pulses
-                Pulse_Min = this.Setting_Struct.Pulse_Min;
-                Pulse_Max = this.Setting_Struct.PulseMax;
-                range = Pulse_Min:1:Pulse_Max;
-                this.RewardPulses = range(randperm(numel(range), 1));
-            end
             try
                 LastScore = this.Data_Object.current_data_struct.CodedChoice(end);
             catch
