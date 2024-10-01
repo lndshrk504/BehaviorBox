@@ -963,7 +963,7 @@ classdef BehaviorBoxWheel < handle
             this.processAfterDecision(this, keyboardInput, inputType);
 
         end
-        function setVisibleChildren(children, isVisible)
+        function setVisibleChildren(this, children, isVisible)
             for obj = children
                 obj.Visible = isVisible;
             end
