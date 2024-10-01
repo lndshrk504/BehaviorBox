@@ -30,7 +30,7 @@ classdef BehaviorBoxSerial < handle
             end
             this.Input_type = Input_type;
             this.Ard = serialport(port, baudRate, ...
-                "Timeout", 0.1);
+                "Timeout", 2);
             configureTerminator(this.Ard,"CR/LF");
             configureCallback(this.Ard, "terminator", @this.SerialRead);
             this.Reset();

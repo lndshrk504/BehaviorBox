@@ -171,7 +171,10 @@ void setup() {
   pinMode(PIN_6, INPUT_PULLUP);
   pinMode(PIN_7, OUTPUT);
   pinMode(PIN_8, OUTPUT);
-  displayWelcomeMessage();
+  Serial.println();
+  Serial.println("Welcome to BehaviorBox - NosePoke");
+  Serial.println();
+  Serial.println("Readout begins below...");
 }
 
 void loop() {

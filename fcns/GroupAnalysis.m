@@ -9,5 +9,4 @@ M = BehaviorBoxData(Inv='Will', Inp='NosePoke', Sub={'- M -'}, BB=20, SB=10);
 
 F.GroupData
 
-
 M.GroupData
