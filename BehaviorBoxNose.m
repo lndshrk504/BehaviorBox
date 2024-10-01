@@ -70,11 +70,6 @@ classdef BehaviorBoxNose < handle
         counter_for_alternate = 0;
         current_side;
         Level;
-        RampCount=0;
-        RampCorrectCount=0;
-        RampWhichLevel;
-        RampMax;
-        RampMin;
         isCorrect = 1;
         isLeftTrial = 1; %Overwritten when the first trial starts, but initialized as 1 to prevent a crash
         isTraining = 0; %Set during setup, if 1 run BBSuper loop, if 0 run BBSub1 loop %Use this for the new NosePoke settings.
@@ -377,13 +372,7 @@ classdef BehaviorBoxNose < handle
             this.CheckTemp();
             %Update GUI window numbers
             this.updateGUIbeforeIteration();
-            %Pick next reward drop size, if variable
-            if this.Box.Variable_pulses
-                Pulse_Min = this.Setting_Struct.Pulse_Min;
-                Pulse_Max = this.Setting_Struct.PulseMax;
-                range = Pulse_Min:1:Pulse_Max;
-                this.RewardPulses = range(randperm(numel(range), 1));
-            end
+            this.WhatDecision = 'time out';
             try
                 LastScore = this.Data_Object.current_data_struct.CodedChoice(end);
             catch
@@ -401,7 +390,7 @@ classdef BehaviorBoxNose < handle
             else %If correct or no repeat wrong
                 this.isLeftTrial = this.PickSideForCorrect(this.isLeftTrial, this.SideBias); %Pick if isLeftTrial
                 %Pick next difficulty level, if variable
-                if this.Setting_Struct.Ramp || this.Setting_Struct.EasyTrials
+                if this.Setting_Struct.EasyTrials
                     [this.Level] = this.PickDifficultyLevel();
                 else
                     this.Level = this.Setting_Struct.Starting_opacity;
@@ -1562,11 +1551,13 @@ classdef BehaviorBoxNose < handle
                 this.SideBias, ...
                 this.SetIdx, ...
                 this.SetStr(end))
-
-            %Wheel stuff, only save this if its a wheel trial
-            this.wheelchoice_record{this.i,1} = this.WhatDecision;
-            this.wheelchoice_record{this.i,2} = this.wheelchoice;
-            this.wheelchoice_record{this.i,3} = this.wheelchoicetime;
+            
+            if this.Box.Input_type == 6
+                %Wheel stuff, only save this if its a wheel trial
+                this.wheelchoice_record{this.i,1} = this.WhatDecision;
+                this.wheelchoice_record{this.i,2} = this.wheelchoice;
+                this.wheelchoice_record{this.i,3} = this.wheelchoicetime;
+            end
 
             this.RewardPulses = 0;
             this.InterTMal = 0;

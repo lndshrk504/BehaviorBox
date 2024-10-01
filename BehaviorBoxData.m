@@ -1078,6 +1078,9 @@ classdef BehaviorBoxData < handle
         end
         function plotAllLevelPerformance(this)
             Data = this.current_data_struct;
+            if all(Data.Score == 2)
+                return
+            end
             tnum = Data.TrialNum;
             Ax = this.Axes.AllLevelPerf; hold(Ax, "on");
             COUNT = 0;
