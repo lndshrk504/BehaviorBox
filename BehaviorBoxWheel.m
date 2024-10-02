@@ -361,7 +361,7 @@ classdef BehaviorBoxWheel < handle
             this.ReadyCueAx = this.fig.Children(3);
             this.ReadyCueStruct.Ax = this.ReadyCueAx;
             this.StimulusStruct.ReadyCue = this.ReadyCueStruct;
-            this.Box.use_wheel = 1;
+                this.Box.use_wheel = 1;
             % this.toggleButtonsOnOff(this.Buttons,0); % Turn off all buttons
             fprintf("- - - - -\n");
             txt = "Start trial Mouse "+this.Setting_Struct.Subject+" at "+string(datetime('now'));
@@ -373,7 +373,7 @@ classdef BehaviorBoxWheel < handle
         end
         %Do some things before each trial
         function BeforeTrial(this)
-            this.fig.Color = this.ReadyCueStruct.Color;
+                    this.fig.Color = this.ReadyCueStruct.Color;
             set(this.FF, 'Value', 0) %Turn off FF button
             this.UpdateSettings()
             this.CheckTemp();
@@ -992,7 +992,7 @@ classdef BehaviorBoxWheel < handle
             end
         end
         function setDistractorColor(this)
-            d = this.fig.Children.findobj('Tag', 'Distractor');
+                d = this.fig.Children.findobj('Tag', 'Distractor');
             DIM = this.StimulusStruct.DimColor;
             set(d, 'Color', DIM)
         end
