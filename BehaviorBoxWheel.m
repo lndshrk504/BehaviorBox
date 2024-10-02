@@ -713,7 +713,7 @@ classdef BehaviorBoxWheel < handle
                         timelimit = this.Setting_Struct.HoldStill;
                         tic;
                         while toc<=timelimit
-                            this.message_handle.Text = "Keep the wheel still for "+num2str(round(timelimit - toc,1))+" seconds."; drawnow
+                            this.message_handle.Text = "Keep the wheel still for "+num2str(round(timelimit - toc,1))+" seconds."; drawnow limitrate
                             if this.a.Reading ~= 0
                                 this.Flash(this.StimulusStruct, this.Box, findobj('Type', 'Polygon'), 'Wheel');
                                 this.a.Reset();
