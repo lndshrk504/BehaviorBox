@@ -275,19 +275,26 @@ classdef BehaviorBoxWheel < handle
                 this.Box.use_wheel = 0;
                 this.Box.ardunioReadDigital = 0;
                 this.Box.KeyboardInput = 0;
-                this.Box.readHigh = 0; % When unselected, NosePoke reads HIGH, when selected it reads LOW
                 %set which lever is what and what the input setup is from
                 this.Box.ResetPin        = 'D4';
                 this.Box.TriggerPin      = 'D5';
                 this.Box.Timestamp       = 'D9';
                 switch this.Setting_Struct.Box_Input_type
                     case 6 %Rotating Wheel
-                        this.a = BehaviorBoxSerial(comsnum, 9600, 'Wheel');
-                        this.Box.Reward =  'D6';
-                        this.Box.use_wheel = 1;
+                        try
+                            this.a = BehaviorBoxSerial(comsnum, 9600, 'Wheel');
+                            this.Box.Reward =  'D6';
+                            this.Box.use_wheel = 1;
+                            this.a.SetupReward("Which", "Both", "DurationLeft", this.Box.Lrewardtime, "DurationRight", this.Box.Rrewardtime);
+                        catch
+                            this.Box.use_ball = 0; %All these are automatically off
+                            this.Box.use_wheel = 0;
+                            this.Box.ardunioReadDigital = 0;
+                            this.Box.KeyboardInput = 1;
+                            this.Setting_Struct.Box_Input_type = 8;
+                        end
                     case 8 %Keyboard, used if no arduino connected
                         this.Box.KeyboardInput = 1;
-                        this.Box.readHigh = 1;
                         return
                 end
                 toc
@@ -296,7 +303,6 @@ classdef BehaviorBoxWheel < handle
                 this.Box.use_wheel = 0;
                 this.Box.ardunioReadDigital = 0;
                 this.Box.KeyboardInput = 1;
-                this.Box.readHigh = 0; % When unselected, NosePoke reads HIGH, when selected it reads LOW
                 this.Setting_Struct.Box_Input_type = 8;
                 this.a = [];
             end
@@ -351,14 +357,12 @@ classdef BehaviorBoxWheel < handle
                 end
             end
             [this.fig, this.LStimAx, this.RStimAx, this.FLAx, ~] = this.Stimulus_Object.setUpFigure();
-            this.ReadyCue(1)
+            this.ReadyCue('Create')
+            this.ReadyCueAx = this.fig.Children(3);
             this.ReadyCueStruct.Ax = this.ReadyCueAx;
             this.StimulusStruct.ReadyCue = this.ReadyCueStruct;
-            if this.Box.Input_type == 6
-                this.fig.Children = [this.fig.Children([2 3 1 4 5])]; %If it fails here then press the RESET ALL button
-                this.Box.use_wheel = 1;
-            end
-            this.toggleButtonsOnOff(this.Buttons,0); % Turn off all buttons
+            this.Box.use_wheel = 1;
+            % this.toggleButtonsOnOff(this.Buttons,0); % Turn off all buttons
             fprintf("- - - - -\n");
             txt = "Start trial Mouse "+this.Setting_Struct.Subject+" at "+string(datetime('now'));
             set(this.message_handle,'Text',txt);
@@ -369,23 +373,15 @@ classdef BehaviorBoxWheel < handle
         end
         %Do some things before each trial
         function BeforeTrial(this)
-            switch this.Setting_Struct.Box_Input_type
-                case 3 %Nose
-                    this.fig.Color = this.StimulusStruct.BackgroundColor;
-                case 6 %Wheel
-                    this.fig.Color = this.ReadyCueStruct.Color;
-                otherwise
-            end
+            this.fig.Color = this.ReadyCueStruct.Color;
             set(this.FF, 'Value', 0) %Turn off FF button
             this.UpdateSettings()
             this.CheckTemp();
             %Update GUI window numbers
             this.updateGUIbeforeIteration();
             %Pick next reward drop size, if variable
-            try
+            if this.i > 1
                 LastScore = this.Data_Object.current_data_struct.CodedChoice(end);
-            catch
-                LastScore = 1;
             end
             if this.Setting_Struct.Repeat_wrong==1 && any(LastScore == [3 4]) %If repeat wrong and they got it wrong
                 if isvalid(this.fig)
@@ -415,7 +411,7 @@ classdef BehaviorBoxWheel < handle
             this.updateGUIbeforeIteration(); %Update again, in case the level changed
             [this.fig.Children.findobj('Type','Line').Visible] = deal(0);
             drawnow
-            this.ReadyCue(1)
+            this.ReadyCue(true)
         end
         function CheckTemp(this)
             % Temp_Settings = struct();
@@ -707,19 +703,21 @@ classdef BehaviorBoxWheel < handle
             this.TrialStartTime = 0;
             set(this.message_handle,'Text','Waiting for Trial initialization');
             this.t1 = clock; t2 = this.t1;%In case of crash
+            this.a.Reset();
             switch true
                 case ~this.Box.KeyboardInput && this.Box.Input_type==6%Wheel 2.0, wait for the mouse to hold the wheel still for the interval to start a new trial
                     if this.i ~=1
-                        this.ReadyCue('k');
-                        [this.FLAx.Visible] = deal(1);
-                        this.fig.Color = this.StimulusStruct.BackgroundColor;
+                        this.ReadyCue(true);
+                        set(this.FLAx, 'Visible', true);
+                        drawnow
                         timelimit = this.Setting_Struct.HoldStill;
-                        starttime = tic;
+                        tic;
                         while toc<=timelimit
-                            this.message_handle.Text = "Keep the wheel still for "+num2str(round(timelimit - toc,1))+" seconds.";
-                            if abs(this.Box.encoder.readSpeed) > this.Setting_Struct.Hold_Still_Thresh
+                            this.message_handle.Text = "Keep the wheel still for "+num2str(round(timelimit - toc,1))+" seconds."; drawnow
+                            if this.a.Reading ~= 0
                                 this.Flash(this.StimulusStruct, this.Box, findobj('Type', 'Polygon'), 'Wheel');
-                                starttime = tic;
+                                this.a.Reset();
+                                tic;
                             end
                             if get(this.stop_handle, 'Value')
                                 this.message_handle.Text = 'Ending session...';
@@ -733,7 +731,7 @@ classdef BehaviorBoxWheel < handle
                             end
                         end
                         t2 = toc;
-                        this.ReadyCue(this.ReadyCueStruct.Color);
+                        this.ReadyCue(true);
                     end
                 otherwise % Keyboard inputthis.Box.KeyboardInput==1
                     InterTMalInterv = this.Setting_Struct.IntertrialMalSec;
@@ -777,7 +775,7 @@ classdef BehaviorBoxWheel < handle
                                     break;
                                 end
                                 if etime(clock, timerStart) > InterTMalInterv %End when mouse has not poked L or R for the interval
-                                    this.ReadyCue(1)
+                                    this.ReadyCue(true)
                                     set(this.message_handle,'Text','Waiting for Trial initialization');
                                     break
                                 end
@@ -931,23 +929,15 @@ classdef BehaviorBoxWheel < handle
 
             % Optimized background and ready cue handling
             this.setVisibleChildren(this.fig.Children, true);
-            this.fig.Color = this.StimulusStruct.BackgroundColor;
-            this.ReadyCue(0);
             drawnow limitrate;  % Globally limit drawnow frequency for performance gains
 
             % Ignore input for a defined duration
             startTime = tic;
-            totalIgnoreDuration = this.Setting_Struct.Pokes_ignored_time;
-            skipIgnore = this.handleIgnoreInputDuringPokes(this);
-
-            if skipIgnore
-                return;
-            end
 
             % Display stimulus
-            this.flashStimulus(this);
+            this.a.TimeStamp;  % Toggle timestamp
+            this.flashStimulus();
             this.Data_Object.addStimEvent(this.isLeftTrial);  % Record stimulus event
-            this.a.TimeStamp;  % Turn timestamp on
 
             % Enhanced decision-making loop based on inputType
             if ~keyboardInput && inputType == 6
@@ -956,44 +946,29 @@ classdef BehaviorBoxWheel < handle
                 [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput();
             end
 
+            this.a.TimeStamp;  % Toggle timestamp
+
             % Retry for only correct answers if necessary
-            this.handleOnlyCorrectMode(this);
+            this.handleOnlyCorrectMode();
 
             % Minimize redundant flash draws by handling decision directly
-            this.processAfterDecision(this, keyboardInput, inputType);
+            this.processAfterDecision(keyboardInput, inputType);
 
         end
         function setVisibleChildren(this, children, isVisible)
-            for obj = children
-                obj.Visible = isVisible;
-            end
-        end
-        function skipIgnore = handleIgnoreInputDuringPokes(this)
-            % Handle ignore input duration for pokes, reducing delays efficiently
-            skipIgnore = false;
-            T1 = tic;
-            totalIgnoreDuration = this.Setting_Struct.Pokes_ignored_time;
-            ignoreFlag = this.Setting_Struct.Input_ignored;
-
-            while ignoreFlag && toc(T1) < totalIgnoreDuration
-                remaining_time = round(totalIgnoreDuration - toc(T1), 1);
-                this.message_handle.Text = sprintf("Ignoring input for %.1f sec...", remaining_time);
-
-                pause(0.01);  % Minimal pause for non-blocking delay
-                drawnow limitrate;
-
-                if get(this.stop_handle, 'Value')
-                    % Skip if experiment has stopped
-                    skipIgnore = true;
-                    break;
-                end
-            end
+            OBJ = children.findobj('Type','Line');
+            set(OBJ, 'Visible', isVisible)
+            set(this.ReadyCueAx, 'Visible', ~isVisible)
+            drawnow
+            % for obj = children'
+            %     obj.Visible = isVisible;
+            % end
         end
         function flashStimulus(this)
             % Check for stimulus flash based on settings, reducing redundancy
             if this.StimulusStruct.FlashStim
                 lines = findobj(this.fig.Children, 'Type', 'Line');
-                this.Flash(this.StimulusStruct, this.Box, lines, 'NewStim');
+                this.FlashNew(this.StimulusStruct, this.Box,  lines, "NewStim");
             end
         end
         function handleOnlyCorrectMode(this)
@@ -1008,24 +983,18 @@ classdef BehaviorBoxWheel < handle
         end
         function processAfterDecision(this, keyboardInput, inputType)
             % Based on the decision, process reward, penalty, or trial continuation
-            this.a.TimeStamp;  % Turn off timestamp after decision
-            this.setDistractorColor(this);
-
+            this.setDistractorColor();
             % Handle actions based on decision correctness
             if contains(this.WhatDecision, 'correct', 'IgnoreCase', true)
-                this.processCorrectDecision(this, keyboardInput, inputType);
+                this.processCorrectDecision(keyboardInput, inputType);
             else
-                this.processWrongDecision(this, keyboardInput, inputType);
+                this.processWrongDecision(keyboardInput, inputType);
             end
         end
         function setDistractorColor(this)
-            try
-                % Adjust distractor color post-decision
-                d = this.fig.Children.findobj('Tag', 'Distractor');
-                [d.Color] = deal(this.StimulusStruct.DimColor);
-            catch
-                % In case there are no distractor objects; avoid errors
-            end
+            d = this.fig.Children.findobj('Tag', 'Distractor');
+            DIM = this.StimulusStruct.DimColor;
+            set(d, 'Color', DIM)
         end
         function processCorrectDecision(this, keyboardInput, inputType)
             % Handle reward and post-correct responses
@@ -1033,37 +1002,37 @@ classdef BehaviorBoxWheel < handle
             tic;
 
             this.GiveRewardAndFlash();
-
             % Wait until the mouse calms down after the reward
-            if ~keyboardInput && inputType == 6
-                while abs(this.Box.encoder.readSpeed) > this.Setting_Struct.Hold_Still_Thresh
-                    pause(0.5); drawnow;
-                end
-            end
+            % if ~keyboardInput && inputType == 6
+                % NO WAY TO READ SPEED UNTIL I ADD A NEW FCN TO BBSERIAL
+                % while abs(this.Box.encoder.readSpeed) > this.Setting_Struct.Hold_Still_Thresh
+                %     pause(0.5); drawnow;
+                % end
+            % end
 
             this.DrinkTime = toc;
 
             % Optionally persist the visual stimulus
-            this.handlePersistStimulus(this, true);
-            this.hideAllChildren(this);
+            this.handlePersistStimulus(true);
+            this.hideAllChildren();
         end
         function processWrongDecision(this, keyboardInput, inputType)
             % Handle wrong decision and possible air puff penalty
             set(this.message_handle, 'Text', [this.WhatDecision, ' - Penalty...']);
 
             % Wait until the mouse calms down during penalty
-            if ~keyboardInput && inputType == 6
-                while abs(this.Box.encoder.readSpeed) > this.Setting_Struct.Hold_Still_Thresh
-                    pause(0.5); drawnow;
-                end
-            end
+            % I need to write a new fcn for this, no way to read speed yet
+            % if ~keyboardInput && inputType == 6
+            %     while abs(this.Box.encoder.readSpeed) > this.Setting_Struct.Hold_Still_Thresh
+            %         pause(0.5); drawnow;
+            %     end
+            % end
 
             % Optionally persist the incorrect visual stimulus
             if this.StimulusStruct.PersistIncorrect && ~get(this.stop_handle, 'Value')
-                this.handlePersistStimulus(this, false);
+                this.handlePersistStimulus(false);
             end
-            this.hideAllChildren(this);
-            this.fig.Color = 'k';  % Hide figure during penalty
+            this.hideAllChildren();
         end
         function handlePersistStimulus(this, isCorrect)
             % Flash and persist the stimulus based on correctness
@@ -1075,7 +1044,7 @@ classdef BehaviorBoxWheel < handle
 
             if persistingTime > 0
                 set(this.message_handle, 'Text', ['Persisting stimulus for ', num2str(persistingTime), ' sec...']);
-                this.performTimedPause(this, persistingTime);
+                this.performTimedPause(persistingTime);
             end
         end
         function performTimedPause(this, duration)
@@ -1095,8 +1064,9 @@ classdef BehaviorBoxWheel < handle
         end
         function hideAllChildren(this)
             % Hide all children elements within the current figure
-            o = findobj(this.fig.Children);
-            [o(:).Visible] = deal(0);
+            set(this.ReadyCueAx, 'Visible', true)
+            set(this.FLAx, 'Visible', false)
+            drawnow
         end
         function [WhatDecision, response_time] = readLeverLoopAnalogWheel(this)
             event = -1;
@@ -1249,7 +1219,7 @@ classdef BehaviorBoxWheel < handle
             elseif whatdecision == "Correct_Confirmation"
                 Reps = 1;
                 Steps = Stim.FreqFlashInitial;
-                this.BasicFlash("Lines",Lines, "NewColor", dark_color, "steps", Steps, "Interruptor", this.Box.readM)
+                this.BasicFlash("Lines",Lines, "NewColor", dark_color, "steps", Steps)
             else
                 Steps = Stim.FreqFlashAfter;
                 d = findobj('Tag', 'Distractor');
@@ -1328,7 +1298,8 @@ classdef BehaviorBoxWheel < handle
             % Give first drop only once
             this.a.GiveReward();
             % then flash
-            this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
+            lines = findobj(this.fig.Children, 'Tag', 'Contour');
+            this.FlashNew(this.StimulusStruct, this.Box,  lines, "Correct_Confirmation");
             for i = 2:PulseNum
                 this.a.GiveReward();
                 this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
@@ -1386,14 +1357,14 @@ classdef BehaviorBoxWheel < handle
             end
             %Update data & Plot, update GUI numbers
             this.UpdateData();
-            this.updateMessageText(this, decision, interval, interval_time);
+            this.updateMessageText(decision, interval, interval_time);
             if get(this.stop_handle, 'Value')
                 return
             end
-            this.ReadyCue(1)
+            this.ReadyCue(true)
             %Wait for interval
             this.UpdatePause(interval_time)
-            this.updateMessageBox(this);
+            this.updateMessageBox();
             if this.Temp_Active
                 this.Setting_Struct = this.Temp_Old_Settings;
             end
@@ -1566,43 +1537,41 @@ classdef BehaviorBoxWheel < handle
             disp('- - - - -');
         end
         function ReadyCue(this, isVis)
-            %isVis is 1 or 0
             switch 1
-                case numel(isVis) == 3 %RGB triplet
-                    this.ReadyCueAx.Color = isVis;
-                    [this.ReadyCueAx.Visible] = deal(1);
-                    return
-                case any(int8(isVis) == [0 1]) || islogical(isVis)%Logical off or on
-                    isVis = logical(isVis);
-                case ischar(isVis) %Letter color abbrev.
-                    ax = findobj(this.ReadyCueAx, 'Type', 'Axes');
-                    ax.Color = char(isVis);
-                    [this.ReadyCueAx.Visible] = deal(1);
-                    try
-                        [this.ReadyCueAx.Children.Visible] = deal(0);
-                    end
-                    return
+                case islogical(isVis)
+                    set(this.ReadyCueAx, 'Visible', isVis)
+                case isVis == "Create"
+                    RCAx = axes('Parent', this.fig, 'Position', [0 0 1 1], 'Color', 'k', 'Tag', 'ReadyCue');
+                    this.fig.Children = [this.fig.Children([2 3 1 4 5])];
+                % case ischar(isVis) %Letter color abbrev.
+                %     ax = findobj(this.ReadyCueAx, 'Type', 'Axes');
+                %     ax.Color = char(isVis);
+                %     [this.ReadyCueAx.Visible] = deal(1);
+                %     try
+                %         [this.ReadyCueAx.Children.Visible] = deal(0);
+                %     end
+                %     return
             end
             % Plot a circle in the center to show that a new trial is ready
             %Make the figure if this is the first call to readycue, or make a new one
             %if the window has been closed
-            if ~isempty(this.ReadyCueAx) & all(isvalid(this.ReadyCueAx))
-                [this.ReadyCueAx.Visible] = deal(isVis);
-                if this.Box.Input_type~=6
-                    [this.ReadyCueAx.Children.Visible] = deal(isVis);
-                end
-            else %First time, make axis
-                RQ_Ax = axes('Parent', this.fig, ...
-                    'color', this.ReadyCueStruct.Color, ...
-                    'Position', [0 0 1 1], ...
-                    'Xlim', [-10 10], ...
-                    'YLim', [-7 13], ...
-                    'XTick',[], 'YTick',[], ...
-                    'Tag', 'ReadyCue');
-                hold(findobj(this.fig, 'Tag', 'ReadyCue'), 'on')
-                this.ReadyCueAx = [findobj(this.fig, 'Tag', 'ReadyCue')];
-                this.Flash(this.StimulusStruct, this.Box, findobj('Tag', 'ReadyCueDot'), 'NewStim')
-            end
+            % if ~isempty(this.ReadyCueAx) & all(isvalid(this.ReadyCueAx))
+            %     [this.ReadyCueAx.Visible] = deal(isVis);
+            %     if this.Box.Input_type~=6
+            %         [this.ReadyCueAx.Children.Visible] = deal(isVis);
+            %     end
+            % else %First time, make axis
+            %     RQ_Ax = axes('Parent', this.fig, ...
+            %         'color', this.ReadyCueStruct.Color, ...
+            %         'Position', [0 0 1 1], ...
+            %         'Xlim', [-10 10], ...
+            %         'YLim', [-7 13], ...
+            %         'XTick',[], 'YTick',[], ...
+            %         'Tag', 'ReadyCue');
+            %     hold(findobj(this.fig, 'Tag', 'ReadyCue'), 'on')
+            %     this.ReadyCueAx = [findobj(this.fig, 'Tag', 'ReadyCue')];
+            %     this.Flash(this.StimulusStruct, this.Box, findobj('Tag', 'ReadyCueDot'), 'NewStim')
+            % end
         end
         function TestStimulus(this, options)
             arguments

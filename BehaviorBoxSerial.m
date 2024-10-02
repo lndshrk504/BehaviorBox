@@ -87,8 +87,8 @@ classdef BehaviorBoxSerial < handle
             write(this.Ard, opts.Side, "char");
         end
 
-        function TimeStamp(this, opts)
-            write(this.Ard, opts.Side, "T");
+        function TimeStamp(this)
+            write(this.Ard, "T", "char");
         end
 
         function Reading = SerialRead(this, src, ~)

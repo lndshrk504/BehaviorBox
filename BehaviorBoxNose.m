@@ -290,6 +290,7 @@ classdef BehaviorBoxNose < handle
                         this.Box.ValveL = 'D6';
                         this.Box.ValveR = 'D8';
                         this.Box.AirPuff  = 'D11';
+                        this.a.SetupReward("Which", "Both", "DurationLeft", this.Box.Lrewardtime, "DurationRight", this.Box.Rrewardtime);
                     case 8 %Keyboard, used if no arduino connected
                         this.Box.KeyboardInput = 1;
                         this.Box.readHigh = 1;
