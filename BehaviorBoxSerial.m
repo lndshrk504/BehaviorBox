@@ -65,13 +65,13 @@ classdef BehaviorBoxSerial < handle
                 opts.Which string = "Right"
             end
             if ismember(opts.Which, ["Right", "Both"])
-                write(this.Ard, "s", "char");
-                writeline(this.Ard, opts.DurationRight);
+                %write(this.Ard, "s", "char");
+                writeline(this.Ard, "s"+opts.DurationRight);
                 %write(this.Ard, opts.DurationRight, "string");
             end
             if ismember(opts.Which, ["Left", "Both"])
-                write(this.Ard, "S", "char");
-                writeline(this.Ard, opts.DurationLeft);
+                %write(this.Ard, "S", "char");
+                writeline(this.Ard, "S"+opts.DurationLeft);
                 %write(this.Ard, opts.DurationLeft, "string");
             end
             % Update properties
@@ -114,7 +114,8 @@ classdef BehaviorBoxSerial < handle
 
         function result = processReading(this, newReading)
             if strcmp(this.Input_type, 'Wheel')
-                result = str2double(newReading);
+                %result = str2double(newReading);
+                result = char(newReading);
             else
                 result = char(newReading);
             end
@@ -147,7 +148,8 @@ classdef BehaviorBoxSerial < handle
             switch true
                 case strcmp(this.Input_type, 'Wheel')
                     this.Reading = 0;
-                    write(this.Ard, 'Reset', 'char')
+                    write(this.Ard, 'r', 'char')
+                    pause(0.01)
                 case strcmp(this.Input_type, 'NosePoke')
                     this.Reading = '-';
             end

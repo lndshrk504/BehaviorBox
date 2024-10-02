@@ -285,7 +285,8 @@ classdef BehaviorBoxWheel < handle
                             this.a = BehaviorBoxSerial(comsnum, 9600, 'Wheel');
                             this.Box.Reward =  'D6';
                             this.Box.use_wheel = 1;
-                            this.a.SetupReward("Which", "Both", "DurationLeft", this.Box.Lrewardtime, "DurationRight", this.Box.Rrewardtime);
+                            pause(2)
+                            this.a.SetupReward("Which", "Right", "DurationRight", this.Box.Rrewardtime);
                         catch
                             this.Box.use_ball = 0; %All these are automatically off
                             this.Box.use_wheel = 0;
@@ -714,7 +715,7 @@ classdef BehaviorBoxWheel < handle
                         tic;
                         while toc<=timelimit
                             this.message_handle.Text = "Keep the wheel still for "+num2str(round(timelimit - toc,1))+" seconds."; drawnow limitrate
-                            if this.a.Reading ~= 0
+                            if str2double(this.a.SerialRead) ~= 0
                                 this.Flash(this.StimulusStruct, this.Box, findobj('Type', 'Polygon'), 'Wheel');
                                 this.a.Reset();
                                 tic;
@@ -1085,7 +1086,9 @@ classdef BehaviorBoxWheel < handle
             end
             thresh = abs(pos1i(1)/2);
             RoundUp = (this.Setting_Struct.RoundUpVal/100); %Default is 75 --> 0.75
+            this.a.DispOutput = false;
             this.a.Reset();
+            pause(0.1)
             %this.Box.encoder.resetCount();
             if this.Setting_Struct.RoundUp
                 thresh = RoundUp*thresh;
@@ -1093,7 +1096,7 @@ classdef BehaviorBoxWheel < handle
             i = 0;
             tic
             while timeout_value == 0 | toc<=timeout_value % do NOT replace | with || or the expression is changed.
-                dist = this.a.SerialRead;
+                dist = str2double(this.a.SerialRead);
                 %dist = this.Box.encoder.readCount;
                 delta = (dist/threshold)*StimDistance;
                 if abs(delta)>thresh

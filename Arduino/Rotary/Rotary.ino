@@ -15,7 +15,7 @@ enum State {
 };
 
 // Initialize variables
-State currentState = WHO;
+State currentState = READING;
 char str;
 Encoder myEnc(2, 3); // 2 and 3 are interrupt pins for Arduino Uno
 int prevDegrees = 0; // Starting value for rotor position
@@ -40,6 +40,12 @@ void setFlags(int index);
 void setup() {
   initializeSerial();
   setupPins();
+  Serial.println();
+  Serial.println("Welcome to BehaviorBox - Wheel");
+  Serial.println("Readout begins below...");
+  Serial.println();
+  resetEncoder();
+  Serial.println(0);
 }
 
 void loop() {
