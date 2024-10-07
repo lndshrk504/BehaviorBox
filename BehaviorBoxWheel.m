@@ -704,6 +704,7 @@ classdef BehaviorBoxWheel < handle
             this.TrialStartTime = 0;
             set(this.message_handle,'Text','Waiting for Trial initialization');
             this.t1 = clock; t2 = this.t1;%In case of crash
+            this.a.DispOutput = false;
             this.a.Reset();
             switch true
                 case ~this.Box.KeyboardInput && this.Box.Input_type==6%Wheel 2.0, wait for the mouse to hold the wheel still for the interval to start a new trial
@@ -1086,7 +1087,6 @@ classdef BehaviorBoxWheel < handle
             end
             thresh = abs(pos1i(1)/2);
             RoundUp = (this.Setting_Struct.RoundUpVal/100); %Default is 75 --> 0.75
-            this.a.DispOutput = false;
             this.a.Reset();
             pause(0.1)
             %this.Box.encoder.resetCount();
@@ -1174,6 +1174,7 @@ classdef BehaviorBoxWheel < handle
                         WhatDecision = 'right wrong';
                     end
             end
+            this.a.DispOutput = true;
         end
         function FlashNew(this, Stim, Box, Lines, whatdecision, OneWay)
             arguments
