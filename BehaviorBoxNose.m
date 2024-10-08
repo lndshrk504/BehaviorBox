@@ -282,6 +282,8 @@ classdef BehaviorBoxNose < handle
                 switch this.Setting_Struct.Box_Input_type
                     case 3 %Three Pokes
                         this.a = BehaviorBoxSerial(comsnum, 9600, 'NosePoke');
+                        pause(2)
+                        this.a.SetupReward("Which", "Both", "DurationLeft", this.Box.Lrewardtime, "DurationRight", this.Box.Rrewardtime);
                         this.Box.ardunioReadDigital = 1;
                         this.Box.readHigh = 0;
                         this.Box.Left = 'D2';
@@ -290,7 +292,6 @@ classdef BehaviorBoxNose < handle
                         this.Box.ValveL = 'D6';
                         this.Box.ValveR = 'D8';
                         this.Box.AirPuff  = 'D11';
-                        this.a.SetupReward("Which", "Both", "DurationLeft", this.Box.Lrewardtime, "DurationRight", this.Box.Rrewardtime);
                     case 8 %Keyboard, used if no arduino connected
                         this.Box.KeyboardInput = 1;
                         this.Box.readHigh = 1;

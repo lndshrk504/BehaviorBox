@@ -113,12 +113,13 @@ classdef BehaviorBoxSerial < handle
         end
 
         function result = processReading(this, newReading)
-            if strcmp(this.Input_type, 'Wheel')
-                %result = str2double(newReading);
-                result = char(newReading);
-            else
-                result = char(newReading);
-            end
+            result = char(newReading);
+            % if strcmp(this.Input_type, 'Wheel')
+            %     %result = str2double(newReading);
+            %     result = char(newReading);
+            % else
+            %     result = char(newReading);
+            % end
         end
 
         function LeftRead = ReadLeft(this)
