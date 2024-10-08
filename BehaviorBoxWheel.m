@@ -1612,6 +1612,15 @@ classdef BehaviorBoxWheel < handle
             end
             this.app.ShowStim.Enable = 1;
         end
+        function AnimateReward(this)
+            COUNT = 0;
+            while ~this.app.Auto_Stop.Value
+                this.a.GiveReward()
+                COUNT = COUNT + 1;
+                this.app.Auto_Msg.Text = COUNT+" Reward(s) given";
+                pause(this.app.Auto_Freq.Value)
+            end
+        end
         function WaitForInputKeyboard(this)
             InterTMalInterv = this.Setting_Struct.IntertrialMalSec;
             prompt = 'Initialize: Press L for Left, R for Right, C or M for Middle: ';
