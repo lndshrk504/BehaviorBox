@@ -206,7 +206,16 @@ classdef BehaviorBoxNose < handle
             this.SetIdx = 1;
             [this.SetStr, this.Include] = this.structureSettings(this.Setting_Struct);
             function Types = GetType(App, Props)
-                Types = cellfun(@(x) App.(x).Type, Props, 'UniformOutput', false);
+                %Types = cellfun(@(x) App.(x).Type, Props, 'UniformOutput', false);
+                n = numel(Props);
+                Types = cell(1, n);
+                for i = 1:n
+                    try
+                    Types{i} = App.(Props{i}).Type;
+                    catch err
+                        1;
+                    end
+                end
             end
             function Types = GetTag(App, Props)
                 Types = cellfun(@(x) App.(x).Tag, Props, 'UniformOutput', false);
@@ -335,8 +344,8 @@ classdef BehaviorBoxNose < handle
             %create stimulus depending on input device
             [this.Stimulus_Object] = BehaviorBoxVisualStimulus(this.StimulusStruct); drawnow;
             this.Data_Object.StimType = erase(this.app.Stimulus_type.Value, ' ');
-            clo(this.app.PerformanceTab);
-            this.graphFig = this.app.PerformanceTab;
+            this.graphFig = this.app.PerformanceTab.Children.Children;
+            clo(this.graphFig);
             this.Data_Object.Axes = this.Data_Object.CreateDailyGraphs(this.graphFig);
             this.Data_Object.SB = this.Setting_Struct.Data_Sbin; %Make these names match
             this.Data_Object.BB = this.Setting_Struct.Data_Lbin*this.Setting_Struct.Data_Sbin;
@@ -444,7 +453,8 @@ classdef BehaviorBoxNose < handle
                     return
                 end
                 try
-                    sMM = this.Data_Object.AnalyzedData.DayMM{:}{8,1}{:}(end);
+                    % sMM = this.Data_Object.AnalyzedData.DayMM{:}{8,1}{:}(end);
+                    sMM = this.Data_Object.AnalyzedData.DayMM{1}{8,1}{:}(end);
                     if this.Temp_Countdown <= 0 && sMM >= this.Temp_Settings.Threshold/100
                         this.Temp_Active = false;
                         this.Setting_Struct = this.Temp_Old_Settings;
