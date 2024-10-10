@@ -1621,6 +1621,9 @@ classdef BehaviorBoxWheel < handle
                 pause(this.app.Auto_Freq.Value)
             end
         end
+        function AnimateStimulus(this)
+            
+        end
         function WaitForInputKeyboard(this)
             InterTMalInterv = this.Setting_Struct.IntertrialMalSec;
             prompt = 'Initialize: Press L for Left, R for Right, C or M for Middle: ';
