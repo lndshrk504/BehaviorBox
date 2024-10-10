@@ -1,4 +1,5 @@
 classdef BehaviorBoxSerial < handle
+    % WBS 10 - 10 - 2024
     % The NosePoke uses an Arduino programmed with Photogate.ino.
     % The Wheel uses an Arduino programmed with Rotary-Encoder-Arduino.ino.
     properties

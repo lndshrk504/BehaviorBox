@@ -1,6 +1,6 @@
 classdef BehaviorBoxWheel < handle
     %BehaviorBox Super class
-    % WBS 6 . 26 . 2023
+    % WBS 10 . 10 . 2024
     %====================================================================
     %Super Class for BehaviorBox Ver 1.4
     %This Class is called by the GUI BehaviorBox via RunTraining()and runs the Training
@@ -8,16 +8,12 @@ classdef BehaviorBoxWheel < handle
     %Air Puff penalty code is being added
     %It interacts with class BehaviorBoxVisualStimulusTraining.m to create the
     %visual stimuli.
-    %This is a superclass to BehaviorBoxSub1/2.
     %THIS FILE IS PART OF A SET OF FILES CONTAINING (ALL NEEDED):
     %BehaviorBox_App.mlapp
     %BehaviorBoxData.m
-    %BehaviorBoxSuper.m
     %BehaviorBoxWheel.m
     %BehaviorBoxNose.m
-    %BehaviorBoxVisualGratingObject.m
     %BehaviorBoxVisualStimulus.m
-    %BehaviorBoxVisualStimulusTraining.m
     %====================================================================
     properties (SetAccess = public)
         fig; %The figure window that shows the stimulus
@@ -1603,6 +1599,7 @@ classdef BehaviorBoxWheel < handle
                 this.Stimulus_Object = this.Stimulus_Object.findfigs();
             end
             [~,~] = this.Stimulus_Object.DisplayOnScreen(this.PickSideForCorrect(0, 0), this.Setting_Struct.Starting_opacity);
+            % Add a mode to display the stimulus as a solid line
             this.fig = this.Stimulus_Object.fig;
             [this.fig.findobj('Tag','Spotlight').Visible] = deal(1);
             toc
