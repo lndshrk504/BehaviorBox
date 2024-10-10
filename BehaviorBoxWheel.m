@@ -1581,11 +1581,14 @@ classdef BehaviorBoxWheel < handle
             arguments
                 this
                 options.SaveStimulus logical = 0
+                options.AnimateMode logical = 0
             end
             tic
             this.app.ShowStim.Enable = 0; %Disable this when debugging...
             this.app.Stimulus_FinishLine.Value = true;
             this.getGUI();
+            this.Setting_Struct.Stimulus_FinishLine = ~options.AnimateMode;
+            this.StimulusStruct.FinishLine = ~options.AnimateMode;
             this.Stimulus_Object = BehaviorBoxVisualStimulus(this.StimulusStruct, Preview=1);
             this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
             this.Data_Object = BehaviorBoxData( ...
@@ -1622,7 +1625,28 @@ classdef BehaviorBoxWheel < handle
             end
         end
         function AnimateStimulus(this)
-            
+            this.TestStimulus("AnimateMode",true);
+            totalTime = 5; % total time in seconds
+            fps = 30; % frames per second
+            steps = totalTime * fps;
+            dx = 0.8 / steps; % change in x position per frame
+
+            % Move the axes across the figure
+            for k = 1:steps
+                % Update the x position
+                newPos = ax.Position;
+                newPos(1) = newPos(1) + dx;
+
+                % Set the new position
+                ax.Position = newPos;
+
+                % Update rendering
+                drawnow;
+
+                % Pause to control the frame rate
+                pause(1/fps);
+            end
+
         end
         function WaitForInputKeyboard(this)
             InterTMalInterv = this.Setting_Struct.IntertrialMalSec;
@@ -1700,13 +1724,24 @@ classdef BehaviorBoxWheel < handle
         end
         %toggle GUI buttons active/inactive
         function toggleButtonsOnOff(Buttons, on)
+            ON = logical(on);
             for b = struct2cell(Buttons)'
                 if b{:}.Type == "uistatebutton"
                     continue
                 else
-                    b{:}.Enable = on;
+                    b{:}.Enable = ON;
                 end
             end
+            Buttons.Auto_Go.Value = false;
+            Buttons.Auto_Go.Enable = ON;
+            Buttons.Auto_Stop.Value = false;
+            Buttons.Auto_Stop.Enable = false;
+            Buttons.Animate_Go.Value = false;
+            Buttons.Animate_Go.Enable = ON;
+            Buttons.Animate_End.Value = false;
+            Buttons.Animate_End.Enable = false;
+            Buttons.Animate_Show.Value = false;
+            Buttons.Animate_Show.Enable = ON;
         end
         %set GUI settings and numbers from save or when starting new
         function setGuiNumbers(GUI_numbers)
