@@ -193,7 +193,14 @@ classdef BehaviorBoxVisualStimulus
             t2 = plot(p, 'Parent',f2, 'FaceColor', this.LineColor, 'EdgeAlpha', 0, 'FaceAlpha', 1, 'Tag','FinishLine');
             FLAx = [f f2];
         end
-        function [L,R] = DisplayOnScreen(this, isLeftTrial, Level)
+        function [L,R] = DisplayOnScreen(this, isLeftTrial, Level, options)
+            arguments
+                this
+                isLeftTrial
+                Level
+                options.AnimateMode logical = false
+                options.StimType char = 'Stimulus'
+            end
             this = findfigs(this);
             delete(findobj([this.fig], "Type", "Line"))
             this.LStimAx.Position(1) = 0;
@@ -206,6 +213,17 @@ classdef BehaviorBoxVisualStimulus
                 this.isLeftTrial = 1;
             else
                 this.isLeftTrial = 0;
+            end
+            if options.AnimateMode
+                switch options.StimType
+                    case "Y-Line"
+                        this.PlotYLine();
+                    case "X-Line"
+                        this.PlotXLine();
+                    case "Bar"
+                        this.PlotBar();
+                end
+                return
             end
             this.Level = int8(Level); %Difficulty used to be from 0.1:1, it is now 1:20
             switch this.type
@@ -249,8 +267,34 @@ classdef BehaviorBoxVisualStimulus
                 case 12
                     ShowStimulusBBTrainingDensity(this)
             end
-            o = findobj(this.fig.Children);
+            %o = findobj(this.fig.Children);
             %[o(:).Visible] = deal(0);
+        end
+        function PlotBar(this)
+            if this.isLeftTrial
+                AX = this.LStimAx;
+            else
+                AX = this.RStimAx;
+            end
+            Width = this.SegThick;
+            ExtraLength = this.SegLength/2;
+            COLOR = [this.LineColor];
+            contourNodesIdx = logical(this.ContourNodes(:,1) == 0);
+            contourNodes = this.ContourNodes(contourNodesIdx,:); %Contour nodes are those where X = 0 [this can be modified]
+            Upper = max(contourNodes(:,2)) + ExtraLength;
+            Lower = min(contourNodes(:,2)) - ExtraLength;
+            yCoord = [Upper Lower];
+            xCoord = [0 0];
+            plot(xCoord, yCoord, 'Color', COLOR,'LineWidth', Width, 'Parent', AX, 'Tag', 'Contour')
+        end
+        function PlotYLine(this)
+            AX = axes(this.fig, "Color", 'k', 'Tag', 'YLine', 'Position', [0 0 1 1]);
+            YL = yline(AX, 0, 'Tag', 'Contour', Color=this.LineColor, LineWidth=this.SegThick);
+            1;
+        end
+        function PlotXLine(this)
+            AX = axes(this.fig, "Color", 'k', 'Tag', 'XLine', 'Position', [0 0 1 1]);
+            YL = xline(AX, 0, 'Tag', 'Contour', Color=this.LineColor, LineWidth=this.SegThick);
         end
         function this = findfigs(this)
             try

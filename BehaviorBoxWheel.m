@@ -1578,6 +1578,7 @@ classdef BehaviorBoxWheel < handle
                 this
                 options.SaveStimulus logical = 0
                 options.AnimateMode logical = 0
+                options.StimType char = 'Stimulus'
             end
             tic
             this.app.ShowStim.Enable = 0; %Disable this when debugging...
@@ -1598,7 +1599,22 @@ classdef BehaviorBoxWheel < handle
                 [this.fig,this.LStimAx,this.RStimAx, ~] = this.Stimulus_Object.setUpFigure(); drawnow
                 this.Stimulus_Object = this.Stimulus_Object.findfigs();
             end
-            [~,~] = this.Stimulus_Object.DisplayOnScreen(this.PickSideForCorrect(0, 0), this.Setting_Struct.Starting_opacity);
+            if options.AnimateMode
+                switch this.app.Animate_Side.Value
+                    case "Left"
+                        this.isLeftTrial = true;
+                    case "Random"
+                        this.isLeftTrial = this.PickSideForCorrect(0, 0);
+                    case "Right"
+                        this.isLeftTrial = false;
+                    otherwise
+                end
+                [~,~] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, ...
+                    this.Setting_Struct.Starting_opacity, "AnimateMode", true, "StimType", options.StimType);
+            else
+                [~,~] = this.Stimulus_Object.DisplayOnScreen(this.PickSideForCorrect(0, 0), ...
+                    this.Setting_Struct.Starting_opacity);
+            end
             % Add a mode to display the stimulus as a solid line
             this.fig = this.Stimulus_Object.fig;
             [this.fig.findobj('Tag','Spotlight').Visible] = deal(1);
@@ -1621,29 +1637,57 @@ classdef BehaviorBoxWheel < handle
                 pause(this.app.Auto_Freq.Value)
             end
         end
-        function AnimateStimulus(this)
-            this.TestStimulus("AnimateMode",true);
-            totalTime = 5; % total time in seconds
-            fps = 30; % frames per second
-            steps = totalTime * fps;
-            dx = 0.8 / steps; % change in x position per frame
-
-            % Move the axes across the figure
-            for k = 1:steps
-                % Update the x position
-                newPos = ax.Position;
-                newPos(1) = newPos(1) + dx;
-
-                % Set the new position
-                ax.Position = newPos;
-
-                % Update rendering
-                drawnow;
-
-                % Pause to control the frame rate
-                pause(1/fps);
+        function AnimateStimulus(this, options)
+            arguments
+                this
+                options.Mode char = 'Create'
+                options.Value double = 0
             end
-
+            STYLE = this.app.Animate_Style.Value;
+            if options.Mode == "Create"
+                this.app.Animate_Position.Value = 0.25;
+                switch STYLE
+                    case "Stimulus"
+                        1;
+                    case "Dot"
+                        1;
+                        % Plot Ready Cue from BBNose
+                    otherwise
+                        this.TestStimulus("AnimateMode",true, "StimType", STYLE);
+                end
+            end
+            if options.Mode == "XMove"
+                VAL = -0.25+options.Value;
+                switch STYLE
+                    case "Stimulus"
+                        1;
+                    case "Dot"
+                        1;
+                        % Plot Ready Cue from BBNose
+                    otherwise
+                        this.TestStimulus("AnimateMode",true, "StimType", STYLE);
+                end
+                AX = this.Stimulus_Object.LStimAx;
+                BX = this.Stimulus_Object.RStimAx;
+                AX.Position(1) = VAL;
+                BX.Position(1) = 0.5+VAL;
+            end
+            % totalTime = 5; % total time in seconds
+            % fps = 30; % frames per second
+            % steps = totalTime * fps;
+            % dx = 0.8 / steps; % change in x position per frame
+            % % Move the axes across the figure
+            % for k = 1:steps
+            %     % Update the x position
+            %     newPos = ax.Position;
+            %     newPos(1) = newPos(1) + dx;
+            %     % Set the new position
+            %     ax.Position = newPos;
+            %     % Update rendering
+            %     drawnow;
+            %     % Pause to control the frame rate
+            %     pause(1/fps);
+            % end
         end
         function WaitForInputKeyboard(this)
             InterTMalInterv = this.Setting_Struct.IntertrialMalSec;
