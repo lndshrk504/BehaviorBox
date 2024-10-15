@@ -1645,7 +1645,8 @@ classdef BehaviorBoxWheel < handle
             end
             STYLE = this.app.Animate_Style.Value;
             if options.Mode == "Create"
-                this.app.Animate_Position.Value = 0.25;
+                this.app.Animate_XPosition.Value = 0.25;
+                this.app.Animate_YPosition.Value = 0.5;
                 switch STYLE
                     case "Stimulus"
                         1;
@@ -1665,12 +1666,11 @@ classdef BehaviorBoxWheel < handle
                         1;
                         % Plot Ready Cue from BBNose
                     otherwise
-                        this.TestStimulus("AnimateMode",true, "StimType", STYLE);
+                        AX = this.Stimulus_Object.LStimAx;
+                        BX = this.Stimulus_Object.RStimAx;
+                        AX.Position(1) = VAL;
+                        BX.Position(1) = 0.5+VAL;
                 end
-                AX = this.Stimulus_Object.LStimAx;
-                BX = this.Stimulus_Object.RStimAx;
-                AX.Position(1) = VAL;
-                BX.Position(1) = 0.5+VAL;
             end
             % totalTime = 5; % total time in seconds
             % fps = 30; % frames per second
