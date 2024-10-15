@@ -203,6 +203,8 @@ classdef BehaviorBoxVisualStimulus
             end
             this = findfigs(this);
             delete(findobj([this.fig], "Type", "Line"))
+            delete(findobj([this.fig], "Tag", "XLine"))
+            delete(findobj([this.fig], "Tag", "YLine"))
             this.LStimAx.Position(1) = 0;
             this.RStimAx.Position(1) = 0.5;
             try

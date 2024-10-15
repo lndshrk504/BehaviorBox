@@ -1272,7 +1272,7 @@ classdef BehaviorBoxWheel < handle
                 COLOR_PROP = 'MarkerFaceColor';
             elseif obj(1).Type == "polygon"
                 start_color = [obj(1).FaceColor];
-            elseif obj(1).Type == "line"
+            elseif obj(1).Type == "line" ||  obj(1).Type == "constantline"
                 start_color = [obj(1).Color];
                 COLOR_PROP = 'Color';
             else
@@ -1620,8 +1620,11 @@ classdef BehaviorBoxWheel < handle
             [this.fig.findobj('Tag','Spotlight').Visible] = deal(1);
             toc
             pause(0.01)
-            this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
-            % this.Flash(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
+            if contains(options.StimType, "-Line")
+                this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'ConstantLine'), "NewStim")
+            else
+                this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
+            end
             if options.SaveStimulus
                 name = "Stim-Lv-"+this.Setting_Struct.Starting_opacity;
                 this.Data_Object.SaveManyFigures([],name)
@@ -1647,6 +1650,8 @@ classdef BehaviorBoxWheel < handle
             if options.Mode == "Create"
                 this.app.Animate_XPosition.Value = 0.25;
                 this.app.Animate_YPosition.Value = 0.5;
+                
+%Remove everything that isn't the spotlights or the finish line
                 switch STYLE
                     case "Stimulus"
                         1;
