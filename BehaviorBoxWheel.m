@@ -1621,8 +1621,12 @@ classdef BehaviorBoxWheel < handle
             toc
             pause(0.01)
             if contains(options.StimType, "-Line")
+                this.app.Animate_XPosition.Value = 0.5;
+                this.app.Animate_YPosition.Value = 0.5;
                 this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'ConstantLine'), "NewStim")
             else
+                this.app.Animate_XPosition.Value = 0.25;
+                this.app.Animate_YPosition.Value = 0.5;
                 this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
             end
             if options.SaveStimulus
@@ -1648,13 +1652,8 @@ classdef BehaviorBoxWheel < handle
             end
             STYLE = this.app.Animate_Style.Value;
             if options.Mode == "Create"
-                this.app.Animate_XPosition.Value = 0.25;
-                this.app.Animate_YPosition.Value = 0.5;
-                
 %Remove everything that isn't the spotlights or the finish line
                 switch STYLE
-                    case "Stimulus"
-                        1;
                     case "Dot"
                         1;
                         % Plot Ready Cue from BBNose
@@ -1663,18 +1662,48 @@ classdef BehaviorBoxWheel < handle
                 end
             end
             if options.Mode == "XMove"
-                VAL = -0.25+options.Value;
                 switch STYLE
-                    case "Stimulus"
-                        1;
                     case "Dot"
                         1;
                         % Plot Ready Cue from BBNose
-                    otherwise
+                    case "X-Line"
+                        VAL = -0.5+options.Value;
+                        AX = this.fig.Children(1);
+                        AX.Position(1) = VAL;
+                    case "Y-Line"
+                        % Do Nothing
+                    otherwise % Bar or Stimulus
+                        VAL = -0.25+options.Value;
                         AX = this.Stimulus_Object.LStimAx;
                         BX = this.Stimulus_Object.RStimAx;
                         AX.Position(1) = VAL;
                         BX.Position(1) = 0.5+VAL;
+                end
+            end
+            if options.Mode == "YMove"
+                switch STYLE
+                    case "Dot"
+                        1;
+                        % Plot Ready Cue from BBNose
+                    case "X-Line"
+                        VAL = -0.5+options.Value;
+                        AX = this.fig.Children(1);
+                        AX.Position(1) = VAL;
+                    case "Y-Line"
+                        % Do Nothing
+                    otherwise % Bar or Stimulus
+                        VAL = -0.25+options.Value;
+                        AX = this.Stimulus_Object.LStimAx;
+                        BX = this.Stimulus_Object.RStimAx;
+                        AX.Position(1) = VAL;
+                        BX.Position(1) = 0.5+VAL;
+                end
+            end
+            if options.Mode == "Flash"
+                if contains(this.app.Animate_Style.Value, "-Line")
+                    this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'ConstantLine'), "NewStim")
+                else
+                    this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
                 end
             end
             % totalTime = 5; % total time in seconds
