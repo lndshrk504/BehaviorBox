@@ -1275,6 +1275,9 @@ classdef BehaviorBoxWheel < handle
             elseif obj(1).Type == "line" ||  obj(1).Type == "constantline"
                 start_color = [obj(1).Color];
                 COLOR_PROP = 'Color';
+            elseif obj(1).Type == "rectangle"
+                start_color = [obj(1).FaceColor];
+                COLOR_PROP = 'FaceColor';
             else
                 return %prevent an error crash
             end
@@ -1588,13 +1591,7 @@ classdef BehaviorBoxWheel < handle
             this.StimulusStruct.FinishLine = ~options.AnimateMode;
             this.Stimulus_Object = BehaviorBoxVisualStimulus(this.StimulusStruct, Preview=1);
             this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
-            this.Data_Object = BehaviorBoxData( ...
-                Inv=this.app.Inv.Value, ...
-                Inp=this.app.Box_Input_type.Value, ...
-                Str=this.app.Strain.Value, ...
-                Sub={this.app.Subject.Value}, ...
-                find=1, ...
-                load=0);
+            this.Stimulus_Object.DotSize = this.ReadyCueStruct.Size;
             if isempty([this.Stimulus_Object.LStimAx this.Stimulus_Object.RStimAx])
                 [this.fig,this.LStimAx,this.RStimAx, ~] = this.Stimulus_Object.setUpFigure(); drawnow
                 this.Stimulus_Object = this.Stimulus_Object.findfigs();
@@ -1624,6 +1621,8 @@ classdef BehaviorBoxWheel < handle
                 this.app.Animate_XPosition.Value = 0.5;
                 this.app.Animate_YPosition.Value = 0.5;
                 this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'ConstantLine'), "NewStim")
+            elseif contains(options.StimType, "Dot")
+                this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Dot'), "NewStim")
             else
                 this.app.Animate_XPosition.Value = 0.25;
                 this.app.Animate_YPosition.Value = 0.5;
@@ -1631,6 +1630,13 @@ classdef BehaviorBoxWheel < handle
             end
             if options.SaveStimulus
                 name = "Stim-Lv-"+this.Setting_Struct.Starting_opacity;
+                this.Data_Object = BehaviorBoxData( ...
+                    Inv=this.app.Inv.Value, ...
+                    Inp=this.app.Box_Input_type.Value, ...
+                    Str=this.app.Strain.Value, ...
+                    Sub={this.app.Subject.Value}, ...
+                    find=1, ...
+                    load=0);
                 this.Data_Object.SaveManyFigures([],name)
             end
             this.app.ShowStim.Enable = 1;
@@ -1653,13 +1659,7 @@ classdef BehaviorBoxWheel < handle
             STYLE = this.app.Animate_Style.Value;
             if options.Mode == "Create"
 %Remove everything that isn't the spotlights or the finish line
-                switch STYLE
-                    case "Dot"
-                        1;
-                        % Plot Ready Cue from BBNose
-                    otherwise
-                        this.TestStimulus("AnimateMode",true, "StimType", STYLE);
-                end
+                this.TestStimulus("AnimateMode",true, "StimType", STYLE);
             end
             if options.Mode == "XMove"
                 switch STYLE
@@ -1686,17 +1686,17 @@ classdef BehaviorBoxWheel < handle
                         1;
                         % Plot Ready Cue from BBNose
                     case "X-Line"
+                        % Do Nothing
+                    case "Y-Line"
                         VAL = -0.5+options.Value;
                         AX = this.fig.Children(1);
-                        AX.Position(1) = VAL;
-                    case "Y-Line"
-                        % Do Nothing
+                        AX.Position(2) = VAL;
                     otherwise % Bar or Stimulus
-                        VAL = -0.25+options.Value;
+                        VAL = -0.5+options.Value;
                         AX = this.Stimulus_Object.LStimAx;
                         BX = this.Stimulus_Object.RStimAx;
-                        AX.Position(1) = VAL;
-                        BX.Position(1) = 0.5+VAL;
+                        AX.Position(2) = VAL;
+                        BX.Position(2) = 0.5+VAL;
                 end
             end
             if options.Mode == "Flash"

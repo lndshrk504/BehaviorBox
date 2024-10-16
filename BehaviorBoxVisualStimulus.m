@@ -31,6 +31,7 @@ classdef BehaviorBoxVisualStimulus
         SegmJitter=0.3;% jitter of segments
         Orient = 0;
         InputType;
+        DotSize
     end
     properties(SetAccess = 'public', GetAccess = 'public')
         % Properties of the stimulus that change each trial (level, which side)
@@ -205,6 +206,7 @@ classdef BehaviorBoxVisualStimulus
             delete(findobj([this.fig], "Type", "Line"))
             delete(findobj([this.fig], "Tag", "XLine"))
             delete(findobj([this.fig], "Tag", "YLine"))
+            delete(findobj([this.fig], "Tag", "DotAx"))
             this.LStimAx.Position(1) = 0;
             this.RStimAx.Position(1) = 0.5;
             try
@@ -216,7 +218,7 @@ classdef BehaviorBoxVisualStimulus
             else
                 this.isLeftTrial = 0;
             end
-            if options.AnimateMode
+            if options.AnimateMode & options.StimType ~= "Stimulus"
                 switch options.StimType
                     case "Y-Line"
                         this.PlotYLine();
@@ -224,6 +226,8 @@ classdef BehaviorBoxVisualStimulus
                         this.PlotXLine();
                     case "Bar"
                         this.PlotBar();
+                    case "Dot"
+                        this.PlotDot();
                 end
                 return
             end
@@ -291,12 +295,20 @@ classdef BehaviorBoxVisualStimulus
         end
         function PlotYLine(this)
             AX = axes(this.fig, "Color", 'k', 'Tag', 'YLine', 'Position', [0 0 1 1]);
+            axis image;
             YL = yline(AX, 0, 'Tag', 'Contour', Color=this.LineColor, LineWidth=this.SegThick);
-            1;
         end
         function PlotXLine(this)
             AX = axes(this.fig, "Color", 'k', 'Tag', 'XLine', 'Position', [0 0 1 1]);
-            YL = xline(AX, 0, 'Tag', 'Contour', Color=this.LineColor, LineWidth=this.SegThick);
+            axis image;
+            XL = xline(AX, 0, 'Tag', 'Contour', Color=this.LineColor, LineWidth=this.SegThick);
+        end
+        function PlotDot(this)
+            AX = axes(this.fig, "Color", 'k', "Tag", "DotAx", "Position", [0 0 1 1], "XLim",[0 1], "YLim", [0 1]);
+            % axis image;
+            SZ = this.DotSize/100;
+            POS = [0.5-(SZ/2) 0.5-(SZ/2) SZ SZ];
+            Dot = rectangle(AX, "Position", POS , 'Curvature', [1 1], "FaceColor", this.LineColor, "EdgeColor", "none", "Tag", "Dot");
         end
         function this = findfigs(this)
             try
