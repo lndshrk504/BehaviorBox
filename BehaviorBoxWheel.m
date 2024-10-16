@@ -1622,6 +1622,8 @@ classdef BehaviorBoxWheel < handle
                 this.app.Animate_YPosition.Value = 0.5;
                 this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'ConstantLine'), "NewStim")
             elseif contains(options.StimType, "Dot")
+                this.app.Animate_XPosition.Value = 0.5;
+                this.app.Animate_YPosition.Value = 0.5;
                 this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Dot'), "NewStim")
             else
                 this.app.Animate_XPosition.Value = 0.25;
@@ -1657,15 +1659,20 @@ classdef BehaviorBoxWheel < handle
                 options.Value double = 0
             end
             STYLE = this.app.Animate_Style.Value;
-            if options.Mode == "Create"
+            if options.Mode == "Show"
 %Remove everything that isn't the spotlights or the finish line
                 this.TestStimulus("AnimateMode",true, "StimType", STYLE);
+            end
+            if options.Mode == "Go"
+                this.TestStimulus("AnimateMode",true, "StimType", STYLE);
+                this.MoveStimuli()
             end
             if options.Mode == "XMove"
                 switch STYLE
                     case "Dot"
-                        1;
-                        % Plot Ready Cue from BBNose
+                        VAL = -0.5+options.Value;
+                        AX = this.fig.Children(1);
+                        AX.Position(1) = VAL;
                     case "X-Line"
                         VAL = -0.5+options.Value;
                         AX = this.fig.Children(1);
@@ -1683,8 +1690,9 @@ classdef BehaviorBoxWheel < handle
             if options.Mode == "YMove"
                 switch STYLE
                     case "Dot"
-                        1;
-                        % Plot Ready Cue from BBNose
+                        VAL = -0.5+options.Value;
+                        AX = this.fig.Children(1);
+                        AX.Position(2) = VAL;
                     case "X-Line"
                         % Do Nothing
                     case "Y-Line"
@@ -1702,6 +1710,8 @@ classdef BehaviorBoxWheel < handle
             if options.Mode == "Flash"
                 if contains(this.app.Animate_Style.Value, "-Line")
                     this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'ConstantLine'), "NewStim")
+                elseif contains(this.app.Animate_Style.Value, "Dot")
+                    this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Dot'), "NewStim")
                 else
                     this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
                 end
@@ -1722,6 +1732,23 @@ classdef BehaviorBoxWheel < handle
             %     % Pause to control the frame rate
             %     pause(1/fps);
             % end
+        end
+        function MoveStimuli(this)
+            switch this.app.Animate_Style.Value
+                case "Dot"
+                    AX = this.fig.Children(1);
+                case "X-Line"
+                    AX = this.fig.Children(1);
+                case "Y-Line"
+                    AX = this.fig.Children(1);
+                case "Bar"
+                    AX = this.Stimulus_Object.LStimAx;
+                    BX = this.Stimulus_Object.RStimAx;
+                case "Stimulus"
+                    AX = this.Stimulus_Object.LStimAx;
+                    BX = this.Stimulus_Object.RStimAx;
+            end
+            
         end
         function WaitForInputKeyboard(this)
             InterTMalInterv = this.Setting_Struct.IntertrialMalSec;
