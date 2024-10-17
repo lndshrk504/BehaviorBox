@@ -132,12 +132,14 @@ classdef BehaviorBoxNose < handle
                         close(this.fig)
                         break;
                     end
+                    profile on
                     this.BeforeTrial();
                     this.WaitForInput();
                     this.WaitForInputAndGiveReward();
                     this.AfterTrial();
                     pause(0.1);
                     errorc = 0;
+                    profile viewer
                 catch err
                     this.unwrapError(err)
                     errorc = errorc + 1;
@@ -1500,6 +1502,7 @@ classdef BehaviorBoxNose < handle
                     case 3 % Nose
                         this.ReadyCue(1)
                         this.ReadyCueAx.findobj('Type','scatter').MarkerFaceColor = deal(this.StimulusStruct.DimColor); drawnow;
+                        pause(0.1)
                         while this.a.ReadLeft() | this.a.ReadRight() %Pause while the mouse is standing there and drinking their water reward
                             pause(0.1); drawnow;
                         end
