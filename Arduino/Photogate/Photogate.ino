@@ -97,18 +97,34 @@ void displayWelcomeMessage() {
 }
 
 void checkAndPrintPhotogateState() {
-  if (digitalRead(PIN_4) == LOW && !hasPrintedFlags[0]) {
-    Serial.println('L');
-    setFlags(0);
-  } else if (digitalRead(PIN_5) == LOW && !hasPrintedFlags[1]) {
-    Serial.println('M');
-    setFlags(1);
-  } else if (digitalRead(PIN_6) == LOW && !hasPrintedFlags[2]) {
-    Serial.println('R');
-    setFlags(2);
-  } else if (digitalRead(PIN_4) == HIGH && digitalRead(PIN_5) == HIGH && digitalRead(PIN_6) == HIGH && !hasPrintedFlags[3]) {
-    Serial.println('-');
-    setFlags(3);
+  static unsigned long lastDebounceTime[4] = {0, 0, 0, 0}; // Last debounce time for each sensor
+  const unsigned long debounceDelay = 50; // Delay time in milliseconds
+
+  bool currentStates[4] = {
+    digitalRead(PIN_4) == LOW,
+    digitalRead(PIN_5) == LOW,
+    digitalRead(PIN_6) == LOW,
+    digitalRead(PIN_4) == HIGH && digitalRead(PIN_5) == HIGH && digitalRead(PIN_6) == HIGH
+  };
+
+  for (int i = 0; i < 4; ++i) {
+    if (currentStates[i] && !hasPrintedFlags[i]) {
+      unsigned long currentTime = millis();
+      
+      // Check if debounce time has passed
+      if ((currentTime - lastDebounceTime[i]) > debounceDelay) {
+        switch (i) {
+          case 0: Serial.println('L'); break;
+          case 1: Serial.println('M'); break;
+          case 2: Serial.println('R'); break;
+          case 3: Serial.println('-'); break;
+        }
+        setFlags(i);
+        lastDebounceTime[i] = currentTime;
+      }
+    } else if (!currentStates[i]) {
+      lastDebounceTime[i] = millis(); // Reset debounce timer if state not detected
+    }
   }
 }
 
