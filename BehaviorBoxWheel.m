@@ -1373,7 +1373,15 @@ classdef BehaviorBoxWheel < handle
             end
         end
         function updateMessageBox(this)
-            this.GuiHandles.MsgBox.String = fileread(this.textdiary);
+            try
+                % Read the content of the diary file
+                diaryContent = fileread(this.textdiary);
+                % Update the GUI text box with the latest content
+                this.GuiHandles.MsgBox.String = diaryContent;
+            catch err
+                % Handle any error that occurs while reading the file
+                this.unwrapError(err);
+            end
         end
         function updateMessageText(this, decision, interval, interval_time)
             if contains(decision, 'time out')

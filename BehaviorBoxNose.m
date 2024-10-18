@@ -335,10 +335,11 @@ classdef BehaviorBoxNose < handle
                     find=1); % Set up data storage object
             catch
             end
+            DATE = sprintf("BBTrialLog_%s.txt", datetime('now', 'Format', 'yyyyMMdd_HHmmss'));
             try
-                diaryname = join([this.Data_Object.filedir "BBTrialOutput"+this.Data_Object.date+".txt"], filesep);
+                diaryname = fullfile(this.Data_Object.filedir, DATE);
             catch
-                diaryname = join([this.Data_Object.Sub "BBTrialOutput"+this.Data_Object.date+".txt"], filesep);
+                diaryname = fullfile(this.Data_Object.Sub, DATE);
             end
             this.textdiary = diaryname;
             diary(diaryname)
@@ -1511,19 +1512,23 @@ classdef BehaviorBoxNose < handle
                 end
             end
             %Wait for interval
-            this.UpdatePause(interval_time)
+            this.UpdatePause(interval_time);
+            this.updateMessageBox();
             if this.Temp_Active
                 this.Setting_Struct = this.Temp_Old_Settings;
             end
+        end
+        function updateMessageBox(this)
             try
-                this.GuiHandles.MsgBox.String = fileread(this.textdiary);
+                % Read the content of the diary file
+                diaryContent = fileread(this.textdiary);
+                % Update the GUI text box with the latest content
+                this.GuiHandles.MsgBox.String = diaryContent;
             catch err
-                diary off
-                try
-                    delete(this.textdiary)
-                    diary(this.textdiary)
-                catch
-                end
+                % Handle any error that occurs while reading the file
+                this.unwrapError(err);
+                delete(this.textdiary)
+                diary(this.textdiary)
             end
         end
         %Update the data object
