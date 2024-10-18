@@ -501,7 +501,7 @@ classdef BB_App < matlab.apps.AppBase
             %Load all the mouse data at once, then toggle through each
             %subject in a dropdown list to quickly plot their data
 
-            BBData = BehaviorBoxData("Inv", Invest, "Inp", Inp, "Str", app.StrainDropDown.Value, "Sub", {' - '});
+            % BBData = BehaviorBoxData("Inv", Invest, "Inp", Inp, "Str", app.StrainDropDown.Value, "Sub", {' - '});
         end
 
         function updateMsgBoxInBackground(app)

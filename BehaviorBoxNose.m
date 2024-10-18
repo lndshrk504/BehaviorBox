@@ -131,15 +131,17 @@ classdef BehaviorBoxNose < handle
                     if errorc >= 5 || get(this.stop_handle, 'Value') %check if stop pressed
                         close(this.fig)
                         break;
-                    end
-                    profile on
+                    end 
+                    % Uncomment these when needing to time the trial
+                    % profile on
                     this.BeforeTrial();
                     this.WaitForInput();
                     this.WaitForInputAndGiveReward();
                     this.AfterTrial();
                     pause(0.1);
                     errorc = 0;
-                    profile viewer
+                    % Uncomment these when needing to time the trial
+                    % profile viewer
                 catch err
                     this.unwrapError(err)
                     errorc = errorc + 1;
