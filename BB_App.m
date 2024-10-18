@@ -308,7 +308,7 @@ classdef BB_App < matlab.apps.AppBase
 
     methods (Access = private)
 
-        function previewStimulus(app)
+        function PreviewStimulus(app)
             % Preview stimulus and display status or error messages.
             app.text1.Text = 'Previewing stimulus...';
             try
@@ -404,9 +404,7 @@ classdef BB_App < matlab.apps.AppBase
                 skipnames = {'Strain', 'Investigator', 'Weight','Subject','Arduino_Com','prob_list'};
                 names = fieldnames(Set);
                 namesREF = fieldnames(Set);
-                names(contains(names, 'Box')) = [];
-                names(contains(names, 'Temp')) = [];
-                names(contains(names, 'Arduino')) = [];
+                names(contains(names, {'Box', 'Temp', 'position', 'size_', 'Arduino'}, "IgnoreCase",true)) = [];
                 names(matches(names, skipnames)) = [];
                 % Add back in all the temporary settings
                 names = [names ; namesREF(contains(namesREF, 'Temp'))];
@@ -813,14 +811,8 @@ classdef BB_App < matlab.apps.AppBase
 
         % Button pushed function: ShowStim
         function ShowStim_Callback(app, event)
-            % Create GUIDE-style callback args - Added by Migration Tool
-            [hObject, eventdata, handles] = convertToGUIDECallbackArguments(app, event);
-            % show PREVIEW STIMULUS BUTTON
-            % hObject    handle to pushbutton10 (see GCBO)
-            % eventdata  reserved - to be defined in a future version of MATLAB
-            % handles    structure with handles and user data (see GUIDATA)
-            app.ShowStim.Enable = 0; %Disable this when debugging...
-            PreviewStimulus(app, hObject, eventdata, handles);
+           app.ShowStim.Enable = 0; %Disable this when debugging...
+            app.PreviewStimulus();
             app.ShowStim.Enable = 1; %Disable this when debugging...
         end
 
