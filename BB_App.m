@@ -477,6 +477,32 @@ classdef BB_App < matlab.apps.AppBase
             assignin("base", "BB", BB)
             assignin("base", "BBData", BBData)
         end
+        
+        function NewLoadGui(app, handles, ~)
+            BB = app.BB;
+
+            %Read settings from interface:
+            Sub = {app.Subject.Value};
+            Invest = app.Inv.Value;
+            Inp = app.Box_Input_type.Value;
+            STARTPATH = fullfile(GetFilePath("Data"), Invest, Inp);
+
+            % Get directory contents
+            contents = dir(STARTPATH);
+
+            % Filter the results to only get folders
+            folders = contents([contents.isdir]);
+
+            % Remove '.' and '..' entries, which refer to the current and parent directories
+            WHO = folders(~ismember({folders.name}, {'.', '..'}));
+            
+            app.StrainDropDown.Items = {WHO.name};
+        
+            %Load all the mouse data at once, then toggle through each
+            %subject in a dropdown list to quickly plot their data
+
+            BBData = BehaviorBoxData("Inv", Invest, "Inp", Inp, "Str", app.StrainDropDown.Value, "Sub", {' - '});
+        end
 
         function updateMsgBoxInBackground(app)
             try
@@ -667,7 +693,6 @@ classdef BB_App < matlab.apps.AppBase
             app.BB.toggleButtonsOnOff(app.BB.Buttons, true);
         end
 
-
     end
 
     % Callbacks that handle component events
@@ -722,11 +747,12 @@ classdef BB_App < matlab.apps.AppBase
 
             % Configure behavior box
             configureBehaviorBox(app, handles);
+            app.NewLoadGui()
 
             % Load GUI input if subject is specified
-            if app.Subject.Value ~= "w"
-                loadGuiInputAsStruct(app, handles, false);
-            end
+            % if app.Subject.Value ~= "w"
+            %     loadGuiInputAsStruct(app, handles, false);
+            % end
 
             % Finalize setup
             finalizeSetup(app);
