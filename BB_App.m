@@ -77,6 +77,8 @@ classdef BB_App < matlab.apps.AppBase
         Stimulus_type                   matlab.ui.control.DropDown
         text65                          matlab.ui.control.Label
         SubjectPanel                    matlab.ui.container.Panel
+        StrainDropDown                  matlab.ui.control.DropDown
+        DropDownLabel                   matlab.ui.control.Label
         WeightgEditField                matlab.ui.control.EditField
         WeightgEditFieldLabel           matlab.ui.control.Label
         Strain                          matlab.ui.control.EditField
@@ -303,19 +305,19 @@ classdef BB_App < matlab.apps.AppBase
         a % Handle to Arduino serial port object
         BB % Handle to BehaviorBox class
     end
-    
+
     methods (Access = private)
-        
-        function PreviewStimulus(app, ~, ~, ~)
-            %app.ShowStim.Enable = 0; %Disable this when debugging...
+
+        function previewStimulus(app)
+            % Preview stimulus and display status or error messages.
             app.text1.Text = 'Previewing stimulus...';
-            BB = evalin('base','BB');
             try
-                BB.getGUI();
-                BB.TestStimulus();
+                app.BB.getGUI();
+                app.BB.TestStimulus();
             catch err
-                BB.unwrapError(err)
-                BB.cleanUP;
+                app.BB.unwrapError(err);  
+                app.BB.cleanUP();
+                disp("Error during stimulus preview: " + getReport(err));
             end
         end
 
@@ -370,22 +372,8 @@ classdef BB_App < matlab.apps.AppBase
             end
         end
 
-        function changeGUIvalue(~, field_handle, change)
-            Old_Entry=str2double(get(field_handle,'String'));
-            New_Entry=Old_Entry+change;
-            if New_Entry<0
-                New_Entry=0;
-            end
-            set(field_handle,'String',num2str(New_Entry));
-        end
-
         function loadGuiInputAsStruct(app, handles, ~)
-            try
-                BB = evalin("base", "BB");
-            catch
-                app.BehaviorBox_OpeningFcn
-                BB = evalin("base", "BB");
-            end
+            BB = app.BB;
             %Read settings from interface:
             Sub = {app.Subject.Value};
             Invest = app.Inv.Value;
@@ -490,6 +478,24 @@ classdef BB_App < matlab.apps.AppBase
             assignin("base", "BBData", BBData)
         end
 
+        function updateMsgBoxInBackground(app)
+            try
+                while isvalid(app)
+                    % Read the current content of the diary file
+                    diaryContent = fileread(app.BB.textdiary);
+                    % Update the MsgBox with the current diary contents
+                    app.MsgBox.Value = diaryContent;
+                    drawnow; % Ensure GUI updates
+
+                    % Pause before the next update to avoid excessive resource use
+                    pause(2); % Set the pause duration as needed
+                end
+            catch err
+                % Handle any errors gracefully
+                app.BB.unwrapError(err);
+            end
+        end
+
         function LoadComputerSpecifics(app)
             % if ispc
             %     loadDir = fullfile(getenv('USERPROFILE'), 'Desktop', 'BehaviorBox');
@@ -516,7 +522,7 @@ classdef BB_App < matlab.apps.AppBase
                 catch err % Fails for the Position property
                     1;
                 end
-            end 
+            end
             app.figure1.Position = SavedComputerSpecifics.Position;
             drawnow; pause(0.1);
         end
@@ -544,27 +550,7 @@ classdef BB_App < matlab.apps.AppBase
             fprintf('Computer settings saved.\n')
         end
 
-
-        function updateMsgBoxInBackground(app)
-            try
-                while isvalid(app)
-                    % Read the current content of the diary file
-                    diaryContent = fileread(app.BB.textdiary);
-                    % Update the MsgBox with the current diary contents
-                    app.MsgBox.Value = diaryContent;
-                    drawnow; % Ensure GUI updates
-
-                    % Pause before the next update to avoid excessive resource use
-                    pause(2); % Set the pause duration as needed
-                end
-            catch err
-                % Handle any errors gracefully
-                app.BB.unwrapError(err);
-            end
-        end
-
-
-        function printHardwareconnections(~, handles)
+        function printHardwareConnections(app, handles)
             current_selection_stimulus=get(handles.Box_Input_type,'Value');
             current_selection_input=get(handles.Box_Input_type,'Value');
             fprintf('------SET UP-------\n')
@@ -600,7 +586,7 @@ classdef BB_App < matlab.apps.AppBase
             end
             fprintf('------------------\n');
         end
-        
+
         function printWelcomeMsg(~)
             fprintf('_________________________________________________________________________________________________')
             fprintf('\n');
@@ -627,6 +613,61 @@ classdef BB_App < matlab.apps.AppBase
         function results = LvProbChange(~, In)
             results = 1-In;
         end
+
+
+        function setupDiaryFile(app, fileName)
+            % Ensure the log file is clean and start logging
+            app.MsgBox.Value = '';
+            drawnow;
+            diary off;
+            if exist(fileName, 'file') == 2
+                delete(fileName);
+            end
+            diary(fileName);
+        end
+
+        function isValid = isValidComPort(app, comPort)
+            % Validate Arduino COM port
+            isValid = ~isempty(comPort) && contains(comPort, 'ACM', 'IgnoreCase', true) && isnumeric(comPort);
+        end
+
+        function configureBehaviorBox(app, handles)
+            % Configure the behavior box based on input type
+            app.text1.Text = 'Setting up...';
+            fprintf('Setting up...\n');
+            app.MsgBox.Value = fileread('BBAppoutput.txt');
+            drawnow;
+
+            if app.Box_Input_type.Value == "Wheel"
+                BB = BehaviorBoxWheel(handles, app);
+            else
+                BB = BehaviorBoxNose(handles, app);
+            end
+
+            if app.ResetAll.Value
+                BB.ConfigureBox("Rebuild", false);
+            else
+                BB.ConfigureBox();
+            end
+
+            % Assign the behavior box object to the base workspace and app
+            assignin("base", "BB", BB);
+            app.BB = BB;
+        end
+
+        function finalizeSetup(app)
+            % Finalize the GUI setup and update the state to "Ready"
+            app.text1.Text = 'Ready';
+            fprintf('Ready\n');
+            app.MsgBox.Value = fileread('BBAppoutput.txt');
+            drawnow;
+            diary off;
+
+            % Enable interactive buttons
+            app.BB.toggleButtonsOnOff(app.BB.Buttons, true);
+        end
+
+
     end
 
     % Callbacks that handle component events
@@ -634,77 +675,61 @@ classdef BB_App < matlab.apps.AppBase
 
         % Code that executes after component creation
         function BehaviorBox_OpeningFcn(app)
-            % Create GUIDE-style callback args - Added by Migration Tool
-            [hObject, eventdata, handles] = convertToGUIDECallbackArguments(app); %#ok<ASGLU>
-            %OPENING FUNCTION
-            % This function has no output args, see OutputFcn.
-            % hObject    handle to figure
-            % eventdata  reserved - to be defined in a future version of MATLAB
-            % handles    structure with handles and user data (see GUIDATA)
-            % varargin   command line arguments to BehaviorBox (see VARARGIN)
+
+            % Initialize properties
+            app.BB.a = [];
+            app.a = [];
+            evalin('base', 'clear all hidden classes; clc; !reset');
+
+            % Create GUIDE-style callback arguments
+            [hObject, ~, handles] = convertToGUIDECallbackArguments(app);
+
+            % Opening function setup
             handles.output = hObject;
-            % **************** ADD THIS SECTION ******************
-            %from: https://www.mathworks.com/matlabcentral/answers/482510-annotationpane-handle-appearing-in-guide-guis-with-panel-axes-in-r2019b
-            % Check if scribeOverlay is a field and that it contains an annotation pane
-            if isfield(handles,'scribeOverlay') && isa(handles.scribeOverlay(1),'matlab.graphics.shape.internal.AnnotationPane')
+
+            % Handle scribeOverlay cleanup
+            if isfield(handles, 'scribeOverlay') && isa(handles.scribeOverlay(1), 'matlab.graphics.shape.internal.AnnotationPane')
                 delete(handles.scribeOverlay);
                 handles = rmfield(handles, 'scribeOverlay');
             end
-            % **********************  END ************************
+
             % Update handles structure
             guidata(hObject, handles);
-            printWelcomeMsg(app)
-            addpath("fcns/")
-            cd(GetFilePath("Computer")) %Change to app's folder on Desktop
-            % Make Diary to log stdout:
-            app.MsgBox.Value = ''; drawnow
-            diary off
-            f_n = 'BBAppoutput.txt';
-            if exist(f_n, 'file') == 2
-                delete(f_n);
-            end
-            diary('BBAppoutput.txt');
-            sl = serialportlist("Available");
-            if ~isempty(app.Arduino_Com.Value) && ~contains(app.Arduino_Com.Value, 'ACM', IgnoreCase=true) | ~isnumeric(app.Arduino_Com.Value)
+
+            % Print welcome message
+            printWelcomeMsg(app);
+
+            % Configure application path
+            addpath("fcns/");
+            cd(GetFilePath("Computer")); % Change to app's folder on Desktop
+
+            % Setup log file
+            setupDiaryFile(app, 'BBAppoutput.txt');
+
+            % Initialize Arduino communication
+            if ~isValidComPort(app, app.Arduino_Com.Value)
                 app.Arduino_Com.Value = '';
             end
+
+            % Try finding Arduino and load specifics
             try
                 app.FindArduino(handles);
-                LoadComputerSpecifics(app)
+                LoadComputerSpecifics(app);
             end
-            printHardwareconnections(app, handles) %Print out welcome message and some instructions
-            app.text1.Text = 'Setting up...';
-            fprintf('Setting up...\n');
-            app.MsgBox.Value = fileread('BBAppoutput.txt'); drawnow;
-            if app.Box_Input_type.Value == "Wheel"
-                BB = BehaviorBoxWheel(handles, app);
-                if app.ResetAll.Value
-                    BB.ConfigureBox("Rebuild",false);
-                else
-                    BB.ConfigureBox();
-                end
-            else
-                BB = BehaviorBoxNose(handles, app);
-                if app.ResetAll.Value
-                    BB.ConfigureBox("Rebuild",false);
-                else
-                    BB.ConfigureBox();
-                end
+
+            % Print initial hardware connections
+            app.printHardwareConnections(handles);
+
+            % Configure behavior box
+            configureBehaviorBox(app, handles);
+
+            % Load GUI input if subject is specified
+            if app.Subject.Value ~= "w"
+                loadGuiInputAsStruct(app, handles, false);
             end
-            %pause(3)
-            %BB.a.SetupReward("Which", "Both", "DurationLeft", app.Box_Lrewardtime.Value, "DurationRight", app.Box_Rrewardtime.Value);
-            assignin("base", "BB", BB)
-            app.BB = BB;
-            % app.a = BB.a;
-            if app.Subject.Value ~= "w" %Look up subject if one is filled in
-                loadGuiInputAsStruct(app, handles, 0)
-            end
-            % Clean Up:
-            app.text1.Text = 'Ready';
-            fprintf('Ready\n');
-            app.MsgBox.Value = fileread('BBAppoutput.txt'); drawnow;
-            diary off
-            BB.toggleButtonsOnOff(BB.Buttons, 1)
+
+            % Finalize setup
+            finalizeSetup(app);
         end
 
         % Button pushed function: Start
@@ -718,7 +743,7 @@ classdef BB_App < matlab.apps.AppBase
             %START BUTTON
             try
                 evalin('base','clc')
-                trialObject = evalin('base','BB');
+                trialObject = app.BB;
                 trialObject.RunTrials();
                 SaveComputerSpecifics(app);
             catch err
@@ -757,7 +782,7 @@ classdef BB_App < matlab.apps.AppBase
             % hObject    handle to pushbutton4 (see GCBO)
             % eventdata  reserved - to be defined in a future version of MATLAB
             % handles    structure with handles and user data (see GUIDATA)
-            printHardwareconnections(app, handles)
+            printHardwareConnections(app, handles)
         end
 
         % Button pushed function: ShowStim
@@ -808,14 +833,8 @@ classdef BB_App < matlab.apps.AppBase
             [~, ~, handles] = convertToGUIDECallbackArguments(app, event);
             % TEST BOX
             try
-                if ismember('BB', evalin('base','who'))
-                    BB = evalin('base','BB');
-                    BB.TestBox();
-                else
-                    BehaviorBox_OpeningFcn(app)
-                    BB = evalin('base','BB');
-                    BB.TestBox();
-                end
+                BB = app.BB;
+                BB.TestBox();
                 SaveComputerSpecifics(app)
             catch err
                 disp(err.message);
@@ -843,65 +862,54 @@ classdef BB_App < matlab.apps.AppBase
         % Close request function: figure1
         function figure1CloseRequest(app, event)
             delete(app)
-            evalin('base', 'clear a BB BBSuper');
+            evalin('base', 'clear a BB ');
             delete(findobj("Type", "figure", "Name", "Stimulus"))
-            %delete(findobj("Type", "figure", "Name", "Graphs"))
         end
 
         % Button pushed function: LeftValveButton
         function LeftValveButtonPushed(app, event)
             % L TEST WATER BUTTON
-            a = evalin('base', 'BB.a');
-            Rep = app.Box_LeftPulse.Value;
             % command to pulse valve
-            a.GiveReward("Side","L")
+            app.BB.a.GiveReward("Side","L")
         end
 
         % Button pushed function: RightValveButton
         function RightValveButtonPushed(app, event)
             % R TEST WATER BUTTON
-            a = evalin('base', 'BB.a');
             % command to pulse valve
-            a.GiveReward("Side","R")
+            app.BB.a.GiveReward("Side","R")
         end
 
         % Button pushed function: ResetButton
         function ResetButtonPushed(app, event)
             %RESET BUTTON
-            evalin('base', 'clear hidden; clc')
-            evalin('base', 'clear a BB');  drawnow;
+            evalin('base', 'clear all hidden classes; clc; !reset')
             BehaviorBox_OpeningFcn(app)
         end
 
         % Value changed function: OpenL
         function OpenLValueChanged(app, event)
-            a = evalin('base', 'BB.a');
-            a.GiveReward("Side","l");
+            app.BB.a.GiveReward("Side","l");
         end
 
         % Value changed function: OpenR
         function OpenRValueChanged(app, event)
-            a = evalin('base', 'BB.a');
-            a.GiveReward("Side","r");
+            app.BB.a.GiveReward("Side","r");
         end
 
         % Value changed function: OpenBoth
         function OpenBothValueChanged(app, event)
-            a = evalin('base', 'BB.a');
-            a.GiveReward("Side","l");
-            a.GiveReward("Side","r");
+            app.BB.a.GiveReward("Side","l");
+            app.BB.a.GiveReward("Side","r");
         end
 
         % Value changed function: ResetAll
         function RESETALLButtonPushed(app, event)
             app.ResetAll.Text = 'Resetting...';
-            evalin('base', 'clear all hidden classes; clc'); drawnow;
-            try
-                BehaviorBox_OpeningFcn(app)
-            catch
-            end
+            evalin('base', 'clear all hidden classes; clc; !reset');
+            BehaviorBox_OpeningFcn(app)
             app.ResetAll.Value = 0;
-            app.ResetAll.Text = 'Reset ALL!'; drawnow;
+            app.ResetAll.Text = 'Reset ALL!';
         end
 
         % Value changed function: Subject
@@ -918,9 +926,8 @@ classdef BB_App < matlab.apps.AppBase
         % Button pushed function: Folder
         function FolderButtonPushed(app, event)
             try
-                BB = evalin("base", "BB");
                 if ispc
-                    winopen(BB.Data_Object.filedir{:})
+                    winopen(app.BB.Data_Object.filedir{:})
                 end
             catch
             end
@@ -989,13 +996,12 @@ classdef BB_App < matlab.apps.AppBase
 
         % Value changed function: Box_Lrewardtime, Box_Rrewardtime
         function RewardTimeChanged(app, event)
-            a = evalin('base', 'BB.a');
             if event.Source.Tag == "Box_Lrewardtime"
                 valueL = app.Box_Lrewardtime.Value;
-                a.SetupReward("Which", "Left", "DurationLeft",valueL);
+                app.BB.a.SetupReward("Which", "Left", "DurationLeft",valueL);
             elseif event.Source.Tag == "Box_Rrewardtime"
                 valueR = app.Box_Rrewardtime.Value;
-                a.SetupReward("Which", "Right", "DurationRight",valueR);
+                app.BB.a.SetupReward("Which", "Right", "DurationRight",valueR);
             end
         end
 
@@ -1003,8 +1009,7 @@ classdef BB_App < matlab.apps.AppBase
         function Auto_GoValueChanged(app, event)
             value = app.Auto_Go.Value;
             try
-                % evalin('base','clc')
-                trialObject = evalin('base','BB');
+                trialObject = app.BB;
                 app.Auto_Go.Enable = false;
                 app.Auto_Stop.Enable = true;
                 drawnow limitrate;
@@ -1036,7 +1041,6 @@ classdef BB_App < matlab.apps.AppBase
                 end
             end
             try
-                %BB = evalin('base','BB');
                 app.BB.getGUI();
                 app.BB.AnimateStimulus("Mode", MODE);
             catch err
@@ -1802,6 +1806,20 @@ classdef BB_App < matlab.apps.AppBase
             app.WeightgEditField.Tag = 'Weight';
             app.WeightgEditField.Tooltip = {'Enter the animal''s weight in grams'};
             app.WeightgEditField.Position = [69 28 57 22];
+
+            % Create DropDownLabel
+            app.DropDownLabel = uilabel(app.SubjectPanel);
+            app.DropDownLabel.Tag = 'StrainDropDown';
+            app.DropDownLabel.HorizontalAlignment = 'right';
+            app.DropDownLabel.Position = [1 3 66 22];
+            app.DropDownLabel.Text = 'Drop Down';
+
+            % Create StrainDropDown
+            app.StrainDropDown = uidropdown(app.SubjectPanel);
+            app.StrainDropDown.Items = {'shank'};
+            app.StrainDropDown.Tag = 'StrainDropDown';
+            app.StrainDropDown.Position = [82 3 96 22];
+            app.StrainDropDown.Value = 'shank';
 
             % Create Panel_2
             app.Panel_2 = uipanel(app.SettingsTab);
