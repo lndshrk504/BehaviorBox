@@ -159,96 +159,113 @@ classdef BehaviorBoxData < handle
         function [subfiledir, fds] = GetFiles(this)
             fds = [];
             subfiledir = pwd;
-            %Do an initial search for this mouse
-            startpath = fullfile(GetFilePath("Data"), this.Inv,this.Inp, '**', '*');
+
+            if any(matches([this.Sub, this.Str], 'w', 'IgnoreCase', true))
+                return
+            end
+
+            ONEMOUSE = false;
+            NEW = false;
+
+            % Construct the starting path for directory search
+            startpath = fullfile(GetFilePath("Data"), this.Inv, this.Inp, '**', '*');
             dirlist = dir(startpath);
             dirlist = dirlist([dirlist.isdir] & ...
                 ~contains({dirlist.name}, {'.', 'settings', 'alltime', 'Rescued'}, 'IgnoreCase',true) ...
                 & contains({dirlist.name}, this.Sub, "IgnoreCase",true));
-            try
+
+            % Attempt to group directories
+            if isempty(dirlist)
+                NEW = true;
+            elseif isscalar(dirlist) % Just one subject
+                dirPath = fullfile(dirlist.folder, dirlist.name);
+                % If this.Sub is only 1 mouse's name:
+                filelist = dir(fullfile(GetFilePath("Data"), this.Inv,this.Inp, '**', '*.mat'));
+                filelist = filelist(contains({filelist.name}, this.Sub) & ~contains({filelist.name}, 'settings', 'IgnoreCase',true));           
+                ONEMOUSE = true;
+            else % A whole Group
                 [~,b]=findgroups({dirlist.folder}');
-                dirPath = cellfun(@(x) fullfile(b{:}, x), {dirlist.name}' , 'UniformOutput', false);
-            catch
+                if isscalar(b)
+                    dirPath = cellfun(@(x) fullfile(b{:}, x), {dirlist.name}' , 'UniformOutput', false);
+                else
+                    1;
+                end
             end
-            filelist = dir(fullfile(GetFilePath("Data"), this.Inv,this.Inp, '**', '*.mat'));
-            filelist = filelist(contains({filelist.name}, this.Sub) & ~contains({filelist.name}, 'settings', 'IgnoreCase',true));
-            switch 1
-                case any(matches([this.Sub, this.Str], 'w', 'IgnoreCase', true))
-                    %Do nothing
-                case any(contains({filelist.name}, this.Sub)) %Any files?
-                    [subfiledir, fds] = makefiles(dirPath);
-                    %Any folders but no files?
-                case any(contains({dirlist.name}, this.Sub)) %Any files?
-                    [subfiledir, fds] = makefiles(dirPath);
-                case sum(contains({dirlist.name}, this.Sub)) == 1
-                    dirlist = dirlist(contains({dirlist.name}, this.Sub));
-                    newpath = dirlist.folder;
-                    tree = split(dirlist.folder, filesep);
-                    this.Str = tree{end};
-                    subfiledir = fullfile(newpath, this.Sub{:}); %Leave fds empty
-                otherwise
-                    if ~isempty(this.Str)
-                        newpath = fullfile(GetFilePath("Data"), this.Inv, this.Inp, this.Str, this.Sub);
-                        if isfolder(newpath)
-                            fprintf("Found "+numel(this.Sub)+" subject(s) matching user input:\n - "+cell2mat(join(this.Sub, "\n - "))+"\n")
-                        else
-                            try
-                                mkdir(newpath{:})
-                            catch
-                            end
-                            fprintf("New strain, folders will be created when saving data...\n")
-                            subfiledir = newpath;
-                        end
-                    else
-                        fprintf("Indicated filepath not found - Check the file path..?\n")
-                        newpath = fullfile(GetFilePath("Data"), this.Inv, this.Inp, 'New', this.Sub);
-                        this.Str = 'New';
-                        if isfolder(newpath)
-                            fprintf("Found "+numel(this.Sub)+" subject(s) matching user input:\n - "+cell2mat(join(this.Sub, "\n - "))+"\n")
-                        else
-                            mkdir(newpath{:})
-                            fprintf("New strain, folders will be created when saving data...\n")
-                        end
-                        subfiledir = newpath;
-                    end
+
+            % Determine the action based on conditions
+            if NEW
+                % Handle paths based on user input and state
+                subfiledir = handleNewStrain(this, dirlist);
+            else ONEMOUSE % any(contains({filelist.name}, this.Sub))
+                % If any files match the subject, proceed to create file datastore
+                [subfiledir, fds] = this.makefiles(dirPath);
             end
+
+            % Report found files if fds is populated
             if ~isempty(fds)
                 fprintf("Found "+numel(fds.Files)+" files for "+numel(this.Sub)+" subject(s) matching user input:\n - "+cell2mat(join(this.Sub, "\n - "))+"\n")
             end
 
-            function [SUBDIR, FDS] = makefiles(direc)
-                FDS = [];
-                SUBDIR = [];
+        end
+
+        function [SUBDIR, FDS] = makefiles(this, direc)
+            FDS = [];
+            SUBDIR = [];
+            try
+                FDS = fileDatastore(direc, "ReadMode", "file" ,"ReadFcn", @readFcn, "FileExtensions", ".mat", "IncludeSubfolders",true);
+                forest = cellfun(@(x) split(x,filesep), FDS.Files', 'UniformOutput', false);
+                [~,this.Sub]=findgroups(cellfun(@(x) x(end-1), forest));
+                [~,strains]=findgroups(cellfun(@(x) x(end-2), forest));
+                this.Str = cell2mat(strains);
+                if numel(this.Sub)>1
+                    % Use strain folder for directory when multiple subjects
+                    w = 2;
+                else
+                    % Use subject folder for directory
+                    w = 1;
+                end
+                file = forest{1}(1:end-w);
+                SUBDIR = fullfile(join(file(:),filesep));
+            catch err
+                display(err.message)
                 try
-                    FDS = fileDatastore(direc, "ReadMode", "file" ,"ReadFcn", @readFcn, "FileExtensions", ".mat", "IncludeSubfolders",false);
-                    forest = cellfun(@(x) split(x,filesep), FDS.Files', 'UniformOutput', false);
-                    [~,this.Sub]=findgroups(cellfun(@(x) x(end-1), forest));
-                    [~,strains]=findgroups(cellfun(@(x) x(end-2), forest));
-                    this.Str = cell2mat(strains);
-                    if numel(this.Sub)>1
-                        w = 2;
-                    else
-                        w = 1;
-                    end
-                    file = forest{1}(1:end-w);
-                    SUBDIR = fullfile(join(file(:),filesep));
-                catch err
-                    display(err.message)
-                    try
-                        SUBDIR = direc{:};
-                        tree = split(direc, filesep);
-                        this.Sub = tree(end);
-                        this.Str = tree{end-1};
-                    catch
-                    end
+                    SUBDIR = direc{:};
+                    tree = split(direc, filesep);
+                    this.Sub = tree(end);
+                    this.Str = tree{end-1};
+                catch
                 end
             end
-
         end
+
+        function subdirPath = handleNewStrain(this, dirlist)
+            if ~isempty(this.Str)
+                newpath = fullfile(GetFilePath("Data"), this.Inv, this.Inp, this.Str, this.Sub);
+                actionOnFolderPresence(newpath, this.Sub);
+                subdirPath = newpath;
+            else
+                fprintf("Indicated filepath not found - Check the file path..?\n");
+                this.Str = 'New';
+                newpath = fullfile(GetFilePath("Data"), this.Inv, this.Inp, 'New', this.Sub);
+                this.actionOnFolderPresence(newpath, this.Sub);
+                subdirPath = newpath;
+            end
+        end
+
+        function actionOnFolderPresence(this, newpath, subjects)
+            if isfolder(newpath)
+                fprintf("Found %d subject(s) matching user input:\n - %s\n", ...
+                    numel(subjects), cell2mat(join(subjects, "\n - ")));
+            else
+                mkdir(newpath{:});
+                fprintf("New strain, folders will be created when saving data...\n");
+            end
+        end
+
         function [varargout] = loadFiles(this, options)
             arguments
                 this
-% How many trials to remove from the end of each day, to accomodate for the mouse's waning attention/interest in the task
+                % How many trials to remove from the end of each day, to accomodate for the mouse's waning attention/interest in the task
                 options.CropEnd double = 30
             end
             tic
@@ -520,7 +537,7 @@ classdef BehaviorBoxData < handle
             end
         end
         function SortSubjects(this)
-%Reorder everything in this.AnalyzedData to put Hets first, WTs last
+            %Reorder everything in this.AnalyzedData to put Hets first, WTs last
             this.AnalyzedData.Subjects = this.Sub;
             WTs = find(contains(this.AnalyzedData.Subjects, "WT"));
             Hets = find(~contains(this.AnalyzedData.Subjects, "WT"));
@@ -597,7 +614,7 @@ classdef BehaviorBoxData < handle
             end
         end
         function Cross = MMCross(this)
-% Moving Mean Cross (the threshold)
+            % Moving Mean Cross (the threshold)
             arguments
                 this
             end
@@ -611,7 +628,7 @@ classdef BehaviorBoxData < handle
             for L = 1:max(cellfun(@(x) numel(x), Lev, UniformOutput=true))
                 CROSS_1 = cellfun(@(x) find(x{L}{:,6} < 0.05, 1, "first")+this.BB, Lev, UniformOutput=0, ErrorHandler=@errorFuncNaN);
                 CROSS_1(cellfun('isempty', CROSS_1)) = {NaN};
-                OverBinomial{L,"p<0.05"} = {[ {[CROSS_1{Het}]} {[CROSS_1{WT}]} ]} ; 
+                OverBinomial{L,"p<0.05"} = {[ {[CROSS_1{Het}]} {[CROSS_1{WT}]} ]} ;
                 OverBinomial_AVG{L,"p<0.05"} = {[mean(cell2mat(CROSS_1(Het)), "omitmissing") mean(cell2mat(CROSS_1(WT)), "omitmissing") ; std(cell2mat(CROSS_1(Het)), "omitmissing") std(cell2mat(CROSS_1(WT)), "omitmissing") ; sum(cellfun(@(x) ~isnan(x), CROSS_1(Het))) sum(cellfun(@(x) ~isnan(x), CROSS_1(WT)))]};
                 CROSS_2 = cellfun(@(x) find(x{L}{:,6} < 0.01, 1, "first")+this.BB, Lev, UniformOutput=0, ErrorHandler=@errorFuncNaN);
                 CROSS_2(cellfun('isempty', CROSS_2)) = {NaN};
@@ -633,7 +650,7 @@ classdef BehaviorBoxData < handle
                 options.FromChance = [] % Append the Scores with a 0.5 to start the moving mean from 50%
                 options.Endpoints = [] %Shrink or Discard
             end
-        % Init settings variables:
+            % Init settings variables:
             Endpoints = [];
             FromChance = [];
             switch 1 %Either the BinSize is a number or the Type is specified
@@ -651,14 +668,14 @@ classdef BehaviorBoxData < handle
                     FromChance = 1;
                 otherwise
             end
-        %Check defaults against inputs, override if specified
+            %Check defaults against inputs, override if specified
             if ~isempty(options.Endpoints)
                 Endpoints = options.Endpoints;
             end
             if ~isempty(options.FromChance)
                 FromChance = options.FromChance;
             end
-        % Decode settings
+            % Decode settings
             if Endpoints
                 EP = 'shrink';
             else
@@ -682,7 +699,7 @@ classdef BehaviorBoxData < handle
                     MM = sMM;
                     return
                 end
-            % For standard deviation:
+                % For standard deviation:
                 B1 = movmean(scores(1:(numel(scores)-this.SB)), [this.SB-1 0], 'Endpoints', 'discard');
                 B2 = movmean(scores((this.SB+1):numel(scores)), [this.SB-1 0], 'Endpoints', 'discard');
                 STD = std([B1 B2],0,2);
@@ -818,20 +835,20 @@ classdef BehaviorBoxData < handle
             if options.IsAnalysis && options.CE ~= 0 && max(data.TrialNum) >= 120
                 % Crop the last few trials
 
-            %Either use the Include vector to later crop (more work)
+                %Either use the Include vector to later crop (more work)
                 data.Include(end-options.CE+1:end) = 2;
                 m = numel(data.TrialNum);
-            % Or just remove them
-            for n = names'
-                try
-                    if numel(data.(n{:}))~=m
-                        continue
+                % Or just remove them
+                for n = names'
+                    try
+                        if numel(data.(n{:}))~=m
+                            continue
+                        end
+                        data.(n{:})(end-options.CE+1:end) = [];
+                    catch err
+                        unwrapErr(err)
                     end
-                    data.(n{:})(end-options.CE+1:end) = [];
-                catch err
-                    unwrapErr(err)
                 end
-            end
             end
         end
         %Plot functions
@@ -1274,12 +1291,12 @@ classdef BehaviorBoxData < handle
                 options.tol double = 0 % How many below-threshold trials in the streak of options.count to be tolerated
             end
             Out = struct();
-        % Pull the cumulative Level and Day data
+            % Pull the cumulative Level and Day data
             LEVDATA = cellfun(@(x)this.AnalyzedData.LevelMM{x}, num2cell(1:numel(this.Sub)), UniformOutput=false);
             DAYDATA = cellfun(@(x)this.AnalyzedData.DayMM{x}, num2cell(1:numel(this.Sub)), UniformOutput=false);
             SUBS = this.AnalyzedData.Subjects;
             for L = options.Lvs
-            % Prepare and format 2x2 subplot
+                % Prepare and format 2x2 subplot
                 Ax = MakeAxis();
                 Bx = nexttile; hold(Bx,"on");
                 Cx = nexttile; hold(Cx,"on");
@@ -1299,7 +1316,7 @@ classdef BehaviorBoxData < handle
                 Dx.Box=0;
                 Ax.YLim = [0.4 1]; Bx.YLim = [0.4 1];
                 SC = 0;
-            % Matrix to record passing data:
+                % Matrix to record passing data:
                 PassIdx = zeros(numel(SUBS),9);
                 % 1 Did they pass
                 % 2 at which trial number
@@ -1317,7 +1334,7 @@ classdef BehaviorBoxData < handle
                     PassIdx(SC,7) = contains(thisSub, "Het");
                     PassIdx(SC,8) = contains(thisSub, "- M -");
                     ColorIdx = PassIdx(SC,7)+1;
-                %Check if they've seen this level:
+                    %Check if they've seen this level:
                     if ~any(SUBDATA{1}.Ls == L)
                         continue
                     end
@@ -1333,7 +1350,7 @@ classdef BehaviorBoxData < handle
                         PassIdx(SC,9) = min(lb);
                         lp = plot(lx,ly,"Parent",Ax,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
                         lpB = plot((1:numel(ly))+(this.BB-1),ly,"Parent",Bx,"SeriesIndex",ColorIdx, "LineWidth",3, "DisplayName",thisSub);
-                    % From cumulative LevelTable, find the trials over the threshold
+                        % From cumulative LevelTable, find the trials over the threshold
                         % overThreshEx = cellfun(@(x)find(x(:,1)>=options.Threshold & x(:,5)==1)+this.BB, LevData, 'UniformOutput', false, 'ErrorHandler',@errorFuncNaN);
                         % TrialEx = cellfun(@(x) this.consecutiveTrial(x, options.count, options.tol), overThreshEx, "UniformOutput",true);
                         overThresh = cellfun(@(x)find(x(:,1)>=options.Threshold)+this.BB, LevData, 'UniformOutput', false, 'ErrorHandler',@errorFuncNaN);
@@ -2656,21 +2673,21 @@ classdef BehaviorBoxData < handle
             this.graphFig.MenuBar = 'figure';
         end
         function saveFigure(~, fig, folder, name)
-                % saveFigure Save the given figure to a specified folder as a PDF file.
-                %   saveFigure(fig, folder, name)
-                %   fig    - Handle to the MATLAB figure to be saved.
-                %   folder - Destination folder where the figure should be saved.
-                %   name   - The name to use for the saved PDF file.
-                name = erase(name, '.mat');
-                % Create the complete filename
-                fullPath = fullfile(folder, name + ".pdf");
-                
-                % Set figure properties before saving
-                set(fig, 'Units', 'inches', 'PaperUnits', 'inches', 'PaperSize', [11 8.5], ...
-                        'PaperPositionMode', 'auto', 'PaperPosition', [0 0 11 8.5]);
-                
-                % Save the figure as a PDF using exportgraphics
-                exportgraphics(fig, fullPath, 'ContentType', 'vector', 'Resolution', 600);
+            % saveFigure Save the given figure to a specified folder as a PDF file.
+            %   saveFigure(fig, folder, name)
+            %   fig    - Handle to the MATLAB figure to be saved.
+            %   folder - Destination folder where the figure should be saved.
+            %   name   - The name to use for the saved PDF file.
+            name = erase(name, '.mat');
+            % Create the complete filename
+            fullPath = fullfile(folder, name + ".pdf");
+
+            % Set figure properties before saving
+            set(fig, 'Units', 'inches', 'PaperUnits', 'inches', 'PaperSize', [11 8.5], ...
+                'PaperPositionMode', 'auto', 'PaperPosition', [0 0 11 8.5]);
+
+            % Save the figure as a PDF using exportgraphics
+            exportgraphics(fig, fullPath, 'ContentType', 'vector', 'Resolution', 600);
         end
         function SaveManyFigures(this, fig, filename, options)
             arguments
@@ -2793,10 +2810,10 @@ classdef BehaviorBoxData < handle
             Out.TotalTrialNum = (1:numel(Tbl.Level))';
         end
         function [fig] = getFigProps(fig, options)
-            figProps = struct; 
+            figProps = struct;
             figProps.units = 'inches';
             figProps.format = 'pdf';
-            figProps.Width = num2str(options.Columns); 
+            figProps.Width = num2str(options.Columns);
             figProps.Height = num2str(options.Rows);
             figProps.Renderer = 'painters';
             figProps.Resolution = '600';
