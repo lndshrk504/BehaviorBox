@@ -13,51 +13,69 @@ function filepath = GetFilePath(type, options)
 %   Example:
 %     path = GetFilePath("Computer");
 
-    arguments
-        type string
-        options struct = struct()
-    end
+arguments
+    type string
+    options struct = struct()
+end
 
-    filepath = '';
-    try
-        switch type
-            case "Computer"
-                filepath = ComputerData();
-            case "Data"
-                filepath = AnimalData();
-            otherwise
-                error("GetFilePath:InvalidType", "Unsupported path type specified.");
-        end
-    catch err
-        fprintf('Error occurred in GetFilePath: %s\n', err.message);
+filepath = '';
+try
+    switch type
+        case "Computer"
+            filepath = ComputerData();
+        case "Data"
+            filepath = AnimalData();
+        case "Archive"
+            filepath = ArchiveData();
+
+        otherwise
+            error("GetFilePath:InvalidType", "Unsupported path type specified.");
     end
+catch err
+    fprintf('Error occurred in GetFilePath: %s\n', err.message);
+end
 end
 
 function F = ComputerData()
-    % COMPUTERDATA Fetches the standard directory path for 'Computer' data
-    F = '';
-    if ispc
-        F = fullfile(getenv('USERPROFILE'), 'Desktop', 'BehaviorBox');
-    elseif ismac
-        F = fullfile(getenv('HOME'), 'Desktop', 'BehaviorBox');
-    elseif isunix
-        F = fullfile(getenv('HOME'), 'Desktop', 'BehaviorBox');
-    else
-        error('GetFilePath:PlatformError', 'Unsupported Operating System.');
-    end
+% COMPUTERDATA Fetches the standard directory path for 'Computer' data
+F = '';
+PREFIX = '';
+if ispc
+    PREFIX = getenv('USERPROFILE');
+elseif isunix
+    PREFIX = getenv('HOME');
+else
+    error('GetFilePath:PlatformError', 'Unsupported Operating System.');
+end
+F = fullfile(PREFIX, 'Desktop', 'BehaviorBox');
 end
 
 function F = AnimalData()
-    % ANIMALDATA Fetches the directory path for 'Animal' data
-    F = '';
-    switch true
-        case ispc
-            F = 'D:\Dropbox @RU Dropbox\William Snyder\Gilbert Lab\BehaviorBoxData\Data\';
-        case ismac
-            F = '/Users/willsnyder/Dropbox @RU Dropbox/William Snyder/Gilbert Lab/BehaviorBoxData/Data/';
-        case isunix
-            F = fullfile(getenv('HOME'), 'Dropbox (Dropbox @RU)', 'Gilbert Lab', 'BehaviorBoxData', 'Data');
-        otherwise
-            error('GetFilePath:PlatformError', 'Unsupported Operating System.');
-    end
+% ANIMALDATA Fetches the directory path for 'Animal' data
+F = '';
+PREFIX = '';
+switch true
+    case ispc
+        PREFIX = 'D:';
+    case isunix
+        PREFIX = getenv('HOME');
+    otherwise
+        error('GetFilePath:PlatformError', 'Unsupported Operating System.');
+end
+F = fullfile(PREFIX, 'Dropbox (Dropbox @RU)', 'Data');
+end
+
+function F = ArchiveData()
+% ANIMALDATA Fetches the directory path for 'Animal' data
+F = '';
+PREFIX = '';
+switch true
+    case ispc
+        PREFIX = 'D:';
+    case isunix
+        PREFIX = getenv('HOME');
+    otherwise
+        error('GetFilePath:PlatformError', 'Unsupported Operating System.');
+end
+F = fullfile(PREFIX, 'Dropbox (Dropbox @RU)', {'Archive', 'Data'});
 end

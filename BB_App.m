@@ -702,7 +702,11 @@ classdef BB_App < matlab.apps.AppBase
             % Initialize properties
             app.BB.a = [];
             app.a = [];
-            evalin('base', 'clear all hidden classes; clc; !reset');
+            if ~ismac && isunix
+                evalin('base', 'clear all hidden classes; clc; !reset');
+            else
+                evalin('base', 'clear all hidden classes; clc;');
+            end
 
             % Create GUIDE-style callback arguments
             [hObject, ~, handles] = convertToGUIDECallbackArguments(app);
