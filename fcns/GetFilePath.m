@@ -54,28 +54,40 @@ function F = AnimalData()
 % ANIMALDATA Fetches the directory path for 'Animal' data
 F = '';
 PREFIX = '';
+FOLDER = '';
 switch true
     case ispc
         PREFIX = 'D:';
+        FOLDER = 'Dropbox (Dropbox @RU)';
+    case ismac
+        PREFIX = getenv('HOME');
+        FOLDER = 'Dropbox @RU Dropbox';
     case isunix
         PREFIX = getenv('HOME');
+        FOLDER = 'Dropbox (Dropbox @RU)';
     otherwise
         error('GetFilePath:PlatformError', 'Unsupported Operating System.');
 end
-F = fullfile(PREFIX, 'Dropbox (Dropbox @RU)', 'Data');
+F = fullfile(PREFIX, FOLDER, 'William Snyder', 'Data');
 end
 
 function F = ArchiveData()
 % ANIMALDATA Fetches the directory path for 'Animal' data
 F = '';
 PREFIX = '';
+FOLDER = '';
 switch true
     case ispc
         PREFIX = 'D:';
+        FOLDER = 'Dropbox (Dropbox @RU)';
+    case ismac
+        PREFIX = getenv('HOME');
+        FOLDER = 'Dropbox @RU Dropbox';
     case isunix
         PREFIX = getenv('HOME');
+        FOLDER = 'Dropbox (Dropbox @RU)';
     otherwise
         error('GetFilePath:PlatformError', 'Unsupported Operating System.');
 end
-F = fullfile(PREFIX, 'Dropbox (Dropbox @RU)', {'Archive', 'Data'});
+F = fullfile(PREFIX, FOLDER, 'William Snyder', {'Archive', 'Data'});
 end

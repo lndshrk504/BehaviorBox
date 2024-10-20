@@ -69,6 +69,7 @@ classdef BehaviorBoxData < handle
                 options.analyze logical = 1;
                 options.plot logical = 0;
                 options.find logical = 0;
+                options.save logical = 0;
             end
             addpath("fcns/")
             %Apply inputs
@@ -85,6 +86,9 @@ classdef BehaviorBoxData < handle
                     this.AnalyzeAllData();
                     if numel(this.Sub)>1
                         this.SortSubjects();
+                    end
+                    if options.save
+                        this.SaveDataAsMAT();
                     end
                 catch err
                     unwrapErr(err)
@@ -164,7 +168,6 @@ classdef BehaviorBoxData < handle
                 return
             end
 
-            ONEMOUSE = false;
             NEW = false;
 
             % Construct the starting path for directory search
@@ -180,15 +183,14 @@ classdef BehaviorBoxData < handle
             elseif isscalar(dirlist) % Just one subject
                 dirPath = fullfile(dirlist.folder, dirlist.name);
                 % If this.Sub is only 1 mouse's name:
-                filelist = dir(fullfile(GetFilePath("Data"), this.Inv,this.Inp, '**', '*.mat'));
-                filelist = filelist(contains({filelist.name}, this.Sub) & ~contains({filelist.name}, 'settings', 'IgnoreCase',true));           
-                ONEMOUSE = true;
+                % filelist = dir(fullfile(GetFilePath("Data"), this.Inv,this.Inp, '**', '*.mat'));
+                % filelist = filelist(contains({filelist.name}, this.Sub) & ~contains({filelist.name}, 'settings', 'IgnoreCase',true));
             else % A whole Group
                 [~,b]=findgroups({dirlist.folder}');
                 if isscalar(b)
-                    dirPath = cellfun(@(x) fullfile(b{:}, x), {dirlist.name}' , 'UniformOutput', false);
+                    dirPath = fullfile(b, {dirlist.name});
                 else
-                    1;
+                    dirPath = strcat({dirlist.folder}, filesep, {dirlist.name});
                 end
             end
 
@@ -196,7 +198,7 @@ classdef BehaviorBoxData < handle
             if NEW
                 % Handle paths based on user input and state
                 subfiledir = handleNewStrain(this, dirlist);
-            else ONEMOUSE % any(contains({filelist.name}, this.Sub))
+            else % any(contains({filelist.name}, this.Sub))
                 % If any files match the subject, proceed to create file datastore
                 [subfiledir, fds] = this.makefiles(dirPath);
             end
@@ -216,16 +218,18 @@ classdef BehaviorBoxData < handle
                 forest = cellfun(@(x) split(x,filesep), FDS.Files', 'UniformOutput', false);
                 [~,this.Sub]=findgroups(cellfun(@(x) x(end-1), forest));
                 [~,strains]=findgroups(cellfun(@(x) x(end-2), forest));
-                this.Str = cell2mat(strains);
-                if numel(this.Sub)>1
+                this.Str = string(strains);
+                if numel(direc)>1
+                    SUBDIR = direc;
+                elseif numel(this.Sub)>1
                     % Use strain folder for directory when multiple subjects
-                    w = 2;
+                    file = forest{1}(1:end-2);
+                    SUBDIR = fullfile(join(file(:),filesep));
                 else
                     % Use subject folder for directory
-                    w = 1;
+                    file = forest{1}(1:end-1);
+                    SUBDIR = fullfile(join(file(:),filesep));
                 end
-                file = forest{1}(1:end-w);
-                SUBDIR = fullfile(join(file(:),filesep));
             catch err
                 display(err.message)
                 try
@@ -850,6 +854,27 @@ classdef BehaviorBoxData < handle
                     end
                 end
             end
+        end
+        function SaveDataAsMAT(this)
+            % This saves the this.Analyzed Data structure as a .MAT file, to make loading
+            % the training data easier
+            tic
+            formattedDateTime = string(datetime("now", "Format", 'yyyy_MM_dd-HH_mm'));
+            if isscalar(this.Str)
+                SUB = erase(this.Sub, ' ');
+                SAVENAME = SUB+"-AnalyzedData-"+formattedDateTime+".mat";
+                SAVEPATH = fullfile(GetFilePath("Data"), this.Inv, this.Inp, this.Str, SAVENAME);
+                save(SAVEPATH, "this", '-mat')
+            else
+                if any(contains(this.Str, 'inactive'))
+                    STRAINS = this.Str;
+                    STRAINS(contains(STRAINS, 'inactive')) = [];
+                    SAVENAME = STRAINS+"-AnalyzedData-"+formattedDateTime+".mat";
+                    SAVEPATH = fullfile(GetFilePath("Data"), this.Inv, this.Inp, SAVENAME);
+                    save(SAVEPATH, "this", '-mat')
+                end
+            end
+            fprintf("Saved... : " + toc + " seconds.\n")
         end
         %Plot functions
         function PlotAllSubData(this)
