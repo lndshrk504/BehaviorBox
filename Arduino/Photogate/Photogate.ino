@@ -34,7 +34,7 @@ void customDelay(float duration) {
   }
 }
 
-void toggleValve(int pin, float duration) {
+void toggleReward(int pin, float duration) {
   digitalWrite(pin, HIGH);   // Open valve
   customDelay(duration);     // Custom delay
   digitalWrite(pin, LOW);    // Close valve
@@ -126,11 +126,11 @@ void setFlags(int index) {
 void handleStateChange() {
   switch (currentState) {
     case RIGHT_REWARDING:
-      toggleValve(PIN_8, rightdur);
+      toggleReward(PIN_8, rightdur);
       Serial.println("Right Reward Dispensed");
       break;
     case LEFT_REWARDING:
-      toggleValve(PIN_7, leftdur);
+      toggleReward(PIN_7, leftdur);
       Serial.println("Left Reward Dispensed");
       break;
     case RIGHT_OPEN:
