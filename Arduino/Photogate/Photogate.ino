@@ -125,6 +125,9 @@ void setFlags(int index) {
 
 void handleStateChange() {
   switch (currentState) {
+    case READING:
+      checkAndPrintPhotogateState();
+      break;
     case RIGHT_REWARDING:
       toggleReward(PIN_8, rightdur);
       Serial.println("Right Reward Dispensed");
@@ -157,13 +160,12 @@ void handleStateChange() {
       displayWelcomeMessage();
       currentState = READING;
       break;
-    case READING:
-      checkAndPrintPhotogateState();
+    default: break;
   }
 }
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   pinMode(PIN_4, INPUT);
   pinMode(PIN_5, INPUT);
   pinMode(PIN_6, INPUT);
@@ -176,6 +178,7 @@ void setup() {
 }
 
 void loop() {
+  handleStateChange();
   if (Serial.available() > 0) {
     str = Serial.read();
     switch (str) {
@@ -189,5 +192,4 @@ void loop() {
       default: break;
     }
   }
-  handleStateChange();
-} 
+}

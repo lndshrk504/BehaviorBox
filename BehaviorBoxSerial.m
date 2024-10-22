@@ -26,7 +26,7 @@ classdef BehaviorBoxSerial < handle
         function this = BehaviorBoxSerial(port, baudRate, Input_type)
             arguments
                 port char = 'COM4'
-                baudRate double = 9600
+                baudRate double = 115200
                 Input_type char = 'NosePoke'
             end
             this.Input_type = Input_type;
