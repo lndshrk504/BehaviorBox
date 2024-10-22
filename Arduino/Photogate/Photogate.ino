@@ -166,9 +166,9 @@ void handleStateChange() {
 
 void setup() {
   Serial.begin(115200);
-  pinMode(PIN_4, INPUT);
-  pinMode(PIN_5, INPUT);
-  pinMode(PIN_6, INPUT);
+  pinMode(PIN_4, INPUT_PULLUP);
+  pinMode(PIN_5, INPUT_PULLUP);
+  pinMode(PIN_6, INPUT_PULLUP);
   pinMode(PIN_7, OUTPUT);
   pinMode(PIN_8, OUTPUT);
   Serial.println();
