@@ -58,13 +58,13 @@ FOLDER = '';
 switch true
     case ispc
         PREFIX = 'D:';
-        FOLDER = 'Dropbox (Dropbox @RU)';
+        FOLDER = 'Dropbox @RU Dropbox';
     case ismac
         PREFIX = getenv('HOME');
         FOLDER = 'Dropbox @RU Dropbox';
     case isunix
         PREFIX = getenv('HOME');
-        FOLDER = 'Dropbox (Dropbox @RU)';
+        FOLDER = 'Dropbox @RU Dropbox';
     otherwise
         error('GetFilePath:PlatformError', 'Unsupported Operating System.');
 end
@@ -79,13 +79,13 @@ FOLDER = '';
 switch true
     case ispc
         PREFIX = 'D:';
-        FOLDER = 'Dropbox (Dropbox @RU)';
+        FOLDER = 'Dropbox @RU Dropbox';
     case ismac
         PREFIX = getenv('HOME');
         FOLDER = 'Dropbox @RU Dropbox';
     case isunix
         PREFIX = getenv('HOME');
-        FOLDER = 'Dropbox (Dropbox @RU)';
+        FOLDER = 'Dropbox @RU Dropbox';
     otherwise
         error('GetFilePath:PlatformError', 'Unsupported Operating System.');
 end
