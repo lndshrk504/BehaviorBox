@@ -1622,7 +1622,7 @@ classdef BehaviorBoxNose < handle
             elseif ismac
             elseif isunix
                 saveasname = join([D Sub Str stim input],'_');
-                savefolder = fullfile([cell2mat(this.Data_Object.filedir), filesep]);
+                savefolder = fullfile([this.Data_Object.filedir, filesep]);
             end
             set(this.message_handle,'Text', 'Saving data as: '+saveasname+'.mat');
             [newData] = this.Data_Object.current_data_struct;
