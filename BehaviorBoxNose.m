@@ -1615,9 +1615,9 @@ classdef BehaviorBoxNose < handle
             if ispc
                 saveasname = join([D Sub Str stim input],'_');
                 try
-                    savefolder = fullfile([cell2mat(this.Data_Object.filedir), filesep]);
+                    savefolder = fullfile([this.Data_Object.filedir, filesep]);
                 catch err
-                    savefolder = cell2mat(fullfile(GetFilePath("Data"), this.Data_Object.Inv ,this.Data_Object.Inp , this.Data_Object.Str, this.Data_Object.Sub));
+                    savefolder = cell2mat(fullfile(GetFilePath("Data"), this.Data_Object.Inv ,this.Data_Object.Inp , this.Data_Object.Str, this.Data_Object.Sub, filesep));
                 end
             elseif ismac
             elseif isunix
