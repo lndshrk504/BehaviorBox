@@ -294,7 +294,7 @@ classdef BehaviorBoxNose < handle
                 this.Box.TriggerPin      = 'D5';
                 switch this.Setting_Struct.Box_Input_type
                     case 3 %Three Pokes
-                        this.a = BehaviorBoxSerial(comsnum, 9600, 'NosePoke');
+                        this.a = BehaviorBoxSerial(comsnum, 115200, 'NosePoke');
                         pause(2)
                         this.a.SetupReward("Which", "Both", "DurationLeft", this.Box.Lrewardtime, "DurationRight", this.Box.Rrewardtime);
                         this.Box.ardunioReadDigital = 1;
