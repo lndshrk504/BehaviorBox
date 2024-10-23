@@ -917,7 +917,7 @@ classdef BehaviorBoxNose < handle
         end
         function processIgnoredInput(this)
             tic;
-            while this.Setting_Struct.Input_ignored && toc <= this.Setting_Struct.Pokes_ignored_time
+            while this.Box.ardunioReadDigital && this.Setting_Struct.Input_ignored && toc <= this.Setting_Struct.Pokes_ignored_time
                 if this.Setting_Struct.ConfirmChoice
                     this.confirmCorrectChoice();
                 end
@@ -1604,91 +1604,130 @@ classdef BehaviorBoxNose < handle
         %save data when done, give unique name for stimulus, input, etc.
         function SaveAllData(this)
             fakeNames = {'w', 'W'};
-            if any(strcmp(num2str(this.Setting_Struct.Subject), fakeNames)) || any(strcmp(this.Setting_Struct.Strain, fakeNames)) %do not save if I use a fake name for fake data
+            
+            % Abort saving if using fake names for testing
+            if any(strcmp(num2str(this.Setting_Struct.Subject), fakeNames)) || ...
+            any(strcmp(this.Setting_Struct.Strain, fakeNames))
+                disp('[SaveAllData] Fake data detected, skipping save.');
                 return
             end
-            D = string(datetime(this.Data_Object.start_time, "Format", "yyMMdd_HHmmss"));
+
+            % Generate save name and folder based on platform
+            timestamp = string(datetime(this.Data_Object.start_time, 'Format', 'yyMMdd_HHmmss'));
             stim = erase(this.app.Stimulus_type.Value, ' ');
             input = this.app.Box_Input_type.Value;
             Sub = this.Setting_Struct.Subject;
             Str = this.Data_Object.Str;
+            saveasname = join([timestamp, Sub, Str, stim, input], '_');
+            
             if ispc
-                saveasname = join([D Sub Str stim input],'_');
-                try
-                    savefolder = fullfile([this.Data_Object.filedir, filesep]);
-                catch err
-                    savefolder = cell2mat(fullfile(GetFilePath("Data"), this.Data_Object.Inv ,this.Data_Object.Inp , this.Data_Object.Str, this.Data_Object.Sub, filesep));
-                end
-            elseif ismac
-            elseif isunix
-                saveasname = join([D Sub Str stim input],'_');
-                savefolder = fullfile([this.Data_Object.filedir, filesep]);
+                savefolder = fullfile([this.Data_Object.filedir{:}, filesep]);
+            elseif ismac || isunix
+                savefolder = fullfile([this.Data_Object.filedir{:}, filesep]);
             end
             set(this.message_handle,'Text', 'Saving data as: '+saveasname+'.mat');
+
+            % Construct data to save
             [newData] = this.Data_Object.current_data_struct;
-            names = fieldnames(newData);
-            for n = names(structfun(@isrow, newData) & structfun(@length, newData) > 1)' %Make sure everything is saved as a column
-                newData.(n{:}) = newData.(n{:})';
-            end
-            FullTrials = numel(newData.TimeStamp);
-            for n = names(structfun(@length, newData) > FullTrials)'
-                newData.(n{:}) = newData.(n{:})(1:FullTrials);
-            end
+            newData = this.ensureColumns(newData);
+
+            % Align data structure lengths
+            newData = this.alignDataLengths(newData);
+
             Settings = [this.Setting_Struct cell2mat(this.Old_Setting_Struct)];
             newData.SetUpdate = this.SetUpdate;
-            nonEmptyRows = any(~cellfun(@isempty, this.StimHistory'))';
-            newData.StimHist = this.StimHistory(nonEmptyRows,:);
-            rmv = {'GUI_numbers', 'encoder'};
-            for r = rmv
-                try
-                    Settings = rmfield(Settings, r);
-                catch
-                end
-            end
-            newData.Settings = Settings;
-            if this.Box.Input_type == 6
-                newData.wheel_record = this.wheelchoice_record;
-                newData.wheel_record(any(cellfun(@isempty, newData.wheel_record)'),:) = [];
-            end
-            if isscalar(this.SetUpdate) % Settings never changed during the session.
-                newData.SetStr = this.SetStr;
-                newData.Include = repmat(this.Include, size(newData.TimeStamp));
-                newData.SetIdx = repmat(this.SetIdx, size(newData.TimeStamp));
-            elseif numel(this.SetUpdate) > 1
-                try
-                    Ts = this.Include;
-                    newData.SetStr =  this.SetStr;
-                    Idcs = unique([cell2mat(this.SetUpdate) length(newData.TimeStamp)]);
-                    [~, ~, newData.SetIdx] = histcounts(1:length(newData.TimeStamp), Idcs);
-                    newData.Include = Ts(newData.SetIdx);
-                catch
-                end
-            end
+            newData.StimHist = this.filterNonEmptyRows(this.StimHistory);
+            newData = this.setDataIndexes(newData, Settings);
+
             newData.Weight = this.Setting_Struct.Weight;
             Notes = this.GuiHandles.NotesText.String;
             f = figure("MenuBar","none","Visible","off");
             copyobj(this.graphFig.Children, f)
             f.Children.Title.String = string(this.Data_Object.Inp)+" "+cell2mat(this.Data_Object.Sub);
             try
-                try
-                    save(savefolder+saveasname+".mat", 'Settings', 'newData', 'Notes')
-                    this.saveFigure(f, savefolder, saveasname)
-                    dispstring = 'Data saved as: '+saveasname;
-                    fprintf(dispstring+'\n');
-                    set(this.message_handle,'Text',dispstring);
-                catch err
-                    this.unwrapError(err)
-                    [file,path] = uiputfile(pwd , 'Choose folder to save training data' , saveasname);
-                    save([path file],  'Settings', 'newData')
-                    this.saveFigure(this.graphFig, savefolder, saveasname)
-                end
+                save(fullfile(savefolder, saveasname) + ".mat", 'Settings', 'newData', 'Notes');
+                this.saveFigure(f, savefolder, saveasname)
+                dispstring = "Data saved as: "+saveasname+"\n";
+                fprintf(dispstring);
+                set(this.message_handle,'Text',dispstring);
             catch err
-                save(pwd+saveasname+".mat", 'Settings', 'newData', 'Notes')
-                this.unwrapError(err)
+                % Use dialog to select save location if any error occurs
+                this.handleSaveError(err, saveasname, Settings, newData, Notes);
             end
             f.MenuBar = 'figure';
             %f.Visible = 1;
+            this.setMessage(this.message_handle, 'Data saved successfully.', saveasname);
         end
+
+        function newData = ensureColumns(this, newData)
+            names = fieldnames(newData);
+            for n = names(structfun(@isrow, newData) & structfun(@length, newData) > 1)'
+                newData.(n{:}) = newData.(n{:})';
+            end
+        end
+
+        function newData = alignDataLengths(this, newData)
+            FullTrials = numel(newData.TimeStamp);
+            fields = fieldnames(newData);
+            for n = fields(structfun(@length, newData) > FullTrials)'
+                newData.(n{:}) = newData.(n{:})(1:FullTrials);
+            end
+        end
+
+        function StimHist = filterNonEmptyRows(this, StimHistory)
+            nonEmptyRows = any(~cellfun(@isempty, StimHistory'), 'all');
+            StimHist = StimHistory(nonEmptyRows, :);
+        end
+
+        function newData = setDataIndexes(this, newData, Settings)
+            [Ts, newData.Include] = this.getTimeline(newData);
+            newData.SetStr = this.SetStr;
+            newData.SetIdx = this.assignSetIndices(newData, Ts);
+            newData.Settings = this.removeUnwantedFields(Settings);
+            newData = this.includeWheelData(newData);
+        end
+        
+        function [Ts, Include] = getTimeline(this, newData)
+            Ts = this.Include;
+            Idcs = unique([cell2mat(this.SetUpdate), length(newData.TimeStamp)]);
+            [~, ~, newData.SetIdx] = histcounts(1:length(newData.TimeStamp), Idcs);
+            Include = Ts(newData.SetIdx);
+        end
+        
+        function SetIdx = assignSetIndices(this, newData, Ts)
+           [~, ~, SetIdx] = histcounts(1:length(newData.TimeStamp), Ts);
+        end
+        
+        function Settings = removeUnwantedFields(this, Settings)
+            toRemove = {'GUI_numbers', 'encoder'};
+            for r = toRemove
+                if isfield(Settings, r)
+                    Settings = rmfield(Settings, r);
+                end
+            end
+        end
+        
+        function newData = includeWheelData(this, newData)
+            if this.Box.Input_type == 6
+                newData.wheel_record = this.wheelchoice_record;
+                emptyRows = any(cellfun(@isempty, newData.wheel_record'), 'all');
+                newData.wheel_record(emptyRows, :) = [];
+            end
+        end
+        
+        function handleSaveError(this, err, saveasname, Settings, newData, Notes)
+            this.unwrapError(err);
+            [file, path] = uiputfile(pwd, 'Choose folder to save training data', saveasname);
+            save(fullfile(path, file), 'Settings', 'newData', 'Notes');
+            this.saveFigure(this.graphFig, savefolder, saveasname);
+        end
+        
+        function setMessage(this, message_handle, message, saveasname)
+            msg = [message+" "+saveasname];
+            set(message_handle, 'Text', msg);
+            disp(msg);
+        end
+
         %when done, clean up
         function cleanUP(this)
             %switch on all buttons

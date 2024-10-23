@@ -181,7 +181,7 @@ classdef BehaviorBoxData < handle
             if isempty(dirlist)
                 NEW = true;
             elseif isscalar(dirlist) % Just one subject
-                dirPath = fullfile(dirlist.folder, dirlist.name);
+                dirPath = {fullfile(dirlist.folder, dirlist.name)};
                 % If this.Sub is only 1 mouse's name:
                 % filelist = dir(fullfile(GetFilePath("Data"), this.Inv,this.Inp, '**', '*.mat'));
                 % filelist = filelist(contains({filelist.name}, this.Sub) & ~contains({filelist.name}, 'settings', 'IgnoreCase',true));
@@ -233,7 +233,7 @@ classdef BehaviorBoxData < handle
             catch err
                 display(err.message)
                 try
-                    SUBDIR = direc{:};
+                    SUBDIR = direc;
                     tree = split(direc, filesep);
                     this.Sub = tree(end);
                     this.Str = tree{end-1};
