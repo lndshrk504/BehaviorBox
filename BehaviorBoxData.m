@@ -220,7 +220,8 @@ classdef BehaviorBoxData < handle
                 [~,strains]=findgroups(cellfun(@(x) x(end-2), forest));
                 this.Str = string(strains);
                 if numel(direc)>1
-                    SUBDIR = direc;
+                    file = forest{1}(1:end-2);
+                    SUBDIR = fullfile(join(file(:),filesep));
                 elseif numel(this.Sub)>1
                     % Use strain folder for directory when multiple subjects
                     file = forest{1}(1:end-2);
@@ -1543,7 +1544,7 @@ classdef BehaviorBoxData < handle
             Data = this.AnalyzedData.CrossTable{1};
             Ax = MakeAxis();
             hold(Ax, "on")
-            Ax.Parent.Title.String = string(this.Str)+deets{2}+Data.Properties.VariableNames{options.WhichPValue};
+            Ax.Parent.Title.String = string(this.Str(1))+deets{2}+Data.Properties.VariableNames{options.WhichPValue};
             Ax.Parent.Parent.Name = Ax.Parent.Title.String;
             Ax.Box=0;
             LabelList = [];
