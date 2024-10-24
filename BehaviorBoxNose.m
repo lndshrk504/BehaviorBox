@@ -1682,7 +1682,6 @@ classdef BehaviorBoxNose < handle
         function newData = setDataIndexes(this, newData, Settings)
             [Ts, newData.Include] = this.getTimeline(newData);
             newData.SetStr = this.SetStr;
-            newData.SetIdx = this.assignSetIndices(newData, Ts);
             newData.Settings = this.removeUnwantedFields(Settings);
             newData = this.includeWheelData(newData);
         end
@@ -1692,10 +1691,6 @@ classdef BehaviorBoxNose < handle
             Idcs = unique([cell2mat(this.SetUpdate), length(newData.TimeStamp)]);
             [~, ~, newData.SetIdx] = histcounts(1:length(newData.TimeStamp), Idcs);
             Include = Ts(newData.SetIdx);
-        end
-        
-        function SetIdx = assignSetIndices(this, newData, Ts)
-           [~, ~, SetIdx] = histcounts(1:length(newData.TimeStamp), Ts);
         end
         
         function Settings = removeUnwantedFields(this, Settings)
