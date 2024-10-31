@@ -395,11 +395,7 @@ classdef BehaviorBoxNose < handle
                 LastScore = 1;
             end
             if this.Setting_Struct.Repeat_wrong==1 && any(LastScore == [3 4]) %If repeat wrong and they got it wrong
-                if this.Setting_Struct.EasyTrials
-                    [this.Level] = this.PickDifficultyLevel();
-                else
-                    this.Level = this.Setting_Struct.Starting_opacity;
-                end
+                this.Level = this.Setting_Struct.Starting_opacity;
                 if isvalid(this.fig)
                     this.StimHistory(this.i,:) = this.StimHistory(this.i-1,:); %Use the same stimulus from last time
                     %[this.StimHistory{this.i,1},this.StimHistory{this.i,2}] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, this.Level); %Plot new stimulus as hidden objects, record positions and angles of the segments
