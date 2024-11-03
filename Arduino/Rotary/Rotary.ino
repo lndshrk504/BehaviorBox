@@ -11,7 +11,12 @@
 
 // Define state for different states
 enum State {
-  WHO, RIGHT_SETUP, READING, RIGHT_REWARDING, RIGHT_OPEN, TIMESTAMPING
+  READING,
+  RIGHT_REWARDING,
+  RIGHT_OPEN,
+  RIGHT_SETUP,
+  TIMESTAMPING,
+  WHO
 };
 
 // Initialize variables
@@ -29,7 +34,7 @@ void setupPins();
 void initializeSerial();
 void customDelay(float duration);
 void resetEncoder();
-void toggleValve(int pin, float duration);
+void toggleReward(int pin, float duration);
 void toggleValve(int pin, bool &valveStatus);
 float getDurationFromSerial(const char* prompt);
 void displayWelcomeMessage();
@@ -42,44 +47,43 @@ void setup() {
   setupPins();
   Serial.println();
   Serial.println("Welcome to BehaviorBox - Wheel");
+  Serial.println();
   Serial.println("Readout begins below...");
   Serial.println();
   resetEncoder();
-  Serial.println(0);
 }
 
 void loop() {
+  handleStateChange();
   if (Serial.available() > 0) {
     str = Serial.read();
     switch (str) {
       case 'R': currentState = RIGHT_REWARDING; break;
-      case 'T': currentState = TIMESTAMPING; break;
+      case 'r': currentState = RIGHT_OPEN; break;
       case 's': currentState = RIGHT_SETUP; break;
+      case 'T': currentState = TIMESTAMPING; break;
       case 'W': currentState = WHO; break;
-      case 'O': currentState = RIGHT_OPEN; break;
-      case 'r': // 'r' for reset
+      case '0': // 'ZERO' for reset back to 0
         resetEncoder();
         prevDegrees = 0;
-        Serial.println(0);
         break;
       default: break;
     }
   }
-  handleStateChange();
 }
 
 void handleStateChange() {
   switch (currentState) {
+    case READING:
+      checkAndPrintEncoderState();
     case RIGHT_REWARDING:
-      toggleValve(PIN_8, rightdur);
+      toggleReward(PIN_8, rightdur);
       Serial.println("Right reward dispensed");
-      currentState = READING;
       break;
     case RIGHT_OPEN:
       toggleValve(PIN_8, RightOpen);
       Serial.print("Right Valve: ");
       Serial.println(RightOpen ? "Open" : "Closed");
-      currentState = READING;
       break;
     case TIMESTAMPING:
       digitalWrite(PIN_12, TimeFlag ? HIGH : LOW);
@@ -89,17 +93,14 @@ void handleStateChange() {
       break;
     case RIGHT_SETUP:
       rightdur = getDurationFromSerial("Enter new duration for right reward:");
-      Serial.println("Setup complete");
+      Serial.print("Right reward duration set to: "); Serial.println(rightdur);
       currentState = READING;
       break;
     case WHO:
       displayWelcomeMessage();
       currentState = READING;
       break;
-    case READING:
-    default:
-      checkAndPrintEncoderState();
-      break;
+    default: break;
   }
 }
 
@@ -112,7 +113,7 @@ void setupPins() {
 }
 
 void initializeSerial() {
-  Serial.begin(9600); // start the serial at 9600 baud
+  Serial.begin(115200); // start the serial at 115200 baud
   while (!Serial) { } // wait for serial port to connect. Needed for native USB port only
 }
 
@@ -127,14 +128,16 @@ void customDelay(float duration) {
 void resetEncoder() {
   myEnc.write(0); // reset the encoder position
   prevDegrees = 0;
+  Serial.println(0);
 }
 
-void toggleValve(int pin, float duration) {
+void toggleReward(int pin, float duration) {
   digitalWrite(pin, HIGH);   // Open valve
   customDelay(duration);     // Custom delay
   digitalWrite(pin, LOW);    // Close valve
   resetEncoder();
   prevDegrees = 0;
+  currentState = READING;
 }
 
 void toggleValve(int pin, bool &valveStatus) {
@@ -144,13 +147,13 @@ void toggleValve(int pin, bool &valveStatus) {
     digitalWrite(pin, LOW);  // Close valve
   }
   valveStatus = !valveStatus;
+  currentState = READING;
 }
 
 float getDurationFromSerial(const char* prompt) {
   Serial.println(prompt);
   float DURinp = Serial.parseFloat(); // Read a number until terminating character
-  Serial.print("Setting duration to: ");
-  Serial.println(DURinp);
+  Serial.print("Setting duration to: "); Serial.println(DURinp, 4);
   return DURinp;
 }
 
@@ -167,9 +170,7 @@ void displayWelcomeMessage() {
   Serial.println("PIN_12 (Timestamp (Time)) is connected to digital pin 12");
   Serial.println();
   Serial.println("SETTINGS:");
-  Serial.print("Right reward: ");
-  Serial.print(rightdur);
-  Serial.println(" sec");
+  Serial.print("Right reward: "); Serial.print(rightdur, 4); Serial.println(" sec");
   Serial.println();
   Serial.println("USAGE:");
   Serial.println("The default behavior is to read from the Photogates and output L, M, R or -");
