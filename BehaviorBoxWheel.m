@@ -278,7 +278,7 @@ classdef BehaviorBoxWheel < handle
                 switch this.Setting_Struct.Box_Input_type
                     case 6 %Rotating Wheel
                         try
-                            this.a = BehaviorBoxSerial(comsnum, 9600, 'Wheel');
+                            this.a = BehaviorBoxSerial(comsnum, 115200, 'Wheel');
                             this.Box.Reward =  'D6';
                             this.Box.use_wheel = 1;
                             pause(2)

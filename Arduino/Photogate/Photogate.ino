@@ -56,8 +56,7 @@ void toggleValve(int pin, bool &valveStatus) {
 float getDurationFromSerial(const char* prompt) {
   Serial.println(prompt);
   float DURinp = Serial.parseFloat(); // Read a number until terminating character
-  Serial.print("Setting duration to: ");
-  Serial.println(DURinp);
+  Serial.print("Setting duration to: "); Serial.println(DURinp, 4);
   return DURinp;
 }
 
@@ -73,12 +72,8 @@ void displayWelcomeMessage() {
   Serial.println("PIN_8 (Right Reward) is connected to digital pin 8");
   Serial.println();
   Serial.println("SETTINGS:");
-  Serial.print("Right reward: ");
-  Serial.print(rightdur, 4);
-  Serial.println(" sec");
-  Serial.print("Left reward: ");
-  Serial.print(leftdur, 4);
-  Serial.println(" sec");
+  Serial.print("Right reward: "); Serial.print(rightdur, 4); Serial.println(" sec");
+  Serial.print("Left reward: "); Serial.print(leftdur, 4); Serial.println(" sec");
   Serial.println();
   Serial.println("USAGE:");
   Serial.println("The default behavior is to read from the Photogates and output L, M, R or -");
@@ -130,11 +125,11 @@ void handleStateChange() {
       break;
     case RIGHT_REWARDING:
       toggleReward(PIN_8, rightdur);
-      Serial.println("Right Reward Dispensed");
+      Serial.println("Right reward dispensed");
       break;
     case LEFT_REWARDING:
       toggleReward(PIN_7, leftdur);
-      Serial.println("Left Reward Dispensed");
+      Serial.println("Left reward dispensed");
       break;
     case RIGHT_OPEN:
       toggleValve(PIN_8, RightOpen);
@@ -166,6 +161,7 @@ void handleStateChange() {
 
 void setup() {
   Serial.begin(115200);
+  while (!Serial) { } // wait for serial port to connect. Needed for native USB port only
   pinMode(PIN_4, INPUT_PULLUP);
   pinMode(PIN_5, INPUT_PULLUP);
   pinMode(PIN_6, INPUT_PULLUP);
@@ -186,8 +182,8 @@ void loop() {
       case 'L': currentState = LEFT_REWARDING; break;
       case 'r': currentState = RIGHT_OPEN; break;
       case 'l': currentState = LEFT_OPEN; break;
-      case 'S': currentState = LEFT_SETUP; break;
       case 's': currentState = RIGHT_SETUP; break;
+      case 'S': currentState = LEFT_SETUP; break;
       case 'W': currentState = WHO; break;
       default: break;
     }
