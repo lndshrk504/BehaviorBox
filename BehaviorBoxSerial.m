@@ -150,7 +150,7 @@ classdef BehaviorBoxSerial < handle
             switch true
                 case strcmp(this.Input_type, 'Wheel')
                     this.Reading = 0;
-                    write(this.Ard, 'r', 'char')
+                    write(this.Ard, '0', 'char')
                     pause(0.01)
                 case strcmp(this.Input_type, 'NosePoke')
                     this.Reading = '-';
