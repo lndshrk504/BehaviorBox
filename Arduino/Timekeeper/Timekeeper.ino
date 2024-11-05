@@ -8,24 +8,19 @@
 // micros() will reset every 70 minutes, so consider making a modification for longer sessions
 #define INPUT_PIN_2 2 // Stimulus signal (BB Wheel)
 #define INPUT_PIN_3 3 // Frame clock signal (SI)
-#define INPUT_PIN_4 4 // New File signal (SI)
 
 volatile int pin3State = LOW;
 volatile int pin4State = LOW;
-volatile int pin5State = LOW; // Added third pin
 
 void setup() {
   pinMode(INPUT_PIN_2, INPUT_PULLUP); // Should be pullup because otherwise too sensitive (erroneous timestamps appeared otherwise)
   pinMode(INPUT_PIN_3, INPUT_PULLUP);
-  pinMode(INPUT_PIN_4, INPUT_PULLUP); // Setup third pin as input
 
   attachInterrupt(digitalPinToInterrupt(INPUT_PIN_2), handlePin2Change, CHANGE);
   attachInterrupt(digitalPinToInterrupt(INPUT_PIN_3), handlePin3Change, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(INPUT_PIN_4), handlePin4Change, CHANGE);
 
   Serial.begin(9600);
 }
-
 void loop() {
   // delay(1); // Loop is empty because the interrupts handle everything
 }
@@ -37,12 +32,12 @@ void handlePin2Change() {
     if (currentState == HIGH) {
        Serial.print("Timestamp (micros): ");
        Serial.print(micros());
-       Serial.println(" - PIN 2 RISING edge detected");
+       Serial.println(" - Stimulus RISING edge detected");
     }
     else {
        Serial.print("Timestamp (micros): ");
        Serial.print(micros());
-       Serial.println(" - PIN 2 FALLING edge detected");
+       Serial.println(" - Stimulus FALLING edge detected");
     }
   }
 }
@@ -54,29 +49,12 @@ void handlePin3Change() {
     if (currentState == HIGH) {
        Serial.print("Timestamp (micros): ");
        Serial.print(micros());
-       Serial.println(" - PIN 3 RISING edge detected");
+       Serial.println(" - Frame Clock RISING edge detected");
     }
     else {
        Serial.print("Timestamp (micros): ");
        Serial.print(micros());
-       Serial.println(" - PIN 3 FALLING edge detected");
-    }
-  }
-}
-
-void handlePin4Change() {
-  int currentState = digitalRead(INPUT_PIN_4);
-  if (currentState != pin5State){
-    pin5State = currentState;
-    if (currentState == HIGH) {
-       Serial.print("Timestamp (micros): ");
-       Serial.print(micros());
-       Serial.println(" - PIN 4 RISING edge detected");
-    }
-    else {
-       Serial.print("Timestamp (micros): ");
-       Serial.print(micros());
-       Serial.println(" - PIN 4 FALLING edge detected");
+       Serial.println(" - Frame Clock FALLING edge detected");
     }
   }
 }
