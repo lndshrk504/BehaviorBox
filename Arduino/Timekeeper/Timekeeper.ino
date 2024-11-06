@@ -22,18 +22,18 @@ volatile unsigned long overflows = 0;  // Count overflow occurrences
 
 void setup() {
   Serial.begin(115200);
-  pinMode(INPUT_PIN_2, INPUT_PULLUP); // Should be pullup because otherwise too sensitive (erroneous timestamps appeared otherwise)
+  pinMode(INPUT_PIN_2, INPUT_PULLUP); // Should be pullup because otherwise too sensitive (erroneous timestamps appear)
   pinMode(INPUT_PIN_3, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(INPUT_PIN_2), StimulusOn, RISING);
   attachInterrupt(digitalPinToInterrupt(INPUT_PIN_3), RecordFrame, RISING);
 }
 
 void loop() {
-  // delay(1); // Loop is empty because the interrupts handle everything
+  // Loop is empty because the interrupts handle everything
 }
 
-// Stimulus signal, BehaviorBoxSerial.m sets this Pin HIGH before stimulus appears
-// Record this timestamp and reset the reference time for the frame clocks
+// Stimulus signal, BehaviorBoxSerial.m sets this Pin HIGH 0.5 sec before stimulus appears
+// Record this timestamp and reset  reference time so frame timestamps are relative to Stimulus
 void StimulusOn() {
     unsigned long currentMicros = micros();
   
@@ -52,7 +52,7 @@ void StimulusOn() {
   lastMicros = currentMicros;
 }
 
-// Frame clock from ScanImage
+// Frame clock from ScanImage, goes HIGH when the Y-Galvo flys back to start a new frame
 void RecordFrame() {
   unsigned long currentMicros = micros();
   
