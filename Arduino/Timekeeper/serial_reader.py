@@ -1,31 +1,57 @@
+# Platform-Specific Considerations:
+# - Windows: Use serial port names like "COM3", "COM4", etc.
+# - Linux: Use serial port paths like "/dev/ttyUSB0", "/dev/ttyS0".
+#   Ensure your user has the appropriate permissions, potentially needing to be part of the 'dialout' group:
+#   sudo usermod -aG dialout $USER
+#   Remember to log out and back in after making this change.
+#
+# Required Module:
+# - Ensure 'pyserial' is installed: pip install pyserial
+#
+# UTF-8 Decoding:
+# - Handle potential decoding issues by using: line.decode('utf-8', errors='ignore') if necessary.
+
+import argparse
 import serial
 import time
+from datetime import datetime
 
-# Parameters: replace 'COM3' and baudrate with the correct values for your setup
-serial_port = 'COM3'
-baudrate = 115200
+def main():
+    # Set up argument parsing
+    parser = argparse.ArgumentParser(description='Read from a serial port and log data.')
+    parser.add_argument('serial_port', type=str, help='The serial port to connect to (e.g., COM3, /dev/ttyUSB0)')
+    parser.add_argument('--baudrate', type=int, default=115200, help='Baudrate for the serial connection, default is 115200')
+    
+    args = parser.parse_args()
 
-# Generate a filename based on the current date and time
-current_datetime = datetime.now().strftime('%Y%m%d_%H%M%S')
-output_file = f'serial_output_{current_datetime}.txt'
+    # Use the serial port from command-line arguments
+    serial_port = args.serial_port
+    baudrate = args.baudrate
 
-# Configure and open the serial port
-ser = serial.Serial(serial_port, baudrate, timeout=1)
+    # Generate a filename based on the current date and time
+    current_datetime = datetime.now().strftime('%Y%m%d_%H%M%S')
+    output_file = f'serial_output_{current_datetime}.txt'
 
-try:
-    with open(output_file, 'w') as f:
-        while True:
-            if ser.in_waiting > 0:
-                # Read line from serial port
-                line = ser.readline()
-                # Decode byte to string and strip any line endings
-                line = line.decode('utf-8').strip()
-                # Write the string to a file with a newline character
-                f.write(line + '\n')
-                # Print to console for immediate feedback
-                print(line)
-            time.sleep(0.1)  # Sleep a bit to avoid overwhelming the CPU
-except KeyboardInterrupt:
-    print("Recording stopped.")
-finally:
-    ser.close()
+    # Configure and open the serial port
+    ser = serial.Serial(serial_port, baudrate, timeout=1)
+
+    try:
+        with open(output_file, 'w') as f:
+            while True:
+                if ser.in_waiting > 0:
+                    # Read line from serial port
+                    line = ser.readline()
+                    # Decode byte to string and strip any line endings
+                    line = line.decode('utf-8').strip()
+                    # Write the string to a file with a newline character
+                    f.write(line + '\n')
+                    # Print to console for immediate feedback
+                    print(line)
+                time.sleep(0.1)  # Sleep a bit to avoid overwhelming the CPU
+    except KeyboardInterrupt:
+        print("Recording stopped.")
+    finally:
+        ser.close()
+
+if __name__ == '__main__':
+    main()
