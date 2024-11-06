@@ -1,3 +1,4 @@
+// WBS 11 - 5 - 2024
 // This code uses two interrupt handlers to monitor the state of the two input pins. 
 // When a rising edge is detected at either pin, the corresponding interrupt handler 
 // function is called to transmit the current timestamp over the serial port. 
