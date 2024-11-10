@@ -2637,12 +2637,13 @@ classdef BehaviorBoxData < handle
             end
         end
         %save data when done, give unique name for stimulus, input, etc.
-        function SaveAllData(this)
-            fakeNames = {'w', 'W'};
-            if any(strcmp(num2str(this.Setting_Struct.Subject), fakeNames)) || any(strcmp(this.Setting_Struct.Strain, fakeNames))
-                return; % Do not save if using fake data names
+        function SaveAllData(this, Filename, Filedir)
+            arguments
+                this
+                Filename
+                Filedir
             end
-            D = string(datetime(this.Data_Object.start_time, "Format", "yyMMdd_HHmmss"));
+            
             stim = erase(this.app.Stimulus_type.Value, ' ');
             input = this.app.Box_Input_type.Value;
             Sub = this.Setting_Struct.Subject;
