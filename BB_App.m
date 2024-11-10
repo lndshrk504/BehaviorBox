@@ -296,9 +296,6 @@ classdef BB_App < matlab.apps.AppBase
     end
 
     properties (Access = public)
-        %Set = struct()
-        %a % Arduino
-        %BB % The BehaviorBox* Class, Nose or Wheel
     end
 
     properties (Access = private)
@@ -476,7 +473,7 @@ classdef BB_App < matlab.apps.AppBase
             assignin("base", "BBData", BBData)
         end
         
-        function NewLoadGui(app, handles, ~)
+        function NewLoadGui(app, ~, ~)
             BB = app.BB;
 
             %Read settings from interface:
@@ -574,7 +571,7 @@ classdef BB_App < matlab.apps.AppBase
             fprintf('Computer settings saved.\n')
         end
 
-        function printHardwareConnections(app, handles)
+        function printHardwareConnections(~, handles)
             current_selection_stimulus=get(handles.Box_Input_type,'Value');
             current_selection_input=get(handles.Box_Input_type,'Value');
             fprintf('------SET UP-------\n')
@@ -637,7 +634,6 @@ classdef BB_App < matlab.apps.AppBase
         function results = LvProbChange(~, In)
             results = 1-In;
         end
-
 
         function setupDiaryFile(app, fileName)
             % Ensure the log file is clean and start logging
