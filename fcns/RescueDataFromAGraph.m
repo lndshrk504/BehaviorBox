@@ -1,12 +1,18 @@
-function newData = RescueDataFromAGraph(f)
+function [newData, DataStruct] = RescueDataFromAGraph(f)
 arguments
     f = gcf
 end
 RescueData = struct();
 FN = split(f.FileName, filesep);
+if ispc
 Inp = FN{6};
 Str = FN{7};
 Sub = FN(8);
+elseif ismac
+Inp = FN{8};
+Str = FN{9};
+Sub = FN(10);
+end
 DataStruct = BehaviorBoxData("Inp",Inp, "Str", Str, "Sub", Sub, "find", true);
 newData = DataStruct.current_data_struct;
 BigBin = 20;
@@ -52,7 +58,9 @@ for Fname = nDF(matches(nDF, RF))'
     thename = Fname{:};
     newData.(thename) = RescueData.(thename);
 end
-newData = DataStruct.CleanData();
+DataStruct.current_data_struct = newData; % Must load into the object to use the object's clean fcn
+DataStruct.current_data_struct = DataStruct.CleanData();
+newData = DataStruct.current_data_struct;
 newData.Include = ones(size(newData.TrialNum));
 DataStruct.current_data_struct = newData;
 end

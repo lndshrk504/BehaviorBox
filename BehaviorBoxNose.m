@@ -109,6 +109,16 @@ classdef BehaviorBoxNose < handle
             catch err
                 this.unwrapError(err)
             end
+            
+            try
+                this.Data_Object = BehaviorBoxData( ...
+                    Inv=this.app.Inv.Value, ...
+                    Inp=this.app.Box_Input_type.Value, ...
+                    Str=this.app.Strain.Value, ...
+                    Sub={this.app.Subject.Value}, ...
+                    find=1); % Set up data storage object
+            catch
+            end
         end
         function RunTrials(this)
             try
@@ -1603,7 +1613,11 @@ classdef BehaviorBoxNose < handle
             this.setGuiNumbers(this.GUI_numbers);
         end
         %save data when done, give unique name for stimulus, input, etc.
-        function SaveAllData(this)
+        function SaveAllData(this, options)
+            arguments
+                this
+                options.RescueData = false
+            end
             fakeNames = {'w', 'W'};
             
             % Abort saving if using fake names for testing
@@ -1642,12 +1656,17 @@ classdef BehaviorBoxNose < handle
 
             newData.Weight = this.Setting_Struct.Weight;
             Notes = this.GuiHandles.NotesText.String;
-            f = figure("MenuBar","none","Visible","off");
-            copyobj(this.graphFig.Children, f)
-            f.Children.Title.String = string(this.Data_Object.Inp)+" "+cell2mat(this.Data_Object.Sub);
+            if ~options.RescueData
+                f = figure("MenuBar","none","Visible","off");
+                copyobj(this.graphFig.Children, f)
+                f.Children.Title.String = string(this.Data_Object.Inp)+" "+cell2mat(this.Data_Object.Sub);
+            end
             try
                 save(fullfile(savefolder, saveasname) + ".mat", 'Settings', 'newData', 'Notes');
-                this.saveFigure(f, savefolder, saveasname)
+                if ~options.RescueData
+                    this.saveFigure(f, savefolder, saveasname)
+                    f.MenuBar = 'figure';
+                end
                 dispstring = "Data saved as: "+saveasname+"\n";
                 fprintf(dispstring);
                 set(this.message_handle,'Text',dispstring);
@@ -1655,7 +1674,6 @@ classdef BehaviorBoxNose < handle
                 % Use dialog to select save location if any error occurs
                 this.handleSaveError(err, saveasname, Settings, newData, Notes);
             end
-            f.MenuBar = 'figure';
             %f.Visible = 1;
             this.setMessage(this.message_handle, 'Data saved successfully.', saveasname);
         end
@@ -1668,6 +1686,9 @@ classdef BehaviorBoxNose < handle
         end
 
         function newData = alignDataLengths(this, newData)
+            if isempty(newData.TimeStamp)
+                return
+            end
             FullTrials = numel(newData.TimeStamp);
             fields = fieldnames(newData);
             for n = fields(structfun(@length, newData) > FullTrials)'
@@ -1681,17 +1702,30 @@ classdef BehaviorBoxNose < handle
         end
 
         function newData = setDataIndexes(this, newData, Settings)
-            [Ts, newData.Include] = this.getTimeline(newData);
+            [~, newData.Include] = this.getTimeline(newData);
             newData.SetStr = this.SetStr;
             newData.Settings = this.removeUnwantedFields(Settings);
-            newData = this.includeWheelData(newData);
         end
         
         function [Ts, Include] = getTimeline(this, newData)
+        % This fcn causes errors. How necessary is it? All trials are
+        % Included, so a vector labelling each trial is unnecessary
             Ts = this.Include;
             Idcs = unique([cell2mat(this.SetUpdate), length(newData.TimeStamp)]);
-            [~, ~, newData.SetIdx] = histcounts(1:length(newData.TimeStamp), Idcs);
-            Include = Ts(newData.SetIdx);
+            if Idcs == 0
+                Include = 1;
+                return
+            end
+            try
+                [~, ~, newData.SetIdx] = histcounts(1:length(newData.TimeStamp), Idcs);
+            catch
+                [~, ~, newData.SetIdx] = histcounts(1:length(newData.Score), Idcs);
+            end
+            try
+                Include = Ts(newData.SetIdx);
+            catch
+                Include = ones(size((newData.SetIdx));
+            end
         end
         
         function Settings = removeUnwantedFields(this, Settings)
@@ -1703,19 +1737,14 @@ classdef BehaviorBoxNose < handle
             end
         end
         
-        function newData = includeWheelData(this, newData)
-            if this.Box.Input_type == 6
-                newData.wheel_record = this.wheelchoice_record;
-                emptyRows = any(cellfun(@isempty, newData.wheel_record'), 'all');
-                newData.wheel_record(emptyRows, :) = [];
-            end
-        end
-        
         function handleSaveError(this, err, saveasname, Settings, newData, Notes)
             this.unwrapError(err);
+            f = figure("MenuBar","none","Visible","off");
+            copyobj(this.graphFig.Children, f)
+            f.Children.Title.String = string(this.Data_Object.Inp)+" "+cell2mat(this.Data_Object.Sub);
             [file, path] = uiputfile(pwd, 'Choose folder to save training data', saveasname);
             save(fullfile(path, file), 'Settings', 'newData', 'Notes');
-            this.saveFigure(this.graphFig, savefolder, saveasname);
+            this.saveFigure(f, savefolder, saveasname);
         end
         
         function setMessage(this, message_handle, message, saveasname)
