@@ -22,6 +22,13 @@ volatile unsigned long overflows = 0;  // Count overflow occurrences
 
 void setup() {
   Serial.begin(115200);
+  Serial.println("Program for monitoring rising edges on two input pins.");
+  Serial.println("Connect stimulus signal to INPUT_PIN_2 (Pin 2).");
+  Serial.println("Connect frame clock signal to INPUT_PIN_3 (Pin 3).");
+  Serial.println("System uses interrupt handlers to detect rising edges.");
+  Serial.println("On rising edge, current timestamp is sent over serial.");
+  Serial.println("Timestamps use micros() for high precision.");
+  Serial.println("Overflows accounted for, resetting every 70 minutes.");
   pinMode(INPUT_PIN_2, INPUT_PULLUP); // Should be pullup because otherwise too sensitive (erroneous timestamps appear)
   pinMode(INPUT_PIN_3, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(INPUT_PIN_2), StimulusOn, RISING);
@@ -63,7 +70,7 @@ void StimulusOn() {
   Serial.println(" seconds of Total Run Time");
   Serial.println("Stimulus RISING");
   
-  Serial.println("Clock reset to zero.");
+  Serial.println("Frame clock reset to zero");
 
   lastMicros = currentMicros;
 }
