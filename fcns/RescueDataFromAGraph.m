@@ -5,13 +5,13 @@ end
 RescueData = struct();
 FN = split(f.FileName, filesep);
 if ispc
-Inp = FN{6};
-Str = FN{7};
-Sub = FN(8);
+    Inp = FN{6};
+    Str = FN{7};
+    Sub = FN(8);
 elseif ismac
-Inp = FN{8};
-Str = FN{9};
-Sub = FN(10);
+    Inp = FN{8};
+    Str = FN{9};
+    Sub = FN(10);
 end
 DataStruct = BehaviorBoxData("Inp",Inp, "Str", Str, "Sub", Sub, "find", true);
 newData = DataStruct.current_data_struct;

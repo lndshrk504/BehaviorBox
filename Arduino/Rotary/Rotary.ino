@@ -76,6 +76,7 @@ void handleStateChange() {
   switch (currentState) {
     case READING:
       checkAndPrintEncoderState();
+      break;
     case RIGHT_REWARDING:
       toggleReward(PIN_8, rightdur);
       Serial.println("Right reward dispensed");
