@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Append a separator for clarity
+echo "-------------------------------------" >> matlab_output.log
 # Write the current date and time to the log file
 echo "Log Date: $(date '+%Y-%m-%d %H:%M:%S')" >> matlab_output.log
 # Append a separator for clarity
