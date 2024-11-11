@@ -42,11 +42,27 @@ void StimulusOn() {
   }
 
   unsigned long adjustedMicros = currentMicros + (overflows * 4294967296UL);
-
-  Serial.print(adjustedMicros);
-  Serial.println(" (micros) - Stimulus RISING");
   
   startTime = adjustedMicros;
+
+  // Convert microseconds to total seconds
+  unsigned long totalSeconds = adjustedMicros / 1000000;
+
+  // Calculate hours, minutes, and seconds
+  unsigned int seconds = totalSeconds % 60;
+  unsigned int totalMinutes = totalSeconds / 60;
+  unsigned int minutes = totalMinutes % 60;
+  unsigned int hours = totalMinutes / 60;
+
+  // Print formatted time
+  Serial.print(hours);
+  Serial.print(" hours, ");
+  Serial.print(minutes);
+  Serial.print(" minutes, ");
+  Serial.print(seconds);
+  Serial.println(" seconds of Total Run Time");
+  Serial.println("Stimulus RISING");
+  
   Serial.println("Clock reset to zero.");
 
   lastMicros = currentMicros;
