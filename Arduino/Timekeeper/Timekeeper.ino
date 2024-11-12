@@ -12,27 +12,24 @@
 
 #define INPUT_PIN_2 2 // Stimulus signal (BB Wheel)
 #define INPUT_PIN_3 3 // Frame clock signal (SI)
+#define OVERFLOW_INCREMENT 4294967296UL
 
-
-volatile int pin3State = LOW;
-volatile int pin4State = LOW;
 volatile unsigned long startTime = 0; // Reference time for resetting
 volatile unsigned long lastMicros = 0; // To track previous micros for overflow detection
 volatile unsigned long overflows = 0;  // Count overflow occurrences
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("Program for monitoring rising edges on two input pins.");
-  Serial.println("Connect stimulus signal to INPUT_PIN_2 (Pin 2).");
-  Serial.println("Connect frame clock signal to INPUT_PIN_3 (Pin 3).");
-  Serial.println("System uses interrupt handlers to detect rising edges.");
-  Serial.println("On rising edge, current timestamp is sent over serial.");
-  Serial.println("Timestamps use micros() for high precision.");
-  Serial.println("Overflows accounted for, resetting every 70 minutes.");
+  while (!Serial) { }; // wait for serial port to connect. Needed for native USB port only
   pinMode(INPUT_PIN_2, INPUT_PULLUP); // Should be pullup because otherwise too sensitive (erroneous timestamps appear)
   pinMode(INPUT_PIN_3, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(INPUT_PIN_2), StimulusOn, RISING);
   attachInterrupt(digitalPinToInterrupt(INPUT_PIN_3), RecordFrame, RISING);
+
+  Serial.println("Monitoring rising edges on input pins:");
+  Serial.println("- INPUT_PIN_2 (Pin 2): Stimulus Signal");
+  Serial.println("- INPUT_PIN_3 (Pin 3): Frame Clock Signal");
+  Serial.println("Using `micros()` for high precision timestamps.");
 }
 
 void loop() {
@@ -42,15 +39,12 @@ void loop() {
 // Stimulus signal, BehaviorBoxSerial.m sets this Pin HIGH 0.5 sec before stimulus appears
 // Record this timestamp and reset  reference time so frame timestamps are relative to Stimulus
 void StimulusOn() {
-    unsigned long currentMicros = micros();
-  
+  unsigned long currentMicros = micros();
   if (currentMicros < lastMicros) {
     overflows++;
   }
 
-  unsigned long adjustedMicros = currentMicros + (overflows * 4294967296UL);
-  
-  startTime = adjustedMicros;
+  startTime = currentMicros + (overflows * OVERFLOW_INCREMENT);
 
   // Convert microseconds to total seconds
   unsigned long totalSeconds = adjustedMicros / 1000000;
@@ -62,15 +56,8 @@ void StimulusOn() {
   unsigned int hours = totalMinutes / 60;
 
   // Print formatted time
-  Serial.print(hours);
-  Serial.print(" hours, ");
-  Serial.print(minutes);
-  Serial.print(" minutes, ");
-  Serial.print(seconds);
-  Serial.println(" seconds of Total Run Time");
-  Serial.println("Stimulus RISING");
+  printFormattedTime("Stimulus RISING");
   
-  Serial.println("Frame clock reset to zero");
 
   lastMicros = currentMicros;
 }
@@ -78,7 +65,6 @@ void StimulusOn() {
 // Frame clock from ScanImage, goes HIGH when the Y-Galvo flys back to start a new frame
 void RecordFrame() {
   unsigned long currentMicros = micros();
-  
   if (currentMicros < lastMicros) {
     overflows++;
   }
@@ -90,4 +76,23 @@ void RecordFrame() {
   Serial.println(" (micros) - Frame RISING");
 
   lastMicros = currentMicros;
+}
+
+inline void printFormattedTime(const char* message) {
+  unsigned long adjustedMicros = startTime;
+  unsigned long totalSeconds = adjustedMicros / 1000000;
+
+  unsigned int hours = totalSeconds / 3600;
+  unsigned int minutes = (totalSeconds % 3600) / 60;
+  unsigned int seconds = totalSeconds % 60;
+
+  Serial.print(hours);
+  Serial.print(" hours, ");
+  Serial.print(minutes);
+  Serial.print(" minutes, ");
+  Serial.print(seconds);
+  Serial.print(" seconds - ");
+  Serial.println(" seconds of Total Run Time");
+  Serial.println(message);
+  // Serial.println("Frame clock reset to zero");
 }

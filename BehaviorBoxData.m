@@ -63,8 +63,8 @@ classdef BehaviorBoxData < handle
                 options.Inp (1,:) char;
                 options.Str (1,:) char;
                 options.Sub (1,:) cell;
-                options.BB double = 60;
-                options.SB double = 30;
+                options.BB double = 20;
+                options.SB double = 10;
                 options.load logical = 1;
                 options.analyze logical = 1;
                 options.plot logical = 0;
