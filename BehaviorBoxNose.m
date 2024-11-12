@@ -1724,7 +1724,7 @@ classdef BehaviorBoxNose < handle
             try
                 Include = Ts(newData.SetIdx);
             catch
-                Include = ones(size((newData.SetIdx));
+                Include = ones(size(newData.SetIdx));
             end
         end
         
