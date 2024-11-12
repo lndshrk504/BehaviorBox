@@ -6,6 +6,9 @@ tree = split(filename, filesep);
 data{1} = tree{end}; %filename
 data{2} = str2double(tree{end}(1:6)); %Date of session
 data{6} = char(tree{end-1}); %name of the subfolder, Mouse's name
+% if data{2} == 241025 % For debugging certain days
+%     1;
+% end
 try
     names = fieldnames(t.newData)';
     if any(contains(names, 'wheel_record'))
@@ -39,13 +42,13 @@ try
             end
             t.newData.(n{:}) = t.newData.(n{:})(1:total);
         end
-    elseif contains(filename, 'XXXXXX')
+    elseif contains(filename, 'XXXXXX') % If a data was "rescued" by reconstructing it from a figure, put XXXXXX in its filename
         total = numel(t.newData.Score);
         for n = names(structfun(@numel, t.newData)<total)
             if any(n{:}==omits)
                 continue
             end
-            t.newData.(n{:}) = zeros(size(t.newData.Score));
+            t.newData.(n{:}) = nan(size(t.newData.Score));
         end
         t.newData.SetIdx = ones(size(t.newData.Score));
     end

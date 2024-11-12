@@ -311,7 +311,8 @@ classdef BehaviorBoxData < handle
             dayData = struct;
             for S = this.Sub
                 try
-                    name = S{:}(1:7);
+                    N = split(S, ' - ');
+                    name = N{1};
                 catch
                     name = S{:};
                 end
@@ -328,7 +329,10 @@ classdef BehaviorBoxData < handle
                 % Lev = cellfun(@(x) getLev(x), StimHist, 'UniformOutput', false);
                 c = 0;
                 for d = days
-                    if d == 231117
+                    if d == 241023
+                        1;
+                    end
+                    if d == 241025
                         1;
                     end
                     bigSession = struct;
@@ -391,8 +395,7 @@ classdef BehaviorBoxData < handle
                     if all(cellfun(@isempty, {sessions.Score}))
                         continue
                     end
-                    % Remove the sessions with no values for TrialNum (means
-                    % training session was aborted before the first trial)
+% Remove the sessions with no values for TrialNum (means training session was aborted before the first trial)
                     wEmpty = zeros(size(sessions));
                     for i = 1:numel(sessions)
                         if isempty(sessions(i).TrialNum)
@@ -418,7 +421,8 @@ classdef BehaviorBoxData < handle
                             end
                         end
                     end
-                    %bigSession.Settings = {sessions.Settings};
+% Marking trials for Ex/Inclusion is no longer necessary
+                    bigSession.Settings = {sessions.Settings};
                     idx = 0;
                     Include = zeros(sum(cellfun(@numel,{sessions.Settings})), 1);
                     SetStr = {zeros(sum(cellfun(@numel,{sessions.Settings})), 1)};
@@ -456,7 +460,6 @@ classdef BehaviorBoxData < handle
                     Out = orderfields(bigSession, finalorder);
                     Out.StimulusHistory = vertcat(StimHist);
                     dayData.((mouse)){c,3} =Out;
-
                 end
                 emptyDays = cellfun(@isempty, dayData.(mouse)(:,1));
                 dayData.(mouse)(emptyDays,:) = [];
