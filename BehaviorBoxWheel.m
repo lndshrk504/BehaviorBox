@@ -1724,7 +1724,11 @@ classdef BehaviorBoxWheel < handle
                 end
             end
         end
-        function MoveStimuli(this)
+        function MoveStimuli(this, options)
+            arguments
+                this
+                options
+            end
 
             switch this.app.Animate_Style.Value
                 case "Dot"
@@ -1760,7 +1764,8 @@ classdef BehaviorBoxWheel < handle
             elseif this.app.Animate_Side.Value == "Right"
                 direction = -1;
             end
-        
+
+            this.a.TimeStamp();
             % Continuous loop for movement, stops when condition met or manually interrupted
             while ~this.app.Animate_End.Value
                 % Update positions for axes
