@@ -1697,6 +1697,7 @@ classdef BehaviorBoxNose < handle
         end
 
         function StimHist = filterNonEmptyRows(this, StimHistory)
+% This is not working correctly. Only 1 trial's stim is being saved
             nonEmptyRows = any(~cellfun(@isempty, StimHistory'), 'all');
             StimHist = StimHistory(nonEmptyRows, :);
         end

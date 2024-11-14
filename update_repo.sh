@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define the directory where your Git repository is located
-REPO_DIR="/path/to/your/repository"
+REPO_DIR="~/Desktop/BehaviorBox"
 LOG_DIR="$REPO_DIR/Logs"
 LOG_FILE="$LOG_DIR/update_log.txt"
 
