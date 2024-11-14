@@ -56,8 +56,15 @@ void StimulusOn() {
   unsigned int hours = totalMinutes / 60;
 
   // Print formatted time
-  printFormattedTime("Stimulus RISING");
+  Serial.print(hours);
+  Serial.print(" hours, ");
+  Serial.print(minutes);
+  Serial.print(" minutes, ");
+  Serial.print(seconds);
+  Serial.println(" seconds of Total Run Time");
+  Serial.println("Stimulus RISING");
   
+  Serial.println("Frame clock reset to zero");
 
   lastMicros = currentMicros;
 }
@@ -76,23 +83,4 @@ void RecordFrame() {
   Serial.println(" (micros) - Frame RISING");
 
   lastMicros = currentMicros;
-}
-
-inline void printFormattedTime(const char* message) {
-  unsigned long adjustedMicros = startTime;
-  unsigned long totalSeconds = adjustedMicros / 1000000;
-
-  unsigned int hours = totalSeconds / 3600;
-  unsigned int minutes = (totalSeconds % 3600) / 60;
-  unsigned int seconds = totalSeconds % 60;
-
-  Serial.print(hours);
-  Serial.print(" hours, ");
-  Serial.print(minutes);
-  Serial.print(" minutes, ");
-  Serial.print(seconds);
-  Serial.print(" seconds - ");
-  Serial.println(" seconds of Total Run Time");
-  Serial.println(message);
-  // Serial.println("Frame clock reset to zero");
 }
