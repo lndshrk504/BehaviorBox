@@ -90,6 +90,7 @@ classdef BehaviorBoxSerial < handle
 
         function TimeStamp(this)
             write(this.Ard, "T", "char");
+            pause(0.3);
         end
 
         function Reading = SerialRead(this, src, ~)

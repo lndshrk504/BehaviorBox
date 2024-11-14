@@ -180,7 +180,6 @@ classdef BehaviorBoxNose < handle
             this.GUI_numbers.handle.choices = this.app.text19;
             this.GUI_numbers.handle.difficulty = this.app.text17;
             this.GUI_numbers.handle.time = this.app.text3;
-            %this = copytoStruct(this, this.app.Set);
             props = properties(this.app); %Get all names
             props(props == "MsgBox") = [];
             props(props == "NotesText") = [];

@@ -177,10 +177,10 @@ void displayWelcomeMessage() {
   Serial.println("The default behavior is to read from the Photogates and output L, M, R or -");
   Serial.println("Please enter one of the following characters to control the state:");
   Serial.println("If the letter 'R' is entered, the current state will switch to RIGHT_REWARDING");
-  Serial.println("If the letter 'O' is entered, the current state will switch to RIGHT_OPEN");
-  Serial.println("If the letter 'S' is entered, the current state will switch to RIGHT_SETUP");
+  Serial.println("If the letter 'r' is entered, the current state will switch to RIGHT_OPEN");
+  Serial.println("If the letter 's' is entered, the current state will switch to RIGHT_SETUP");
   Serial.println("If the letter 'W' is entered, the current state will switch to WHO, which is an identifying state.");
-  Serial.println("If the letter 'r' is entered, the encoder's position will be reset to 0 counts");
+  Serial.println("If the number '0' is entered, the encoder's position will be reset to 0 counts");
   Serial.println("If the letter 'T' is entered, the Timestamping pin will toggle");
   Serial.println("Note: The system is case sensitive, uppercase and lowercase letters will trigger different states.");
   Serial.println("Readout begins below...");
