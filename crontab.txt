@@ -22,3 +22,4 @@
 # 
 # m h  dom mon dow   command
 0 2 * * 0-5,7 /home/will/Desktop/BehaviorBox/DailyAnalysis.sh
+0 8 * * 0-5,7 /home/will/Desktop/BehaviorBox/update_repo.sh
