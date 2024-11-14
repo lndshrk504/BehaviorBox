@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+cd ~/Desktop/BehaviorBox
 # Append a separator for clarity
 echo "-------------------------------------" >> matlab_output.log
 # Write the current date and time to the log file
