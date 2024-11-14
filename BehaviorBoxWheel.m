@@ -1727,58 +1727,65 @@ classdef BehaviorBoxWheel < handle
         function MoveStimuli(this, options)
             arguments
                 this
-                options
+                options.Type = 'normal';
             end
 
             switch this.app.Animate_Style.Value
                 case "Dot"
                     AX = this.fig.Children(1);
                     BX.Position(1) = NaN;
+                    maxPosition = 0.74; % Maximum x-axis position to move to
+                    minPosition = -0.25; % Maximum x-axis position to move to
+                    X_or_Y = 1;
                 case "X-Line"
                     AX = this.fig.Children(1);
                     BX.Position(1) = NaN;
+                    maxPosition = 0.5; % Maximum x-axis position to move to
+                    minPosition = -0.5; % Maximum x-axis position to move to
+                    X_or_Y = 1;
                 case "Y-Line"
                     AX = this.fig.Children(1);
                     BX.Position(1) = NaN;
+                    maxPosition = 0.5; % Maximum x-axis position to move to
+                    minPosition = -0.5; % Maximum x-axis position to move to
+                    X_or_Y = 2;
                 case "Bar"
                     AX = this.Stimulus_Object.LStimAx;
                     BX = this.Stimulus_Object.RStimAx;
+                    maxPosition = 0.74; % Maximum x-axis position to move to
+                    minPosition = -0.25; % Maximum x-axis position to move to
+                    X_or_Y = 1;
                 case "Stimulus"
                     AX = this.Stimulus_Object.LStimAx;
                     BX = this.Stimulus_Object.RStimAx;
+                    maxPosition = 0.74; % Maximum x-axis position to move to
+                    minPosition = -0.25; % Maximum x-axis position to move to
+                    X_or_Y = 1;
             end
 
-            % Retrieve speed value from user settings
-            Speed = this.app.Animate_Speed.Value;
-
-            % Initial position adjustment for demonstration; adjust as needed
-            initialPos = min(AX.Position(1), BX.Position(1));
-
             % Movement parameters
-            distance = 0.5; % Total distance to move (adjustable)
-            stepSize = Speed * 0.01; % Adjust step size based on speed value
-            maxPosition = 0.75; % Maximum x-axis position to move to
-            minPosition = 0.25; % Maximum x-axis position to move to
+            stepSize = this.app.Animate_Speed.Value; % Adjust step size based on speed value
 
             if this.app.Animate_Side.Value == "Left"
-                direction = 1;
-            elseif this.app.Animate_Side.Value == "Right"
                 direction = -1;
+            elseif this.app.Animate_Side.Value == "Right"
+                direction = 1;
             end
         
             % Continuous loop for movement, stops when condition met or manually interrupted
             while ~this.app.Animate_End.Value
                 % Update positions for axes
-                AX.Position(1) = AX.Position(1) + direction * stepSize;
-                BX.Position(1) = BX.Position(1) + direction * stepSize;
+                AX.Position(X_or_Y) = AX.Position(X_or_Y) + direction * stepSize;
+                BX.Position(X_or_Y) = BX.Position(X_or_Y) + direction * stepSize;
                 % Check boundaries and reverse direction if needed
-                if AX.Position(1) > initialPos + distance || AX.Position(1) < initialPos
-                    direction = -direction;
-                    pause(0.5); % Pause briefly on boundary hit for clearer direction change
+                if AX.Position(X_or_Y) > maxPosition
+                    AX.Position(X_or_Y) = minPosition;
+                elseif AX.Position(X_or_Y) < minPosition
+                    AX.Position(X_or_Y) = maxPosition;
                 end
                 % Redraw and pause to control update rate
                 drawnow;
-                pause(1/Speed)
+                %pause(1/Speed)
             end
             
         end
