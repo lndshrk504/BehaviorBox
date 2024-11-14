@@ -1620,7 +1620,6 @@ classdef BehaviorBoxWheel < handle
                 [~,~] = this.Stimulus_Object.DisplayOnScreen(this.PickSideForCorrect(0, 0), ...
                     this.Setting_Struct.Starting_opacity);
             end
-            % Add a mode to display the stimulus as a solid line
             this.fig = this.Stimulus_Object.fig;
             [this.fig.findobj('Tag','Spotlight').Visible] = deal(1);
             toc
@@ -1724,37 +1723,57 @@ classdef BehaviorBoxWheel < handle
                     this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
                 end
             end
-            % totalTime = 5; % total time in seconds
-            % fps = 30; % frames per second
-            % steps = totalTime * fps;
-            % dx = 0.8 / steps; % change in x position per frame
-            % % Move the axes across the figure
-            % for k = 1:steps
-            %     % Update the x position
-            %     newPos = ax.Position;
-            %     newPos(1) = newPos(1) + dx;
-            %     % Set the new position
-            %     ax.Position = newPos;
-            %     % Update rendering
-            %     drawnow;
-            %     % Pause to control the frame rate
-            %     pause(1/fps);
-            % end
         end
         function MoveStimuli(this)
+
             switch this.app.Animate_Style.Value
                 case "Dot"
                     AX = this.fig.Children(1);
+                    BX.Position(1) = NaN;
                 case "X-Line"
                     AX = this.fig.Children(1);
+                    BX.Position(1) = NaN;
                 case "Y-Line"
                     AX = this.fig.Children(1);
+                    BX.Position(1) = NaN;
                 case "Bar"
                     AX = this.Stimulus_Object.LStimAx;
                     BX = this.Stimulus_Object.RStimAx;
                 case "Stimulus"
                     AX = this.Stimulus_Object.LStimAx;
                     BX = this.Stimulus_Object.RStimAx;
+            end
+
+            % Retrieve speed value from user settings
+            Speed = this.app.Animate_Speed.Value;
+
+            % Initial position adjustment for demonstration; adjust as needed
+            initialPos = min(AX.Position(1), BX.Position(1));
+
+            % Movement parameters
+            distance = 0.01; % Total distance to move (adjustable)
+            stepSize = Speed * 0.01; % Adjust step size based on speed value
+            maxPosition = 0.75; % Maximum x-axis position to move to
+
+            if this.app.Animate_Side.Value == "Left"
+                direction = 1;
+            elseif this.app.Animate_Side.Value == "Right"
+                direction = -1;
+            end
+        
+            % Continuous loop for movement, stops when condition met or manually interrupted
+            while ~this.app.Animate_End.Value
+                % Update positions for axes
+                AX.Position(1) = AX.Position(1) + direction * stepSize;
+                BX.Position(1) = BX.Position(1) + direction * stepSize;
+                % Check boundaries and reverse direction if needed
+                if AX.Position(1) > initialPos + distance || AX.Position(1) < initialPos
+                    direction = -direction;
+                    pause(0.5); % Pause briefly on boundary hit for clearer direction change
+                end
+                % Redraw and pause to control update rate
+                drawnow;
+                pause(1/Speed)
             end
             
         end
