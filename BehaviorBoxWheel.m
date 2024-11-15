@@ -319,7 +319,15 @@ classdef BehaviorBoxWheel < handle
             this.GuiHandles.MsgBox.String = "";
             this.GuiHandles.NotesText.String = "";
             this.GuiHandles.NotesText.String = sprintf(string(datetime("today"))+" Behavior Notes:\n");
-            this.app.Stimulus_FinishLine.Value = 1;
+            if ~this.app.Animate_Go.Value % Don't show finish line for animation
+                this.app.Stimulus_FinishLine.Value = true;
+                this.Setting_Struct.Stimulus_FinishLine = true;
+                this.StimulusStruct.FinishLine = true;
+            else
+                this.app.Stimulus_FinishLine.Value = false;
+                this.Setting_Struct.Stimulus_FinishLine = false;
+                this.StimulusStruct.FinishLine = false;
+            end
             this.setGuiNumbers(this.GUI_numbers); %update gui
             try
                 this.Data_Object = BehaviorBoxData( ...
@@ -363,11 +371,13 @@ classdef BehaviorBoxWheel < handle
                 end
             end
             [this.fig, this.LStimAx, this.RStimAx, this.FLAx, ~] = this.Stimulus_Object.setUpFigure();
-            this.ReadyCue('Create')
-            this.ReadyCueAx = this.fig.Children(3);
-            this.ReadyCueStruct.Ax = this.ReadyCueAx;
-            this.StimulusStruct.ReadyCue = this.ReadyCueStruct;
-                this.Box.use_wheel = 1;
+            if ~this.app.Animate_Go.Value % Don't show finish line for animation
+                this.ReadyCue('Create')
+                this.ReadyCueAx = this.fig.Children(3);
+                this.ReadyCueStruct.Ax = this.ReadyCueAx;
+                this.StimulusStruct.ReadyCue = this.ReadyCueStruct;
+            end
+            this.Box.use_wheel = 1;
             % this.toggleButtonsOnOff(this.Buttons,0); % Turn off all buttons
             fprintf("- - - - -\n");
             txt = "Start trial Mouse "+this.Setting_Struct.Subject+" at "+string(datetime('now'));
@@ -1466,13 +1476,22 @@ classdef BehaviorBoxWheel < handle
             this.setGuiNumbers(this.GUI_numbers);
         end
         %save data when done, give unique name for stimulus, input, etc.
-        function SaveAllData(this)
+        function SaveAllData(this, options)
+            arguments
+                this
+                options.Activity = "Training"
+                options.PosRecord = [];
+            end
             fakeNames = {'w', 'W'};
             if any(strcmp(num2str(this.Setting_Struct.Subject), fakeNames)) || any(strcmp(this.Setting_Struct.Strain, fakeNames)) %do not save if I use a fake name for fake data
                 return
             end
             D = string(datetime(this.Data_Object.start_time, "Format", "yyMMdd_HHmmss"));
-            stim = erase(this.app.Stimulus_type.Value, ' ');
+            if options.Activity == "Training"
+                stim = erase(this.app.Stimulus_type.Value, ' ');
+            else
+                stim = 'Animate';
+            end
             input = this.app.Box_Input_type.Value;
             Sub = this.Setting_Struct.Subject;
             Str = this.Data_Object.Str;
@@ -1484,68 +1503,76 @@ classdef BehaviorBoxWheel < handle
                 savefolder = fullfile([cell2mat(this.Data_Object.filedir), filesep]);
             end
             set(this.message_handle,'Text', 'Saving data as: '+saveasname+'.mat');
-            [newData] = this.Data_Object.current_data_struct;
-            names = fieldnames(newData);
-            for n = names(structfun(@isrow, newData) & structfun(@length, newData) > 1)' %Make sure everything is saved as a column
-                newData.(n{:}) = newData.(n{:})';
-            end
-            FullTrials = numel(newData.TimeStamp);
-            for n = names(structfun(@length, newData) > FullTrials)'
-                newData.(n{:}) = newData.(n{:})(1:FullTrials);
-            end
             Settings = [this.Setting_Struct cell2mat(this.Old_Setting_Struct)];
-            newData.SetUpdate = this.SetUpdate;
-            nonEmptyRows = any(~cellfun(@isempty, this.StimHistory'))';
-            newData.StimHist = this.StimHistory(nonEmptyRows,:);
-            rmv = {'GUI_numbers', 'encoder'};
-            for r = rmv
-                try
-                    Settings = rmfield(Settings, r);
-                end
-            end
-            newData.Settings = Settings;
-            if this.Box.Input_type == 6
-                newData.wheel_record = this.wheelchoice_record;
-                newData.wheel_record(any(cellfun(@isempty, newData.wheel_record)'),:) = [];
-            end
-            if isscalar(this.SetUpdate) % Settings never changed during the session.
-                newData.SetStr = this.SetStr;
-                newData.Include = repmat(this.Include, size(newData.TimeStamp));
-                newData.SetIdx = repmat(this.SetIdx, size(newData.TimeStamp));
-            elseif numel(this.SetUpdate) > 1
-                try
-                    Ts = this.Include;
-                    newData.SetStr =  this.SetStr;
-                    Idcs = unique([cell2mat(this.SetUpdate) length(newData.TimeStamp)]);
-                    [~, ~, newData.SetIdx] = histcounts(1:length(newData.TimeStamp), Idcs);
-                    newData.Include = Ts(newData.SetIdx);
-                end
-            end
-            newData.Weight = this.Setting_Struct.Weight;
             Notes = this.GuiHandles.NotesText.String;
-            f = figure("MenuBar","none","Visible","off");
-            copyobj(this.graphFig.Children, f)
-            f.Children.Title.String = string(this.Data_Object.Inp)+" "+cell2mat(this.Data_Object.Sub);
-            try
-                try
-                    save(savefolder+saveasname+".mat", 'Settings', 'newData', 'Notes')
-                    this.saveFigure(f, savefolder, saveasname)
-                    dispstring = 'Data saved as: '+saveasname;
-                    fprintf(dispstring+'\n');
-                    set(this.message_handle,'Text',dispstring);
-                catch err
-                    this.unwrapError(err)
-                    [file,path] = uiputfile(pwd , 'Choose folder to save training data' , saveasname);
-                    save([path file],  'Settings', 'newData')
-                    this.saveFigure(this.graphFig, savefolder, saveasname)
+            if options.Activity == "Training"
+                [newData] = this.Data_Object.current_data_struct;
+                names = fieldnames(newData);
+                for n = names(structfun(@isrow, newData) & structfun(@length, newData) > 1)' %Make sure everything is saved as a column
+                    newData.(n{:}) = newData.(n{:})';
                 end
-            catch err
-                save(pwd+saveasname+".mat", 'Settings', 'newData', 'Notes')
-                this.unwrapError(err)
+                FullTrials = numel(newData.TimeStamp);
+                for n = names(structfun(@length, newData) > FullTrials)'
+                    newData.(n{:}) = newData.(n{:})(1:FullTrials);
+                end
+                newData.SetUpdate = this.SetUpdate;
+                nonEmptyRows = any(~cellfun(@isempty, this.StimHistory'))';
+                newData.StimHist = this.StimHistory(nonEmptyRows,:);
+                rmv = {'GUI_numbers', 'encoder'};
+                for r = rmv
+                    try
+                        Settings = rmfield(Settings, r);
+                    end
+                end
+                newData.Settings = Settings;
+                if this.Box.Input_type == 6
+                    newData.wheel_record = this.wheelchoice_record;
+                    newData.wheel_record(any(cellfun(@isempty, newData.wheel_record)'),:) = [];
+                end
+                if isscalar(this.SetUpdate) % Settings never changed during the session.
+                    newData.SetStr = this.SetStr;
+                    newData.Include = repmat(this.Include, size(newData.TimeStamp));
+                    newData.SetIdx = repmat(this.SetIdx, size(newData.TimeStamp));
+                elseif numel(this.SetUpdate) > 1
+                    try
+                        Ts = this.Include;
+                        newData.SetStr =  this.SetStr;
+                        Idcs = unique([cell2mat(this.SetUpdate) length(newData.TimeStamp)]);
+                        [~, ~, newData.SetIdx] = histcounts(1:length(newData.TimeStamp), Idcs);
+                        newData.Include = Ts(newData.SetIdx);
+                    end
+                end
+                newData.Weight = this.Setting_Struct.Weight;
+                f = figure("MenuBar","none","Visible","off");
+                copyobj(this.graphFig.Children, f)
+                f.Children.Title.String = string(this.Data_Object.Inp)+" "+cell2mat(this.Data_Object.Sub);
+                try
+                    try
+                        save(savefolder+saveasname+".mat", 'Settings', 'newData', 'Notes')
+                        this.saveFigure(f, savefolder, saveasname)
+                        dispstring = 'Data saved as: '+saveasname;
+                        fprintf(dispstring+'\n');
+                        set(this.message_handle,'Text',dispstring);
+                    catch err
+                        this.unwrapError(err)
+                        [file,path] = uiputfile(pwd , 'Choose folder to save training data' , saveasname);
+                        save([path file],  'Settings', 'newData')
+                        this.saveFigure(this.graphFig, savefolder, saveasname)
+                    end
+                catch err
+                    save(pwd+saveasname+".mat", 'Settings', 'newData', 'Notes')
+                    this.unwrapError(err)
+                end
+                % f.MenuBar = 'figure';
+                % f.Visible = 1;
+                close(f)
+            elseif options.Activity == "Animate"
+                Position_Record = options.PosRecord;
+                save(savefolder+saveasname+".mat", 'Settings', 'Position_Record', 'Notes')
+                dispstring = 'Data saved as: '+saveasname;
+                fprintf(dispstring+'\n');
+                set(this.message_handle,'Text',dispstring);
             end
-            % f.MenuBar = 'figure';
-            % f.Visible = 1;
-            close(f)
         end
         function cleanUP(this)
             %switch on all buttons
@@ -1675,6 +1702,7 @@ classdef BehaviorBoxWheel < handle
                 options.Mode char = 'Create'
                 options.Value double = 0
             end
+            this.SetupBeforeLoop();
             STYLE = this.app.Animate_Style.Value;
             if options.Mode == "Show"
 %Remove everything that isn't the spotlights or the finish line
@@ -1682,7 +1710,8 @@ classdef BehaviorBoxWheel < handle
             end
             if options.Mode == "Go"
                 this.TestStimulus("AnimateMode",true, "StimType", STYLE);
-                this.MoveStimuli()
+                this.MoveStimuli();
+                return
             end
             if options.Mode == "XMove"
                 switch STYLE
@@ -1739,7 +1768,7 @@ classdef BehaviorBoxWheel < handle
                 this
                 options.Type = 'normal';
             end
-            set(this.fig, 'Renderer', 'OpenGL');
+            set(this.fig, 'Renderer', 'OpenGL'); % openGL is the default but this may help 
             switch this.app.Animate_Style.Value
                 case "Dot"
                     AX = this.fig.Children(1);
@@ -1781,14 +1810,20 @@ classdef BehaviorBoxWheel < handle
             elseif this.app.Animate_Side.Value == "Right"
                 direction = 1;
             end
-            Pos_Record = zeros(400,2);
-            tic
-            this.a.TimeStamp();
 
-        
+            this.Data_Object.start_time = datetime("now");
+            Pos_Record = zeros(2000,2);
+
+            tic % Begin time recording
+            try
+                this.a.TimeStamp(); % 300 milisec builtin pause
+            end
+
             % Continuous loop for movement, stops when condition met or manually interrupted
             i = 1;
-            while ~this.app.Animate_End.Value
+            Pos_Record(i,1) = toc;
+            Pos_Record(i,2) = AX.Position(X_or_Y); % Record initial position
+            while all([~this.app.Animate_End.Value ~this.app.Stop.Value])
                 % Update positions for axes
                 AX.Position(X_or_Y) = AX.Position(X_or_Y) + direction * stepSize;
                 BX.Position(X_or_Y) = BX.Position(X_or_Y) + direction * stepSize;
@@ -1799,11 +1834,20 @@ classdef BehaviorBoxWheel < handle
                     AX.Position(X_or_Y) = maxPosition;
                 end
                 drawnow;
+                i = i+1;
                 Pos_Record(i,1) = toc;
                 Pos_Record(i,2) = AX.Position(X_or_Y);
-                i = i+1;
             end
-            
+            close(this.fig)
+            %Remove empty rows from Pos_Record`
+            Pos_Record = Pos_Record(~(Pos_Record(:,1) == 0 & Pos_Record(:,2) == 0), :);
+            this.SaveAllData("Activity", "Animate", "PosRecord", Pos_Record);
+        end
+        function SaveMoveData(this, options)
+            arguments
+                this
+                options.What = 'all'
+            end
         end
         function WaitForInputKeyboard(this)
             InterTMalInterv = this.Setting_Struct.IntertrialMalSec;

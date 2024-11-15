@@ -39,6 +39,9 @@ classdef BehaviorBoxSerial < handle
             catch err
                 disp('Serial connection failed.')
             end
+            if this.Input_type == "Wheel"
+                this.DispOutput = false;
+            end
         end
 
         function Who(this)
@@ -69,6 +72,9 @@ classdef BehaviorBoxSerial < handle
                 opts.DurationLeft string = this.Lrewardtime;
                 opts.Which string = "Right"
             end
+            if this.Input_type == "Wheel"
+                this.DispOutput = true;
+            end
             if ismember(opts.Which, ["Right", "Both"])
                 %write(this.Ard, "s", "char");
                 writeline(this.Ard, "s"+opts.DurationRight);
@@ -82,6 +88,10 @@ classdef BehaviorBoxSerial < handle
             % Update properties
             this.Rrewardtime = str2double(opts.DurationRight);
             this.Lrewardtime = str2double(opts.DurationLeft);
+            if this.Input_type == "Wheel"
+                pause(0.1)
+                this.DispOutput = false;
+            end
         end
 
         function GiveReward(this, opts)
@@ -89,7 +99,13 @@ classdef BehaviorBoxSerial < handle
                 this
                 opts.Side char = 'R'
             end
+            if this.Input_type == "Wheel"
+                this.DispOutput = true;
+            end
             write(this.Ard, opts.Side, "char");
+            if this.Input_type == "Wheel"
+                this.DispOutput = false;
+            end
         end
 
         function TimeStamp(this)
@@ -118,7 +134,7 @@ classdef BehaviorBoxSerial < handle
             this.Reading = Reading;
         end
 
-        function result = processReading(this, newReading)
+        function result = processReading(~, newReading)
             result = char(newReading);
             % if strcmp(this.Input_type, 'Wheel')
             %     %result = str2double(newReading);
@@ -129,23 +145,23 @@ classdef BehaviorBoxSerial < handle
         end
 
         function LeftRead = ReadLeft(this)
-            Reading = this.Reading; % Read the value once
-            LeftRead = strcmp(Reading, 'L');
+            reading = this.Reading; % Read the value once
+            LeftRead = strcmp(reading, 'L');
         end
 
         function RightRead = ReadRight(this)
-            Reading = this.Reading; % Read the value once
-            RightRead = strcmp(Reading, 'R');
+            reading = this.Reading; % Read the value once
+            RightRead = strcmp(reading, 'R');
         end
 
         function MiddleRead = ReadMiddle(this)
-            Reading = this.Reading; % Read the value once
-            MiddleRead = strcmp(Reading, 'M');
+            reading = this.Reading; % Read the value once
+            MiddleRead = strcmp(reading, 'M');
         end
 
         function NoneRead = ReadNone(this)
-            Reading = this.Reading; % Read the value once
-            NoneRead = ~strcmp(Reading, '-');
+            reading = this.Reading; % Read the value once
+            NoneRead = ~strcmp(reading, '-');
             % To match behavior this one is flipped, because it is only
             % used for the flashing while waiting for input
         end
