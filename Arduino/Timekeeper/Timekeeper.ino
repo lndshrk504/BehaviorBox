@@ -47,7 +47,7 @@ void StimulusOn() {
   startTime = currentMicros + (overflows * OVERFLOW_INCREMENT);
 
   // Convert microseconds to total seconds
-  unsigned long totalSeconds = adjustedMicros / 1000000;
+  unsigned long totalSeconds = startTime / 1000000;
 
   // Calculate hours, minutes, and seconds
   unsigned int seconds = totalSeconds % 60;
