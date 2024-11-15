@@ -319,7 +319,6 @@ classdef BehaviorBoxWheel < handle
             this.GuiHandles.MsgBox.String = "";
             this.GuiHandles.NotesText.String = "";
             this.GuiHandles.NotesText.String = sprintf(string(datetime("today"))+" Behavior Notes:\n");
-            %Set some defaults: FOR WHEEL
             this.app.Stimulus_FinishLine.Value = 1;
             this.setGuiNumbers(this.GUI_numbers); %update gui
             try
@@ -331,10 +330,11 @@ classdef BehaviorBoxWheel < handle
                     find=1); % Set up data storage object
             catch
             end
+            DATE = sprintf("BBTrialLog_%s.txt", datetime('now', 'Format', 'yyyyMMdd_HHmmss'));
             try
-                diaryname = join([this.Data_Object.filedir "BBTrialOutput"+this.Data_Object.date+".txt"], filesep);
+                diaryname = fullfile(this.Data_Object.filedir, DATE);
             catch
-                diaryname = join([this.Data_Object.Sub "BBTrialOutput"+this.Data_Object.date+".txt"], filesep);
+                diaryname = fullfile(this.Data_Object.Sub, DATE);
             end
             this.textdiary = diaryname;
             diary(diaryname)
@@ -342,8 +342,8 @@ classdef BehaviorBoxWheel < handle
             %create stimulus depending on input device
             [this.Stimulus_Object] = BehaviorBoxVisualStimulus(this.StimulusStruct); drawnow;
             this.Data_Object.StimType = erase(this.app.Stimulus_type.Value, ' ');
-            clo(this.app.PerformanceTab);
-            this.graphFig = this.app.PerformanceTab;
+            this.graphFig = this.app.PerformanceTab.Children.Children;
+            clo(this.graphFig);
             this.Data_Object.Axes = this.Data_Object.CreateDailyGraphs(this.graphFig);
             this.Data_Object.SB = this.Setting_Struct.Data_Sbin; %Make these names match
             this.Data_Object.BB = this.Setting_Struct.Data_Lbin*this.Setting_Struct.Data_Sbin;
