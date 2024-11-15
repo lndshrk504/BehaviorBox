@@ -993,7 +993,9 @@ classdef BehaviorBoxWheel < handle
             this.setDistractorColor();
             % Handle actions based on decision correctness
             if contains(this.WhatDecision, 'correct', 'IgnoreCase', true)
+                this.a.DispOutput = true;
                 this.processCorrectDecision(keyboardInput, inputType);
+                this.a.DispOutput = false;
             else
                 this.processWrongDecision(keyboardInput, inputType);
             end
@@ -1179,7 +1181,6 @@ classdef BehaviorBoxWheel < handle
                         WhatDecision = 'right wrong';
                     end
             end
-            this.a.DispOutput = true;
         end
         function FlashNew(this, Stim, Box, Lines, whatdecision, OneWay)
             arguments
