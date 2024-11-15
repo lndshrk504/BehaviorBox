@@ -8,6 +8,7 @@ LOG_FILE="$LOG_DIR/update_log.txt"
 # Ensure the Logs directory exists
 mkdir -p "$LOG_DIR"
 
+touch "$LOG_FILE"
 # Function to log the current date and time
 log_date() {
     echo "Repo update attempt on: $(date)" >> "$LOG_FILE"
