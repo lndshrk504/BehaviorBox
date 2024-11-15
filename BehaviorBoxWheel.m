@@ -201,7 +201,16 @@ classdef BehaviorBoxWheel < handle
             this.SetIdx = 1;
             [this.SetStr, this.Include] = this.structureSettings(this.Setting_Struct);
             function Types = GetType(App, Props)
-                Types = cellfun(@(x) App.(x).Type, Props, 'UniformOutput', false);
+                %Types = cellfun(@(x) App.(x).Type, Props, 'UniformOutput', false);
+                n = numel(Props);
+                Types = cell(1, n);
+                for i = 1:n
+                    try
+                    Types{i} = App.(Props{i}).Type;
+                    catch err
+                        1;
+                    end
+                end
             end
             function Types = GetTag(App, Props)
                 Types = cellfun(@(x) App.(x).Tag, Props, 'UniformOutput', false);
