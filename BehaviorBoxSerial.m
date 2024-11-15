@@ -30,11 +30,15 @@ classdef BehaviorBoxSerial < handle
                 Input_type char = 'NosePoke'
             end
             this.Input_type = Input_type;
-            this.Ard = serialport(port, baudRate, ...
-                "Timeout", 2);
-            configureTerminator(this.Ard,"CR/LF");
-            configureCallback(this.Ard, "terminator", @this.SerialRead);
-            this.Reset();
+            try
+                this.Ard = serialport(port, baudRate, ...
+                    "Timeout", 2);
+                configureTerminator(this.Ard,"CR/LF");
+                configureCallback(this.Ard, "terminator", @this.SerialRead);
+                this.Reset();
+            catch err
+                disp('Serial connection failed.')
+            end
         end
 
         function Who(this)

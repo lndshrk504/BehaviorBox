@@ -1771,21 +1771,27 @@ classdef BehaviorBoxWheel < handle
             elseif this.app.Animate_Side.Value == "Right"
                 direction = 1;
             end
+            Pos_Record = zeros(400,2);
+            tic
+            this.a.TimeStamp();
+
         
             % Continuous loop for movement, stops when condition met or manually interrupted
+            i = 1;
             while ~this.app.Animate_End.Value
                 % Update positions for axes
                 AX.Position(X_or_Y) = AX.Position(X_or_Y) + direction * stepSize;
                 BX.Position(X_or_Y) = BX.Position(X_or_Y) + direction * stepSize;
-                % Check boundaries and reverse direction if needed
+                % Check boundaries and reset position
                 if AX.Position(X_or_Y) > maxPosition
                     AX.Position(X_or_Y) = minPosition;
                 elseif AX.Position(X_or_Y) < minPosition
                     AX.Position(X_or_Y) = maxPosition;
                 end
-                % Redraw and pause to control update rate
                 drawnow;
-                %pause(1/Speed)
+                Pos_Record(i,1) = toc;
+                Pos_Record(i,2) = AX.Position(X_or_Y);
+                i = i+1;
             end
             
         end
