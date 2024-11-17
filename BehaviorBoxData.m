@@ -277,22 +277,15 @@ classdef BehaviorBoxData < handle
             if isempty(this.fds)
                 return
             end
-            try
-                p = gcp("nocreate");
-                if isempty(p)
-                    aD = this.fds.readall("UseParallel",false);
-                else
-                    aD = this.fds.readall("UseParallel",true);
-                end
-            catch
-                aD = this.fds.readall("UseParallel",false);
-            end
-            allData = cell(numel(aD),6);
-            for i = 1:6
+            aD = this.fds.readall("UseParallel",false);
+            allData = cell(numel(aD),size(aD{1},2));
+            for i = 1:size(aD{1},2)
                 allData(:,i) = cellfun(@(x) x{i}, aD, 'UniformOutput', false);
             end
             this.loadedData = allData;
-            this.CombineDays();
+            if ~isempty([allData{:,3}])
+                this.CombineDays();
+            end
             if nargout >= 1
                 varargout{1} = allData;
             end
@@ -2783,6 +2776,22 @@ classdef BehaviorBoxData < handle
             names = vertcat(z{:});
             [g,groups] = findgroups(names);
         end
+    
+        function OUT = ProcessPositionRecord(this)
+            OUT = [];
+            Data = this.loadedData;
+            Data = Data(:,[1,7]);
+
+        % Make trigonometric corrections, turn figure location into degrees of visual field
+            % Have different modes depending on X-bar, Y-bar, Stimulus/Bar
+            % since they all start at different places
+
+        % Load in the timestamp text files
+        % Coordinate the text timestamps to the figure location timestamps
+            % figure began to move after the 300ms delay, first data row
+
+        end
+
     end %end methods
     methods(Static)
         function setGUI(Data, GUINums)

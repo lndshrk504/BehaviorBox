@@ -1,11 +1,15 @@
 function [data,variables,done] = readFcn(filename,variables)
 %Use this reading function to read all behavior files in parallel
-data = cell(1,6);
+data = cell(1,7);
 t = load(filename);
 tree = split(filename, filesep);
 data{1} = tree{end}; %filename
 data{2} = str2double(tree{end}(1:6)); %Date of session
 data{6} = char(tree{end-1}); %name of the subfolder, Mouse's name
+if isfield(t, 'Position_Record')
+    data{7} = t.Position_Record;
+    return
+end
 % if data{2} == 241025 % For debugging certain days
 %     1;
 % end
@@ -55,8 +59,8 @@ try
     data{3} = t.newData; %Get newData
 % Add code to check stimulus for Decoy correct answers?
 catch err
-    disp("stop")
-    disp("stop")
+    %disp("stop")
+    %disp("stop")
 end
 done = true;
 end
