@@ -1768,7 +1768,8 @@ classdef BehaviorBoxWheel < handle
                 this
                 options.Type = 'normal';
             end
-            set(this.fig, 'Renderer', 'OpenGL'); % openGL is the default but this may help
+            set(this.fig, 'Renderer', 'OpenGL'); % openGL is the default but this may help 
+            Center = 0;
             switch this.app.Animate_Style.Value
                 case "Dot"
                     AX = this.fig.Children(1);
@@ -1794,12 +1795,14 @@ classdef BehaviorBoxWheel < handle
                     maxPosition = 0.74; % Maximum x-axis position to move to
                     minPosition = -0.25; % Maximum x-axis position to move to
                     X_or_Y = 1;
+                    Center = 0.25;
                 case "Stimulus"
                     AX = this.Stimulus_Object.LStimAx;
                     BX = this.Stimulus_Object.RStimAx;
                     maxPosition = 0.74; % Maximum x-axis position to move to
                     minPosition = -0.25; % Maximum x-axis position to move to
                     X_or_Y = 1;
+                    Center = 0.25;
             end
 
             % Movement parameters
@@ -1818,6 +1821,7 @@ classdef BehaviorBoxWheel < handle
             try
                 this.a.TimeStamp(); % 300 milisec builtin pause
             end
+            one_drop_only = true;
 
             % Continuous loop for movement, stops when condition met or manually interrupted
             i = 1;
@@ -1827,11 +1831,19 @@ classdef BehaviorBoxWheel < handle
                 % Update positions for axes
                 AX.Position(X_or_Y) = AX.Position(X_or_Y) + direction * stepSize;
                 BX.Position(X_or_Y) = BX.Position(X_or_Y) + direction * stepSize;
+                if ~one_drop_only && AX.Position(X_or_Y) > (Center-0.01) && AX.Position(X_or_Y) < (Center+0.01)
+                    if this.app.Animate_MimicTrial.Value
+                        this.a.GiveReward
+                        one_drop_only = true;
+                    end
+                end
                 % Check boundaries and reset position
                 if AX.Position(X_or_Y) > maxPosition
                     AX.Position(X_or_Y) = minPosition;
+                    one_drop_only = false;
                 elseif AX.Position(X_or_Y) < minPosition
                     AX.Position(X_or_Y) = maxPosition;
+                    one_drop_only = false;
                 end
                 drawnow;
                 i = i+1;
@@ -1842,6 +1854,10 @@ classdef BehaviorBoxWheel < handle
             %Remove empty rows from Pos_Record`
             Pos_Record = Pos_Record(~(Pos_Record(:,1) == 0 & Pos_Record(:,2) == 0), :);
             this.SaveAllData("Activity", "Animate", "PosRecord", Pos_Record);
+
+            try
+                this.a.TimeStamp(); % 300 milisec builtin pause
+            end
         end
         function SaveMoveData(this, options)
             arguments
