@@ -62,6 +62,7 @@ classdef BehaviorBoxVisualStimulus
                     this.setUpFigure();
                     this = this.findfigs();
                 end
+            catch
             end
         end
         function this = updateProps(this, StimStruct)
@@ -74,7 +75,7 @@ classdef BehaviorBoxVisualStimulus
                     try
                         this.(f{:}) = StimStruct.(f{:});
                     catch err
-                        err;
+                        unwrapErr(err)
                     end
                 end
                 this.fig.Color = this.BackgroundColor;
@@ -82,6 +83,7 @@ classdef BehaviorBoxVisualStimulus
                 [this.fig.findobj('Tag','Spotlight').FaceColor] = deal(this.SpotlightColor);
                 [this.fig.findobj('Type','Line').Color] = deal(this.LineColor);
                 [this.fig.findobj('Type','Polygon').FaceColor] = deal(this.LineColor);
+            catch
             end
         end
         function [fig, LStimAx, RStimAx, FLAx, ChoiceAx] = setUpFigure(this, options)
@@ -103,9 +105,6 @@ classdef BehaviorBoxVisualStimulus
             %stimWidth = abs(100-this.BetweenSpotlight)/200;
             stimWidth = 0.5;
             ChoiceAx = [];
-            RStimAx = [];
-            LStimAx = [];
-            fig = [];
             if options.StimHist
                 T = options.T;
                 fig = T.Parent;
@@ -128,11 +127,14 @@ classdef BehaviorBoxVisualStimulus
                 [T.Children(:).XTick] = deal([]);
                 [T.Children(:).Box] = deal('off');
             else
-                fig = figure('NumberTitle', 'off',"Name", "Stimulus", "MenuBar","none", "HandleVisibility","on"); fig.Renderer = "painters";
+                fig = figure('NumberTitle', 'off',"Name", "Stimulus", "MenuBar","none", "HandleVisibility","on");
+                %fig.Renderer = "painters";
+                set(fig, 'Renderer', 'OpenGL'); % openGL is the default but this may help
                 %fig.WindowStyle = "alwaysontop";
                 fig.Units = "inches";
                 fig.Position = this.figpos;
                 fig.GraphicsSmoothing = 'off'; % Should help prevent graphics errors
+                fig.AlignVertexCenters = 'on';
                 this.fig = fig;
                 clf(fig);
                 fig.Color = this.BackgroundColor;

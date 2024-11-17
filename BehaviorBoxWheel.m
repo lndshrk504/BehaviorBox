@@ -1768,7 +1768,7 @@ classdef BehaviorBoxWheel < handle
                 this
                 options.Type = 'normal';
             end
-            set(this.fig, 'Renderer', 'OpenGL'); % openGL is the default but this may help 
+            set(this.fig, 'Renderer', 'OpenGL'); % openGL is the default but this may help
             switch this.app.Animate_Style.Value
                 case "Dot"
                     AX = this.fig.Children(1);
