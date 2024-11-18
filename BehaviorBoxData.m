@@ -2776,20 +2776,40 @@ classdef BehaviorBoxData < handle
             names = vertcat(z{:});
             [g,groups] = findgroups(names);
         end
-    
+
         function OUT = ProcessPositionRecord(this)
             OUT = [];
             Data = this.loadedData;
             Data = Data(:,[1,7]);
 
-        % Make trigonometric corrections, turn figure location into degrees of visual field
-            % Have different modes depending on X-bar, Y-bar, Stimulus/Bar
-            % since they all start at different places
+            % Load, process the timestamp text files
+            timestampFiles = dir(cell2mat(fullfile(this.filedir, '*.txt')));
+            timestampFiles = timestampFiles(contains({timestampFiles.name}, 'linesweep'));
+            Q = numel(timestampFiles);
+            TStable = table('Size', [Q 4], ...
+                'VariableTypes', {'string','cell', 'double', 'double'}, ...
+                'VariableNames',{'Filename', 'txt', 'NumFrames', 'NumStimFrames'});
+            TStable(:,1) = {timestampFiles.name}';
+            for i = 1:Q
+                TS = readlines(fullfile(timestampFiles(i).folder, timestampFiles(i).name));
+                TStable{i,2} = {TS};
+            end
 
-        % Load in the timestamp text files
-        % Coordinate the text timestamps to the figure location timestamps
+            % Coordinate the frame timestamps to the figure timestamps
             % figure began to move after the 300ms delay, first data row
 
+            % Make trigonometric corrections, turn figure location into degrees of visual field
+                % Have different modes depending on X-bar, Y-bar, Stimulus/Bar
+                % since they all start at different places
+
+
+            % For imaging analysis out put a CSV with the following columns
+            % for each frame:
+% frameIDX  StimPosition(degrees)   TimeSinceStimOnset  TimeSinceImagingOnset 
+%   1
+%   2
+%   3
+%   n
         end
 
     end %end methods
