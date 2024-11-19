@@ -11,10 +11,10 @@ saveFile = 'cameraPositions.mat';
 
 % Attempt to load saved positions
 if isfile(saveFile)
-    savedPositions = load(saveFile, 'positions');
-    positions = savedPositions.positions;
+    savedPositions = load(saveFile, 'Positions');
+    Positions = savedPositions.Positions;
 else
-    positions = {};
+    Positions = {};
 end
 
 % Make sure the cameras are free and have plenty of memory
@@ -59,10 +59,11 @@ for id = cell2mat(IDS)
         previewWindow = preview(vid);
 % The actual figure is 4 parent levels up:
         previewWindow.Parent.Parent.Parent.Parent.DeleteFcn = @(src,~) savePosition(src, saveFile);
-
+        CamName = previewWindow.Parent.Parent.Parent.Parent.Name;
         % Set position if it was saved previously
-        if id <= length(positions)
-            set(previewWindow.Parent.Parent, 'Position', positions{id});
+        if any(contains(Positions.CameraName, CamName))
+            W = contains(Positions.CameraName, CamName);
+            previewWindow.Parent.Parent.Parent.Parent.Position = Positions.Position(W,:);
         end
     catch err
         unwrapErr(err)
@@ -72,14 +73,19 @@ end
 
 function savePosition(src, saveFile)
     % Save window position when closed
-    position = get(src, 'Position');
-    if isfile(saveFile)
-        savedPositions = load(saveFile, 'positions');
-        positions = savedPositions.positions;
-    else
-        positions = {};
+    if isfile(saveFile) % Find the row named for this camera and overwrite the position variable
+        savedPositions = load(saveFile, 'Positions');
+        Positions = savedPositions.Positions;
+        if any(contains(Positions.CameraName, src.Name)) % Overwrite that position
+            W = contains(Positions.CameraName, src.Name);
+            Positions.Position(W,:) = src.Position;
+        else % Add a new row
+            Positions = [Positions ; {src.Name, src.Position}];
+        end
+    else % Remake the variable
+        Positions = table('Size', [0 2], 'VariableTypes', {'string', 'double'}, 'VariableNames', {'CameraName','Position'});
+        Positions = [Positions ; {src.Name, src.Position}];
     end
-    positions{end+1} = position; %#ok<AGROW>
-    save(saveFile, 'positions');
+    save(saveFile, 'Positions');
     delete(src); % Actually close the window
 end
