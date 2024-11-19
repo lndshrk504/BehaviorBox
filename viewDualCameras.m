@@ -54,6 +54,10 @@ for id = cell2mat(IDS)
         elseif ispc
             vid = videoinput("winvideo", id, res{w});
         end
+
+        % Create a figure window manually
+        fig = figure('Name', sprintf('Camera ID: %d', id), 'NumberTitle', 'off', ...
+                     'CloseRequestFcn', @(src,~) savePosition(src, saveFile, vid));
         
         % Preview the video input
         previewWindow = preview(vid);
@@ -83,5 +87,11 @@ function savePosition(src, saveFile)
     end
     positions{end+1} = position; %#ok<AGROW>
     save(saveFile, 'positions');
+    
+    % Clean up: stop and delete the video input object
+    stop(vid);
+    delete(vid);
+
+    % Delete the figure
     delete(src); % Actually close the window
 end
