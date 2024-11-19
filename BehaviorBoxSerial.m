@@ -31,7 +31,7 @@ classdef BehaviorBoxSerial < handle
             end
             this.Input_type = Input_type;
             try
-                port = '/dev/ttyACM1';
+                %port = '/dev/ttyACM1';
                 this.Ard = serialport(port, baudRate, ...
                     "Timeout", 2);
                 configureTerminator(this.Ard,"CR/LF");
