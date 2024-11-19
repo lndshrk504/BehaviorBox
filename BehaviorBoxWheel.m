@@ -1851,7 +1851,7 @@ classdef BehaviorBoxWheel < handle
                 Pos_Record(i,2) = AX.Position(X_or_Y);
             end
             close(this.fig)
-            %Remove empty rows from Pos_Record`
+            %Remove empty rows from Pos_Record
             Pos_Record = Pos_Record(~(Pos_Record(:,1) == 0 & Pos_Record(:,2) == 0), :);
             this.SaveAllData("Activity", "Animate", "PosRecord", Pos_Record);
 
