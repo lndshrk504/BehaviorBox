@@ -54,16 +54,9 @@ for id = cell2mat(IDS)
         elseif ispc
             vid = videoinput("winvideo", id, res{w});
         end
-
-        % Create a figure window manually
-        fig = figure('Name', sprintf('Camera ID: %d', id), 'NumberTitle', 'off', ...
-                     'CloseRequestFcn', @(src,~) savePosition(src, saveFile, vid));
-
-        % Create an axes for the preview
-        ax = axes('Parent', fig);
-
-        % Preview the video input inside the specified axes
-        preview(vid, ax);
+        
+        % Preview the video input
+        previewWindow = preview(vid);
 
         % Set position if it was saved previously
         if id <= length(positions)
@@ -79,7 +72,7 @@ for id = cell2mat(IDS)
 end
 end
 
-function savePosition(src, saveFile, vid)
+function savePosition(src, saveFile)
     % Save window position when closed
     position = get(src, 'Position');
     if isfile(saveFile)
@@ -90,11 +83,5 @@ function savePosition(src, saveFile, vid)
     end
     positions{end+1} = position; %#ok<AGROW>
     save(saveFile, 'positions');
-    
-    % Clean up: stop and delete the video input object
-    stop(vid);
-    delete(vid);
-
-    % Delete the figure
     delete(src); % Actually close the window
 end
