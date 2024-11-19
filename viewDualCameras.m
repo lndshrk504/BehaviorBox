@@ -22,12 +22,12 @@ imaqreset
 imaqmex('feature','-limitPhysicalMemoryUsage',false)
 
 % Find cameras and remove system items
-if isunix && ismac
+if isunix && ~ismac
+    CamInfo = imaqhwinfo("linuxvideo");
+elseif ismac
     CamInfo = imaqhwinfo("macvideo");
 elseif ispc
     CamInfo = imaqhwinfo("winvideo");
-else
-    CamInfo = imaqhwinfo("linuxvideo");
 end
 INFO = CamInfo.DeviceInfo;
 IDS = CamInfo.DeviceIDs;
@@ -47,19 +47,19 @@ for id = cell2mat(IDS)
     end
     try
         %  Initialize the video input object
-        if ismac
+        if isunix && ~ismac
+            vid = videoinput("linuxvideo", id, res{w});
+        elseif ismac
             vid = videoinput("macvideo", id, res{w});
         elseif ispc
             vid = videoinput("winvideo", id, res{w});
-        else
-            vid = videoinput("linuxvideo", id, res{w});
         end
         
         % Preview the video input
         previewWindow = preview(vid);
 
         % Set position if it was saved previously
-        if idx <= length(positions)
+        if id <= length(positions)
             set(previewWindow, 'Position', positions{idx});
         end
 
