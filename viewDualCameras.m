@@ -40,7 +40,7 @@ end
 % Loop through the IDs and add cameras
 for id = cell2mat(IDS)
     info = INFO(id);
-    res = info.SupportedFormats; RES = res';
+    res = info.SupportedFormats; % RES = res';
     w = find(contains(res, 'YV12') & contains(res, '320x184'), 1, 'first');
     if isempty(w)
         w = find(contains(res, 'YV12') & contains(res, '320x'), 1, 'first');
