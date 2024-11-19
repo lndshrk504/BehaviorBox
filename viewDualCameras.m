@@ -58,9 +58,12 @@ for id = cell2mat(IDS)
         % Create a figure window manually
         fig = figure('Name', sprintf('Camera ID: %d', id), 'NumberTitle', 'off', ...
                      'CloseRequestFcn', @(src,~) savePosition(src, saveFile, vid));
-        
-        % Preview the video input
-        previewWindow = preview(vid);
+
+        % Create an axes for the preview
+        ax = axes('Parent', fig);
+
+        % Preview the video input inside the specified axes
+        preview(vid, ax);
 
         % Set position if it was saved previously
         if id <= length(positions)
@@ -76,7 +79,7 @@ for id = cell2mat(IDS)
 end
 end
 
-function savePosition(src, saveFile)
+function savePosition(src, saveFile, vid)
     % Save window position when closed
     position = get(src, 'Position');
     if isfile(saveFile)
