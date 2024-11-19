@@ -57,11 +57,11 @@ void StimulusOn() {
 
   // Print formatted time
   Serial.print(hours);
-  Serial.print(" hours, ");
+  Serial.print(" hours ");
   Serial.print(minutes);
-  Serial.print(" minutes, ");
+  Serial.print(" minutes ");
   Serial.print(seconds);
-  Serial.println(" seconds of Total Run Time");
+  Serial.print(" seconds of Total Run Time,");
   Serial.println("Stimulus RISING");
   
   Serial.println("Frame clock reset to zero");
@@ -80,7 +80,7 @@ void RecordFrame() {
   unsigned long timestamp = adjustedMicros - startTime;
   
   Serial.print(timestamp);
-  Serial.println(" (micros) - Frame RISING");
+  Serial.println(", (micros) - Frame RISING");
 
   lastMicros = currentMicros;
 }
