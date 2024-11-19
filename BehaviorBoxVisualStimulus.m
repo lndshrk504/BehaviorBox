@@ -134,7 +134,7 @@ classdef BehaviorBoxVisualStimulus
                 fig.Units = "inches";
                 fig.Position = this.figpos;
                 fig.GraphicsSmoothing = 'off'; % Should help prevent graphics errors
-                fig.AlignVertexCenters = 'on';
+                %fig.AlignVertexCenters = 'on';
                 this.fig = fig;
                 clf(fig);
                 fig.Color = this.BackgroundColor;
