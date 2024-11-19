@@ -470,7 +470,7 @@ classdef BehaviorBoxNose < handle
                 try
                     % sMM = this.Data_Object.AnalyzedData.DayMM{:}{8,1}{:}(end);
                     sMM = this.Data_Object.AnalyzedData.DayMM{1}{8,1}{:}(end);
-                    if this.Temp_Countdown <= 0 && sMM >= this.Temp_Settings.Threshold/100
+                    if this.Temp_Countdown <= 0 && sMM >= this.Temp_Settings.TrialCountThreshold/100
                         this.Temp_Active = false;
                         this.Setting_Struct = this.Temp_Old_Settings;
                         this.app.TrialsRemainingLabel.Text = "_ Trials Remaining";
