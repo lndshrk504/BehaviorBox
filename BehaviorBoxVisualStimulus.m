@@ -25,6 +25,7 @@ classdef BehaviorBoxVisualStimulus
         SegThick = 10;
         SegSpacing = 13;
         ContLength = 5; % number of segments in the target
+        ContTol = 10;
         ContourNodes;
         PatchSize=7; % size of patch, pick uneven
         BinSize=8; %size of bins
@@ -75,7 +76,7 @@ classdef BehaviorBoxVisualStimulus
                     try
                         this.(f{:}) = StimStruct.(f{:});
                     catch err
-                        unwrapErr(err)
+                        % unwrapErr(err)
                     end
                 end
                 this.fig.Color = this.BackgroundColor;

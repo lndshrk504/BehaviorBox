@@ -1,0 +1,85 @@
+
+                            < M A T L A B (R) >
+                  Copyright 1984-2023 The MathWorks, Inc.
+             R2023b Update 9 (23.2.0.2668659) 64-bit (glnxa64)
+                               July 10, 2024
+
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/target/shared/devicedrivers] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/sensors/thirdparty] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio/apps/arduinoexplorer] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/realtime/targets/arduinoide] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/hwsdk] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/sharedarduino] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/ddux] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Solutions] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/HelperScripts] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1/geometry] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise6] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise7] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise4] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise5] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DCMotorCharacterization] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3/images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/HelperFunctions] 
+ 
+To get started, type doc.
+For product information, visit www.mathworks.com.
+ 
+Found 1077 files for 6 subject(s) matching user input:
+ - 2471951 - F - Het
+ - 2471952 - F - WT
+ - 2471953 - F - WT
+ - 2618912 - F - WT
+ - 2618913 - F - WT
+ - 2618914 - F - Het
+{Error using horzcat
+Number of fields in structure arrays being concatenated do not match.
+Concatenation of structure arrays requires that these arrays have the same set
+of fields.
+Error in BehaviorBoxData/loadFiles (line 286)
+            if ~isempty([allData{:,3}])
+Error in BehaviorBoxData (line 82)
+                this.loadFiles();
+Error in GroupAnalysis (line 16)
+F = BehaviorBoxData(Inv='Will', Inp='NosePoke', Sub={'- F -'}, BB=20, SB=10);
+Error in run (line 99)
+evalin('caller', strcat(script, ';'));} 
