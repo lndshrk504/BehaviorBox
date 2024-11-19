@@ -57,15 +57,13 @@ for id = cell2mat(IDS)
         
         % Preview the video input
         previewWindow = preview(vid);
+% The actual figure is 4 parent levels up:
+        previewWindow.Parent.Parent.Parent.Parent.DeleteFcn = @(src,~) savePosition(src, saveFile);
 
         % Set position if it was saved previously
         if id <= length(positions)
-            set(previewWindow, 'Position', positions{idx});
+            set(previewWindow.Parent.Parent, 'Position', positions{id});
         end
-
-        % Add listener to save window position on close
-        addlistener(previewWindow, 'CloseRequestFcn', @(src,~) savePosition(src, saveFile));
-
     catch err
         unwrapErr(err)
     end
