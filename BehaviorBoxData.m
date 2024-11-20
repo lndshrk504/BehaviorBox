@@ -10,7 +10,7 @@ classdef BehaviorBoxData < handle
     %matrices, activity rates and others which then get plotted in the GUI.
     % Small_Bin_Size: divides # of trials in each data set into Small_Bins
     % (multiples of 10 are preferred)
-    %This class is called by BehaviorBoxSuper/Nose/Wheel
+    %This class is called by BehaviorBoxNose or Wheel
     %THIS FILE IS PART OF A SET OF FILES CONTAINING:
     %BehaviorBox.mlapp
     %BehaviorBoxWheel.m OR %BehaviorBoxNose.m
@@ -283,7 +283,17 @@ classdef BehaviorBoxData < handle
                 allData(:,i) = cellfun(@(x) x{i}, aD, 'UniformOutput', false);
             end
             this.loadedData = allData;
-            if ~isempty([allData{:,3}])
+            % for i = 2:size(allData,1)
+            %     fields1 = fieldnames(allData{i,3});
+            %     fields2 = fieldnames(allData{i-1,3});
+            %     areFieldsEqual = isequal(fields1, fields2);
+            %     if ~areFieldsEqual
+            %         setdiff(fields1,fields2)
+            %         %setdiff(fields2,fields1)
+            %         1;
+            %     end
+            % end
+            if ~isempty([allData{:,3}]) % An error happens right here because of the Weight field. It is either missing (older mice in inactive folder) or an empty character vector (recent mice) when usually it is a double.
                 this.CombineDays();
             end
             if nargout >= 1
@@ -322,12 +332,12 @@ classdef BehaviorBoxData < handle
                 % Lev = cellfun(@(x) getLev(x), StimHist, 'UniformOutput', false);
                 c = 0;
                 for d = days
-                    if d == 241023
-                        1;
-                    end
-                    if d == 241025
-                        1;
-                    end
+                    % if d == 241023
+                    %     1;
+                    % end
+                    % if d == 241025
+                    %     1;
+                    % end
                     bigSession = struct;
                     sessions = struct;
                     c = c+1;
@@ -385,8 +395,12 @@ classdef BehaviorBoxData < handle
                             unwrapErr(err)
                         end
                     end
-                    if all(cellfun(@isempty, {sessions.Score}))
-                        continue
+                    try
+                        if all(cellfun(@isempty, {sessions.Score}))
+                            continue
+                        end
+                    catch err
+                        unwrapErr(err)
                     end
 % Remove the sessions with no values for TrialNum (means training session was aborted before the first trial)
                     wEmpty = zeros(size(sessions));

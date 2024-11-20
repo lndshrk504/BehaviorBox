@@ -1,5 +1,8 @@
 function [data,variables,done] = readFcn(filename,variables)
 %Use this reading function to read all behavior files in parallel
+if contains(filename, '2471951')
+    1;
+end
 data = cell(1,7);
 t = load(filename);
 tree = split(filename, filesep);
@@ -56,9 +59,26 @@ try
         end
         t.newData.SetIdx = ones(size(t.newData.Score));
     end
+    if ~isfield(t.newData, 'wheel_record')
+        t.newData.wheel_record = [];
+    end
+    if isfield(t.newData, 'Weight')
+        if isnumeric(t.newData.Weight)
+            %do nothing, it should be double
+        elseif ischar(t.newData.Weight)
+            t.newData.Weight = str2double(t.newData.Weight);
+        end
+    else
+        t.newData.Weight = [];
+    end
+    if isfield(t.newData, 'Text')
+        t.newData = rmfield(t.newData, 'Text');
+    end
     data{3} = t.newData; %Get newData
 % Add code to check stimulus for Decoy correct answers?
 catch err
+    unwrapErr(err)
+    1;
     %disp("stop")
     %disp("stop")
 end

@@ -1613,6 +1613,8 @@ classdef BehaviorBoxNose < handle
         end
         %save data when done, give unique name for stimulus, input, etc.
         function SaveAllData(this, options)
+% Make sure Weight is a field and Text is not
+% in the saved newData structure
             arguments
                 this
                 options.RescueData = false
