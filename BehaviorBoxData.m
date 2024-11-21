@@ -1579,16 +1579,19 @@ classdef BehaviorBoxData < handle
                     for II = find(contains(this.Sub, "- WT"))
                         B.CData(II,:) = Ax.ColorOrder(2,:);
                     end
-                    Level_Label = text(lc+0.5, -180, "Level "+L, "VerticalAlignment","top", "HorizontalAlignment","center");
                     Text = text(x, y, string(round(y, 2)), "VerticalAlignment","bottom", "HorizontalAlignment","center");
-                    if options.NameLegend
-                        Names = text(x, -75*ones(size(x)), this.Sub, "HorizontalAlignment","center", "Rotation",90);
-                    end
                 catch err
                     unwrapErr
                 end
                 lc = lc + 1;
             end
+            Ls = arrayfun(@(x) sprintf('Level %d', x), 1:20, 'UniformOutput', false);
+            xline(0:19, ':', Ls, 'LabelVerticalAlignment', 'bottom', 'LabelHorizontalAlignment', 'Right')
+            XDATA = sort([Ax.findobj('Type','Bar').XData]);
+            repeatedLabels = SUBS(mod(0:(numRepeats-1), length(SUBS)) + 1);
+            xticks(XDATA)
+            xticklabels(repeatedLabels)
+            Ax.XTick = [];
             Ax.YLim(1) = -180;
         end
         function Out = consecutiveTrial(this, vec, count, tol)
