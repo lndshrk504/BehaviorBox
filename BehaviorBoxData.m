@@ -1588,11 +1588,14 @@ classdef BehaviorBoxData < handle
             Ls = arrayfun(@(x) sprintf('Level %d', x), 1:20, 'UniformOutput', false);
             xline(0:19, ':', Ls, 'LabelVerticalAlignment', 'bottom', 'LabelHorizontalAlignment', 'Right')
             XDATA = sort([Ax.findobj('Type','Bar').XData]);
+            numRepeats = length(XDATA);
             repeatedLabels = SUBS(mod(0:(numRepeats-1), length(SUBS)) + 1);
-            xticks(XDATA)
-            xticklabels(repeatedLabels)
-            Ax.XTick = [];
-            Ax.YLim(1) = -180;
+            xticks(XDATA);
+            xticklabels(repeatedLabels);
+            Ax.TickDir = "none";
+            Ax.XTickLabelRotation = 50;
+            MAX = max([Ax.findobj('Type','Bar').YData]) * 1.02;
+            Ax.YLim(2) = MAX;
         end
         function Out = consecutiveTrial(this, vec, count, tol)
             arguments
