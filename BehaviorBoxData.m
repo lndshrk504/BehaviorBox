@@ -537,7 +537,7 @@ classdef BehaviorBoxData < handle
                 this.LevelHist.LastScores = cellfun(@(x){trialTbl(trialTbl.Level==x,:).Score(end-100:end)}, AllLevels, "ErrorHandler",@errorFuncZeroCell);
                 %this.LevelHist.MM = cellfun(@(x)this.LevelMMAnalysis(x), this.LevelHist.LastScores, "ErrorHandler",@errorFuncNaN);
                 Out.LevelMM{SC} = cell(1, max(Lvs));
-                LMM = splitapply(@(x)this.LevelMMAnalysis(x), [trialTbl.Score allDates' trialTbl.Include], G)';
+                LMM = splitapply(@(x)this.LevelMMAnalysis(x), [trialTbl.Score allDates' trialTbl.Include, G], G)';
                 for i = 1:numel(LMM)
                     Out.LevelMM{SC}{Lvs(i)} = LMM{i};
                 end
@@ -596,7 +596,11 @@ classdef BehaviorBoxData < handle
                 try
                     BiCDF(:,2) = [];
                     BiCDF( 1:this.BB-1,:) = [];
-                catch % Only fails when all responses are timeouts and th BiCDF vector is empty
+                catch err % Only fails when all responses are timeouts and th BiCDF vector is empty
+                      % Also fails if there are less than a full bin's
+                      % worth of trials
+                      % unwrapErr(err)
+                      BiCDF = nan(size(BiCDF));
                 end
                 % offset = D(1);
                 DC = 0;
@@ -608,7 +612,7 @@ classdef BehaviorBoxData < handle
                     XCoordLevDay(w) = (DC-1)+normalize(x, 'range');
                 end
                 if numel(scores) < this.BB
-                    FIRST = [bMM bSD nan(size(bMM)) nan(size(bMM)) nan(size(bMM)) BiCDF];
+                    FIRST = [bMM bSD nan(size(bMM)) nan(size(bMM)) nan(size(bMM)) nan(size(bMM))];
                 else
                     FIRST = [bMM bSD(this.BB:end) XCoord(this.BB:end) XCoordLevDay(this.BB:end) Inc(this.BB:end) BiCDF];
                 end
@@ -641,6 +645,9 @@ classdef BehaviorBoxData < handle
             IDX = [repmat("Het", 1, sum(Het)) repmat("WT", 1, sum(WT))];
             Lev = this.AnalyzedData.LevelMM;
             for L = 1:max(cellfun(@(x) numel(x), Lev, UniformOutput=true))
+                % if L == 20 % For debugging
+                %     1;
+                % end
                 CROSS_1 = cellfun(@(x) find(x{L}{:,6} < 0.05, 1, "first")+this.BB, Lev, UniformOutput=0, ErrorHandler=@errorFuncNaN);
                 CROSS_1(cellfun('isempty', CROSS_1)) = {NaN};
                 OverBinomial{L,"p<0.05"} = {[ {[CROSS_1{Het}]} {[CROSS_1{WT}]} ]} ;
@@ -1484,7 +1491,7 @@ classdef BehaviorBoxData < handle
             arguments
                 this
                 options.Sc double = 1
-                options.Lvs double = [3 6 8 10 12 16] %
+                options.Lvs double = 1:20 %[3 6 8 10 12 16 18 20] %
                 options.Threshold double = 0.7 % Passing threshold for each level
                 options.count double = 10 % Num of consecutive trials above threshold before passing
                 options.tol double = 0 % How many below-threshold trials in the streak of options.count to be tolerated
@@ -1496,7 +1503,7 @@ classdef BehaviorBoxData < handle
             Data = this.AnalyzedData.CrossTable{2};
             Ax = MakeAxis();
             hold(Ax, "on")
-            Ax.Parent.Title.String = string(this.Str)+deets{2};
+            Ax.Parent.Title.String = string(this.Str(1))+deets{2};
             Ax.Parent.Parent.Name = Ax.Parent.Title.String;
             Ax.Box=0;
             LabelList = [];

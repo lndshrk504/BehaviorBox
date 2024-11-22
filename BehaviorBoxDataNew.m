@@ -1,4 +1,4 @@
-classdef BehaviorBoxData < handle
+classdef BehaviorBoxDataNew < handle
     % 12.13.2023 Will Snyder
     %====================================================================
     %Data class
@@ -10,7 +10,7 @@ classdef BehaviorBoxData < handle
     %matrices, activity rates and others which then get plotted in the GUI.
     % Small_Bin_Size: divides # of trials in each data set into Small_Bins
     % (multiples of 10 are preferred)
-    %This class is called by BehaviorBoxSuper/Nose/Wheel
+    %This class is called by BehaviorBoxNose or Wheel
     %THIS FILE IS PART OF A SET OF FILES CONTAINING:
     %BehaviorBox.mlapp
     %BehaviorBoxWheel.m OR %BehaviorBoxNose.m
@@ -57,18 +57,19 @@ classdef BehaviorBoxData < handle
     end
     methods
         %constructor
-        function this = BehaviorBoxData(options)
+        function this = BehaviorBoxDataNew(options)
             arguments
                 options.Inv (1,:) char = 'Will';
-                options.Inp (1,:) char = 'NosePoke';
-                options.Str (1,:) char = 'shank';
-                options.Sub (1,:) cell = {'- F -'};
+                options.Inp (1,:) char;
+                options.Str (1,:) char;
+                options.Sub (1,:) cell;
                 options.BB double = 20;
                 options.SB double = 10;
                 options.load logical = 1;
                 options.analyze logical = 1;
                 options.plot logical = 0;
                 options.find logical = 0;
+                options.save logical = 0;
             end
             addpath("fcns/")
             %Apply inputs
@@ -85,6 +86,9 @@ classdef BehaviorBoxData < handle
                     this.AnalyzeAllData();
                     if numel(this.Sub)>1
                         this.SortSubjects();
+                    end
+                    if options.save
+                        this.SaveDataAsMAT();
                     end
                 catch err
                     unwrapErr(err)
@@ -159,92 +163,110 @@ classdef BehaviorBoxData < handle
         function [subfiledir, fds] = GetFiles(this)
             fds = [];
             subfiledir = pwd;
-            %Do an initial search for this mouse
-            startpath = fullfile(GetFilePath("Data"), this.Inv,this.Inp, '**', '*');
+
+            if any(matches([this.Sub, this.Str], 'w', 'IgnoreCase', true))
+                return
+            end
+
+            NEW = false;
+
+            % Construct the starting path for directory search
+            startpath = fullfile(GetFilePath("Data"), this.Inv, this.Inp, '**', '*');
             dirlist = dir(startpath);
             dirlist = dirlist([dirlist.isdir] & ...
                 ~contains({dirlist.name}, {'.', 'settings', 'alltime', 'Rescued'}, 'IgnoreCase',true) ...
                 & contains({dirlist.name}, this.Sub, "IgnoreCase",true));
-            try
+
+            % Attempt to group directories
+            if isempty(dirlist)
+                NEW = true;
+            elseif isscalar(dirlist) % Just one subject
+                dirPath = {fullfile(dirlist.folder, dirlist.name)};
+                % If this.Sub is only 1 mouse's name:
+                % filelist = dir(fullfile(GetFilePath("Data"), this.Inv,this.Inp, '**', '*.mat'));
+                % filelist = filelist(contains({filelist.name}, this.Sub) & ~contains({filelist.name}, 'settings', 'IgnoreCase',true));
+            else % A whole Group
                 [~,b]=findgroups({dirlist.folder}');
-                dirPath = cellfun(@(x) fullfile(b{:}, x), {dirlist.name}' , 'UniformOutput', false);
-            catch
+                if isscalar(b)
+                    dirPath = fullfile(b, {dirlist.name});
+                else
+                    dirPath = strcat({dirlist.folder}, filesep, {dirlist.name});
+                end
             end
-            filelist = dir(fullfile(GetFilePath("Data"), this.Inv,this.Inp, '**', '*.mat'));
-            filelist = filelist(contains({filelist.name}, this.Sub) & ~contains({filelist.name}, 'settings', 'IgnoreCase',true));
-            switch 1
-                case any(matches([this.Sub, this.Str], 'w', 'IgnoreCase', true))
-                    %Do nothing
-                case any(contains({filelist.name}, this.Sub)) %Any files?
-                    [subfiledir, fds] = makefiles(dirPath);
-                    %Any folders but no files?
-                case any(contains({dirlist.name}, this.Sub)) %Any files?
-                    [subfiledir, fds] = makefiles(dirPath);
-                case sum(contains({dirlist.name}, this.Sub)) == 1
-                    dirlist = dirlist(contains({dirlist.name}, this.Sub));
-                    newpath = dirlist.folder;
-                    tree = split(dirlist.folder, filesep);
-                    this.Str = tree{end};
-                    subfiledir = fullfile(newpath, this.Sub{:}); %Leave fds empty
-                otherwise
-                    if ~isempty(this.Str)
-                        newpath = fullfile(GetFilePath("Data"), this.Inv, this.Inp, this.Str, this.Sub);
-                        if isfolder(newpath)
-                            fprintf("Found "+numel(this.Sub)+" subject(s) matching user input:\n - "+cell2mat(join(this.Sub, "\n - "))+"\n")
-                        else
-                            try
-                                mkdir(newpath{:})
-                            catch
-                            end
-                            fprintf("New strain, folders will be created when saving data...\n")
-                            subfiledir = newpath;
-                        end
-                    else
-                        fprintf("Indicated filepath not found - Check the file path..?\n")
-                        newpath = fullfile(GetFilePath("Data"), this.Inv, this.Inp, 'New', this.Sub);
-                        this.Str = 'New';
-                        if isfolder(newpath)
-                            fprintf("Found "+numel(this.Sub)+" subject(s) matching user input:\n - "+cell2mat(join(this.Sub, "\n - "))+"\n")
-                        else
-                            mkdir(newpath{:})
-                            fprintf("New strain, folders will be created when saving data...\n")
-                        end
-                        subfiledir = newpath;
-                    end
+
+            % Determine the action based on conditions
+            if NEW
+                % Handle paths based on user input and state
+                subfiledir = handleNewStrain(this, dirlist);
+            else % any(contains({filelist.name}, this.Sub))
+                % If any files match the subject, proceed to create file datastore
+                [subfiledir, fds] = this.makefiles(dirPath);
             end
+
+            % Report found files if fds is populated
             if ~isempty(fds)
                 fprintf("Found "+numel(fds.Files)+" files for "+numel(this.Sub)+" subject(s) matching user input:\n - "+cell2mat(join(this.Sub, "\n - "))+"\n")
             end
 
-            function [SUBDIR, FDS] = makefiles(direc)
-                FDS = [];
-                SUBDIR = [];
-                try
-                    FDS = fileDatastore(direc, "ReadMode", "file" ,"ReadFcn", @readFcn, "FileExtensions", ".mat", "IncludeSubfolders",false);
-                    forest = cellfun(@(x) split(x,filesep), FDS.Files', 'UniformOutput', false);
-                    [~,this.Sub]=findgroups(cellfun(@(x) x(end-1), forest));
-                    [~,strains]=findgroups(cellfun(@(x) x(end-2), forest));
-                    this.Str = cell2mat(strains);
-                    if numel(this.Sub)>1
-                        w = 2;
-                    else
-                        w = 1;
-                    end
-                    file = forest{1}(1:end-w);
+        end
+
+        function [SUBDIR, FDS] = makefiles(this, direc)
+            FDS = [];
+            SUBDIR = [];
+            try
+                FDS = fileDatastore(direc, "ReadMode", "file" ,"ReadFcn", @readFcn, "FileExtensions", ".mat", "IncludeSubfolders",true);
+                forest = cellfun(@(x) split(x,filesep), FDS.Files', 'UniformOutput', false);
+                [~,this.Sub]=findgroups(cellfun(@(x) x(end-1), forest));
+                [~,strains]=findgroups(cellfun(@(x) x(end-2), forest));
+                this.Str = string(strains);
+                if numel(direc)>1
+                    file = forest{1}(1:end-2);
                     SUBDIR = fullfile(join(file(:),filesep));
-                catch err
-                    display(err.message)
-                    try
-                        SUBDIR = direc{:};
-                        tree = split(direc, filesep);
-                        this.Sub = tree(end);
-                        this.Str = tree{end-1};
-                    catch
-                    end
+                elseif numel(this.Sub)>1
+                    % Use strain folder for directory when multiple subjects
+                    file = forest{1}(1:end-2);
+                    SUBDIR = fullfile(join(file(:),filesep));
+                else
+                    % Use subject folder for directory
+                    file = forest{1}(1:end-1);
+                    SUBDIR = fullfile(join(file(:),filesep));
+                end
+            catch err
+                display(err.message)
+                try
+                    SUBDIR = direc;
+                    tree = split(direc, filesep);
+                    this.Sub = tree(end);
+                    this.Str = tree{end-1};
+                catch
                 end
             end
-
         end
+
+        function subdirPath = handleNewStrain(this, dirlist)
+            if ~isempty(this.Str)
+                newpath = fullfile(GetFilePath("Data"), this.Inv, this.Inp, this.Str, this.Sub);
+                actionOnFolderPresence(newpath, this.Sub);
+                subdirPath = newpath;
+            else
+                fprintf("Indicated filepath not found - Check the file path..?\n");
+                this.Str = 'New';
+                newpath = fullfile(GetFilePath("Data"), this.Inv, this.Inp, 'New', this.Sub);
+                this.actionOnFolderPresence(newpath, this.Sub);
+                subdirPath = newpath;
+            end
+        end
+
+        function actionOnFolderPresence(this, newpath, subjects)
+            if isfolder(newpath)
+                fprintf("Found %d subject(s) matching user input:\n - %s\n", ...
+                    numel(subjects), cell2mat(join(subjects, "\n - ")));
+            else
+                mkdir(newpath{:});
+                fprintf("New strain, folders will be created when saving data...\n");
+            end
+        end
+
         function [varargout] = loadFiles(this, options)
             arguments
                 this
@@ -255,22 +277,25 @@ classdef BehaviorBoxData < handle
             if isempty(this.fds)
                 return
             end
-            try
-                p = gcp("nocreate");
-                if isempty(p)
-                    aD = this.fds.readall("UseParallel",false);
-                else
-                    aD = this.fds.readall("UseParallel",true);
-                end
-            catch
-                aD = this.fds.readall("UseParallel",false);
-            end
-            allData = cell(numel(aD),6);
-            for i = 1:6
+            aD = this.fds.readall("UseParallel",false);
+            allData = cell(numel(aD),size(aD{1},2));
+            for i = 1:size(aD{1},2)
                 allData(:,i) = cellfun(@(x) x{i}, aD, 'UniformOutput', false);
             end
             this.loadedData = allData;
-            this.CombineDays();
+            % for i = 2:size(allData,1)
+            %     fields1 = fieldnames(allData{i,3});
+            %     fields2 = fieldnames(allData{i-1,3});
+            %     areFieldsEqual = isequal(fields1, fields2);
+            %     if ~areFieldsEqual
+            %         setdiff(fields1,fields2)
+            %         %setdiff(fields2,fields1)
+            %         1;
+            %     end
+            % end
+            if ~isempty([allData{:,3}]) % An error happens right here because of the Weight field. It is either missing (older mice in inactive folder) or an empty character vector (recent mice) when usually it is a double.
+                this.CombineDays();
+            end
             if nargout >= 1
                 varargout{1} = allData;
             end
@@ -289,7 +314,8 @@ classdef BehaviorBoxData < handle
             dayData = struct;
             for S = this.Sub
                 try
-                    name = S{:}(1:7);
+                    N = split(S, ' - ');
+                    name = N{1};
                 catch
                     name = S{:};
                 end
@@ -306,9 +332,12 @@ classdef BehaviorBoxData < handle
                 % Lev = cellfun(@(x) getLev(x), StimHist, 'UniformOutput', false);
                 c = 0;
                 for d = days
-                    if d == 231117
-                        1;
-                    end
+                    % if d == 241023
+                    %     1;
+                    % end
+                    % if d == 241025
+                    %     1;
+                    % end
                     bigSession = struct;
                     sessions = struct;
                     c = c+1;
@@ -366,11 +395,14 @@ classdef BehaviorBoxData < handle
                             unwrapErr(err)
                         end
                     end
-                    if all(cellfun(@isempty, {sessions.Score}))
-                        continue
+                    try
+                        if all(cellfun(@isempty, {sessions.Score}))
+                            continue
+                        end
+                    catch err
+                        unwrapErr(err)
                     end
-                    % Remove the sessions with no values for TrialNum (means
-                    % training session was aborted before the first trial)
+% Remove the sessions with no values for TrialNum (means training session was aborted before the first trial)
                     wEmpty = zeros(size(sessions));
                     for i = 1:numel(sessions)
                         if isempty(sessions(i).TrialNum)
@@ -396,7 +428,8 @@ classdef BehaviorBoxData < handle
                             end
                         end
                     end
-                    %bigSession.Settings = {sessions.Settings};
+% Marking trials for Ex/Inclusion is no longer necessary
+                    bigSession.Settings = {sessions.Settings};
                     idx = 0;
                     Include = zeros(sum(cellfun(@numel,{sessions.Settings})), 1);
                     SetStr = {zeros(sum(cellfun(@numel,{sessions.Settings})), 1)};
@@ -434,7 +467,6 @@ classdef BehaviorBoxData < handle
                     Out = orderfields(bigSession, finalorder);
                     Out.StimulusHistory = vertcat(StimHist);
                     dayData.((mouse)){c,3} =Out;
-
                 end
                 emptyDays = cellfun(@isempty, dayData.(mouse)(:,1));
                 dayData.(mouse)(emptyDays,:) = [];
@@ -462,70 +494,61 @@ classdef BehaviorBoxData < handle
         function [varargout] = AnalyzeAllData(this, options)
             arguments
                 this
-                options.CropEnd double = 30
+                options.CropEnd double = 30 % How many trials to remove from the end of each day, to accomodate for the mouse's waning attention/interest in the task
             end
             tic
-            initializeAnalysisOutput(this);
-            processAnalysisForEachSubject(this, options);
-            this.current_data_struct = this.new_init_data_struct();
-            fprintf("Analyzed... : " + toc + " seconds.\n")
-            if nargout >= 1
-                varargout{1} = this.AnalyzedData;
-            end
-        end
-
-        function initializeAnalysisOutput(this)
-            this.AnalyzedData = struct;
-            this.AnalyzedData.TrialTbls = cell(size(this.Sub));
-            this.AnalyzedData.SplitTbls = cell(size(this.Sub));
-            this.AnalyzedData.LevelTbls = cell(size(this.Sub));
-            this.AnalyzedData.DayMM = cell(size(this.Sub));
-            this.AnalyzedData.LevelMM = cell(size(this.Sub));
-        end
-
-        function processAnalysisForEachSubject(this, options)
+            Out = struct;
+            numSubs = size(this.Sub);
+            Out.TrialTbls = cell(numSubs);
+            Out.SplitTbls = cell(numSubs);
+            Out.LevelTbls = cell(numSubs);
+            Out.DayMM = cell(numSubs);
+            Out.LevelMM = cell(numSubs);
             SC = 0;
             for S = struct2cell(this.DayData)'
                 SC = SC + 1;
+                data = S{:}(:,3);
+                SDData = struct();
+                for f = {'Date','TrialNum','LvlTrialNum','BigBin','SmallBin','TimeStamp','Score','Level','isLeftTrial','CodedChoice','Include'}
+                    fn = f{:};
+                    SDData.(fn) = cell2mat(cellfun(@(x)x.(fn), data, 'UniformOutput', false));
+                end
+                trialTbl = struct2table(SDData);
+                trialTbl.Level = round(trialTbl.Level);
+                trialTbl = this.getLevelTNums(trialTbl);
+                Out.TrialTbls{SC} = trialTbl;
+                this.trial_table = trialTbl;
+                [allDates, Ds] = findgroups(trialTbl.Date');
+                %Out.SplitTbls{SC} = cellfun(@SplitDays, num2cell(Ds), "UniformOutput", false);
+                Out.DayMM{SC} = table;
                 try
-                    processAnalysisForSubject(this, S, SC);
-                catch err
-                    unwrapError(err);
-                    continue;
+                    [G,Out.DayMM{SC}.Ds,Out.DayMM{SC}.Ls] = findgroups(trialTbl.Date, trialTbl.Level);
+                    Out.DayMM{SC}.DayNums = num2cell(findgroups(Out.DayMM{SC}.Ds));
+                    Out.DayMM{SC}.dayBin = splitapply(@(x){this.DayBin(x)}, [trialTbl.Score trialTbl.Level trialTbl.Date allDates'], G);
+                    Out.DayMM{SC} = sortrows(Out.DayMM{SC}, {'Ls'});
+                catch Err
+                    unwrapErr(Err);
+                end
+                U_Lvs = unique(trialTbl.Level);
+                [G, Lvs] = findgroups(trialTbl.Level);
+                AllLevels = num2cell(1:20);
+                Out.LevelTbls{SC} = cellfun(@(x){trialTbl(trialTbl.Level==x,:)}, AllLevels, "UniformOutput", true);
+                % Out.LevelTbls{SC}(cellfun(@(x)size(x,1), Out.LevelTbls{SC}) == 0) This gives indices of empty levels
+                this.LevelHist.LastScores = cellfun(@(x){trialTbl(trialTbl.Level==x,:).Score(end-100:end)}, AllLevels, "ErrorHandler",@errorFuncZeroCell);
+                %this.LevelHist.MM = cellfun(@(x)this.LevelMMAnalysis(x), this.LevelHist.LastScores, "ErrorHandler",@errorFuncNaN);
+                Out.LevelMM{SC} = cell(1, max(Lvs));
+                LMM = splitapply(@(x)this.LevelMMAnalysis(x), [trialTbl.Score allDates' trialTbl.Include, G], G)';
+                for i = 1:numel(LMM)
+                    Out.LevelMM{SC}{Lvs(i)} = LMM{i};
                 end
             end
-        end
-
-        function processAnalysisForSubject(this, S, SC)
-            data = S{:}(:,3);
-            SDData = struct();
-            for f = {'Date','TrialNum','LvlTrialNum','BigBin','SmallBin','TimeStamp','Score','Level','isLeftTrial','CodedChoice','Include'}
-                fn = f{:};
-                SDData.(fn) = cell2mat(cellfun(@(x)x.(fn), data, 'UniformOutput', false));
-            end
-            trialTbl = struct2table(SDData);
-            trialTbl.Level = round(trialTbl.Level);
-            trialTbl = this.getLevelTNums(trialTbl);
-            this.AnalyzedData.TrialTbls{SC} = trialTbl;
-            this.trial_table = trialTbl;
-            [allDates, Ds] = findgroups(trialTbl.Date');
-            this.AnalyzedData.DayMM{SC} = table;
-            [G, this.AnalyzedData.DayMM{SC}.Ds, this.AnalyzedData.DayMM{SC}.Ls] = findgroups(trialTbl.Date, trialTbl.Level);
-            this.AnalyzedData.DayMM{SC}.DayNums = num2cell(findgroups(this.AnalyzedData.DayMM{SC}.Ds));
-            this.AnalyzedData.DayMM{SC}.dayBin = splitapply(@(x){this.DayBin(x)}, [trialTbl.Score trialTbl.Level trialTbl.Date allDates'], G);
-            this.AnalyzedData.DayMM{SC} = sortrows(this.AnalyzedData.DayMM{SC}, {'Ls'});
-
-            % Process levels
-            U_Lvs = unique(trialTbl.Level);
-            [G, Lvs] = findgroups(trialTbl.Level);
-            AllLevels = num2cell(1:20);
-            this.AnalyzedData.LevelTbls{SC} = cellfun(@(x){trialTbl(trialTbl.Level==x,:)}, AllLevels, "UniformOutput", true);
-            this.LevelHist.LastScores = cellfun(@(x){trialTbl(trialTbl.Level==x,:).Score(end-100:end)}, AllLevels, "ErrorHandler",@errorFuncZeroCell);
-            this.AnalyzedData.LevelMM{SC} = cell(1, max(Lvs));
-            LMM = splitapply(@(x)this.LevelMMAnalysis(x), [trialTbl.Score allDates' trialTbl.Include], G)';
-            for i = 1:numel(LMM)
-                this.AnalyzedData.LevelMM{SC}{Lvs(i)} = LMM{i};
-                this.AnalyzedData.CrossTable  
+            this.AnalyzedData = Out;
+            this.SortSubjects();
+            this.AnalyzedData.CrossTable = this.MMCross();
+            this.current_data_struct = this.new_init_data_struct();
+            fprintf("Analyzed... : " + toc + " seconds.\n")
+            if nargout >= 1
+                varargout{1} = Out;
             end
         end
         function SortSubjects(this)
@@ -573,7 +596,11 @@ classdef BehaviorBoxData < handle
                 try
                     BiCDF(:,2) = [];
                     BiCDF( 1:this.BB-1,:) = [];
-                catch % Only fails when all responses are timeouts and th BiCDF vector is empty
+                catch err % Only fails when all responses are timeouts and th BiCDF vector is empty
+                      % Also fails if there are less than a full bin's
+                      % worth of trials
+                      % unwrapErr(err)
+                      BiCDF = nan(size(BiCDF));
                 end
                 % offset = D(1);
                 DC = 0;
@@ -585,7 +612,7 @@ classdef BehaviorBoxData < handle
                     XCoordLevDay(w) = (DC-1)+normalize(x, 'range');
                 end
                 if numel(scores) < this.BB
-                    FIRST = [bMM bSD nan(size(bMM)) nan(size(bMM)) nan(size(bMM)) BiCDF];
+                    FIRST = [bMM bSD nan(size(bMM)) nan(size(bMM)) nan(size(bMM)) nan(size(bMM))];
                 else
                     FIRST = [bMM bSD(this.BB:end) XCoord(this.BB:end) XCoordLevDay(this.BB:end) Inc(this.BB:end) BiCDF];
                 end
@@ -618,6 +645,9 @@ classdef BehaviorBoxData < handle
             IDX = [repmat("Het", 1, sum(Het)) repmat("WT", 1, sum(WT))];
             Lev = this.AnalyzedData.LevelMM;
             for L = 1:max(cellfun(@(x) numel(x), Lev, UniformOutput=true))
+                % if L == 20 % For debugging
+                %     1;
+                % end
                 CROSS_1 = cellfun(@(x) find(x{L}{:,6} < 0.05, 1, "first")+this.BB, Lev, UniformOutput=0, ErrorHandler=@errorFuncNaN);
                 CROSS_1(cellfun('isempty', CROSS_1)) = {NaN};
                 OverBinomial{L,"p<0.05"} = {[ {[CROSS_1{Het}]} {[CROSS_1{WT}]} ]} ;
@@ -673,7 +703,7 @@ classdef BehaviorBoxData < handle
             else
                 EP = 'discard';
             end
-            if FromChance
+            if FromChance % Append 0.5 as first choice to tie moving average to 50% chance
                 APP = 0.5;
             else
                 APP = [];
@@ -712,55 +742,69 @@ classdef BehaviorBoxData < handle
         end
         function Out = DayBin(this,D)
             %D is trial scores grouped by Level, and by Day
-            Out = num2cell(nan(17,1)); % THIS MUST BE UPDATED EVERYTIME NEW THINGS ARE ADDED
-            s = D(:,1);
+            OUT = num2cell(nan(1,17)); % THIS MUST BE UPDATED EVERYTIME NEW THINGS ARE ADDED
+            Names = {'binned', 'x', 'txt', 'numel', 'mean', 'std', 's', 'sMM', 'xMM', 'bMM', 'sCross', 'bCross', 'BiCDF', 'BiCross', 'Level', 'Day', 'Date'};
+            Types = {'double', 'double', 'double', 'double', 'double', 'double', 'double', 'double', 'double', 'double', 'double', 'double', 'double', 'double', 'double', 'double', 'double'};
+            Out = table('Size', [1 17],'VariableNames',Names, 'VariableTypes', Types);
+            DataTable = table('Size',size(D), ...
+                'VariableTypes', {'double','double','string','double'}, ...
+                'VariableNames', {'Score','Level','Date','DayNum'});
+            DataTable(:,:) = num2cell(D);
+            s = DataTable.Score;
             these = s(s~=2);
             if numel(these)==0
                 return
             end
-            Level = D(1,2);
+            Out.Level = DataTable.Level(1);
             if Level == 16
                 A = 1;
             end
-            Date = D(1,3);
-            Day = D(1,4);
+            Out.Date = DataTable.Date(1);
+            Out.Day = DataTable.DayNum(1);
             try
-                %Binning stuff
-                xid = [0:this.SB:numel(these) numel(these)];
-                x = normalize(xid,'range');
-                x(1) = [];
-                [~,~,idx] = histcounts((1:numel(these)), [1:this.SB:numel(these) Inf]);
-                binned = accumarray(idx', these, {}, @mean)';
-                if numel(binned)<=1
-                    x = 0.5;
-                end
-                txt = string(cellfun(@(x){num2str(round(100*x,1))}, num2cell(binned)));
+%Binning stuff - Not used, moving mean is more granular
+                % xid = [0:this.SB:numel(these) numel(these)];
+                % x = normalize(xid,'range');
+                % x(1) = [];
+                % [~,~,idx] = histcounts((1:numel(these)), [1:this.SB:numel(these) Inf]);
+                % binned = accumarray(idx', these, {}, @mean)';
+                % if numel(binned)<=1
+                %     x = 0.5;
+                % end
+                % txt = string(cellfun(@(x){num2str(round(100*x,1))}, num2cell(binned)));
                 %Moving mean Stuff
                 sMMIn = this.newMM(these,"Type","Small", "Endpoints",1, "FromChance", 1);
                 sMM = sMMIn(:,1)';
+                Out.sMM = {sMM};
                 bMM = this.newMM(these,"Type","Big", "Endpoints",1, "FromChance", 1)';
+                Out.bMM = {bMM};
                 xMM = normalize(1:numel(sMM),'range');
+                Out.xMM = {xMM};
                 BiCDF = zeros(1, numel(these));
                 tc = 0;
-                for t = 1:numel(these)
+                BinomThese = [0.5 ; these];
+                for t = 1:numel(BinomThese) % The Binomial p-value compared to chance is only relevant for a full Big Ben
                     tc = tc + 1;
                     t0 = max(t-this.BB+1,1);
-                    dataWin = these(t0:t);
+                    dataWin = BinomThese(t0:t);
                     BiCDF(1,t) = binocdf(sum(dataWin), numel(dataWin), 0.5, 'upper');
                 end
                 BiCDF = [NaN BiCDF];
-                sCross = find(sMM>=0.8, 1, 'first'); %When did today's performance cross the threshold?
-                bCross = find(bMM>=0.8, 1, 'first'); %When did today's performance cross the threshold?
-                Binomial_Cross1 = find(BiCDF(this.SB:end)<=0.05, 1, 'first')+(this.SB-1);
-                Binomial_Cross2 = find(BiCDF(this.SB:end)<=0.01, 1, 'first')+(this.SB-1);
-                Binomial_Cross3 = find(BiCDF(this.SB:end)<=0.001, 1, 'first')+(this.SB-1);
+                Out.BiCDF = BiCDF;
+                Out.sCross = find(sMM>=0.8, 1, 'first'); %When did today's performance cross the threshold?
+                Out.bCross = find(bMM>=0.8, 1, 'first'); %When did today's performance cross the threshold?
+                Binomial_Cross1 = find(BiCDF(this.BB:end)<=0.05, 1, 'first')+(this.SB-1);
+                Binomial_Cross2 = find(BiCDF(this.BB:end)<=0.01, 1, 'first')+(this.SB-1);
+                Binomial_Cross3 = find(BiCDF(this.BB:end)<=0.001, 1, 'first')+(this.SB-1);
                 BiCross = [Binomial_Cross1 Binomial_Cross2 Binomial_Cross3];
                 if isempty(sCross)
                     sCross = NaN;
                 end
+                Out.sCross = sCross;
                 if isempty(bCross)
                     bCross = NaN;
                 end
+                Out.bCross = bCross;
                 Day_Bin = {binned;
                     x;
                     txt;
@@ -843,6 +887,27 @@ classdef BehaviorBoxData < handle
                 end
             end
         end
+        function SaveDataAsMAT(this)
+            % This saves the this.Analyzed Data structure as a .MAT file, to make loading
+            % the training data easier
+            tic
+            formattedDateTime = string(datetime("now", "Format", 'yyyy_MM_dd-HH_mm'));
+            if isscalar(this.Str)
+                SUB = erase(this.Sub, ' ');
+                SAVENAME = SUB+"-AnalyzedData-"+formattedDateTime+".mat";
+                SAVEPATH = fullfile(GetFilePath("Data"), this.Inv, this.Inp, this.Str, SAVENAME);
+                save(SAVEPATH, "this", '-mat')
+            else
+                if any(contains(this.Str, 'inactive'))
+                    STRAINS = this.Str;
+                    STRAINS(contains(STRAINS, 'inactive')) = [];
+                    SAVENAME = STRAINS+"-AnalyzedData-"+formattedDateTime+".mat";
+                    SAVEPATH = fullfile(GetFilePath("Data"), this.Inv, this.Inp, SAVENAME);
+                    save(SAVEPATH, "this", '-mat')
+                end
+            end
+            fprintf("Saved... : " + toc + " seconds.\n")
+        end
         %Plot functions
         function PlotAllSubData(this)
             this.sc = 0;
@@ -874,32 +939,28 @@ classdef BehaviorBoxData < handle
             toc
         end
         function PlotNewData(this)
-            initializeAxes(this.Axes);
+            structfun(@cla, this.Axes)
             if ~isfield(this.current_data_struct, 'LevelGroups')
                 this.current_data_struct = CleanData(this.current_data_struct);
             end
-            prepareDataForPlotting(this);
-            plotData(this);
-        end
-        function initializeAxes(axes)
-            structfun(@cla, axes)
-        end
-        function prepareDataForPlotting(this)
             trialTbl = this.current_data_struct;
-            [G, ID] = findgroups(this.current_data_struct.Level);
+            [G,ID] = findgroups(this.current_data_struct.Level);
             DATE = ones(size(this.current_data_struct.Score));
             this.AnalyzedData.DayMM = splitapply(@(x){this.DayBin(x)}, [this.current_data_struct.Score this.current_data_struct.Level DATE DATE], G);
             this.AnalyzedData.LevMM = splitapply(@(x)this.LevelMMAnalysis(x), [trialTbl.Score DATE DATE], G);
-        end
-        function plotData(this)
             try
-                this.setGUI(this.current_data_struct, this.GUInum);
-                this.plotBinnedPerformance(this.Axes.BinnedPerf, this.current_data_struct);
-                this.plotAllLevelPerformance();
-                this.plotSideBias(this.Axes.SideBias, this.current_data_struct);
-                this.plotLevelPerf(this.Axes.LevelCount, this.current_data_struct);
+                this.setGUI(this.current_data_struct, this.GUInum)
+                % try
+                %     this.plotTimerHists(this.Axes, this.current_data_struct)
+                % catch
+                % end
+                %this.plotTrialHistory(this.Axes.TrialHistory, this.current_data_struct)
+                this.plotBinnedPerformance(this.Axes.BinnedPerf, this.current_data_struct)
+                this.plotAllLevelPerformance()
+                this.plotSideBias(this.Axes.SideBias, this.current_data_struct)
+                this.plotLevelPerf(this.Axes.LevelCount, this.current_data_struct)
             catch err
-                unwrapError(err);
+                unwrapErr(err)
             end
         end
         function plotTimerHists(this, ~, Data)
@@ -1091,6 +1152,9 @@ classdef BehaviorBoxData < handle
         end
         function plotAllLevelPerformance(this)
             Data = this.current_data_struct;
+            if all(Data.Score == 2)
+                return
+            end
             tnum = Data.TrialNum;
             Ax = this.Axes.AllLevelPerf; hold(Ax, "on");
             COUNT = 0;
@@ -1227,8 +1291,8 @@ classdef BehaviorBoxData < handle
                 opts.LevGroup logical = 0
                 opts.History logical = 0
                 opts.Stim logical = 0
-                opts.LevelProgress logical = 0
-                opts.LevelProgressIndividual logical = 1
+                opts.LevelProgress logical = 1
+                opts.LevelProgressIndividual logical = 0
                 opts.Save logical = 1
             end
             Num = num2cell(1:numel(this.Sub));
@@ -1441,7 +1505,7 @@ classdef BehaviorBoxData < handle
             arguments
                 this
                 options.Sc double = 1
-                options.Lvs double = [3 6 8 10 12 16] %
+                options.Lvs double = 1:20 %[3 6 8 10 12 16 18 20] %
                 options.Threshold double = 0.7 % Passing threshold for each level
                 options.count double = 10 % Num of consecutive trials above threshold before passing
                 options.tol double = 0 % How many below-threshold trials in the streak of options.count to be tolerated
@@ -1453,7 +1517,7 @@ classdef BehaviorBoxData < handle
             Data = this.AnalyzedData.CrossTable{2};
             Ax = MakeAxis();
             hold(Ax, "on")
-            Ax.Parent.Title.String = string(this.Str)+deets{2};
+            Ax.Parent.Title.String = string(this.Str(1))+deets{2};
             Ax.Parent.Parent.Name = Ax.Parent.Title.String;
             Ax.Box=0;
             LabelList = [];
@@ -1511,7 +1575,7 @@ classdef BehaviorBoxData < handle
             Data = this.AnalyzedData.CrossTable{1};
             Ax = MakeAxis();
             hold(Ax, "on")
-            Ax.Parent.Title.String = string(this.Str)+deets{2}+Data.Properties.VariableNames{options.WhichPValue};
+            Ax.Parent.Title.String = string(this.Str(1))+deets{2}+Data.Properties.VariableNames{options.WhichPValue};
             Ax.Parent.Parent.Name = Ax.Parent.Title.String;
             Ax.Box=0;
             LabelList = [];
@@ -1536,17 +1600,23 @@ classdef BehaviorBoxData < handle
                     for II = find(contains(this.Sub, "- WT"))
                         B.CData(II,:) = Ax.ColorOrder(2,:);
                     end
-                    Level_Label = text(lc+0.5, -180, "Level "+L, "VerticalAlignment","top", "HorizontalAlignment","center");
                     Text = text(x, y, string(round(y, 2)), "VerticalAlignment","bottom", "HorizontalAlignment","center");
-                    if options.NameLegend
-                        Names = text(x, -75*ones(size(x)), this.Sub, "HorizontalAlignment","center", "Rotation",90);
-                    end
                 catch err
                     unwrapErr
                 end
                 lc = lc + 1;
             end
-            Ax.YLim(1) = -180;
+            Ls = arrayfun(@(x) sprintf('Level %d', x), 1:20, 'UniformOutput', false);
+            xline(0:19, ':', Ls, 'LabelVerticalAlignment', 'bottom', 'LabelHorizontalAlignment', 'Right')
+            XDATA = sort([Ax.findobj('Type','Bar').XData]);
+            numRepeats = length(XDATA);
+            repeatedLabels = SUBS(mod(0:(numRepeats-1), length(SUBS)) + 1);
+            xticks(XDATA);
+            xticklabels(repeatedLabels);
+            Ax.TickDir = "none";
+            Ax.XTickLabelRotation = 50;
+            MAX = max([Ax.findobj('Type','Bar').YData]) * 1.02;
+            Ax.YLim(2) = MAX;
         end
         function Out = consecutiveTrial(this, vec, count, tol)
             arguments
@@ -2604,12 +2674,13 @@ classdef BehaviorBoxData < handle
             end
         end
         %save data when done, give unique name for stimulus, input, etc.
-        function SaveAllData(this)
-            fakeNames = {'w', 'W'};
-            if any(strcmp(num2str(this.Setting_Struct.Subject), fakeNames)) || any(strcmp(this.Setting_Struct.Strain, fakeNames))
-                return; % Do not save if using fake data names
+        function SaveAllData(this, Filename, Filedir)
+            arguments
+                this
+                Filename
+                Filedir
             end
-            D = string(datetime(this.Data_Object.start_time, "Format", "yyMMdd_HHmmss"));
+            
             stim = erase(this.app.Stimulus_type.Value, ' ');
             input = this.app.Box_Input_type.Value;
             Sub = this.Setting_Struct.Subject;
@@ -2746,6 +2817,42 @@ classdef BehaviorBoxData < handle
             names = vertcat(z{:});
             [g,groups] = findgroups(names);
         end
+
+        function OUT = ProcessPositionRecord(this)
+            OUT = [];
+            Data = this.loadedData;
+            Data = Data(:,[1,7]);
+
+            % Load, process the timestamp text files
+            timestampFiles = dir(cell2mat(fullfile(this.filedir, '*.txt')));
+            timestampFiles = timestampFiles(contains({timestampFiles.name}, 'linesweep'));
+            Q = numel(timestampFiles);
+            TStable = table('Size', [Q 4], ...
+                'VariableTypes', {'string','cell', 'double', 'double'}, ...
+                'VariableNames',{'Filename', 'txt', 'NumFrames', 'NumStimFrames'});
+            TStable(:,1) = {timestampFiles.name}';
+            for i = 1:Q
+                TS = readlines(fullfile(timestampFiles(i).folder, timestampFiles(i).name));
+                TStable{i,2} = {TS};
+            end
+
+            % Coordinate the frame timestamps to the figure timestamps
+            % figure began to move after the 300ms delay, first data row
+
+            % Make trigonometric corrections, turn figure location into degrees of visual field
+                % Have different modes depending on X-bar, Y-bar, Stimulus/Bar
+                % since they all start at different places
+
+
+            % For imaging analysis out put a CSV with the following columns
+            % for each frame:
+% frameIDX  StimPosition(degrees)   TimeSinceStimOnset  TimeSinceImagingOnset 
+%   1
+%   2
+%   3
+%   n
+        end
+
     end %end methods
     methods(Static)
         function setGUI(Data, GUINums)
