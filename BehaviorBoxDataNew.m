@@ -800,6 +800,7 @@ classdef BehaviorBoxDataNew < handle
                 if isempty(sCross)
                     sCross = NaN;
                 end
+                
                 Out.sCross = sCross;
                 if isempty(bCross)
                     bCross = NaN;
