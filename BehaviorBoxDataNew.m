@@ -792,6 +792,19 @@ classdef BehaviorBoxDataNew < handle
 % Binomial p-value of the responses represents a drift
 % (away or back toward) from chance probability as this Day's responses
 % accumulate.
+
+% IDEAS TO ADD:
+% - time to decay back to chance
+    % a hyperfocused mouse will take longer to decay their performance to
+    % chance, and they show less oscillations in their accuracy and a
+    % steady rate of accuracy
+% - number of oscillations from chance
+    % mice typically begin the difficult level strong but then their
+    % performance decays back to chance. Then if given enough time
+    % their performance accuracy will reach another peak as their
+    % attention/motivation waxes and wanes (oscillates) (peaks and valleys)
+% - trials #s of local maxes (peaks) in accuracy
+% - length of ossiclation in trial numbers
             Names = {'Level', 'Day', 'Date', 'Responses' 'sMM', 'xMM', 'bMM', 'sCross', 'bCross', 'BiCDF', 'BiCross'};
             Types = repmat({'double'}, size(Names));
             Out = table('Size', [1 size(Names,2)],'VariableNames',Names, 'VariableTypes', Types);
@@ -1701,6 +1714,7 @@ classdef BehaviorBoxDataNew < handle
                 options.LevDay logical = true
                 options.Sc = 1
                 options.Training logical = false
+                options.ThresholdIntegrand logical = false
             end
             tic;
             Out = [];
@@ -1714,8 +1728,6 @@ classdef BehaviorBoxDataNew < handle
                 this.trial_table = this.AnalyzedData.TrialTbls{this.sc};
                 Ldat = this.AnalyzedData.LevelMM{this.sc};
                 highestSeen = find(Ldat.Level ~= 0, 1, 'last');
-                %HighScore = cellfun(@(x) max([x(:,1) ; 0]), Ldat, 'UniformOutput', true, 'ErrorHandler', @errorFuncNaN);
-                %maxPassedL = find(HighScore>=0.8 & ~cellfun('isempty', Ldat), 1, 'last');
                 title = SUB+" All Time Performance";
                 f = figure("Name",title, "Visible", "off");  f.Visible=1;
                 T = tiledlayout(1,1,"Parent",f,"TileSpacing","none","Padding","tight");
@@ -1727,7 +1739,7 @@ classdef BehaviorBoxDataNew < handle
                 numDays = max(cell2mat(this.AnalyzedData.DayMM{this.sc}.DayNums));
                 Ax.XLim = [0 numDays];
                 Ax.YLim = [0 highestSeen];
-                thresh = 0.8;
+                thresh = 0.5;
                 dayLine = xline(1:numDays, 'LineStyle',':');
                 yline(0:1:highestSeen, '-')
                 TH = yline(thresh:1:(highestSeen+1), ':',(100*thresh)+"%", ...
@@ -1759,38 +1771,28 @@ classdef BehaviorBoxDataNew < handle
                     catch
                     end
                     try
-                        if any(y>thresh)
-                            %PASSING
-                            PassingDayIdx = floor( x( find( y>=thresh,1, 'first') ) )+0.5;
-                            TT = this.BB+find(y>=thresh,1, 'first')+" Trials";
-                            TrialText = text(PassingDayIdx, LO+0.2, TT, ...
-                                "FontSize",6, ...
-                                "HorizontalAlignment","center", ...
-                                "Color",AllTime.Color);
-                            %Threshold Integrand:
-                            yPatch = LO+[max(y,thresh) max(y-thresh,thresh)];
-                            xPatch = [x fliplr(x)];
-                            threshPatch = patch(xPatch,yPatch,AllTime.Color, ...
-                                "Parent", Ax, ...
-                                "EdgeColor", "none");
-                            firstPass = find(y>=thresh,1, 'first');
-                            yPass = y(firstPass:end);
-                            OverThresh = max(yPass-thresh,0)*100;
-                            TimeOverThresh = sum(OverThresh)/numel(yPass);
-                            UnderThresh = min(yPass-thresh,0)*100;
-                            TimeUnderThresh = sum(UnderThresh)/numel(OverThresh);
-                            TXT = round(TimeOverThresh,2)+"% from Thresh per trial";
-                            ThreshText = text(numDays, LO+0.1,TXT, ...
-                                "FontSize",12, ...
-                                "HorizontalAlignment","right", ...
-                                "Color",AllTime.Color);
+                        if options.ThresholdIntegrand
+                            if any(y>thresh)
+                                yPatch = LO+[max(y,thresh) max(y-thresh,thresh)];
+                                xPatch = [x fliplr(x)];
+                                threshPatch = patch(xPatch,yPatch,AllTime.Color, ...
+                                    "Parent", Ax, ...
+                                    "EdgeColor", "none");
+                                firstPass = find(y>=thresh,1, 'first');
+                                yPass = y(firstPass:end);
+                                OverThresh = max(yPass-thresh,0)*100;
+                                TimeOverThresh = sum(OverThresh)/numel(yPass);
+                                UnderThresh = min(yPass-thresh,0)*100;
+                                TimeUnderThresh = sum(UnderThresh)/numel(OverThresh);
+                                TXT = round(TimeOverThresh,2)+"% from Thresh per trial";
+                                ThreshText = text(numDays, LO+0.1,TXT, ...
+                                    "FontSize",12, ...
+                                    "HorizontalAlignment","right", ...
+                                    "Color",AllTime.Color);
+                            end
                         end
                     catch %They have not passed this level
                     end
-                    % if numel(unique(cellfun(@numel,Ddat.dayBin))) > 1
-                    %     howBig = cellfun(@numel,Ddat.dayBin');
-                    %     [group, GROUPS]=findgroups(howBig);
-                    % end
                     for d = [ Ddat.DayNums' ; {Ddat.dayBin{:}} ]
                         DO = d{1}-1;
                         %Small Bin Moving mean:
@@ -1806,24 +1808,6 @@ classdef BehaviorBoxDataNew < handle
                             SmallPlot.Color = newColor;
                         catch
                         end
-                        %Daily bin values:
-                        % try
-                        %     if options.Text
-                        %         x = DO+Ddat.dayBin{wD}{2};
-                        %         y = LO+Ddat.dayBin{wD}{1};
-                        %         BinPlot = scatter(x,y, ...
-                        %             "Parent",Ax, ...
-                        %             "SeriesIndex",L, ...
-                        %             "Marker", this.Shape_code{L}, ...
-                        %             "SizeData",10);
-                        %         BinPlot.MarkerFaceColor = BinPlot.MarkerEdgeColor;
-                        %         Txt = text(x, y, Ddat.dayBin{wD}{3}, ...
-                        %             "HorizontalAlignment","center", ...
-                        %             "VerticalAlignment","bottom", ...
-                        %             "FontSize",6);
-                        %     end
-                        % catch
-                        % end
                     end
                 end
                 if options.LevDay
