@@ -506,40 +506,48 @@ classdef BehaviorBoxDataNew < handle
             Out.LevelMM = cell(numSubs);
             SC = 0;
             for S = struct2cell(this.DayData)'
-                SC = SC + 1;
-                data = S{:}(:,3);
-                SDData = struct();
-                for f = {'Date','TrialNum','LvlTrialNum','BigBin','SmallBin','TimeStamp','Score','Level','isLeftTrial','CodedChoice','Include'}
-                    fn = f{:};
-                    SDData.(fn) = cell2mat(cellfun(@(x)x.(fn), data, 'UniformOutput', false));
-                end
-                trialTbl = struct2table(SDData);
-                trialTbl.Level = round(trialTbl.Level);
-                trialTbl = this.getLevelTNums(trialTbl);
-                Out.TrialTbls{SC} = trialTbl;
-                this.trial_table = trialTbl;
-                [allDates, Ds] = findgroups(trialTbl.Date');
-                %Out.SplitTbls{SC} = cellfun(@SplitDays, num2cell(Ds), "UniformOutput", false);
-                Out.DayMM{SC} = table;
                 try
-                    [G,Out.DayMM{SC}.Ds,Out.DayMM{SC}.Ls] = findgroups(trialTbl.Date, trialTbl.Level);
-                    Out.DayMM{SC}.DayNums = num2cell(findgroups(Out.DayMM{SC}.Ds));
-                    Out.DayMM{SC}.dayBin = splitapply(@(x){this.DayBin(x)}, [trialTbl.Score trialTbl.Level trialTbl.Date allDates'], G);
-                    Out.DayMM{SC} = sortrows(Out.DayMM{SC}, {'Ls'});
-                catch Err
-                    unwrapErr(Err);
-                end
-                U_Lvs = unique(trialTbl.Level);
-                [G, Lvs] = findgroups(trialTbl.Level);
-                AllLevels = num2cell(1:20);
-                Out.LevelTbls{SC} = cellfun(@(x){trialTbl(trialTbl.Level==x,:)}, AllLevels, "UniformOutput", true);
-                % Out.LevelTbls{SC}(cellfun(@(x)size(x,1), Out.LevelTbls{SC}) == 0) This gives indices of empty levels
-                this.LevelHist.LastScores = cellfun(@(x){trialTbl(trialTbl.Level==x,:).Score(end-100:end)}, AllLevels, "ErrorHandler",@errorFuncZeroCell);
-                %this.LevelHist.MM = cellfun(@(x)this.LevelMMAnalysis(x), this.LevelHist.LastScores, "ErrorHandler",@errorFuncNaN);
-                Out.LevelMM{SC} = cell(1, max(Lvs));
-                LMM = splitapply(@(x)this.LevelMMAnalysis(x), [trialTbl.Score allDates' trialTbl.Include, G], G)';
-                for i = 1:numel(LMM)
-                    Out.LevelMM{SC}{Lvs(i)} = LMM{i};
+                    SC = SC + 1;
+                    data = S{:}(:,3);
+                    SDData = struct();
+                    for f = {'Date','TrialNum','LvlTrialNum','BigBin','SmallBin','TimeStamp','Score','Level','isLeftTrial','CodedChoice','Include'}
+                        fn = f{:};
+                        SDData.(fn) = cell2mat(cellfun(@(x)x.(fn), data, 'UniformOutput', false));
+                    end
+                    trialTbl = struct2table(SDData);
+                    trialTbl.Level = round(trialTbl.Level);
+                    trialTbl = this.getLevelTNums(trialTbl);
+                    Out.TrialTbls{SC} = trialTbl;
+                    this.trial_table = trialTbl;
+                    [allDates, Ds] = findgroups(trialTbl.Date');
+                    %Out.SplitTbls{SC} = cellfun(@SplitDays, num2cell(Ds), "UniformOutput", false);
+                    Out.DayMM{SC} = table;
+                    try
+                        [G,Out.DayMM{SC}.Ds,Out.DayMM{SC}.Ls] = findgroups(trialTbl.Date, trialTbl.Level);
+                        Out.DayMM{SC}.DayNums = num2cell(findgroups(Out.DayMM{SC}.Ds));
+                        Out.DayMM{SC}.dayBin = splitapply(@(x){this.DayBin(x)}, [trialTbl.Score trialTbl.Level trialTbl.Date allDates'], G);
+                        Out.DayMM{SC} = sortrows(Out.DayMM{SC}, {'Ls'});
+                    catch Err
+                        unwrapErr(Err);
+                    end
+                    U_Lvs = unique(trialTbl.Level);
+                    [G, Lvs] = findgroups(trialTbl.Level);
+                    AllLevels = num2cell(1:20);
+                    Out.LevelTbls{SC} = cellfun(@(x){trialTbl(trialTbl.Level==x,:)}, AllLevels, "UniformOutput", true);
+                    % Out.LevelTbls{SC}(cellfun(@(x)size(x,1), Out.LevelTbls{SC}) == 0) This gives indices of empty levels
+                    this.LevelHist.LastScores = cellfun(@(x){trialTbl(trialTbl.Level==x,:).Score(end-100:end)}, AllLevels, "ErrorHandler",@errorFuncZeroCell);
+                    %this.LevelHist.MM = cellfun(@(x)this.LevelMMAnalysis(x), this.LevelHist.LastScores, "ErrorHandler",@errorFuncNaN);
+                    % Out.LevelMM{SC} = cell(1, max(Lvs));
+                    LMM = splitapply(@(x)this.LevelMMAnalysis(x), [trialTbl.Score allDates' trialTbl.Include, G], G);
+                    LMM.Level = Lvs(LMM.Level);
+                    Names = {'Level', 'DayNum', 'Responses', 'sMM', 'bMM', 'bSD', 'BiCDF', 'BiCross', 'XCoord', 'XCoordLevDay', 'Inc'};
+                    Types = {'double', 'cell', 'cell', 'cell', 'cell', 'cell', 'cell', 'cell', 'cell', 'cell', 'cell'};
+                    Out.LevelMM{SC} = table('Size', [20 size(Names,2)],'VariableNames',Names, 'VariableTypes', Types);
+                    for i = 1:size(LMM,1)
+                        Out.LevelMM{SC}(Lvs(i),:) = LMM(i,:);
+                    end
+                catch err
+                    unwrapErr(err)
                 end
             end
             this.AnalyzedData = Out;
@@ -567,20 +575,31 @@ classdef BehaviorBoxDataNew < handle
         end
         function Out = LevelMMAnalysis(this, L)
             try
+                Names = {'Level', 'DayNum', 'Responses', 'sMM', 'bMM', 'bSD', 'BiCDF', 'BiCross', 'XCoord', 'XCoordLevDay', 'Inc'};
+                Types = {'double', 'cell', 'cell', 'cell', 'cell', 'cell', 'cell', 'cell', 'cell', 'cell', 'cell'};
+                Out = table('Size', [1 size(Names,2)],'VariableNames',Names, 'VariableTypes', Types);
+                DataTable = table('Size',size(L), ...
+                'VariableTypes', {'double','double','logical','double'}, ...
+                'VariableNames', {'Score','DayNum','Include','Level'});
+                DataTable(:,:) = num2cell(L);
+                Out.Level = L(1,4);
+                Out.Responses = {L(:,1)'};
+                Out.Inc = {L(:,3)};
                 Inc = L(L(:,1)~=2,3);
                 scores = L(L(:,1)~=2,1);
                 bMM = this.newMM(scores,"Type", "Big");
+                Out.bMM = {bMM};
                 sMM = this.newMM(scores,"Type", "Small", "Endpoints", 1, "FromChance", 0);
+                Out.sMM = {sMM};
                 try
                     bSD = sMM(:,2);
+                    Out.bSD = {bSD(this.BB:end)};
                 catch
                     bSD = bMM;
                 end
-                D = L(L(:,1)~=2,2);
-                XCoord = zeros(size(D));
-                XCoordLevDay = zeros(size(D));
                 % Binomial
-                BiCDF = zeros(numel(scores),2);
+                BiCDF = zeros(numel(scores),3);
+                BiCDF(:,3) = 1:numel(scores); % Label each row with its trial number
                 try
                     BiCDF(this.BB:numel(scores),2) = bMM;
                 catch
@@ -597,12 +616,34 @@ classdef BehaviorBoxDataNew < handle
                     BiCDF(:,2) = [];
                     BiCDF( 1:this.BB-1,:) = [];
                 catch err % Only fails when all responses are timeouts and th BiCDF vector is empty
-                      % Also fails if there are less than a full bin's
-                      % worth of trials
-                      % unwrapErr(err)
-                      BiCDF = nan(size(BiCDF));
+                    % Also fails if there are less than a full bin's
+                    % worth of trials
+                    % unwrapErr(err)
+                    BiCDF = nan(size(BiCDF));
                 end
-                % offset = D(1);
+                Out.BiCDF = {BiCDF};
+                BiCross = [NaN NaN NaN];
+                try
+                    Binomial_Cross1 = find(BiCDF(this.BB:end,1)<=0.05, 1, 'first');
+                    if ~isempty(Binomial_Cross1)
+                        BiCross(1) = BiCDF(Binomial_Cross1,2);
+                    end
+                    Binomial_Cross2 = find(BiCDF(this.BB:end,1)<=0.01, 1, 'first');
+                    if ~isempty(Binomial_Cross2)
+                        BiCross(2) = BiCDF(Binomial_Cross2,2);
+                    end
+                    Binomial_Cross3 = find(BiCDF(this.BB:end,1)<=0.001, 1, 'first');
+                    if ~isempty(Binomial_Cross3)
+                        BiCross(3) = BiCDF(Binomial_Cross3,2);
+                    end
+                catch err
+                    unwrapErr(err)
+                end
+                Out.BiCross = {BiCross};
+                D = L(L(:,1)~=2,2);
+                Out.DayNum = {L(:,2)};
+                XCoord = zeros(size(D));
+                XCoordLevDay = zeros(size(D));
                 DC = 0;
                 for d = unique(D')
                     DC = DC + 1;
@@ -611,18 +652,20 @@ classdef BehaviorBoxDataNew < handle
                     XCoord(w) = (d-1)+normalize(x, 'range');
                     XCoordLevDay(w) = (DC-1)+normalize(x, 'range');
                 end
-                if numel(scores) < this.BB
-                    FIRST = [bMM bSD nan(size(bMM)) nan(size(bMM)) nan(size(bMM)) nan(size(bMM))];
-                else
-                    FIRST = [bMM bSD(this.BB:end) XCoord(this.BB:end) XCoordLevDay(this.BB:end) Inc(this.BB:end) BiCDF];
-                end
-                Names = {'bMM', 'bSD', 'XCoord', 'XCoordLevDay', 'Inc', 'BiCDF'};
-                try
-                    Out = {array2table(FIRST, "VariableNames", Names)};
-                catch err
-                    % unwrapErr(err);
-                    Out = {array2table(nan(1,numel(Names)), "VariableNames", Names)};
-                end
+                Out.XCoord = {XCoord(this.BB:end)};
+                Out.XCoordLevDay = {XCoordLevDay(this.BB:end)};
+                % if numel(scores) < this.BB
+                %     FIRST = [bMM bSD nan(size(bMM)) nan(size(bMM)) nan(size(bMM)) nan(size(bMM))];
+                % else
+                %     FIRST = [bMM bSD(this.BB:end) XCoord(this.BB:end) XCoordLevDay(this.BB:end) Inc(this.BB:end) BiCDF];
+                % end
+                % Names = {'bMM', 'bSD', 'XCoord', 'XCoordLevDay', 'Inc', 'BiCDF'};
+                % try
+                %     Out = {array2table(FIRST, "VariableNames", Names)};
+                % catch err
+                %     % unwrapErr(err);
+                %     Out = {array2table(nan(1,numel(Names)), "VariableNames", Names)};
+                % end
             catch Err
                 unwrapErr(Err)
                 if size(L,2)==1
@@ -644,19 +687,19 @@ classdef BehaviorBoxDataNew < handle
             Het = contains(SUBS, 'Het');
             IDX = [repmat("Het", 1, sum(Het)) repmat("WT", 1, sum(WT))];
             Lev = this.AnalyzedData.LevelMM;
-            for L = 1:max(cellfun(@(x) numel(x), Lev, UniformOutput=true))
+            for L = 1:20
                 % if L == 20 % For debugging
                 %     1;
                 % end
-                CROSS_1 = cellfun(@(x) find(x{L}{:,6} < 0.05, 1, "first")+this.BB, Lev, UniformOutput=0, ErrorHandler=@errorFuncNaN);
+                CROSS_1 = cellfun(@(x) x.BiCross{L}(1), Lev, UniformOutput=0, ErrorHandler=@errorFuncNaN);
                 CROSS_1(cellfun('isempty', CROSS_1)) = {NaN};
                 OverBinomial{L,"p<0.05"} = {[ {[CROSS_1{Het}]} {[CROSS_1{WT}]} ]} ;
                 OverBinomial_AVG{L,"p<0.05"} = {[mean(cell2mat(CROSS_1(Het)), "omitmissing") mean(cell2mat(CROSS_1(WT)), "omitmissing") ; std(cell2mat(CROSS_1(Het)), "omitmissing") std(cell2mat(CROSS_1(WT)), "omitmissing") ; sum(cellfun(@(x) ~isnan(x), CROSS_1(Het))) sum(cellfun(@(x) ~isnan(x), CROSS_1(WT)))]};
-                CROSS_2 = cellfun(@(x) find(x{L}{:,6} < 0.01, 1, "first")+this.BB, Lev, UniformOutput=0, ErrorHandler=@errorFuncNaN);
+                CROSS_2 = cellfun(@(x) x.BiCross{L}(2), Lev, UniformOutput=0, ErrorHandler=@errorFuncNaN);
                 CROSS_2(cellfun('isempty', CROSS_2)) = {NaN};
                 OverBinomial{L,"p<0.01"} = {[ {[CROSS_2{Het}]} {[CROSS_2{WT}]} ]};
                 OverBinomial_AVG{L,"p<0.01"} = {[mean(cell2mat(CROSS_2(Het)), "omitmissing") mean(cell2mat(CROSS_2(WT)), "omitmissing") ; std(cell2mat(CROSS_2(Het)), "omitmissing") std(cell2mat(CROSS_2(WT)), "omitmissing") ; sum(cellfun(@(x) ~isnan(x), CROSS_2(Het))) sum(cellfun(@(x) ~isnan(x), CROSS_2(WT)))]};
-                CROSS_3 = cellfun(@(x) find(x{L}{:,6} < 0.001, 1, "first")+this.BB, Lev, UniformOutput=0, ErrorHandler=@errorFuncNaN);
+                CROSS_3 = cellfun(@(x) x.BiCross{L}(3), Lev, UniformOutput=0, ErrorHandler=@errorFuncNaN);
                 CROSS_3(cellfun('isempty', CROSS_3)) = {NaN};
                 OverBinomial{L,"p<0.001"} = {[ {[CROSS_3{Het}]} {[CROSS_3{WT}]} ]};
                 OverBinomial_AVG{L,"p<0.001"} = {[mean(cell2mat(CROSS_3(Het)), "omitmissing") mean(cell2mat(CROSS_3(WT)), "omitmissing") ; std(cell2mat(CROSS_3(Het)), "omitmissing") std(cell2mat(CROSS_3(WT)), "omitmissing") ; sum(cellfun(@(x) ~isnan(x), CROSS_3(Het))) sum(cellfun(@(x) ~isnan(x), CROSS_3(WT)))]};
@@ -742,25 +785,35 @@ classdef BehaviorBoxDataNew < handle
         end
         function Out = DayBin(this,D)
             %D is trial scores grouped by Level, and by Day
-            OUT = num2cell(nan(1,17)); % THIS MUST BE UPDATED EVERYTIME NEW THINGS ARE ADDED
-            Names = {'binned', 'x', 'txt', 'numel', 'mean', 'std', 's', 'sMM', 'xMM', 'bMM', 'sCross', 'bCross', 'BiCDF', 'BiCross', 'Level', 'Day', 'Date'};
-            Types = {'double', 'double', 'double', 'double', 'double', 'double', 'double', 'double', 'double', 'double', 'double', 'double', 'double', 'double', 'double', 'double', 'double'};
-            Out = table('Size', [1 17],'VariableNames',Names, 'VariableTypes', Types);
+% In the Output, the small and big moving means (sMM and BMM) and Binomial
+% cumulative probability distribution (BiCDF) are all tied to chance by
+% appending responses (either 0 for wrong or 1 for correct) with 0.5. 
+% The result is these moving averages diverge from 50% chance and the 
+% Binomial p-value of the responses represents a drift
+% (away or back toward) from chance probability as this Day's responses
+% accumulate.
+            Names = {'Level', 'Day', 'Date', 'Responses' 'sMM', 'xMM', 'bMM', 'sCross', 'bCross', 'BiCDF', 'BiCross'};
+            Types = repmat({'double'}, size(Names));
+            Out = table('Size', [1 size(Names,2)],'VariableNames',Names, 'VariableTypes', Types);
             DataTable = table('Size',size(D), ...
                 'VariableTypes', {'double','double','string','double'}, ...
                 'VariableNames', {'Score','Level','Date','DayNum'});
             DataTable(:,:) = num2cell(D);
             s = DataTable.Score;
             these = s(s~=2);
-            if numel(these)==0
-                return
-            end
-            Out.Level = DataTable.Level(1);
+            Out.Responses = {s'};
+            Level = DataTable.Level(1);
+            Out.Level = Level;
             if Level == 16
                 A = 1;
             end
-            Out.Date = DataTable.Date(1);
-            Out.Day = DataTable.DayNum(1);
+            Date = DataTable.Date(1);
+            Out.Date = Date;
+            Day = DataTable.DayNum(1);
+            Out.Day = Day;
+            if numel(these)==0
+                return
+            end
             try
 %Binning stuff - Not used, moving mean is more granular
                 % xid = [0:this.SB:numel(these) numel(these)];
@@ -789,42 +842,44 @@ classdef BehaviorBoxDataNew < handle
                     dataWin = BinomThese(t0:t);
                     BiCDF(1,t) = binocdf(sum(dataWin), numel(dataWin), 0.5, 'upper');
                 end
-                BiCDF = [NaN BiCDF];
-                Out.BiCDF = BiCDF;
-                Out.sCross = find(sMM>=0.8, 1, 'first'); %When did today's performance cross the threshold?
-                Out.bCross = find(bMM>=0.8, 1, 'first'); %When did today's performance cross the threshold?
-                Binomial_Cross1 = find(BiCDF(this.BB:end)<=0.05, 1, 'first')+(this.SB-1);
-                Binomial_Cross2 = find(BiCDF(this.BB:end)<=0.01, 1, 'first')+(this.SB-1);
-                Binomial_Cross3 = find(BiCDF(this.BB:end)<=0.001, 1, 'first')+(this.SB-1);
+                Out.BiCDF = {BiCDF};
+% Threshold is now a p-Value, not a % accuracy
+                % sCross = find(sMM>=0.8, 1, 'first'); %When did today's performance cross the threshold?
+                % Out.sCross = {sCross};
+                % bCross = find(bMM>=0.8, 1, 'first'); %When did today's performance cross the threshold?
+                % Out.sCross = {bCross};
+                % if isempty(sCross)
+                %     sCross = NaN;
+                % end
+                % Out.sCross = sCross;
+                % if isempty(bCross)
+                %     bCross = NaN;
+                % end
+                % Out.bCross = bCross;
+                Binomial_Cross1 = find(BiCDF(this.BB:end)<=0.05, 1, 'first')+(this.BB-1);
+                Binomial_Cross2 = find(BiCDF(this.BB:end)<=0.01, 1, 'first')+(this.BB-1);
+                Binomial_Cross3 = find(BiCDF(this.BB:end)<=0.001, 1, 'first')+(this.BB-1);
                 BiCross = [Binomial_Cross1 Binomial_Cross2 Binomial_Cross3];
-                if isempty(sCross)
-                    sCross = NaN;
-                end
-                
-                Out.sCross = sCross;
-                if isempty(bCross)
-                    bCross = NaN;
-                end
-                Out.bCross = bCross;
-                Day_Bin = {binned;
-                    x;
-                    txt;
-                    numel(these);
-                    mean(these);
-                    std(binned);
-                    s';
-                    sMM;
-                    xMM;
-                    bMM;
-                    sCross;
-                    bCross;
-                    BiCDF;
-                    BiCross;
-                    Level;
-                    Day;
-                    Date};
-                Names = {'binned', 'x', 'txt', 'numel', 'mean', 'std', 's', 'sMM', 'xMM', 'bMM', 'sCross', 'bCross', 'BiCDF', 'BiCross', 'Level', 'Day', 'Date'};
-                Out = cell2table(Day_Bin, "RowNames", Names);
+                Out.BiCross = {BiCross};
+                % Day_Bin = {binned;
+                %     x;
+                %     txt;
+                %     numel(these);
+                %     mean(these);
+                %     std(binned);
+                %     s';
+                %     sMM;
+                %     xMM;
+                %     bMM;
+                %     sCross;
+                %     bCross;
+                %     BiCDF;
+                %     BiCross;
+                %     Level;
+                %     Day;
+                %     Date};
+                % Names = {'binned', 'x', 'txt', 'numel', 'mean', 'std', 's', 'sMM', 'xMM', 'bMM', 'sCross', 'bCross', 'BiCDF', 'BiCross', 'Level', 'Day', 'Date'};
+                % Out = cell2table(Day_Bin, "RowNames", Names);
             catch err
                 unwrapErr(err)
             end
@@ -1290,14 +1345,15 @@ classdef BehaviorBoxDataNew < handle
                 this
                 opts.Composite logical = 0
                 opts.LevGroup logical = 0
-                opts.History logical = 0
+                opts.History logical = 1
                 opts.Stim logical = 0
-                opts.LevelProgress logical = 1
+                opts.LevelProgress logical = 0
                 opts.LevelProgressIndividual logical = 0
                 opts.Save logical = 1
             end
             Num = num2cell(1:numel(this.Sub));
             tic
+            close all
             if opts.LevelProgress
                 this.BinomialProgress();
                 if opts.Save
@@ -1327,7 +1383,7 @@ classdef BehaviorBoxDataNew < handle
                     this.SaveManyFigures([],'AllLevelsByDay', SameFolder=1)
                     close all
                 end
-                cellfun(@(x) set(x, 'Visible', 'on'), ACell)
+                %cellfun(@(x) set(x, 'Visible', 'on'), ACell)
             end
             if opts.Stim
                 this.PlotStimulusHistory();
@@ -1655,11 +1711,11 @@ classdef BehaviorBoxDataNew < handle
                     this.sc=1;
                 end
                 SUB = this.Sub{this.sc};
-                Ldat = this.AnalyzedData.LevelMM{this.sc};
-                HighScore = cellfun(@(x) max([x(:,1) ; 0]), Ldat, 'UniformOutput', true, 'ErrorHandler', @errorFuncNaN);
-                maxPassedL = find(HighScore>=0.8 & ~cellfun('isempty', Ldat), 1, 'last');
-                highestSeen = max(unique(this.trial_table.Level));
                 this.trial_table = this.AnalyzedData.TrialTbls{this.sc};
+                Ldat = this.AnalyzedData.LevelMM{this.sc};
+                highestSeen = find(Ldat.Level ~= 0, 1, 'last');
+                %HighScore = cellfun(@(x) max([x(:,1) ; 0]), Ldat, 'UniformOutput', true, 'ErrorHandler', @errorFuncNaN);
+                %maxPassedL = find(HighScore>=0.8 & ~cellfun('isempty', Ldat), 1, 'last');
                 title = SUB+" All Time Performance";
                 f = figure("Name",title, "Visible", "off");  f.Visible=1;
                 T = tiledlayout(1,1,"Parent",f,"TileSpacing","none","Padding","tight");
@@ -1682,9 +1738,9 @@ classdef BehaviorBoxDataNew < handle
                     wL = this.AnalyzedData.DayMM{this.sc}.Ls==L;
                     Ddat = this.AnalyzedData.DayMM{this.sc}(wL,:);
                     try
-                        y = Ldat{L}{:,1}';
-                        std = Ldat{L}{:,2}';
-                        x = Ldat{L}{:,3}';
+                        y = Ldat(L,:).bMM{:}';
+                        std = Ldat(L,:).bSD{:}';
+                        x = Ldat(L,:).XCoord{:}';
                         %Perf
                         dn = "Level "+L+": All Time ";
                         AllTime = plot(x,LO+y, ...
@@ -1731,16 +1787,16 @@ classdef BehaviorBoxDataNew < handle
                         end
                     catch %They have not passed this level
                     end
-                    if numel(unique(cellfun(@numel,Ddat.dayBin))) > 1
-                        howBig = cellfun(@numel,Ddat.dayBin');
-                        [group, GROUPS]=findgroups(howBig);
-                    end
+                    % if numel(unique(cellfun(@numel,Ddat.dayBin))) > 1
+                    %     howBig = cellfun(@numel,Ddat.dayBin');
+                    %     [group, GROUPS]=findgroups(howBig);
+                    % end
                     for d = [ Ddat.DayNums' ; {Ddat.dayBin{:}} ]
                         DO = d{1}-1;
                         %Small Bin Moving mean:
                         try
-                            x = DO+cell2mat(d{2}{9,1});
-                            y = LO+cell2mat(d{2}{8,1});
+                            x = DO+d{2}.xMM{:};
+                            y = LO+d{2}.sMM{:};
                             SmallPlot = plot(x,y, ...
                                 "Parent",Ax, ...
                                 "SeriesIndex",L, ...
@@ -1751,23 +1807,23 @@ classdef BehaviorBoxDataNew < handle
                         catch
                         end
                         %Daily bin values:
-                        try
-                            if options.Text
-                                x = DO+Ddat.dayBin{wD}{2};
-                                y = LO+Ddat.dayBin{wD}{1};
-                                BinPlot = scatter(x,y, ...
-                                    "Parent",Ax, ...
-                                    "SeriesIndex",L, ...
-                                    "Marker", this.Shape_code{L}, ...
-                                    "SizeData",10);
-                                BinPlot.MarkerFaceColor = BinPlot.MarkerEdgeColor;
-                                Txt = text(x, y, Ddat.dayBin{wD}{3}, ...
-                                    "HorizontalAlignment","center", ...
-                                    "VerticalAlignment","bottom", ...
-                                    "FontSize",6);
-                            end
-                        catch
-                        end
+                        % try
+                        %     if options.Text
+                        %         x = DO+Ddat.dayBin{wD}{2};
+                        %         y = LO+Ddat.dayBin{wD}{1};
+                        %         BinPlot = scatter(x,y, ...
+                        %             "Parent",Ax, ...
+                        %             "SeriesIndex",L, ...
+                        %             "Marker", this.Shape_code{L}, ...
+                        %             "SizeData",10);
+                        %         BinPlot.MarkerFaceColor = BinPlot.MarkerEdgeColor;
+                        %         Txt = text(x, y, Ddat.dayBin{wD}{3}, ...
+                        %             "HorizontalAlignment","center", ...
+                        %             "VerticalAlignment","bottom", ...
+                        %             "FontSize",6);
+                        %     end
+                        % catch
+                        % end
                     end
                 end
                 if options.LevDay
