@@ -2803,6 +2803,7 @@ classdef BehaviorBoxDataNew < handle
                 options.Columns = 30     %Inches across
                 options.Rows = 5 %Inches high
                 options.SameFolder logical = false
+                options.SaveFigFile logical = true
             end
             if isempty(fig) % Put empty brackets [] for the figure
                 tic
@@ -2831,6 +2832,9 @@ classdef BehaviorBoxDataNew < handle
                     c = c+1;
                     fprops = this.getFigProps(f, options);
                     this.SvFig(SavePathName(c),fprops)
+                    if options.SaveFigFile
+                        savefig(f, SavePathName(c)+".fig")
+                    end
                 end
                 fprintf("Saved "+numel(FIG)+ " files... etime: " + toc + " seconds.\n")
                 return
