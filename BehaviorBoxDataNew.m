@@ -1344,7 +1344,7 @@ classdef BehaviorBoxDataNew < handle
             arguments
                 this
                 opts.Composite logical = 0
-                opts.LevGroup logical = 0
+                opts.LevGroup logical = 1
                 opts.History logical = 1
                 opts.Stim logical = 0
                 opts.LevelProgress logical = 0
@@ -1355,6 +1355,7 @@ classdef BehaviorBoxDataNew < handle
             tic
             close all
             if opts.LevelProgress
+% Plots an average of the # of trials for subjects to meet the threshold
                 this.BinomialProgress();
                 if opts.Save
                     this.SaveManyFigures([],'Binomial', SameFolder=1)
@@ -1362,6 +1363,7 @@ classdef BehaviorBoxDataNew < handle
                 end
             end
             if opts.LevelProgressIndividual
+% Plots each mouse's # of trials to meet the threshold
                 for P = 1:3
                     this.BinomialProgressIndividual("WhichPValue",P);
                     if opts.Save
@@ -1371,7 +1373,8 @@ classdef BehaviorBoxDataNew < handle
                 end
             end
             if opts.LevGroup
-                cellfun(@(x){this.PlotLevelGroupsByDay(Sc=x)}, Num); drawnow
+                cellfun(@(x){this.PlotBinomialLevels(Sc=x)}, Num);
+                %cellfun(@(x){this.PlotLevelGroupsByDay(Sc=x, Which='Binomial')}, Num);
                 if opts.Save
                     this.SaveManyFigures([],'LevelGroup', SameFolder=1)
                     close all
@@ -1701,6 +1704,7 @@ classdef BehaviorBoxDataNew < handle
                 options.LevDay logical = true
                 options.Sc = 1
                 options.Training logical = false
+                options.Which char = 'Percent' % Percent or Binomial
             end
             tic;
             Out = [];
@@ -1738,8 +1742,11 @@ classdef BehaviorBoxDataNew < handle
                     wL = this.AnalyzedData.DayMM{this.sc}.Ls==L;
                     Ddat = this.AnalyzedData.DayMM{this.sc}(wL,:);
                     try
-                        y = Ldat(L,:).bMM{:}';
-                        std = Ldat(L,:).bSD{:}';
+                        if options.Which  == "Percent"
+                            y = Ldat(L,:).bMM{:}';
+                        else % "Binomial"
+                            y = Ldat(L,:).BiCDF{:}';
+                        end
                         x = Ldat(L,:).XCoord{:}';
                         %Perf
                         dn = "Level "+L+": All Time ";
@@ -1748,45 +1755,48 @@ classdef BehaviorBoxDataNew < handle
                             "SeriesIndex",L, ...
                             "LineWidth",1, ...
                             "DisplayName",dn+"Accuracy");
-                        %STD
-                        Y = LO+[y+std fliplr(y-std)];
-                        X = [x fliplr(x)];
-                        P = patch(X,Y,AllTime.Color, ...
-                            "Parent", Ax, ...
-                            "EdgeColor", "none", ...
-                            "FaceAlpha", 0.4);
-                        P.DisplayName = dn+"STD";
+                        if options.Which  == "Percent"
+                            %STD
+                            std = Ldat(L,:).bSD{:}';
+                            Y = LO+[y+std fliplr(y-std)];
+                            X = [x fliplr(x)];
+                            P = patch(X,Y,AllTime.Color, ...
+                                "Parent", Ax, ...
+                                "EdgeColor", "none", ...
+                                "FaceAlpha", 0.4);
+                            P.DisplayName = dn+"STD";
+                        end
                     catch
                     end
-                    try
-                        if any(y>thresh)
-                            %PASSING
-                            PassingDayIdx = floor( x( find( y>=thresh,1, 'first') ) )+0.5;
-                            TT = this.BB+find(y>=thresh,1, 'first')+" Trials";
-                            TrialText = text(PassingDayIdx, LO+0.2, TT, ...
-                                "FontSize",6, ...
-                                "HorizontalAlignment","center", ...
-                                "Color",AllTime.Color);
-                            %Threshold Integrand:
-                            yPatch = LO+[max(y,thresh) max(y-thresh,thresh)];
-                            xPatch = [x fliplr(x)];
-                            threshPatch = patch(xPatch,yPatch,AllTime.Color, ...
-                                "Parent", Ax, ...
-                                "EdgeColor", "none");
-                            firstPass = find(y>=thresh,1, 'first');
-                            yPass = y(firstPass:end);
-                            OverThresh = max(yPass-thresh,0)*100;
-                            TimeOverThresh = sum(OverThresh)/numel(yPass);
-                            UnderThresh = min(yPass-thresh,0)*100;
-                            TimeUnderThresh = sum(UnderThresh)/numel(OverThresh);
-                            TXT = round(TimeOverThresh,2)+"% from Thresh per trial";
-                            ThreshText = text(numDays, LO+0.1,TXT, ...
-                                "FontSize",12, ...
-                                "HorizontalAlignment","right", ...
-                                "Color",AllTime.Color);
-                        end
-                    catch %They have not passed this level
-                    end
+                    % try
+                    %     if any(y>thresh)
+                    %         %PASSING
+                    %         PassingDayIdx = floor( x( find( y>=thresh,1, 'first') ) )+0.5;
+                    %         TT = this.BB+find(y>=thresh,1, 'first')+" Trials";
+                    %         TrialText = text(PassingDayIdx, LO+0.2, TT, ...
+                    %             "FontSize",6, ...
+                    %             "HorizontalAlignment","center", ...
+                    %             "Color",AllTime.Color);
+                    %         %Threshold Integrand:
+                    %         yPatch = LO+[max(y,thresh) max(y-thresh,thresh)];
+                    %         xPatch = [x fliplr(x)];
+                    %         threshPatch = patch(xPatch,yPatch,AllTime.Color, ...
+                    %             "Parent", Ax, ...
+                    %             "EdgeColor", "none");
+                    %         firstPass = find(y>=thresh,1, 'first');
+                    %         yPass = y(firstPass:end);
+                    %         OverThresh = max(yPass-thresh,0)*100;
+                    %         TimeOverThresh = sum(OverThresh)/numel(yPass);
+                    %         UnderThresh = min(yPass-thresh,0)*100;
+                    %         TimeUnderThresh = sum(UnderThresh)/numel(OverThresh);
+                    %         TXT = round(TimeOverThresh,2)+"% from Thresh per trial";
+                    %         ThreshText = text(numDays, LO+0.1,TXT, ...
+                    %             "FontSize",12, ...
+                    %             "HorizontalAlignment","right", ...
+                    %             "Color",AllTime.Color);
+                    %     end
+                    % catch %They have not passed this level
+                    % end
                     % if numel(unique(cellfun(@numel,Ddat.dayBin))) > 1
                     %     howBig = cellfun(@numel,Ddat.dayBin');
                     %     [group, GROUPS]=findgroups(howBig);
@@ -1795,8 +1805,12 @@ classdef BehaviorBoxDataNew < handle
                         DO = d{1}-1;
                         %Small Bin Moving mean:
                         try
+                            if options.Which  == "Percent"
+                                y = LO+d{2}.sMM{:};
+                            else % "Binomial"
+                                y = LO+d{2}.BiCDF{:};
+                            end
                             x = DO+d{2}.xMM{:};
-                            y = LO+d{2}.sMM{:};
                             SmallPlot = plot(x,y, ...
                                 "Parent",Ax, ...
                                 "SeriesIndex",L, ...
@@ -1848,6 +1862,7 @@ classdef BehaviorBoxDataNew < handle
                 options.Text logical = false
                 options.Ax %Axis object
                 options.Sc
+                options.Which char = 'Percent' % Percent or Binomial
             end
             tic
             %Out = [];
@@ -1988,6 +2003,52 @@ classdef BehaviorBoxDataNew < handle
                 xline(min(Ddat.DayNums):1:max(Ddat.DayNums), '-', 'Color',[0.7 0.7 0.7], 'Parent',AxIn)
                 %hold(AxIn, 'on')
             end
+        end
+        function Out = PlotBinomialLevels(this, options)
+            arguments
+                this
+                options.Ax %Axis object
+                options.Sc
+            end
+            tic
+            if ~isempty(options.Sc)
+                this.sc = options.Sc;
+            else
+                this.sc=1;
+            end
+            SUB = this.Sub{this.sc};
+            LDat = this.AnalyzedData.LevelMM{options.Sc};
+            Ddat = sortrows(this.AnalyzedData.DayMM{this.sc}, "DayNums");
+            Ddat.DayNums=cell2mat(Ddat.DayNums);
+            f = figure;
+            t = tiledlayout(20,1,'TileSpacing','none', 'Padding','tight', 'Parent',f);
+            Ax = nexttile(t);
+            hold(Ax, 'on'); Ax.Parent.Parent.Visible = 1;
+            T = Ax.Parent; f = T.Parent; f.Name = SUB;
+            Ax.Parent.Title.String = SUB+" Level Performance";
+            Ax.YLim = [-0.55 0.05];
+            Ax.YTick = -1:0.25:0;
+            Ax.YTickLabel = string(0:25:100)+"%";
+            Ax.YMinorTick = "on";
+            Ax.YGrid = 1;
+            Ax.YMinorGrid = 1;
+            Ax.XLim = [min(Ddat.DayNums)-1 max(Ddat.DayNums)];
+            xline(min(Ddat.DayNums):1:max(Ddat.DayNums), '-', 'Color',[0.7 0.7 0.7], 'Parent',Ax)
+            A1 = nexttile(T); A1.XLim = Ax.XLim; hold(A1, 'on')
+            A2 = nexttile(T); A2.XLim = Ax.XLim; hold(A2, 'on')
+            A3 = nexttile(T); A3.XLim = Ax.XLim; hold(A3, 'on')
+            A4 = nexttile(T); A4.XLim = Ax.XLim; hold(A4, 'on')
+            A5 = nexttile(T); A5.XLim = Ax.XLim; hold(A5, 'on')
+            A6 = nexttile(T); A6.XLim = Ax.XLim; hold(A6, 'on')
+            A7 = nexttile(T); A7.XLim = Ax.XLim; hold(A7, 'on')
+            A8 = nexttile(T); A8.XLim = Ax.XLim; hold(A8, 'on')
+            A9 = nexttile(T); A9.XLim = Ax.XLim; hold(A9, 'on')
+            A10 = nexttile(T); A10.XLim = Ax.XLim; hold(A10, 'on')
+            A11 = nexttile(T); A11.XLim = Ax.XLim; hold(A11, 'on')
+            A12 = nexttile(T); A12.XLim = Ax.XLim; hold(A12, 'on')
+            A13 = nexttile(T); A13.XLim = Ax.XLim; hold(A13, 'on')
+            A14 = nexttile(T); A14.XLim = Ax.XLim; hold(A14, 'on')
+            A15 = nexttile(T); A15.XLim = Ax.XLim; hold(A15, 'on')
         end
         function Out = PlotLevelGroupsByLevel(this, options)
             arguments

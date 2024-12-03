@@ -386,6 +386,8 @@ classdef BehaviorBoxWheel < handle
             this.i = 0;
             this.timeout_counter = 0;
             this.Temp_Active = false;
+% Send Start Acquisition signal to ScanImage
+            this.a.Acquisition('Start');
         end
         %Do some things before each trial
         function BeforeTrial(this)
@@ -951,6 +953,9 @@ classdef BehaviorBoxWheel < handle
             % Ignore input for a defined duration
             startTime = tic;
 
+            % Send Next File signal to ScanImage
+            this.a.Acquisition('Next');
+            pause(0.2); % The nextfile acquisition signal has a builtin 200 ms delay
             % Display stimulus
             this.a.TimeStamp;  % Toggle timestamp
             this.flashStimulus();
@@ -963,7 +968,9 @@ classdef BehaviorBoxWheel < handle
                 [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput();
             end
 
-            this.a.TimeStamp;  % Toggle timestamp
+            % Toggle timestamp
+            this.a.TimeStamp;
+
 
             % Retry for only correct answers if necessary
             this.handleOnlyCorrectMode();
@@ -1575,6 +1582,8 @@ classdef BehaviorBoxWheel < handle
             end
         end
         function cleanUP(this)
+% Send Stop Acquisition signal to ScanImage
+            this.a.Acquisition('Stop');
             %switch on all buttons
             this.toggleButtonsOnOff(this.Buttons,1);
             this.stop_handle.Value = 0;%Turn off Stop button

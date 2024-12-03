@@ -167,6 +167,26 @@ classdef BehaviorBoxSerial < handle
             % used for the flashing while waiting for input
         end
 
+        function Acquisition(this, options)
+% This sends a character over the serial to the Arduino, which will raise
+% the indicated pin to high for 200 milliseconds
+            arguments
+                this
+                options.Type char = 'Next'
+            end
+            Type = options.Type;
+            switch Type
+                case 'Start'
+                    write(this.Ard, 'I', "char");
+                case 'Next'
+                    write(this.Ard, 'N', "char");
+                case 'End'
+                    write(this.Ard, 'i', "char");
+                otherwise
+                    % nothing
+            end
+        end
+        
         function Reset(this)
             %Assign neutral value to property
             switch true
