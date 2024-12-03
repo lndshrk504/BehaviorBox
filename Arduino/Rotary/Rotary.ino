@@ -1,6 +1,7 @@
 // Define necessary headers and macros
 #define ENCODER_OPTIMIZE_INTERRUPTS // makes it faster: https://www.pjrc.com/teensy/td_libs_Encoder.html
 #include <Encoder.h>
+#include <Arduino.h>
 
 // Define pin constants
 #define PIN_8 8   // Reward
@@ -16,17 +17,28 @@ enum State {
   RIGHT_OPEN,
   RIGHT_SETUP,
   TIMESTAMPING,
+  STARTACQ,
+  NEXTFILE,
+  ENDACQ,
   WHO
+};
+enum ReadingMode {
+  POSITION,
+  SPEED
 };
 
 // Initialize variables
 State currentState = READING;
+ReadingMode currentMode = POSITION; // Default to displaying position
 char str;
 Encoder myEnc(2, 3); // 2 and 3 are interrupt pins for Arduino Uno
 int prevDegrees = 0; // Starting value for rotor position
 bool RightOpen = false; // Valve status
 float rightdur = 0.05;  // Length of a right pulse
 bool TimeFlag = false; // Timestamp flag
+unsigned long previousMicros = 0; // Store the last time the speed was calculated
+int previousPosition = 0; // Store the last position of the encoder
+bool wasZeroSpeed = false; // Initialize a flag to track the zero speed state
 
 // Function prototypes
 void handleStateChange();
@@ -41,14 +53,13 @@ void displayWelcomeMessage();
 void checkAndPrintEncoderState();
 void resetFlags();
 void setFlags(int index);
+void pulsePinHighForDuration(int pin, int duration);
 
 void setup() {
   initializeSerial();
   setupPins();
   Serial.println();
-  Serial.println("Welcome to BehaviorBox - Wheel");
-  Serial.println();
-  Serial.println("Readout begins below...");
+  Serial.println("Wheel"); // Identify this as the wheel
   Serial.println();
   resetEncoder();
 }
@@ -58,11 +69,28 @@ void loop() {
   if (Serial.available() > 0) {
     str = Serial.read();
     switch (str) {
-      case 'R': currentState = RIGHT_REWARDING; break;
-      case 'r': currentState = RIGHT_OPEN; break;
-      case 's': currentState = RIGHT_SETUP; break;
+      case 'R': currentState = RIGHT_REWARDING; break; // Capital letter R
+      case 'r': currentState = RIGHT_OPEN; break; // Lowercase letter r
+      case 's': currentState = RIGHT_SETUP; break; // Lowercase letter s
       case 'T': currentState = TIMESTAMPING; break;
+      case 'I': currentState = STARTACQ; break; // Capital letter I
+      case 'N': currentState = NEXTFILE; break; 
+      case 'i': currentState = ENDACQ; break; // Lowercase letter i
       case 'W': currentState = WHO; break;
+      case 'M':
+        // Toggle the current mode between POSITION and SPEED
+        if (currentMode == POSITION) {
+          currentMode = SPEED;
+          Serial.println("Speed, deg/sec");
+        } else {
+          currentMode = POSITION;
+          Serial.println("Position");
+        }
+        previousPosition = 0;
+        previousMicros = micros();
+        prevDegrees = 0;
+        resetEncoder();
+        break;
       case '0': // 'ZERO' for reset back to 0
         resetEncoder();
         prevDegrees = 0;
@@ -75,7 +103,12 @@ void loop() {
 void handleStateChange() {
   switch (currentState) {
     case READING:
-      checkAndPrintEncoderState();
+      if (currentMode == POSITION) {
+        checkAndPrintEncoderState(); // Print the position
+      } else if (currentMode == SPEED) {
+        delay(10);
+        checkAndPrintEncoderSpeed(); // Print the speed
+      }
       break;
     case RIGHT_REWARDING:
       toggleReward(PIN_8, rightdur);
@@ -86,15 +119,25 @@ void handleStateChange() {
       Serial.print("Right Valve: ");
       Serial.println(RightOpen ? "Open" : "Closed");
       break;
-    case TIMESTAMPING:
-      digitalWrite(PIN_12, TimeFlag ? HIGH : LOW);
-      Serial.println(TimeFlag ? "Time Pin is high" : "Time Pin is low");
-      TimeFlag = !TimeFlag;
-      currentState = READING;
-      break;
     case RIGHT_SETUP:
       rightdur = getDurationFromSerial("Enter new duration for right reward:");
       Serial.print("Right reward duration set to: "); Serial.println(rightdur);
+      currentState = READING;
+      break;
+     case STARTACQ:
+      pulsePinHighForDuration(PIN_9, 200);   // Pulse PIN_9 high for 200 milliseconds
+      currentState = READING;
+      break;
+    case NEXTFILE:
+      pulsePinHighForDuration(PIN_10, 200);   // Pulse PIN_10 high for 200 milliseconds
+      currentState = READING;
+      break;
+    case ENDACQ:
+      pulsePinHighForDuration(PIN_11, 200);   // Pulse PIN_11 high for 200 milliseconds
+      currentState = READING;
+      break;
+    case TIMESTAMPING:
+      pulsePinHighForDuration(PIN_12, 200);   // Pulse PIN_12 high for 200 milliseconds
       currentState = READING;
       break;
     case WHO:
@@ -158,6 +201,12 @@ float getDurationFromSerial(const char* prompt) {
   return DURinp;
 }
 
+void pulsePinHighForDuration(int pin, int duration) {
+  digitalWrite(pin, HIGH);   // Set the pin high
+  delay(duration);           // Wait for the specified duration in milliseconds
+  digitalWrite(pin, LOW);    // Set the pin low
+}
+
 void displayWelcomeMessage() {
   Serial.println();
   Serial.println("Welcome to BehaviorBox - Wheel");
@@ -198,4 +247,36 @@ void checkAndPrintEncoderState() {
       prevDegrees = degrees;
     }
   }
+}
+
+void checkAndPrintEncoderSpeed() {
+  unsigned long currentMicros = micros(); // Get the current time
+  int currentPosition = myEnc.read(); // Get the current position of the encoder
+  int positionDifference = currentPosition - previousPosition; // Calculate the change in position
+  
+  // Calculate the time difference in seconds
+  float timeDifference = (currentMicros - previousMicros) / 1000000.0; 
+  
+  // Calculate the speed (degrees per second)
+  float speed = (positionDifference/4.0*360/1024) / timeDifference; // Divide by 4 due to quadrature, Multiply by 360/1000 to report as degrees
+  
+  // Print the speed if the time difference is greater than zero
+  if (timeDifference > 0) {
+    if (speed != 0) {
+      //Serial.print("Speed ");
+      Serial.println(speed,2);
+      //Serial.print("Time ");
+      //Serial.println(timeDifference,5);
+      //Serial.print("Position diff");
+      //Serial.println(positionDifference);
+      wasZeroSpeed = false; // Reset the zero speed flag
+    } else if (!wasZeroSpeed) {
+      Serial.println("0");
+      wasZeroSpeed = true; // Set the zero speed flag
+    }
+  }
+
+  // Update previous position and time for the next calculation
+  previousPosition = currentPosition;
+  previousMicros = currentMicros;
 }
