@@ -2809,21 +2809,74 @@ classdef BehaviorBoxData < handle
             Data = this.loadedData;
             Data = Data(:,[1,7]);
 
-            % Load, process the timestamp text files
+        % Load timestamp text files
             timestampFiles = dir(cell2mat(fullfile(this.filedir, '*.txt')));
             timestampFiles = timestampFiles(contains({timestampFiles.name}, 'linesweep'));
             Q = numel(timestampFiles);
-            TStable = table('Size', [Q 4], ...
-                'VariableTypes', {'string','cell', 'double', 'double'}, ...
-                'VariableNames',{'Filename', 'txt', 'NumFrames', 'NumStimFrames'});
+            TStable = table('Size', [Q 5], ...
+                'VariableTypes', {'string', 'cell', 'cell', 'double', 'double'}, ...
+                'VariableNames',{'Filename', 'txt', 'txt_split', 'NumFrames', 'NumStimFrames'});
             TStable(:,1) = {timestampFiles.name}';
             for i = 1:Q
                 TS = readlines(fullfile(timestampFiles(i).folder, timestampFiles(i).name));
+                TS = erase(TS, " (micros) - Frame RISING");
                 TStable{i,2} = {TS};
+            % Add a dummy end index to handle splitting up to the end of the array
+                rowIndices = find(startsWith(TS, "0 hours"));
+                rowIndices = rowIndices(2:end);
+                rowIndices = unique([1 ;rowIndices; numel(TS) + 1]);
+            % Initialize a cell array to store the split strings
+                N = numel(rowIndices)-1;
+                splitStrings = cell(N,1);
+                splitStrings = table('Size', [N 3], ...
+                    'VariableTypes', {'cell','cell','cell'}, ...
+                    'VariableNames', {'Txt', 'Frames', 'TotalTime'});
+            % Split the string array at each index
+                sidx = 1;
+                for j = 1:length(rowIndices) - 1
+                    startIdx = rowIndices(j);
+                    endIdx = rowIndices(j + 1) - 1;
+                    Window = TS(startIdx:endIdx);
+                    MICROS = Window;
+                    SECS = cellfun(@(x) str2double(x)/1e6, MICROS, 'UniformOutput', true);
+                    MICROS(~isnan(SECS)) = SECS(~isnan(SECS));
+                    MICROS(~isnan(SECS), 2) = 1:sum(~isnan(SECS));
+                % Set some output variables:
+                    MicrosTable = array2table(MICROS);
+                    MicrosTable.Properties.VariableTypes = {'string', 'double'};
+                    MicrosTable.Properties.VariableNames = {'ImagingTime', 'Frame'};
+                    splitStrings.Txt{sidx} = MicrosTable;
+                    splitStrings.Frames{sidx} = sum(~isnan(SECS));
+                    TT = str2double(MicrosTable.ImagingTime(end));
+                    if isnan(TT)
+                        TT = str2double(MicrosTable.ImagingTime(end-1));
+                    end
+                    splitStrings.TotalTime{sidx} = TT;
+                    sidx = sidx+1;
+                end
+                TStable{i,3} = {splitStrings};
             end
-
+            StampTable = vertcat(TStable.txt_split{:});
             % Coordinate the frame timestamps to the figure timestamps
             % figure began to move after the 300ms delay, first data row
+
+            StimStamp = array2table(this.loadedData(:,[1 7]));
+            StimStamp.Properties.VariableNames = {'Filename', 'StimRecord'};
+            Time = cell2mat(cellfun(@(x) max(x), StimStamp.StimRecord(:,1), 'UniformOutput', false));
+            StimStamp.StimTime = Time(:,1);
+            [StimStamp.Frames(:)] = cell(size(StimStamp.StimTime));
+            [StimStamp.FramesTime(:)] = zeros(size(StimStamp.StimTime));
+            c = 0;
+            for t = StimStamp.StimTime'
+                c = c+1;
+                [~, W] = min(abs(t-[StampTable.TotalTime{:}]'));
+                StimStamp.Frames(c) = StampTable.Txt(W);
+                StimStamp.FramesTime(c) = StampTable.TotalTime{W};
+            end
+            
+        %Match into a new table the rows using StimRecord column 1 and the Frames.ImagingTime starting
+        %with the first timestamp after the Frame Clock Reset message
+
 
             % Make trigonometric corrections, turn figure location into degrees of visual field
                 % Have different modes depending on X-bar, Y-bar, Stimulus/Bar
