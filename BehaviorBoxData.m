@@ -2866,12 +2866,16 @@ classdef BehaviorBoxData < handle
             StimStamp.StimTime = Time(:,1);
             [StimStamp.Frames(:)] = cell(size(StimStamp.StimTime));
             [StimStamp.FramesTime(:)] = zeros(size(StimStamp.StimTime));
+            [StimStamp.Matched(:)] = cell(size(StimStamp.StimTime));
             c = 0;
             for t = StimStamp.StimTime'
                 c = c+1;
                 [~, W] = min(abs(t-[StampTable.TotalTime{:}]'));
                 StimStamp.Frames(c) = StampTable.Txt(W);
                 StimStamp.FramesTime(c) = StampTable.TotalTime{W};
+            end
+
+            for t = [StimStamp.StimRecord StimStamp.Frames]'
             end
             
         %Match into a new table the rows using StimRecord column 1 and the Frames.ImagingTime starting
