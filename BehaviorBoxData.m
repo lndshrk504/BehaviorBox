@@ -2875,25 +2875,41 @@ classdef BehaviorBoxData < handle
                 StimStamp.FramesTime(c) = StampTable.TotalTime{W};
             end
 
+            c = 0;
             for t = [StimStamp.StimRecord StimStamp.Frames]'
-            end
-            
-        %Match into a new table the rows using StimRecord column 1 and the Frames.ImagingTime starting
-        %with the first timestamp after the Frame Clock Reset message
+                c = c+1;
+                Stim = t{1};
+                Frame = str2double(t{2}{:,1});
+                Out = table('Size', [size(Stim,1),4], ...
+                    'VariableTypes', {'double', 'double', 'double', 'double'}, ...
+                    'VariableNames', {'FrameIDX', 'StimPosition', 'StimTime', 'ImagingTime'});
+    % Stim position was recorded at ~60Hz, Imaging at ~15Hz
+    % Should align the higher frequency record to the lower freq record
 
+    % Match timestamps from Stim to Image Frames
+    % Find row of first timestamp after stimulus onset (after 3rd NaN)
+                CropRow = find(isnan(Frame), 1, 'first')+2;
+                Frame(1:CropRow) = [];
+                SC = 0;
+                for S = Stim'
+                    try
+                    SC = SC+1;
+                    [~, Fidx] = min(abs(Frame - S(1)));
+                    Out(SC, :) =  num2cell([Fidx + CropRow, S(2), S(1), Frame(Fidx)]);
+                    catch err
+                        unwrapErr(err)
+                        1;
+                    end
+                end
+                StimStamp.Matched(c) = {Out};
+            end
 
             % Make trigonometric corrections, turn figure location into degrees of visual field
                 % Have different modes depending on X-bar, Y-bar, Stimulus/Bar
                 % since they all start at different places
 
+        % Load in the deltaF/F values for each imaging frame
 
-            % For imaging analysis out put a CSV with the following columns
-            % for each frame:
-% frameIDX  StimPosition(degrees)   TimeSinceStimOnset  TimeSinceImagingOnset 
-%   1
-%   2
-%   3
-%   n
         end
 
     end %end methods
