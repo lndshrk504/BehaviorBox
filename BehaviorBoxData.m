@@ -2901,6 +2901,7 @@ classdef BehaviorBoxData < handle
                         1;
                     end
                 end
+                Out.StimPosition = TransformToVisualDegrees(Out.StimPosition, 'Y-Bar');
                 StimStamp.Matched(c) = {Out};
             end
 
@@ -2910,6 +2911,46 @@ classdef BehaviorBoxData < handle
 
         % Load in the deltaF/F values for each imaging frame
 
+        end
+        function OUT = TransformToVisualDegrees(this, Pos, options)
+            arguments
+                this
+                Pos
+                options.Type char = 'Y-Bar' % Different rules for X-Bar, Y-Bar, 
+            end
+    % This function recieves 1D position data and converts it into degrees of visual field
+    % This is necessary because the position data is not in degrees of visual field
+    % The position data is in relative position a -0.5 to 5 across an 8 inch screen
+    % 0.5 is the right edge, -0.5 is the left edge, 0 is the center of the screen
+    % 8 inches is the width of the screen, 6 inches is the height of the screen
+    % The observer sits in the very center of the screen, 8 inches away
+    % OUT is the transformed 1D position data in degrees of visual field
+    % The output is a 1D array of the same size as the input array 1xN or Nx1
+    
+    % Use trigonometry to transform 1D position data to degrees of visual field
+    % The position data is in relative position a -0.5 to 5 across an 8 inch screen
+            screenWidthInInches = 8; % screen width in inches
+            screenHeightInInches = 6; % screen height in inches
+            distanceToObserverInInches = 8; % distance from screen to observer in inches
+
+            % Determine the visual angle of a one-inch strip centered on the observer
+            angleConversionFactor = 2 * atan(0.5 / distanceToObserverInInches) * (180 / pi);
+            
+            % Transform the position based on the type option
+            switch options.Type
+                case 'X-Bar'
+                    % Transform X positions relative to the width of the screen
+                    adjustedPos = Pos * screenWidthInInches / 2;
+                    OUT = angleConversionFactor * adjustedPos;
+
+                case 'Y-Bar'
+                    % Transform Y positions relative to the height of the screen
+                    adjustedPos = Pos * screenHeightInInches / 2;
+                    OUT = angleConversionFactor * adjustedPos;
+
+                otherwise
+                    error('Unsupported transformation type. Use X-Bar or Y-Bar.');
+            end
         end
 
     end %end methods
