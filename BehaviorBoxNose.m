@@ -1679,14 +1679,14 @@ classdef BehaviorBoxNose < handle
             this.setMessage(this.message_handle, 'Data saved successfully.', saveasname);
         end
 
-        function newData = ensureColumns(this, newData)
+        function newData = ensureColumns(~, newData)
             names = fieldnames(newData);
             for n = names(structfun(@isrow, newData) & structfun(@length, newData) > 1)'
                 newData.(n{:}) = newData.(n{:})';
             end
         end
 
-        function newData = alignDataLengths(this, newData)
+        function newData = alignDataLengths(~, newData)
             if isempty(newData.TimeStamp)
                 return
             end
@@ -1697,7 +1697,7 @@ classdef BehaviorBoxNose < handle
             end
         end
 
-        function StimHist = filterNonEmptyRows(this, StimHistory)
+        function StimHist = filterNonEmptyRows(~, StimHistory)
 % This is not working correctly. Only 1 trial's stim is being saved
             nonEmptyRows = any(~cellfun(@isempty, StimHistory'));
             StimHist = StimHistory(nonEmptyRows, :);
@@ -1730,7 +1730,7 @@ classdef BehaviorBoxNose < handle
             end
         end
         
-        function Settings = removeUnwantedFields(this, Settings)
+        function Settings = removeUnwantedFields(~, Settings)
             toRemove = {'GUI_numbers', 'encoder'};
             for r = toRemove
                 if isfield(Settings, r)
@@ -1749,7 +1749,7 @@ classdef BehaviorBoxNose < handle
             this.saveFigure(f, savefolder, saveasname);
         end
         
-        function setMessage(this, message_handle, message, saveasname)
+        function setMessage(~, message_handle, message, saveasname)
             msg = [message+" "+saveasname];
             set(message_handle, 'Text', msg);
             disp(msg);
