@@ -391,15 +391,17 @@ classdef BehaviorBoxWheel < handle
         end
         %Do some things before each trial
         function BeforeTrial(this)
-                    this.fig.Color = this.ReadyCueStruct.Color;
+            this.fig.Color = this.ReadyCueStruct.Color;
             set(this.FF, 'Value', 0) %Turn off FF button
             this.UpdateSettings()
             this.CheckTemp();
             %Update GUI window numbers
             this.updateGUIbeforeIteration();
             %Pick next reward drop size, if variable
-            if this.i > 1
+            try
                 LastScore = this.Data_Object.current_data_struct.CodedChoice(end);
+            catch
+                LastScore = 1;
             end
             if this.Setting_Struct.Repeat_wrong==1 && any(LastScore == [3 4]) %If repeat wrong and they got it wrong
                 if isvalid(this.fig)
@@ -1117,6 +1119,11 @@ classdef BehaviorBoxWheel < handle
             if this.Setting_Struct.RoundUp
                 thresh = RoundUp*thresh;
             end
+            if this.app.Animate_MimicTrial.Value
+                this.a.SwitchMode("Which","Speed")
+                this.MoveStimuli("Type","Trial")
+                this.a.SwitchMode("Which","Position")
+            end
             i = 0;
             tic
             while timeout_value == 0 | toc<=timeout_value % do NOT replace | with || or the expression is changed.
@@ -1779,6 +1786,14 @@ classdef BehaviorBoxWheel < handle
             end
             set(this.fig, 'Renderer', 'OpenGL'); % openGL is the default but this may help 
             Center = 0;
+            if options.Type == "Trial"
+                this.app.Animate_Style.Value = "Stimulus";
+                if this.isLeftTrial
+                    this.app.Animate_Side.Value = "Left";
+                else
+                    this.app.Animate_Side.Value = "Right";
+                end
+            end
             switch this.app.Animate_Style.Value
                 case "Dot"
                     AX = this.fig.Children(1);
