@@ -1120,13 +1120,11 @@ classdef BehaviorBoxWheel < handle
                 thresh = RoundUp*thresh;
             end
             if this.app.Animate_MimicTrial.Value
-                this.a.SwitchMode("Which","Speed")
-                this.MoveStimuli("Type","Trial")
-                this.a.SwitchMode("Which","Position")
+                this.SimulateTrial()
             end
             i = 0;
             tic
-            while timeout_value == 0 | toc<=timeout_value % do NOT replace | with || or the expression is changed.
+            while timeout_value == 0 | toc<=timeout_value && ~this.app.Animate_MimicTrial.Value% do NOT replace | with || or the expression is changed.
                 dist = str2double(this.a.SerialRead);
                 %dist = this.Box.encoder.readCount;
                 delta = (dist/threshold)*StimDistance;
@@ -1786,14 +1784,6 @@ classdef BehaviorBoxWheel < handle
             end
             set(this.fig, 'Renderer', 'OpenGL'); % openGL is the default but this may help 
             Center = 0;
-            if options.Type == "Trial"
-                this.app.Animate_Style.Value = "Stimulus";
-                if this.isLeftTrial
-                    this.app.Animate_Side.Value = "Left";
-                else
-                    this.app.Animate_Side.Value = "Right";
-                end
-            end
             switch this.app.Animate_Style.Value
                 case "Dot"
                     AX = this.fig.Children(1);
@@ -1881,6 +1871,48 @@ classdef BehaviorBoxWheel < handle
 
             try
                 this.a.TimeStamp(); % 300 milisec builtin pause
+            end
+        end
+        function SimulateTrial(this)
+            arguments
+                this
+            end
+            AX = this.Stimulus_Object.LStimAx;
+            BX = this.Stimulus_Object.RStimAx;
+            if this.isLeftTrial
+                direction = 1;
+            else
+                direction = -1;
+            end
+            Center = 0.25;
+
+            X_or_Y = 1;
+
+            % Movement parameters
+            stepSize = this.app.Animate_Speed.Value; % Adjust step size based on speed value
+
+            this.a.SwitchMode("Which","Speed")
+            pause(0.2)
+            while 1
+                % Wait until the mouse spins the wheel in the right
+                % direction at a high enough speed
+                if abs(str2double(this.a.Reading)) >= 200
+                    break
+                end
+                pause(0.01)
+            end
+            this.a.SwitchMode("Which","Position")
+            while ~this.app.Stop.Value
+                % Update positions for axes
+                AX.Position(X_or_Y) = AX.Position(X_or_Y) + direction * stepSize;
+                BX.Position(X_or_Y) = BX.Position(X_or_Y) + direction * stepSize;
+                drawnow;
+                if AX.Position(X_or_Y) > (Center-0.01) && AX.Position(X_or_Y) < (Center+0.01)
+                    AX.Position(X_or_Y) = Center;
+                    drawnow;
+                    this.a.GiveReward
+                    break
+                end
             end
         end
         function SaveMoveData(this, options)

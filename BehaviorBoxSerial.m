@@ -192,6 +192,7 @@ classdef BehaviorBoxSerial < handle
                 options.Which = 'Position'
             end
             write(this.Ard, 'M', "char");
+            this.Reading = "0";
         end
         
         function Reset(this)
