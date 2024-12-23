@@ -2052,7 +2052,7 @@ classdef BehaviorBoxData < handle
                 end
                 Daily = S{:}(:,3)';
                 Settings = cellfun(@(x) x.Settings, Daily,'UniformOutput',false);
-                Weight = cellfun(@(x) mode(double([x.Weight])), Settings, 'UniformOutput', true, 'ErrorHandler', @errorFuncNaN); %This should get the last value for each day
+                Weight = cellfun(@(x) mode(double([x{:}.Weight])), Settings, 'UniformOutput', true, 'ErrorHandler', @errorFuncNaN); %This should get the last value for each day
                 Dates = cell2mat(S{:}(:,2)');
                 Weight(isoutlier(Weight)) = deal(NaN);
                 Water = cellfun(@(x)sum(x.Score),Daily);
