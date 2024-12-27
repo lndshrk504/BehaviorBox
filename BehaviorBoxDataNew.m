@@ -1686,8 +1686,8 @@ classdef BehaviorBoxDataNew < handle
             repeatedLabels = SUBS(mod(0:(numRepeats-1), length(SUBS)) + 1);
             xticks(XDATA);
             xticklabels(repeatedLabels);
-            Ax.TickDir = "none";
-            Ax.XTickLabelRotation = 50;
+            Ax.TickDir = "out";
+            %Ax.XTickLabelRotation = 50;
             MAX = max([Ax.findobj('Type','Bar').YData]) * 1.02;
             Ax.YLim(2) = MAX;
         end
