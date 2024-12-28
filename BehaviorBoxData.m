@@ -931,12 +931,12 @@ classdef BehaviorBoxData < handle
             end
             switch options.Type
                 case 'DataViewer'
+                    this.current_data_struct = this.CleanData();
                 case 'Normal'
-                    AX = this.Axes;
             end
             structfun(@cla, this.Axes)
             if ~isfield(this.current_data_struct, 'LevelGroups')
-                this.current_data_struct = CleanData(this.current_data_struct);
+                this.current_data_struct = this.CleanData();
             end
             trialTbl = this.current_data_struct;
             [G,ID] = findgroups(this.current_data_struct.Level);
