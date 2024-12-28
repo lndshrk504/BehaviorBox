@@ -1007,7 +1007,16 @@ classdef BehaviorBoxDataNew < handle
             end
             toc
         end
-        function PlotNewData(this)
+        function PlotNewData(this, options)
+            arguments
+                this
+                options.Type char = 'Normal'
+            end
+            switch options.Type
+                case 'DataViewer'
+                case 'Normal'
+                    AX = this.Axes;
+            end
             structfun(@cla, this.Axes)
             if ~isfield(this.current_data_struct, 'LevelGroups')
                 this.current_data_struct = CleanData(this.current_data_struct);
