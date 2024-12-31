@@ -929,11 +929,11 @@ classdef BehaviorBoxData < handle
                 this
                 options.Type char = 'Normal'
             end
-            switch options.Type
-                case 'DataViewer'
-                    this.current_data_struct = this.CleanData();
-                case 'Normal'
-            end
+            % switch options.Type
+            %     case 'DataViewer'
+            %         this.current_data_struct = this.CleanData();
+            %     case 'Normal'
+            % end
             structfun(@cla, this.Axes)
             if ~isfield(this.current_data_struct, 'LevelGroups')
                 this.current_data_struct = this.CleanData();
@@ -1152,6 +1152,7 @@ classdef BehaviorBoxData < handle
             end
             tnum = Data.TrialNum;
             Ax = this.Axes.AllLevelPerf; hold(Ax, "on");
+            Bx = this.Axes.Binomial;
             COUNT = 0;
             for L = this.current_data_struct.LevelGroups
                 COUNT=COUNT+1;
@@ -1174,15 +1175,12 @@ classdef BehaviorBoxData < handle
                     p2B.Marker = deal(this.Shape_code(L));
                     p2BN = plot(x,yBinom,'Parent', this.Axes.Binomial, ...
                         "LineStyle","-");
+                    % p2BN = semilogy(x,yBinom,'Parent', this.Axes.Binomial, ...
+                    %     "LineStyle","-");
                     p2BN.SeriesIndex = L;
                     p2BN.LineWidth = 2;
                 catch
                 end
-            end
-            top = min([max(yB)+0.001 1.05]);
-            try
-                Ax.YLim = [0.501 top];
-            catch
             end
             %Change limits, ticks, grids:
             Ax.XLim = [0.5 numel(tnum)+0.5];
@@ -1196,14 +1194,14 @@ classdef BehaviorBoxData < handle
             Ax.YAxis.MinorTickValues = 0:0.1:1;
             Ax.YAxis.TickLabels = [];
             %Change limits, ticks, grids:
-            %this.Axes.Binomial.XLim = [0.5 numel(tnum)+0.5];
-            %this.Axes.Binomial.XAxis.TickLabels = [];
-            %this.Axes.Binomial.YScale = "log";
-            % this.Axes.Binomial.YLim = [-0.1 1];
-            % this.Axes.Binomial.YGrid = 1;
-            % this.Axes.Binomial.YMinorTick = 1;
-            % this.Axes.Binomial.YMinorGrid = 1;
-            % this.Axes.Binomial.YAxis.TickLabels = [];
+            Bx.XLim = [0.5 numel(tnum)+0.5];
+            Bx.YLim = [0 1];
+            Bx.YTick = []; % Customize y-axis tick marks
+            Bx.YTickLabel = [];
+            % Add horizontal lines at y = 0.001, 0.01, 0.05
+            yline(0.001, '--r', 'y = 0.001', 'Parent',Bx);
+            yline(0.01, '--g', 'y = 0.01', 'Parent',Bx);
+            yline(0.05, '--b', 'y = 0.05', 'Parent',Bx);
         end
         function plotLevelPerf(this, Ax, D)
             hold(Ax, 'on')
@@ -2516,6 +2514,8 @@ classdef BehaviorBoxData < handle
             BN.Box = 'off';
             %BN.BoxStyle = 'full';
             BN.PickableParts = 'none';
+            BN.YScale = "log";
+            
 
             %             % Create axes6
             %             ST = nexttile(TL, [1 1]);
