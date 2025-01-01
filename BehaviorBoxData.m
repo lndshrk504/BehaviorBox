@@ -2347,16 +2347,16 @@ classdef BehaviorBoxData < handle
                         else %Before that use every trial but correct the extreme value for the short interval
                             dat = 1:t;
                         end
+                        LeftTotal = sum(LS(dat)==[1 3], "all");
                         LeftCorrect = sum(LS(dat)==1);
                         LeftWrong = sum(LS(dat)==3);
-                        LeftTotal = LeftWrong + LeftCorrect;
+                        RightTotal = sum(LS(dat)==[2 4], "all");
                         RightCorrect = sum(LS(dat)==2);
                         RightWrong = sum(LS(dat)==4);
-                        RightTotal = RightWrong + RightCorrect;
-                        Lside = sum(D.isLeftTrial(dat))/length(D.isLeftTrial(dat));
-                        Rside = sum(~D.isLeftTrial(dat))/length(D.isLeftTrial(dat));
-                        SB = (RightWrong/RightTotal)*(0.5)-(LeftWrong/LeftTotal)*(0.5);
-                        %SB = (RightWrong/RightTotal)*(LeftCorrect/LeftTotal)*(0.5)-(LeftWrong/LeftTotal)*(RightCorrect/RightTotal)*(0.5);
+                        Lside = sum(D.isLeftTrial(dat));
+                        Rside = sum(~D.isLeftTrial(dat));
+                        %SB = max((RightWrong/RightTotal)*(0.5),0)-max((LeftWrong/LeftTotal)*(0.5),0);
+                        SB = max((RightTotal/Rside)*(0.5),0)-max((LeftTotal/Lside)*(0.5),0);
                         if isnan(SB) %If they have neglected a side for the whole set of 20, give maximum bias.
                             if LeftTotal == LeftCorrect || RightTotal == RightCorrect
                                 SB = 0;
