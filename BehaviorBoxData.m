@@ -1028,6 +1028,30 @@ classdef BehaviorBoxData < handle
         end
         function plotSideBias(this, Ax, D)
             hold(Ax, 'on')
+            % Bars for Mouse's choice
+            Choice = D.CodedChoice;
+            x = 1:numel(D.CodedChoice);
+            y = ones(size(x));
+            AllBars = bar(x, y, 1, "Parent", Ax);
+            AllBars.FaceColor = "flat";
+            LEFTS = find(any(Choice' == [1 ; 3]));
+            AllBars.CData(LEFTS,:) = repmat([0 1 0], numel(LEFTS),1);
+            RIGHTS = find(any(Choice' == [2 ; 4]));
+            AllBars.CData(RIGHTS,:) = repmat([1 1 0], numel(RIGHTS),1);
+            ChoiceText = text(0.5, 0.9, "Response", "Parent",Ax);
+
+            % Vertical Bars showing isLeftTrial
+            x = 1:numel(D.CodedChoice);
+            y = 0.5*ones(size(x));
+            StimBars = bar(x, y, 1, "Parent", Ax);
+            StimBars.FaceColor = "flat";
+            ILT = D.isLeftTrial;
+            Left = find(ILT == 1);
+            StimBars.CData(Left,:) = repmat([0 1 0], numel(Left),1);
+            Right = find(ILT == 0);
+            StimBars.CData(Right,:) = repmat([1 1 0], numel(Right),1);
+            StimulusText = text(0.5, 0.1, "Stimulus", "Parent",Ax);
+            xline(Ax, (1:numel(D.Score))+0.5, '-',"Color",[0.4 0.4 0.4]);
             try
                 if sum(D.Score~=2)==0
                     return
@@ -1035,7 +1059,12 @@ classdef BehaviorBoxData < handle
                 SBt = this.CalculateSB(D);
                 yline(Ax, 0.5, '-',"Color",[0.4 0.4 0.4])
                 lc = 0;
-                for SBl = SBt
+                y = SBt{end};
+                x = 1:numel(y);
+                s = scatter(x, 0.5+y, 'Parent', Ax);
+                [s.MarkerEdgeColor] = deal('flat');
+                s.MarkerFaceColor = [0 0 0];
+                for SBl = SBt(1:end-1) % Last cell is the all level side bias
                     try
                         lc = lc+1;
                         thisLev = D.LevelGroups(lc);
@@ -1044,7 +1073,7 @@ classdef BehaviorBoxData < handle
                         [s.MarkerFaceColor] = deal('flat');
                         [s.MarkerEdgeColor] = deal('flat');
                         try
-                            [s.Marker] = deal(this.Shape_code(thisLev));
+                            %[s.Marker] = deal(this.Shape_code(thisLev));
                         catch
                         end
                         [s.CDataMode] = deal('auto');
@@ -1053,8 +1082,8 @@ classdef BehaviorBoxData < handle
                         unwrapErr(err) %this fails when there is a timeout trial... fix later
                     end
                 end
-                Ax.YLim = [-0.05 1.05];
-                Ax.XLim = [0.5 sum(D.TrialNum~=0)+0.5];
+                Ax.YLim = [0 1];
+                Ax.XLim = [0.25 sum(D.TrialNum~=0)+0.5];
                 Ax.XLimitMethod = "tight";
                 Ax.YGrid = 'on';
             catch err
@@ -2328,57 +2357,66 @@ classdef BehaviorBoxData < handle
             end
         end
         function SBt = CalculateSB(~, D)
+% Two old methods:
+% SB = max((RightWrong/RightTotal)*(0.5),0)-max((LeftWrong/LeftTotal)*(0.5),0);
+%SB = max((RightTotal/Rside)*(0.5),0)-max((LeftTotal/Lside)*(0.5),0);
             try
-                SBt = cell(1, numel(D.LevelGroups));
+                SBt = cell(1, numel(D.LevelGroups)+1);
                 lc = 0;
+                % Loop through each level
                 for L = D.LevelGroups
                     lc = lc + 1;
+                    % Set up vector to store the SB info
                     SBl = zeros(2, sum(D.TrialNum~=0 & D.Level==L));
+                    % Get the mouse's responses for this set of levels
                     LS = D.CodedChoice(D.Level == L);
+                    % Remove timeouts
                     LS = LS(LS ~= 5 & LS ~= 6);
+                    % Label each value with its trial number
                     SBl(2,:) = D.TrialNum(D.Level==L & D.TrialNum~=0)';
+                    % tn = trial number
                     tn = 1:numel(LS);
                     if isempty(tn)
                         continue
                     end
-                    for t = tn
-                        if t >= 21 %After 20 trials use the last 20
+                    for t = tn %Loop through the trial numbers
+                        if t >= 21 %After 20 trials use only the last 20
                             dat = t-19:t;
-                        else %Before that use every trial but correct the extreme value for the short interval
+                        else %In the first 20 trials use this window:
                             dat = 1:t;
                         end
-                        LeftTotal = sum(LS(dat)==[1 3], "all");
                         LeftCorrect = sum(LS(dat)==1);
-                        LeftWrong = sum(LS(dat)==3);
-                        RightTotal = sum(LS(dat)==[2 4], "all");
+                        LeftIncorrect = sum(LS(dat)==3);
+                        LeftTotal = LeftCorrect + LeftIncorrect;
                         RightCorrect = sum(LS(dat)==2);
-                        RightWrong = sum(LS(dat)==4);
-                        Lside = sum(D.isLeftTrial(dat));
-                        Rside = sum(~D.isLeftTrial(dat));
-                        %SB = max((RightWrong/RightTotal)*(0.5),0)-max((LeftWrong/LeftTotal)*(0.5),0);
-                        SB = max((RightTotal/Rside)*(0.5),0)-max((LeftTotal/Lside)*(0.5),0);
-                        if isnan(SB) %If they have neglected a side for the whole set of 20, give maximum bias.
-                            if LeftTotal == LeftCorrect || RightTotal == RightCorrect
-                                SB = 0;
-                            elseif LeftTotal == 0
-                                SB = 0.5;
-                            elseif RightTotal == 0
-                                SB = -0.5;
-                            end
-                            %             elseif abs(SB) == 0.5
-                            %                 if sign(SB) > 0 %positive 1 if SB is positive
-                            %                     SB = (RightWrong - LeftWrong)/(LeftTotal + RightTotal);
-                            %                 else %negative 1 if SB is neg
-                            %                     SB = (RightWrong - LeftWrong)/(LeftTotal + RightTotal);
-                            %                 end
-                        end
-                        if t < 21 %Correct for short interval
-                            SB = SB*(t/10);
-                        end
+                        RightIncorrect = sum(LS(dat)==4);
+                        RightTotal = RightCorrect + RightIncorrect;
+                        Total = LeftTotal + RightTotal;
+                        SB = ((LeftTotal - RightTotal) / Total)*0.5;
                         SBl(1,t) = SB;
                     end
                     SBt{lc} = SBl;
                 end
+                %SideBias for all trials/levels
+                LS = D.CodedChoice;
+                AllSB = zeros(size(LS));
+                for t = 1:numel(LS)
+                    if t >= 21 %After 20 trials use only the last 20
+                        dat = t-19:t;
+                    else %In the first 20 trials use this window:
+                        dat = 1:t;
+                    end
+                    LeftCorrect = sum(LS(dat)==1);
+                    LeftIncorrect = sum(LS(dat)==3);
+                    LeftTotal = LeftCorrect + LeftIncorrect;
+                    RightCorrect = sum(LS(dat)==2);
+                    RightIncorrect = sum(LS(dat)==4);
+                    RightTotal = RightCorrect + RightIncorrect;
+                    Total = LeftTotal + RightTotal;
+                    SB = ((LeftTotal - RightTotal) / Total)*0.5;
+                    AllSB(t) = SB;
+                end
+                SBt{end} = AllSB';
             catch err
                 unwrapErr(err)
             end
