@@ -190,7 +190,16 @@ classdef BehaviorBoxNose < handle
             %Make Button structure
             buttons = props(contains(types, {'button'}) & ~contains(types, {'radiobutton'}));
             bTags = GetTag(this.app, buttons);
-            this.Buttons = cell2struct(cellfun(@(x)(this.app.(x)), buttons, 'UniformOutput',false), bTags);
+            % Out = struct();
+            % for B = buttons'
+            %     name = B{:};
+            %     try
+            %         Out.(name) = this.app.(name);
+            %     catch err
+            %         unwrapErr(err)
+            %     end
+            % end
+            this.Buttons = cell2struct(cellfun(@(x)(this.app.(x)), buttons, 'UniformOutput',false, 'ErrorHandler', @errorFuncNaN), bTags);
             props = props(~contains(types, {'button'}) | contains(types, {'radiobutton'})); types = GetType(this.app, props);
             %Make Dropdown structure
             this.appProps = props;

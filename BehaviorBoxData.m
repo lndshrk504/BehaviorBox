@@ -2940,12 +2940,14 @@ classdef BehaviorBoxData < handle
                 SC = 0;
                 for S = Stim'
                     try
-                    SC = SC+1;
-                    [~, Fidx] = min(abs(Frame - S(1)));
-                    Out(SC, :) =  num2cell([Fidx + CropRow, S(2), S(1), Frame(Fidx)]);
+                        SC = SC+1;
+                        %[~, Fidx] = min(abs(Frame - S(1))); % Find the closest timestamp
+                        Fidx = find(Frame>=S(1), 1, 'first'); % Find the soonest frame after
+                        Out(SC, :) =  num2cell([Fidx + CropRow, S(2), S(1), Frame(Fidx)]);
                     catch err
-                        unwrapErr(err)
-                        1;
+                % Fails when more stimulus than frame timestamps
+                        break
+                        %unwrapErr(err)
                     end
                 end
                 % Make trigonometric corrections, turn figure location into degrees of visual field
@@ -2967,27 +2969,18 @@ classdef BehaviorBoxData < handle
     % 8 inches is the width of the screen, 6 inches is the height of the screen
     % The observer sits in the very center of the screen, 8 inches away
     % OUT is the transformed 1D position data in degrees of visual field
-    
-    % Use trigonometry to transform 1D position data to degrees of visual field
-            screenWidthInInches = 8; % screen width in inches
-            screenHeightInInches = 6; % screen height in inches
-            distanceToObserverInInches = 8; % distance from screen to observer in inches
-
-            % Determine the visual angle of a one-inch strip centered on the observer
-            angleConversionFactor = 2 * atan(0.5 / distanceToObserverInInches) * (180 / pi);
-            
-            % Transform the position based on the type option
+            screenWidth = 20; % screen width in cm
+            screenHeight = 15.2; % screen height
+            distanceToObserver = 13; % distance from screen
             switch options.Type
                 case 'X-Bar'
                     % Transform X positions relative to the width of the screen
-                    adjustedPos = Pos * screenWidthInInches;
-                    OUT = angleConversionFactor * adjustedPos;
-
+                    Horiz_Vec = Pos*screenWidth;
+                    OUT = rad2deg(atan2(Horiz_Vec,distanceToObserver));
                 case 'Y-Bar'
                     % Transform Y positions relative to the height of the screen
-                    adjustedPos = Pos * screenHeightInInches;
-                    OUT = angleConversionFactor * adjustedPos;
-
+                    Vert_Vec = Pos*screenHeight;
+                    OUT = rad2deg(atan2(Vert_Vec,distanceToObserver));
                 otherwise
                     error('Unsupported transformation type. Use X-Bar or Y-Bar.');
             end
