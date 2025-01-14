@@ -2855,7 +2855,6 @@ classdef BehaviorBoxData < handle
             OUT = [];
             Data = this.loadedData;
             Data = Data(:,[1,7]);
-
         % Load timestamp text files
             timestampFiles = dir(cell2mat(fullfile(this.filedir, '*.txt')));
             timestampFiles = timestampFiles(contains({timestampFiles.name}, 'linesweep'));
@@ -2905,8 +2904,6 @@ classdef BehaviorBoxData < handle
             end
             StampTable = vertcat(TStable.txt_split{:});
             % Coordinate the frame timestamps to the figure timestamps
-            % figure began to move after the 300ms delay, first data row
-
             StimStamp = array2table(this.loadedData(:,[1 7]));
             StimStamp.Properties.VariableNames = {'Filename', 'StimRecord'};
             Time = cell2mat(cellfun(@(x) max(x), StimStamp.StimRecord(:,1), 'UniformOutput', false));
@@ -2921,7 +2918,6 @@ classdef BehaviorBoxData < handle
                 StimStamp.Frames(c) = StampTable.Txt(W);
                 StimStamp.FramesTime(c) = StampTable.TotalTime{W};
             end
-
             c = 0;
             for t = [StimStamp.StimRecord StimStamp.Frames]'
                 c = c+1;
@@ -2931,8 +2927,6 @@ classdef BehaviorBoxData < handle
                     'VariableTypes', {'double', 'double', 'double', 'double'}, ...
                     'VariableNames', {'FrameIDX', 'StimPosition', 'StimTime', 'ImagingTime'});
     % Stim position was recorded at ~60Hz, Imaging at ~15Hz
-    % Should align the higher frequency record to the lower freq record
-
     % Match timestamps from Stim to Image Frames
     % Find row of first timestamp after stimulus onset (after 3rd NaN)
                 CropRow = find(isnan(Frame), 1, 'first')+2;
@@ -2944,17 +2938,14 @@ classdef BehaviorBoxData < handle
                         %[~, Fidx] = min(abs(Frame - S(1))); % Find the closest timestamp
                         Fidx = find(Frame>=S(1), 1, 'first'); % Find the soonest frame after
                         Out(SC, :) =  num2cell([Fidx + CropRow, S(2), S(1), Frame(Fidx)]);
-                    catch err
-                % Fails when more stimulus than frame timestamps
+                    catch err % Fails when more stimulus than frame timestamps
                         break
-                        %unwrapErr(err)
                     end
                 end
                 % Make trigonometric corrections, turn figure location into degrees of visual field
                 Out.StimPosition = this.TransformToVisualDegrees(Out.StimPosition, 'Type', 'X-Bar');
                 StimStamp.Matched(c) = {Out};
             end
-
             % Load in the deltaF/F values for each imaging frame
 
         end
