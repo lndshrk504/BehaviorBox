@@ -1045,6 +1045,7 @@ classdef BehaviorBoxData < handle
             y = 0.5*ones(size(x));
             StimBars = bar(x, y, 1, "Parent", Ax);
             StimBars.FaceColor = "flat";
+            StimBars.EdgeColor = "none";
             ILT = D.isLeftTrial;
             Left = find(ILT == 1);
             StimBars.CData(Left,:) = repmat([0 1 0], numel(Left),1);
@@ -1057,14 +1058,18 @@ classdef BehaviorBoxData < handle
                     return
                 end
                 SBt = this.CalculateSB(D);
+                y = SBt{end};
+                s = scatter((1:numel(y)), 0.5+y, 'Parent', Ax); %Adding 0.5 makes 0 right bias and 1 left bias
+                s.MarkerFaceColor = [1 1 1];
+                s.MarkerEdgeColor = [1 1 1];
                 yline(Ax, 0.5, '-',"Color",[0.4 0.4 0.4])
                 lc = 0;
-                y = SBt{end};
+                y = SBt{end-1};
                 x = 1:numel(y);
                 s = scatter(x, 0.5+y, 'Parent', Ax);
                 [s.MarkerEdgeColor] = deal('flat');
                 s.MarkerFaceColor = [0 0 0];
-                for SBl = SBt(1:end-1) % Last cell is the all level side bias
+                for SBl = SBt(1:end-2) % Last cell is the all level side bias
                     try
                         lc = lc+1;
                         thisLev = D.LevelGroups(lc);
@@ -2361,7 +2366,7 @@ classdef BehaviorBoxData < handle
 % SB = max((RightWrong/RightTotal)*(0.5),0)-max((LeftWrong/LeftTotal)*(0.5),0);
 %SB = max((RightTotal/Rside)*(0.5),0)-max((LeftTotal/Lside)*(0.5),0);
             try
-                SBt = cell(1, numel(D.LevelGroups)+1);
+                SBt = cell(1, numel(D.LevelGroups)+2);
                 lc = 0;
                 % Loop through each level
                 for L = D.LevelGroups
@@ -2399,6 +2404,10 @@ classdef BehaviorBoxData < handle
                 end
                 %SideBias for all trials/levels
                 LS = D.CodedChoice;
+                TS = D.isLeftTrial;
+                TS = TS(LS ~= 5 & LS ~= 6);
+                % Remove timeouts
+                LS = LS(LS ~= 5 & LS ~= 6);
                 AllSB = zeros(size(LS));
                 for t = 1:numel(LS)
                     if t >= 21 %After 20 trials use only the last 20
@@ -2416,7 +2425,21 @@ classdef BehaviorBoxData < handle
                     SB = ((LeftTotal - RightTotal) / Total)*0.5;
                     AllSB(t) = SB;
                 end
-                SBt{end} = AllSB';
+                SBt{end-1} = AllSB';
+                StimBias = zeros(size(TS));
+                for t = 1:numel(TS)
+                    if t >= 21 %After 20 trials use only the last 20
+                        dat = t-19:t;
+                    else %In the first 20 trials use this window:
+                        dat = 1:t;
+                    end
+                    Lefts = sum(TS(dat)==1);
+                    Rights = sum(TS(dat)==0);
+                    Total = Lefts+Rights;
+                    SB = ((Lefts - Rights)/Total)*0.5;
+                    StimBias(t) = SB;
+                end
+                SBt{end} = StimBias';
             catch err
                 unwrapErr(err)
             end
