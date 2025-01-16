@@ -580,8 +580,14 @@ classdef BehaviorBoxNose < handle
             else
                 switch this.StimulusStruct.side
                     case 1 %Random
+                        SB_Ratio = this.Data_Object.AnalyzedData.TrialData.SB{end}(end);
                         choice = [0 1];
                         isLeftTrial = choice(randperm(2,1));
+                        if SB_Ratio > 0.6 % too many Left
+                            isLeftTrial = 0;
+                        elseif SB_Ratio < 0.4 % too many Right
+                            isLeftTrial = 1;
+                        end
                     case 2 %all left
                         isLeftTrial = 1;
                     case 3 %all right

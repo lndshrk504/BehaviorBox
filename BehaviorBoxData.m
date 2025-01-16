@@ -943,6 +943,7 @@ classdef BehaviorBoxData < handle
             DATE = ones(size(this.current_data_struct.Score));
             this.AnalyzedData.DayMM = splitapply(@(x){this.DayBin(x)}, [this.current_data_struct.Score this.current_data_struct.Level DATE DATE], G);
             this.AnalyzedData.LevMM = splitapply(@(x)this.LevelMMAnalysis(x), [trialTbl.Score DATE DATE], G);
+            this = this.CalculateTrialData();
             try
                 this.setGUI(this.current_data_struct, this.GUInum)
                 % try
@@ -2237,6 +2238,18 @@ classdef BehaviorBoxData < handle
             end
         end
         %Calculate functions
+        function this = CalculateTrialData(this, options)
+            arguments
+                this
+                options.A = 1
+            end
+            D = this.current_data_struct;
+            this.AnalyzedData.TrialData = struct();
+            this.AnalyzedData.TrialData.SB = this.CalculateSB(D);
+            this.AnalyzedData.TrialData.Old_BP = this.CalculateBP();
+            [~, Avgs] = this.CalculateLP(D.Level, D.Score);
+            this.AnalyzedData.TrialData.LP = Avgs;
+        end
         function [Set, I] = structureSettings(~, Settings)
             try
                 %Find settings, they have had many different names over the years...
