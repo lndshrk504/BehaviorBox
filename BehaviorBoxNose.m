@@ -577,15 +577,17 @@ classdef BehaviorBoxNose < handle
                 end
                 choice = [0 1];
                 isLeftTrial = choice(randperm(2,1));
+                return
             else
                 switch this.StimulusStruct.side
                     case 1 %Random
-                        SB_Ratio = this.Data_Object.AnalyzedData.TrialData.SB{end}(end);
+                        % Add 0.5 bc values oscillate -0.5 to 0.5
+                        SB_Ratio = 0.5+this.Data_Object.AnalyzedData.TrialData.SB.Stimulus{:}(end);
                         choice = [0 1];
                         isLeftTrial = choice(randperm(2,1));
-                        if SB_Ratio > 0.6 % too many Left
+                        if SB_Ratio > 0.7 % too many Left
                             isLeftTrial = 0;
-                        elseif SB_Ratio < 0.4 % too many Right
+                        elseif SB_Ratio < 0.3 % too many Right
                             isLeftTrial = 1;
                         end
                     case 2 %all left
@@ -736,6 +738,22 @@ classdef BehaviorBoxNose < handle
                                     set(this.message_handle,'Text',text);
                             end
                         end
+                end
+            end
+            % Check if Responses show side bias, correct that
+            if this.i>1
+                Resp_Ratio = 0.5+this.Data_Object.AnalyzedData.TrialData.SB.Responses{:}(end);
+                if Resp_Ratio >= 0.72
+                    isLeftTrial = 0;
+                    this.Setting_Struct.Repeat_wrong = 1;
+                    this.app.Repeat_wrong.Value = 1;
+                elseif Resp_Ratio <= 0.28
+                    isLeftTrial = 1;
+                    this.Setting_Struct.Repeat_wrong = 1;
+                    this.app.Repeat_wrong.Value = 1;
+                else
+                    this.Setting_Struct.Repeat_wrong = 0;
+                    this.app.Repeat_wrong.Value = 0;
                 end
             end
             if isLeftTrial %Set properties

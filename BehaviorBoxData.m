@@ -2245,7 +2245,30 @@ classdef BehaviorBoxData < handle
             end
             D = this.current_data_struct;
             this.AnalyzedData.TrialData = struct();
-            this.AnalyzedData.TrialData.SB = this.CalculateSB(D);
+            Side_Bias = this.CalculateSB(D);
+
+            % Define the number of columns
+            numCols = size(Side_Bias,2); % Assume this can be any number between 3 and 7
+
+            % Predefine constant columns
+            fixedLabels = ["Lv1", "Responses", "Stimulus"];
+
+            % Generate variable part of labels for the first columns
+            variableLabels = ["Lv6", "Lv10", "Lv15", "Lv20"];
+            numVariable = max(0, numCols - length(fixedLabels));
+
+            % Create the labels based on the number of columns
+            if numVariable > 0
+                labels = [fixedLabels{1}, variableLabels(1:numVariable), fixedLabels{2:3}];
+            else
+                labels = fixedLabels;
+            end
+
+            % Create table with specified labels
+            T = array2table(Side_Bias); % Example to create data
+            T.Properties.VariableNames = labels;
+
+            this.AnalyzedData.TrialData.SB = T;
             this.AnalyzedData.TrialData.Old_BP = this.CalculateBP();
             [~, Avgs] = this.CalculateLP(D.Level, D.Score);
             this.AnalyzedData.TrialData.LP = Avgs;
