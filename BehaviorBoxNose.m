@@ -676,7 +676,6 @@ classdef BehaviorBoxNose < handle
                 this.current_side = 'right';
             end
         end
-        %Show Cue
         function WaitForInput(this)
             this.TrialStartTime = 0;
             set(this.message_handle, 'Text', 'Waiting for Trial initialization');

@@ -557,109 +557,31 @@ classdef BehaviorBoxWheel < handle
                 end
                 choice = [0 1];
                 isLeftTrial = choice(randperm(2,1));
+                return
             else
                 switch this.StimulusStruct.side
                     case 1 %Random
+                        % Add 0.5 bc values oscillate -0.5 to 0.5
+                        SB_Ratio = 0.5+this.Data_Object.AnalyzedData.TrialData.SB.Stimulus{:}(end);
                         choice = [0 1];
                         isLeftTrial = choice(randperm(2,1));
+                        if SB_Ratio > 0.7 % too many Left
+                            isLeftTrial = 0;
+                        elseif SB_Ratio < 0.3 % too many Right
+                            isLeftTrial = 1;
+                        end
                     case 2 %all left
                         isLeftTrial = 1;
                     case 3 %all right
                         isLeftTrial = 0;
-                    case 4 %alternate repeat
-                        if this.GuiHandles.popupmenu5.Value == 7 %If Smart Random is active:
-                            if this.counter_for_alternate == -1 %When starting Smart Random Alternate, counter is -1.
-                                this.counter_for_alternate = 0;
-                            elseif any(LastScore == [3 4])
-                            else %To deactivate alternate random the mouse must get some number correct on the opposite side
-                                this.counter_for_alternate = this.counter_for_alternate+1;
-                                if this.counter_for_alternate >= this.Setting_Struct.Change_alternate %When the mouse has gotten enough correct trials in a row, check SB against threshold and switch sides.
-                                    if abs(SB) < this.Setting_Struct.SideBiasInterval %If they have improved their SB ratio, turn off alt repeat:
-                                        this.Old_Setting_Struct{end+1} = this.Setting_Struct; %Put this BEFORE the setting changes
-                                        this.SetUpdate{end+1} = this.i; %This current trial is now random
-                                        this.StimulusStruct.side = 7; %Switchback into smart random mode
-                                        this.Setting_Struct.Repeat_wrong = 0; %And turn off repeat wrong
-                                        choice = [0 1];
-                                        isLeftTrial = choice(randperm(2,1));
-                                        text = ['Side bias reduced, disabling alternate repeat. Current SB is ' num2str(SB) '.'];
-                                        disp(text)
-                                        set(this.message_handle,'Text',text);
-                                    else
-                                        isLeftTrial = ~isLeftTrial; %Opposite
-                                        this.counter_for_alternate = 0;
-                                        range = int8(this.Setting_Struct.MinRandAlt:1:this.Setting_Struct.MaxRandAlt);
-                                        this.Setting_Struct.Change_alternate = range(randperm(numel(range),1));
-                                        text = ['Switching side... Must get ' num2str(this.Setting_Struct.Change_alternate) ' ' this.current_side ' correct.'];
-                                        disp(text)
-                                        set(this.message_handle,'Text',text);
-                                    end
-                                end
-                            end
-                        else
-                            if this.Setting_Struct.Repeat_wrong && any(LastScore == [3 4])
-                                %do nothing if the last was wrong
-                            else
-                                this.counter_for_alternate = this.counter_for_alternate+1;
-                                %if counter for change has been reached, change side
-                                if this.counter_for_alternate >= this.Setting_Struct.Change_alternate
-                                    isLeftTrial = ~isLeftTrial; %Opposite
-                                    this.counter_for_alternate = 0;
-                                end
-                            end
-                        end
-                    case 5 %alternate random
-                        if this.Setting_Struct.Repeat_wrong && any(LastScore == [3 4])
-                            %do nothing if repeat wrong
-                        else
-                            this.counter_for_alternate = this.counter_for_alternate+1;
-                            %if counter is larger than the random number, change side
-                            if this.counter_for_alternate >= this.Setting_Struct.Change_alternate
-                                isLeftTrial = ~isLeftTrial; %Opposite
-                                range = int8(this.Setting_Struct.MinRandAlt:this.Setting_Struct.MaxRandAlt);
-                                this.Setting_Struct.Change_alternate = range(randperm(numel(range),1));
-                                this.counter_for_alternate = 0;
-                                text = ['Switching side... Must get ' num2str(this.Setting_Struct.Change_alternate) ' ' this.current_side ' correct.'];
-                                disp(text)
-                                set(this.message_handle,'Text',text);
-                            end
-                        end
-                    case 6 %Side-Bias Correction.
-                        RAND = rand;
-                        isLeftTrial = round(RAND+SB);
-                    case 7 %Smart Random engages repeat wrong if there is a side bias.
-                        if this.i < 20 && any(LastScore == [1 2]) %Last trial was correct (1 or 2) %But also if i<21 repeat wrong is on, so maybe this doesn't need to be here
-                            choice = [0 1];
-                            isLeftTrial = choice(randperm(2,1));
-                        elseif this.i > 20
-                            if this.i == 21
-                                this.Old_Setting_Struct{end+1} = this.Setting_Struct; %Put this BEFORE the setting changes
-                                this.SetUpdate{end+1} = this.i; %This current trial is no longer repeat wrong
-                                this.Setting_Struct.Repeat_wrong = 0;
-                            end
-                            if abs(SB)>=this.Setting_Struct.SideBiasInterval && any(LastScore == [3 4])%If there's a side bias, start repeat wrong.
-                                this.Old_Setting_Struct{end+1} = this.Setting_Struct; %Put this BEFORE the setting changes
-                                this.SetUpdate{end+1} = this.i; %This current trial is repeat wrong
-                                this.StimulusStruct.side = 4; %Switch into alternate random mode
-                                this.Setting_Struct.Repeat_wrong = 1; %Turn on repeat wrong at least for the settings structure to be accurate later for plotting
-                                this.counter_for_alternate = -1; %When choosing which side to start the alternate pattern on, set counter to -1
-                                range = int8(this.Setting_Struct.MinRandAlt:1:this.Setting_Struct.MaxRandAlt);
-                                this.Setting_Struct.Change_alternate = range(randperm(numel(range),1));
-                                text = ['Activating alternate repeat wrong... Must get ' num2str(this.Setting_Struct.Change_alternate) ' ' this.current_side ' correct.'];
-                                disp(text)
-                                set(this.message_handle,'Text',text);
-                            else
-                                choice = [0 1];
-                                isLeftTrial = choice(randperm(2,1));
-                            end
-                        end
-                    case 8 % Keyboard / Manual Mode
+                    case 4 % Keyboard / Manual Mode
                         text = 'Press L for Left, R for Right, ? for Random or S to correct Side-Bias:';
                         set(this.message_handle,'Text',text);
                         fprintf([text '\n'])
                         prompt = 'L, R, ? or S:   ';
                         keypress = 0;
                         while keypress==0
-                            pause(0.01); drawnow;
+                            pause(0.1); drawnow;
                             currkey = input(prompt,"s");
                             switch true
                                 case strcmp(currkey, 'l') || strcmp(currkey, 'L')
@@ -712,13 +634,28 @@ classdef BehaviorBoxWheel < handle
                         end
                 end
             end
+            % Check if Responses show side bias, correct that
+            if this.i>1
+                Resp_Ratio = 0.5+this.Data_Object.AnalyzedData.TrialData.SB.Responses{:}(end);
+                if Resp_Ratio >= 0.72
+                    isLeftTrial = 0;
+                    this.Setting_Struct.Repeat_wrong = 1;
+                    this.app.Repeat_wrong.Value = 1;
+                elseif Resp_Ratio <= 0.28
+                    isLeftTrial = 1;
+                    this.Setting_Struct.Repeat_wrong = 1;
+                    this.app.Repeat_wrong.Value = 1;
+                else
+                    this.Setting_Struct.Repeat_wrong = 0;
+                    this.app.Repeat_wrong.Value = 0;
+                end
+            end
             if isLeftTrial %Set properties
                 this.current_side = 'left';
             else
                 this.current_side = 'right';
             end
         end
-        %loop function that reads lever
         function WaitForInput(this)
             this.TrialStartTime = 0;
             set(this.message_handle,'Text','Waiting for Trial initialization');
