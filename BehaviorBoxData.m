@@ -2241,7 +2241,7 @@ classdef BehaviorBoxData < handle
         function this = CalculateTrialData(this, options)
             arguments
                 this
-                options.A = 1
+                options.AllTwenty logical = false
             end
             D = this.current_data_struct;
             this.AnalyzedData.TrialData = struct();
@@ -2253,9 +2253,19 @@ classdef BehaviorBoxData < handle
             % Predefine constant columns
             fixedLabels = ["Lv1", "Responses", "Stimulus"];
 
-            % Generate variable part of labels for the first columns
-            variableLabels = ["Lv6", "Lv10", "Lv15", "Lv20"];
             numVariable = max(0, numCols - length(fixedLabels));
+            if ~options.AllTwenty
+                if numVariable > 5
+                    options.AllTwenty = true;
+                end
+            end
+
+            % Generate variable part of labels for the first columns
+            if options.AllTwenty
+                variableLabels = ["Lv2", "Lv3", "Lv4", "Lv5", "Lv6", "Lv7", "Lv8", "Lv9", "Lv10", "Lv11", "Lv12", "Lv13", "Lv14", "Lv15", "Lv16", "Lv17", "Lv18", "Lv19", "Lv20"];
+            else
+                variableLabels = ["Lv6", "Lv10", "Lv15", "Lv20"];
+            end
 
             % Create the labels based on the number of columns
             if numVariable > 0
