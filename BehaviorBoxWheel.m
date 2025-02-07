@@ -562,13 +562,15 @@ classdef BehaviorBoxWheel < handle
                 switch this.StimulusStruct.side
                     case 1 %Random
                         % Add 0.5 bc values oscillate -0.5 to 0.5
-                        SB_Ratio = 0.5+this.Data_Object.AnalyzedData.TrialData.SB.Stimulus{:}(end);
                         choice = [0 1];
                         isLeftTrial = choice(randperm(2,1));
-                        if SB_Ratio > 0.7 % too many Left
-                            isLeftTrial = 0;
-                        elseif SB_Ratio < 0.3 % too many Right
-                            isLeftTrial = 1;
+                        try % Fails at trial 1
+                            SB_Ratio = 0.5+this.Data_Object.AnalyzedData.TrialData.SB.Stimulus{:}(end);
+                            if SB_Ratio > 0.7 % too many Left
+                                isLeftTrial = 0;
+                            elseif SB_Ratio < 0.3 % too many Right
+                                isLeftTrial = 1;
+                            end
                         end
                     case 2 %all left
                         isLeftTrial = 1;
