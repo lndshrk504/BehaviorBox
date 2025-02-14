@@ -2942,7 +2942,6 @@ classdef BehaviorBoxDataNew < handle
             names = vertcat(z{:});
             [g,groups] = findgroups(names);
         end
-
         function OUT = ProcessPositionRecord(this)
             OUT = [];
             Data = this.loadedData;

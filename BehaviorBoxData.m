@@ -2942,7 +2942,6 @@ classdef BehaviorBoxData < handle
                 rowIndices = unique([1 ;rowIndices; numel(TS) + 1]);
             % Initialize a cell array to store the split strings
                 N = numel(rowIndices)-1;
-                splitStrings = cell(N,1);
                 splitStrings = table('Size', [N 3], ...
                     'VariableTypes', {'cell','cell','cell'}, ...
                     'VariableNames', {'Txt', 'Frames', 'TotalTime'});
@@ -3044,6 +3043,12 @@ classdef BehaviorBoxData < handle
                 otherwise
                     error('Unsupported transformation type. Use X-Bar or Y-Bar.');
             end
+        end
+        function ReconstructStimuli(this)
+            arguments
+                this
+            end
+            
         end
 
     end %end methods
