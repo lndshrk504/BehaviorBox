@@ -174,15 +174,17 @@ classdef BehaviorBoxSerial < handle
                 this
                 Type char = 'Next'
             end
-            switch Type
-                case 'Start'
-                    write(this.Ard, 'I', "char");
-                case 'Next'
-                    write(this.Ard, 'N', "char");
-                case 'End'
-                    write(this.Ard, 'i', "char");
-                otherwise
-                    % nothing
+            try % will fail if no arduino...
+                switch Type
+                    case 'Start'
+                        write(this.Ard, 'I', "char");
+                    case 'Next'
+                        write(this.Ard, 'N', "char");
+                    case 'End'
+                        write(this.Ard, 'i', "char");
+                    otherwise
+                        % nothing
+                end
             end
         end
 

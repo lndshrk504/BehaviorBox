@@ -319,7 +319,7 @@ classdef BehaviorBoxWheel < handle
             this.GuiHandles.MsgBox.String = "";
             this.GuiHandles.NotesText.String = "";
             this.GuiHandles.NotesText.String = sprintf(string(datetime("today"))+" Behavior Notes:\n");
-            if ~this.app.Animate_Go.Value % Don't show finish line for animation
+            if ~any([this.app.Animate_Go.Value this.app.Animate_Show.Value this.app.Animate_Flash.Value this.app.Animate_Rec.Value]) % Don't show finish line for animation
                 this.app.Stimulus_FinishLine.Value = true;
                 this.Setting_Struct.Stimulus_FinishLine = true;
                 this.StimulusStruct.FinishLine = true;
@@ -371,7 +371,7 @@ classdef BehaviorBoxWheel < handle
                 end
             end
             [this.fig, this.LStimAx, this.RStimAx, this.FLAx, ~] = this.Stimulus_Object.setUpFigure();
-            if ~this.app.Animate_Go.Value % Don't show finish line for animation
+            if ~any([this.app.Animate_Go.Value this.app.Animate_Show.Value this.app.Animate_Flash.Value this.app.Animate_Rec.Value]) % Don't show finish line for animation
                 this.ReadyCue('Create')
                 this.ReadyCueAx = this.fig.Children(3);
                 this.ReadyCueStruct.Ax = this.ReadyCueAx;
@@ -1666,6 +1666,11 @@ classdef BehaviorBoxWheel < handle
                 this.MoveStimuli();
                 return
             end
+            if options.Mode == "Rec"
+                this.TestStimulus("AnimateMode",true, "StimType", STYLE);
+                this.RecordStimuli();
+                return
+            end
             if options.Mode == "XMove"
                 switch STYLE
                     case "Dot"
@@ -1711,7 +1716,7 @@ classdef BehaviorBoxWheel < handle
                     this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'ConstantLine'), "NewStim")
                 elseif contains(this.app.Animate_Style.Value, "Dot")
                     this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Dot'), "NewStim")
-                else
+                else % Bar or Stimulus
                     this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
                 end
             end
@@ -1720,8 +1725,18 @@ classdef BehaviorBoxWheel < handle
             arguments
                 this
                 options.Type = 'normal';
+                options.Record logical = true; % Make sure to turn this off 
             end
             set(this.fig, 'Renderer', 'OpenGL'); % openGL is the default but this may help 
+            if options.Record
+                folderName = 'RecordedFrames';
+                if ~exist(folderName, 'dir') % Check if the folder exists in the current working directory
+                    mkdir(folderName);
+                    disp(['Folder "', folderName, '" created.']);
+                else
+                    disp(['Saving images to folder: "', folderName, '".']);
+                end
+            end
             Center = 0;
             switch this.app.Animate_Style.Value
                 case "Dot"
@@ -1811,6 +1826,88 @@ classdef BehaviorBoxWheel < handle
             try
                 this.a.TimeStamp(); % 300 milisec builtin pause
             end
+        end
+        function RecordStimuli(this, options)
+            arguments
+                this
+                options.Type = 'normal';
+                options.Record logical = true; % Make sure to turn this off 
+            end
+            set(this.fig, 'Renderer', 'OpenGL'); % openGL is the default but this may help 
+            if options.Record
+                folderName = 'RecordedFrames';
+                if ~exist(folderName, 'dir') % Check if the folder exists in the current working directory
+                    mkdir(folderName);
+                    disp(['Folder "', folderName, '" created.']);
+                else
+                    disp(['Saving images to folder: "', folderName, '".']);
+                end
+            end
+            Center = 0;
+            switch this.app.Animate_Style.Value
+                case "Dot"
+                    AX = this.fig.Children(1);
+                    BX.Position(1) = NaN;
+                    maxPosition = 0.74; % Maximum x-axis position to move to
+                    minPosition = -0.25; % Maximum x-axis position to move to
+                    X_or_Y = 1;
+                case "X-Line"
+                    AX = this.fig.Children(1);
+                    BX.Position(1) = NaN;
+                    maxPosition = 0.5; % Maximum x-axis position to move to
+                    minPosition = -0.5; % Maximum x-axis position to move to
+                    X_or_Y = 1;
+                case "Y-Line"
+                    AX = this.fig.Children(1);
+                    BX.Position(1) = NaN;
+                    maxPosition = 0.5; % Maximum x-axis position to move to
+                    minPosition = -0.5; % Maximum x-axis position to move to
+                    X_or_Y = 2;
+                case "Bar"
+                    AX = this.Stimulus_Object.LStimAx;
+                    BX = this.Stimulus_Object.RStimAx;
+                    maxPosition = 0.74; % Maximum x-axis position to move to
+                    minPosition = -0.25; % Maximum x-axis position to move to
+                    X_or_Y = 1;
+                    Center = 0.25;
+                case "Stimulus"
+                    AX = this.Stimulus_Object.LStimAx;
+                    BX = this.Stimulus_Object.RStimAx;
+                    maxPosition = 0.74; % Maximum x-axis position to move to
+                    minPosition = -0.25; % Maximum x-axis position to move to
+                    X_or_Y = 1;
+                    Center = 0.25;
+            end
+            % Movement parameters
+            stepSize = this.app.Animate_Speed.Value; % Adjust step size based on speed value
+            if this.app.Animate_Side.Value == "Left"
+                direction = -1;
+            elseif this.app.Animate_Side.Value == "Right"
+                direction = 1;
+            end
+            this.fig.InvertHardcopy = "off";
+            fileName = sprintf('Frame%04d.tiff', 0);
+            fullFilePath = fullfile(folderName, fileName);
+            print(this.fig, '-dtiff', fullFilePath)
+            i = 1;
+            while all([~this.app.Animate_End.Value ~this.app.Stop.Value])
+                % Update positions for axes
+                AX.Position(X_or_Y) = AX.Position(X_or_Y) + direction * stepSize;
+                BX.Position(X_or_Y) = BX.Position(X_or_Y) + direction * stepSize;
+                Pos = AX.Position(X_or_Y);
+                fileName = sprintf('Frame-Pos%+05.2f-Frame%04d.tiff', Pos, i);
+                fullFilePath = fullfile(folderName, fileName);
+                print(this.fig, '-dtiff', fullFilePath)
+                % Check boundaries and reset position
+                if AX.Position(X_or_Y) > maxPosition
+                    AX.Position(X_or_Y) = minPosition;
+                elseif AX.Position(X_or_Y) < minPosition
+                    AX.Position(X_or_Y) = maxPosition;
+                end
+                drawnow;
+                i = i+1;
+            end
+            close(this.fig)
         end
         function SimulateTrial(this)
             arguments
