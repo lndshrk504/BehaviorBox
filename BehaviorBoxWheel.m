@@ -1886,18 +1886,24 @@ classdef BehaviorBoxWheel < handle
                 direction = 1;
             end
             this.fig.InvertHardcopy = "off";
-            fileName = sprintf('Frame%04d.tiff', 0);
-            fullFilePath = fullfile(folderName, fileName);
-            print(this.fig, '-dtiff', fullFilePath)
+            axis off
+            % fileName = sprintf('Frame%04d.tiff', 0);
+            % fullFilePath = fullfile(folderName, fileName);
+            % print(this.fig, '-dtiff', fullFilePath)
             i = 1;
             while all([~this.app.Animate_End.Value ~this.app.Stop.Value])
                 % Update positions for axes
                 AX.Position(X_or_Y) = AX.Position(X_or_Y) + direction * stepSize;
                 BX.Position(X_or_Y) = BX.Position(X_or_Y) + direction * stepSize;
                 Pos = AX.Position(X_or_Y);
-                fileName = sprintf('Frame-Pos%+05.2f-Frame%04d.tiff', Pos, i);
+                %fileName = sprintf('Frame-Pos%+05.2f-Frame%04d.tiff', Pos, i);
+                fileName = sprintf('Frame-%04d-Pos%+05.2f.tiff', i, Pos);
                 fullFilePath = fullfile(folderName, fileName);
-                print(this.fig, '-dtiff', fullFilePath)
+                if ~exist(fullFilePath, 'file')
+                    print(this.fig, '-dtiff', fullFilePath)
+                else 
+                    break
+                end
                 % Check boundaries and reset position
                 if AX.Position(X_or_Y) > maxPosition
                     AX.Position(X_or_Y) = minPosition;
