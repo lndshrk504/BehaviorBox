@@ -299,11 +299,13 @@ classdef BehaviorBoxVisualStimulus
         function PlotYLine(this)
             AX = axes(this.fig, "Color", 'k', 'Tag', 'YLine', 'Position', [0 0 1 1]);
             axis image;
+            axis off
             YL = yline(AX, 0, 'Tag', 'Contour', Color=this.LineColor, LineWidth=this.SegThick);
         end
         function PlotXLine(this)
             AX = axes(this.fig, "Color", 'k', 'Tag', 'XLine', 'Position', [0 0 1 1]);
             axis image;
+            axis off
             XL = xline(AX, 0, 'Tag', 'Contour', Color=this.LineColor, LineWidth=this.SegThick);
         end
         function PlotDot(this)
