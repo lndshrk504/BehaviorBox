@@ -1667,7 +1667,6 @@ classdef BehaviorBoxWheel < handle
                 return
             end
             if options.Mode == "Rec"
-                this.TestStimulus("AnimateMode",true, "StimType", STYLE);
                 this.RecordStimuli();
                 return
             end
@@ -1833,18 +1832,21 @@ classdef BehaviorBoxWheel < handle
                 options.Type = 'normal';
                 options.Record logical = true; % Make sure to turn this off 
             end
+% With mouse 303743 no settings were saved, so the defaults will be X-Line,
+% and the stimulus will loop through the saved timestamps
+            STYLE = 'X-Line';
+            DataToRec = this.Data_Object.loadedData(:,7);
+            this.TestStimulus("AnimateMode",true, "StimType", STYLE);
             set(this.fig, 'Renderer', 'OpenGL'); % openGL is the default but this may help 
-            if options.Record
-                folderName = 'RecordedFrames';
-                if ~exist(folderName, 'dir') % Check if the folder exists in the current working directory
-                    mkdir(folderName);
-                    disp(['Folder "', folderName, '" created.']);
-                else
-                    disp(['Saving images to folder: "', folderName, '".']);
-                end
+            folderName = fullfile(this.Data_Object.filedir{:},'RecordedFrames');
+            if ~exist(folderName, 'dir') % Check if the folder exists in the current working directory
+                mkdir(folderName);
+                disp(['Folder "', folderName, '" created.']);
+            else
+                disp(['Saving images to folder: "', folderName, '".']);
             end
             Center = 0;
-            switch this.app.Animate_Style.Value
+            switch STYLE
                 case "Dot"
                     AX = this.fig.Children(1);
                     BX.Position(1) = NaN;
@@ -1879,12 +1881,12 @@ classdef BehaviorBoxWheel < handle
                     Center = 0.25;
             end
             % Movement parameters
-            stepSize = this.app.Animate_Speed.Value; % Adjust step size based on speed value
-            if this.app.Animate_Side.Value == "Left"
-                direction = -1;
-            elseif this.app.Animate_Side.Value == "Right"
-                direction = 1;
-            end
+            %stepSize = this.app.Animate_Speed.Value; % Adjust step size based on speed value
+            %if this.app.Animate_Side.Value == "Left"
+            %    direction = -1;
+            %elseif this.app.Animate_Side.Value == "Right"
+            %    direction = 1;
+            %end
             this.fig.InvertHardcopy = "off";
             axis off
             % fileName = sprintf('Frame%04d.tiff', 0);
