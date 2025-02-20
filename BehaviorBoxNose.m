@@ -148,7 +148,7 @@ classdef BehaviorBoxNose < handle
                     this.WaitForInput();
                     this.WaitForInputAndGiveReward();
                     this.AfterTrial();
-                    pause(0.1);
+                    pause(0.01);
                     errorc = 0;
                     % Uncomment these when needing to time the trial
                     % profile viewer
@@ -721,18 +721,19 @@ classdef BehaviorBoxNose < handle
                     if (this.isLeftTrial && this.a.ReadLeft()) || (~this.isLeftTrial && this.a.ReadRight())
                         this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'Correct_Confirmation')
                     elseif this.a.ReadMiddle()
-                        this.FlashNew(this.StimulusStruct, this.Box, findobj('Tag', 'ReadyCueDot'), 'Correct_Confirmation');
+                        this.FlashNew(this.StimulusStruct, this.Box, findobj('Tag', 'ReadyCueDot'), 'WaitForInput');
                     end
                 end
             end
             stable = STABLE && readFunc(this.a);
         end
         function WaitForInputArduino(this)
-            this.ResetSensor();
             this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.LineColor;
+            while (this.a.ReadLeft() || this.a.ReadRight())
+                pause(0.1)
+            end
             pause(0.1);
             while ~get(this.stop_handle, 'Value')
-                this.FlashNew(this.StimulusStruct, this.Box, findobj('Tag', 'ReadyCueDot'), 'WaitForInput');
                 pause(0.1);
 
                 if this.Setting_Struct.IntertrialMalCancel && (this.a.ReadLeft() || this.a.ReadRight())
@@ -932,11 +933,11 @@ classdef BehaviorBoxNose < handle
             tic;
             this.GiveRewardAndFlash();
 
-            if ~this.Box.KeyboardInput && this.Box.Input_type == 3
-                while this.a.ReadLeft() || this.a.ReadRight() % Pause while the mouse is drinking their reward
-                    pause(0.5);
-                end
-            end
+            % if ~this.Box.KeyboardInput && this.Box.Input_type == 3
+            %     while this.a.ReadLeft() || this.a.ReadRight() % Pause while the mouse is drinking their reward
+            %         pause(0.5);
+            %     end
+            % end
 
             this.DrinkTime = toc;
             this.persistCorrectStimulus();
@@ -1045,8 +1046,6 @@ classdef BehaviorBoxNose < handle
             this.DuringTMal = 0;
             event = -1;
             try
-                % Reset lick sensor and initialize timers
-                this.ResetSensor();
                 timeout_value = this.Box.Timeout_after_time;
                 response_timer = clock;
                 timeout_timer = clock;
@@ -1079,12 +1078,9 @@ classdef BehaviorBoxNose < handle
                     end
                 end
 
-                % Update visual elements after reading
-                a = this.fig.findobj("Type", "Axes");
-                a = a(contains({a.Tag}, 'Correct'));
-                % Update the distractor color to dim
+                % Update all distractor color to dim
                 try
-                    d = a.findobj("Tag", "Distractor");
+                    d = findobj("Tag", "Distractor");
                     [d.Color] = deal(this.StimulusStruct.DimColor);
                 catch
                     % Ignore errors related to finding and updating distractors
@@ -1120,8 +1116,6 @@ classdef BehaviorBoxNose < handle
             this.DuringTMal = 0;
             event = -1;
             try
-                % Reset lick sensor and initialize timers
-                this.ResetSensor();
                 timeout_value = this.Box.Timeout_after_time;
                 timeout_timer = clock;
                 response_timer = clock;
@@ -1224,26 +1218,30 @@ classdef BehaviorBoxNose < handle
             start_color = Stim.LineColor;
             flash_color = Stim.FlashColor;
             dark_color = Stim.DimColor;
-            if whatdecision == "time out"
+            if whatdecision == "WaitForInput"
+                Reps = 1;
+                Steps = Stim.FreqFlashInitial;
+                this.BasicFlashCosine("Lines",Lines, "NewColor", dark_color, "steps", Steps, "Interruptor", @(x)~this.a.ReadNone())
+            elseif whatdecision == "time out"
                 Reps = Stim.RepFlashInitial;
                 Steps = Stim.FreqFlashInitial;
-                this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
+                this.BasicFlashCosine("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
             elseif whatdecision == "Mal" %Wheel hold still interval
                 Reps = 1;
                 Steps = 10;
-                this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
+                this.BasicFlashCosine("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
             elseif whatdecision == "NewStim" %L or R poke during intertrial
                 Reps = Stim.RepFlashInitial;
                 Steps = Stim.FreqFlashInitial;
-                this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
+                this.BasicFlashCosine("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
             elseif whatdecision == "center" %Center poke during trial
                 Reps = 1;
                 Steps = Stim.FreqFlashInitial;
-                this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
+                this.BasicFlashCosine("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
             elseif whatdecision == "Correct_Confirmation"
                 Reps = 1;
                 Steps = Stim.FreqFlashInitial;
-                this.BasicFlash("Lines",Lines, "NewColor", dark_color, "steps", Steps, "Interruptor", @(x)this.a.ReadMiddle())
+                this.BasicFlashCosine("Lines",Lines, "NewColor", flash_color, "steps", Steps, "Interruptor", @(x)this.a.ReadMiddle())
             elseif whatdecision == "AfterCorrect"
                 Reps = 1;
                 Steps = Stim.FreqFlashInitial;
@@ -1252,11 +1250,7 @@ classdef BehaviorBoxNose < handle
                 else
                     INTR = @(x)this.a.ReadRight();
                 end
-                this.BasicFlash("Lines",Lines, "NewColor", dark_color, "steps", Steps, "Interruptor", INTR())
-            elseif whatdecision == "WaitForInput"
-                Reps = 1;
-                Steps = Stim.FreqFlashInitial;
-                this.BasicFlash("Lines",Lines, "NewColor", dark_color, "steps", Steps, "Interruptor", @(x)this.a.ReadNone())
+                this.BasicFlashCosine("Lines",Lines, "NewColor", dark_color, "steps", Steps, "Interruptor", INTR())
             else
                 Steps = Stim.FreqFlashAfter;
                 d = findobj('Tag', 'Distractor');
@@ -1267,21 +1261,21 @@ classdef BehaviorBoxNose < handle
                     case contains(whatdecision, 'wrong')
                         Reps = Stim.RepFlashAfterW;
                         if Reps > 0
-                            this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
+                            this.BasicFlashCosine("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
                         end
                     case contains(whatdecision, 'correct') || contains(whatdecision, 'OC')
                         Reps = Stim.RepFlashAfterC;
                         OneWay = true;
                         if Reps > 0
                             %[Lines.Color] = deal(dark_color);
-                            this.BasicFlash("Lines",Lines, "NewColor", flash_color, "steps", Steps)
-                            %this.BasicFlash(Lines, flash_color, Steps)
+                            this.BasicFlashCosine("Lines",Lines, "NewColor", flash_color, "steps", Steps)
+                            %this.BasicFlashLinear(Lines, flash_color, Steps)
                             %[Lines.Color] = deal(Stim.LineColor);
                         end
                 end
             end
         end
-        function BasicFlash(this, vars)
+        function BasicFlashLinear(this, vars)
             arguments
                 this
                 vars.Lines = findobj('Tag','Contour')
@@ -1320,6 +1314,56 @@ classdef BehaviorBoxNose < handle
             mat = interp1( [1 ; steps], [start_color ; NewColor], STEPS);
             for i = mat'
                 set(obj, COLOR_PROP, i); drawnow
+                %pause(0.01)
+                if ~isempty(vars.Interruptor) && vars.Interruptor() %This is all very slow and will be sped up later
+                    set(obj, COLOR_PROP, start_color)
+                    break
+                end
+            end
+        end
+        function BasicFlashCosine(this, vars)
+            arguments
+                this
+                vars.Lines = findobj('Tag','Contour')
+                vars.NewColor
+                vars.steps
+                vars.OneWay logical = false
+                vars.Interruptor = [];
+            end
+            if vars.steps == 1
+                return
+            end
+            obj = vars.Lines;
+            NewColor = vars.NewColor;
+            steps = vars.steps;
+            OneWay = vars.OneWay;
+            if OneWay
+                X = linspace(0,pi, steps);
+            else
+                X = linspace(0,2*pi, 2*steps-1);
+            end
+            % This blinks the Obj to the NewColor and back, over a total of
+            % 2*steps increments
+            if obj(1).Type == "scatter"
+                start_color = [obj(1).MarkerFaceColor];
+                COLOR_PROP = 'MarkerFaceColor';
+            elseif obj(1).Type == "polygon"
+                start_color = [obj(1).FaceColor];
+            elseif obj(1).Type == "line"
+                start_color = [obj(1).Color];
+                COLOR_PROP = 'Color';
+            else
+                return %prevent an error crash
+            end
+% Calculations for Cosine function:
+% A cosine oscillates from 1 to -1 and 1, some adjustments must be made:
+            Range = start_color(1) - NewColor(1); % Maximum - Minimum of cosine oscillation
+            Amplitude = Range/2; % Half of the Range
+            Offset = (start_color(1) + NewColor(1))/2; % Vertical Shift
+            y = Amplitude * cos(X) + Offset; % Cosine smoothed oscillation between start and new color
+            mat = repmat(y,3,1); % Expand to RGB values
+            for C = mat
+                set(obj, COLOR_PROP, C); drawnow
                 %pause(0.01)
                 if ~isempty(vars.Interruptor) && vars.Interruptor() %This is all very slow and will be sped up later
                     set(obj, COLOR_PROP, start_color)
@@ -1466,9 +1510,9 @@ classdef BehaviorBoxNose < handle
                         this.ReadyCue(1)
                         this.ReadyCueAx.findobj('Type','scatter').MarkerFaceColor = deal(this.StimulusStruct.DimColor); drawnow;
                         pause(0.1)
-                        while this.a.ReadLeft() | this.a.ReadRight() %Pause while the mouse is standing there and drinking their water reward
-                            pause(0.1); drawnow;
-                        end
+                        % while this.a.ReadLeft() | this.a.ReadRight() %Pause while the mouse is standing there and drinking their water reward
+                        %     pause(0.1); drawnow;
+                        % end
                         % o = findobj(this.fig.Children);
                         % [o(:).Visible] = deal(0);
                 end
@@ -1822,15 +1866,7 @@ classdef BehaviorBoxNose < handle
                 this.Data_Object.SaveManyFigures([],name)
             end
         end
-        function ResetSensor(this)
-            switch this.Box.Input_type
-                case 5
-                    this.a.writeDigitalPin(this_SETTING_Struct.ResetPin, 0);
-                    this.a.writeDigitalPin(this_SETTING_Struct.ResetPin, 1);
-                case 2
-                    this.Box.encoder.resetCount;
-            end
-        end
+        
     end 
     %STATIC FUNCTIONS====
     methods(Static = true)
