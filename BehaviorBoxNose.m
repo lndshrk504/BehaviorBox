@@ -1113,7 +1113,7 @@ classdef BehaviorBoxNose < handle
 
                     % Handle middle reading for inter-trial malingering
                     if this.a.ReadMiddle()
-                        this.Flash(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), 'center');
+                        this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), 'Make_Background', false);
                         this.DuringTMal = this.DuringTMal + 1;
                     end
 
@@ -1123,14 +1123,14 @@ classdef BehaviorBoxNose < handle
                             event = 3;
                             break;
                         else
-                            this.Flash(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'center');
+                            this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), 'Make_Background', false);
                         end
                     elseif this.isStableForOneSecond(@(x) x.ReadRight(), true)  % With delay
                         if ~this.isLeftTrial
                             event = 3;
                             break;
                         else
-                            this.Flash(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'center');
+                            this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), 'Make_Background', false);
                         end
                     end
                 end
@@ -1890,105 +1890,6 @@ classdef BehaviorBoxNose < handle
             end
             Set = SetStr;
             T = Include;
-        end
-        function Flash(Stim, Box, Lines, whatdecision, OneWay)
-% Phase this out completely
-            arguments
-                Stim % from Setting structure
-                Box
-                Lines = findobj(this.fig.Children, 'Tag', 'Contour')
-                whatdecision = "time out"
-                OneWay logical = false
-            end
-            if isempty(Lines)
-                return
-            end
-            drawnow
-            if ~Stim.FlashStim
-                return
-            end
-            switch 1
-                case contains(whatdecision, 'wrong')
-                    Reps = Stim.RepFlashAfterW;
-                case contains(whatdecision, 'correct') || contains(whatdecision, 'OC')
-                    Reps = Stim.RepFlashAfterC;
-            end
-            if contains(whatdecision, {'wrong', 'correct'}) && Reps == 0
-                return
-            end
-            start_color = Stim.LineColor;
-            flash_color = Stim.FlashColor;
-            dark_color = Stim.DimColor;
-            if whatdecision == "time out"
-                Reps = Stim.RepFlashInitial;
-                Steps = Stim.FreqFlashInitial;
-                Flash_outline(Lines, Stim.BackgroundColor, Steps)
-            elseif whatdecision == "Mal" | whatdecision == "Wheel" %Wheel hold still interval
-                Reps = 1;
-                Steps = 10;
-                Flash_outline(Lines, Stim.BackgroundColor, Steps)
-            elseif whatdecision == "NewStim" %L or R poke during intertrial
-                Reps = Stim.RepFlashInitial;
-                Steps = Stim.FreqFlashInitial;
-                Flash_outline(Lines, Stim.BackgroundColor, Steps)
-            elseif whatdecision == "center" %Center poke during trial
-                Reps = 1;
-                Steps = Stim.FreqFlashInitial;
-                Flash_outline(Lines, Stim.BackgroundColor, Steps)
-            elseif whatdecision == "Correct_Confirmation"
-                Reps = 1;
-                Steps = Stim.FreqFlashInitial;
-                Flash_outline(Lines, dark_color, Steps)
-            else
-                Steps = Stim.FreqFlashAfter;
-                d = findobj(this.fig.Children, 'Tag', 'Distractor');
-                if isempty(d)
-                    d = struct();
-                end
-                switch 1
-                    case contains(whatdecision, 'wrong')
-                        Reps = Stim.RepFlashAfterW;
-                        if Reps > 0
-                            Flash_outline(Lines, Stim.BackgroundColor, Steps)
-                        end
-                    case contains(whatdecision, 'correct') || contains(whatdecision, 'OC')
-                        Reps = Stim.RepFlashAfterC;
-                        OneWay = true;
-                        if Reps > 0
-                            [Lines.Color] = deal(dark_color);
-                            Flash_outline(Lines, flash_color, Steps)
-                            %[Lines.Color] = deal(Stim.LineColor);
-                        end
-                end
-            end
-            function Flash_outline(obj, NewColor, steps)
-                if OneWay
-                    STEPS = 1:1:steps;
-                else
-                    STEPS = [1:1:steps steps-1:-1:0];
-                end
-                % This blinks the Obj to the NewColor and back, over a total of
-                % 2*steps increments
-                if obj(1).Type == "scatter"
-                    start_color = [obj(1).MarkerFaceColor];
-                elseif obj(1).Type == "polygon"
-                    start_color = [obj(1).FaceColor];
-                elseif obj(1).Type == "line"
-                    start_color = [obj(1).Color];
-                else
-                    return %prevent an error crash
-                end
-                for i = STEPS
-                    CurrentColor = start_color + (NewColor - start_color) * (i/steps);
-                    if obj(1).Type == "scatter"
-                        [obj.MarkerFaceColor] = deal(CurrentColor);
-                    elseif obj(1).Type == "polygon"
-                    elseif obj(1).Type == "line"
-                        [obj.Color] = deal(CurrentColor);
-                    end
-                    drawnow
-                end
-            end
         end
         function saveFigure(fig, folder, name)
             % Remove .mat extension if present and prepare the file name
