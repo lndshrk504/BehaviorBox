@@ -1,6 +1,6 @@
 classdef BehaviorBoxNose < handle
     %BehaviorBox Super class
-    % WBS 6 . 26 . 2023
+    % WBS 2 . 21 . 2025
     %====================================================================
     %Super Class for BehaviorBox Ver 1.4
     %This Class is called by the GUI BehaviorBox via RunTraining()and runs the Training
