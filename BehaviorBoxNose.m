@@ -290,49 +290,29 @@ classdef BehaviorBoxNose < handle
             tic
             try
                 % https://docs.arduino.cc/learn/microcontrollers/digital-pins
-                if this.Setting_Struct.Box_Input_type == 8 %Skip all this if keyboard mode
-                    this.Box.ardunioReadDigital = 0;
-                    return
-                end
-                if ispc
-                    comsnum = "COM"+this.app.Arduino_Com.Value;
-                elseif ismac
-                    comsnum = "/dev/tty.usbmodem"+this.app.Arduino_Com.Value;
-                elseif isunix
-                    comsnum = "/dev/tty"+this.app.Arduino_Com.Value;
-                end
-                this.Box.use_ball = 0; %All these are automatically off
-                this.Box.use_wheel = 0;
-                this.Box.ardunioReadDigital = 0;
-                this.Box.KeyboardInput = 0;
-                this.Box.readHigh = 0; % When unselected, NosePoke reads HIGH, when selected it reads LOW
-                this.Box.ResetPin        = 'D4'; %set which lever is what and what the input setup is from
-                this.Box.TriggerPin      = 'D5';
                 switch this.Setting_Struct.Box_Input_type
                     case 3 %Three Pokes
+                        if ispc
+                            comsnum = "COM"+this.app.Arduino_Com.Value;
+                        elseif ismac
+                            comsnum = "/dev/tty.usbmodem"+this.app.Arduino_Com.Value;
+                        elseif isunix
+                            comsnum = "/dev/tty"+this.app.Arduino_Com.Value;
+                        end
                         this.a = BehaviorBoxSerial(comsnum, 115200, 'NosePoke');
                         pause(2)
                         this.a.SetupReward("Which", "Both", "DurationLeft", this.Box.Lrewardtime, "DurationRight", this.Box.Rrewardtime);
                         this.Box.ardunioReadDigital = 1;
-                        this.Box.readHigh = 0;
-                        this.Box.Left = 'D2';
-                        this.Box.Middle = 'D3';
-                        this.Box.Right = 'D7';
-                        this.Box.ValveL = 'D6';
-                        this.Box.ValveR = 'D8';
-                        this.Box.AirPuff  = 'D11';
+                        this.Box.KeyboardInput = false;
                     case 8 %Keyboard, used if no arduino connected
+                        this.Box.ardunioReadDigital = 0;
                         this.Box.KeyboardInput = 1;
-                        this.Box.readHigh = 1;
-                        return
+                        this.a = [];
                 end
                 toc
             catch
-                this.Box.use_ball = 0; %All these are automatically off
-                this.Box.use_wheel = 0;
                 this.Box.ardunioReadDigital = 0;
                 this.Box.KeyboardInput = 1;
-                this.Box.readHigh = 0; % When unselected, NosePoke reads HIGH, when selected it reads LOW
                 this.Setting_Struct.Box_Input_type = 8;
                 this.a = [];
             end
@@ -569,7 +549,6 @@ classdef BehaviorBoxNose < handle
                 end
                 choice = [0 1];
                 isLeftTrial = choice(randperm(2,1));
-                return
             else
                 switch this.StimulusStruct.side
                     case 1 %Random
@@ -692,50 +671,48 @@ classdef BehaviorBoxNose < handle
                 this.Data_Object.GetStartTime;
             end
         end
-        function stable = isStableForOneSecond(this, readFunc, checkDelay)
+        function WaitForInputArduino(this)
+            this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.LineColor;
+            while (this.a.ReadLeft() || this.a.ReadRight())
+                pause(0.1)
+            end
+            while ~get(this.stop_handle, 'Value')
+                pause(0.01);
+                if this.Setting_Struct.IntertrialMalCancel && (this.a.ReadLeft() || this.a.ReadRight())
+                    this.HandleIntertrialMalingering();
+                end
+
+                if this.Middle_StableChoice_StartTrial(true)
+                    break;
+                end
+            end
+        end
+        function stable = Middle_StableChoice_StartTrial(this, checkDelay)
             % Check if the sensor value remains stable for 1 second
             if checkDelay
                 delayTime = this.Setting_Struct.Input_Delay_Respond;
             else
                 delayTime = 0;
             end
-
-            timerStart = datetime('now');
             STABLE = true;
-
             % Ensure the value remains 1 for the specified duration
-            while seconds(datetime('now') - timerStart) < delayTime
-                %pause(0.01); % check in small intervals
-                if ~readFunc(this.a)
+            tic
+            while toc < delayTime
+                pause(0.01); % check in small intervals
+                if ~this.a.ReadNone()
                     STABLE = false;
                     break;
-                elseif readFunc(this.a)
-                    if (this.isLeftTrial && this.a.ReadLeft()) || (~this.isLeftTrial && this.a.ReadRight())
-                        this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'Flash_Contour')
-                    elseif this.a.ReadMiddle()
-                        this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'ReadyCueDot'), 'WaitForInput');
-                    end
-                end
-            end
-            stable = STABLE && readFunc(this.a);
-        end
-        function WaitForInputArduino(this)
-            this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.LineColor;
-            while (this.a.ReadLeft() || this.a.ReadRight())
-                pause(0.1)
-            end
-            pause(0.1);
-            while ~get(this.stop_handle, 'Value')
-                pause(0.1);
-
-                if this.Setting_Struct.IntertrialMalCancel && (this.a.ReadLeft() || this.a.ReadRight())
-                    this.HandleIntertrialMalingering();
-                end
-
-                if this.isStableForOneSecond(@(x) x.ReadMiddle(), true)
+                elseif this.a.ReadLeft()
+                    STABLE = false;
                     break;
+                elseif this.a.ReadRight()
+                    STABLE = false;
+                    break;
+                elseif this.a.ReadMiddle()
+                    this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'ReadyCueDot'), 'WaitForInput')
                 end
             end
+            stable = STABLE && this.a.ReadMiddle();
         end
         function WaitForInputKeyboard(this)
             InterTMalInterv = this.Setting_Struct.IntertrialMalSec;
@@ -841,13 +818,6 @@ classdef BehaviorBoxNose < handle
             this.handleIncorrectDecision();
             this.processDecision();
         end
-        function confirmCorrectChoice(this)
-            if this.isStableForOneSecond(@(x) x.ReadLeft, false) && this.isLeftTrial
-                this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'Flash_Contour');
-            elseif this.isStableForOneSecond(@(x) x.ReadRight, false) && ~this.isLeftTrial
-                this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'Flash_Contour');
-            end
-        end
         function setupStimulus(this)
             this.ResponseTime = 0;
             this.WhatDecision = 'time out';
@@ -860,11 +830,9 @@ classdef BehaviorBoxNose < handle
                 set([x{:}], 'Visible', 1);
             end
             this.fig.Color = this.StimulusStruct.BackgroundColor;
-            drawnow;
             this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'ReadyCueDot'), "Make_Background", true);
             this.ReadyCue(0);
             this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'line'), "Make_Bright");
-            drawnow;
         end
         function processIgnoredInput(this)
             tic;
@@ -878,6 +846,13 @@ classdef BehaviorBoxNose < handle
                 end
                 this.updateInputIgnoredMessage();
                 drawnow;
+            end
+        end
+        function confirmCorrectChoice(this)
+            if this.Left_StableChoice_DuringTrial(true) && this.isLeftTrial
+                this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'Flash_Contour');
+            elseif this.Right_StableChoice_DuringTrial(true) && ~this.isLeftTrial
+                this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'Flash_Contour');
             end
         end
         function updateInputIgnoredMessage(this)
@@ -904,10 +879,6 @@ classdef BehaviorBoxNose < handle
                 this.WhatDecision = this.getDecision();
             end
         end
-        function clearPolygonColors(this)
-            p = findobj(this.fig.Children, 'Type', 'Polygon');
-            [p.FaceColor] = deal(this.StimulusStruct.BackgroundColor);
-        end
         function processDecision(this)
             switch true
                 case contains(this.WhatDecision, 'correct', 'IgnoreCase', true)
@@ -927,18 +898,8 @@ classdef BehaviorBoxNose < handle
             this.hideStimulus();
         end
         function persistCorrectStimulus(this)
-            if this.StimulusStruct.PersistCorrectInterv > 0
-                thisInt = this.StimulusStruct.PersistCorrectInterv;
-            else
-                thisInt = 0;
-            end
+            thisInt = this.StimulusStruct.PersistCorrectInterv;
             set(this.message_handle, 'Text', sprintf('Persisting correct stimulus for %.1f sec...', thisInt));
-            drawnow;
-
-            if this.Box.KeyboardInput == 1
-                return;
-            end
-
             tic
             while toc <= thisInt
                 this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'Flash_Contour');
@@ -957,12 +918,10 @@ classdef BehaviorBoxNose < handle
         end
         function persistIncorrectStimulus(this)
             set(this.message_handle,'Text','Persisting correct stimulus...');
-            if this.Box.Input_type == 3 % Nose
-                thisInt = this.StimulusStruct.PersistIncorrectInterv;
-                tic
-                while toc <= thisInt
-                    this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'Flash_Contour');
-                end
+            thisInt = this.StimulusStruct.PersistIncorrectInterv;
+            tic
+            while toc <= thisInt
+                this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'Flash_Contour');
             end
         end
         function handleOnlyCorrect(this)
@@ -983,7 +942,7 @@ classdef BehaviorBoxNose < handle
             end
         end
         function pauseForDrinking(this)
-            if ~this.Box.KeyboardInput && this.Box.Input_type == 3
+            if ~this.a.KeyboardInput && this.Box.Input_type == 3
                 while this.a.ReadLeft() || this.a.ReadRight() % Pause while the mouse is standing there
                     pause(0.5); drawnow;
                 end
@@ -996,6 +955,8 @@ classdef BehaviorBoxNose < handle
             [o(:).Visible] = deal(0);
         end
         function updatePause(this, interval)
+            % This fcn is unused, UpdatePause (capital U) is the function
+            % used... why? eliminate?)
             starttime = clock;
             while etime(clock, starttime) < interval
                 pause(0.1); drawnow;
@@ -1025,13 +986,11 @@ classdef BehaviorBoxNose < handle
             event = -1;
             try
                 timeout_value = this.Box.Timeout_after_time;
-                response_timer = clock;
-                timeout_timer = clock;
-
+                response_timer_start = datetime("now");
                 % Main loop to wait for actions
-                while timeout_value == 0 || etime(clock, timeout_timer) < timeout_value
-                    pause(0.1); drawnow;
-
+                tic
+                while timeout_value == 0 || toc < timeout_value
+                    pause(0.01); % Pause is needed otherwise Arduino callback won't update
                     % Check for skip or stop conditions
                     if get(this.Skip, 'Value')
                         this.Skip.Value = 0;
@@ -1039,37 +998,33 @@ classdef BehaviorBoxNose < handle
                     elseif get(this.stop_handle, 'Value')
                         break;
                     end
-
                     % Handle middle reading for inter-trial malingering
                     if this.a.ReadMiddle()
                         this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), 'Make_Background', false);
                         this.DuringTMal = this.DuringTMal + 1;
                     end
-
                     % Check for left or right decisions with stability
-                    if this.isStableForOneSecond(@(x) x.ReadLeft, true)  % With delay
+                    if this.Left_StableChoice_DuringTrial(true)  % With delay
                         event = 1; % Left Choice
+                        response_time = datetime("now");
                         break;
-                    elseif this.isStableForOneSecond(@(x) x.ReadRight, true)  % With delay
+                    elseif this.Right_StableChoice_DuringTrial(true)  % With delay
                         event = 2; % Right Choice
+                        response_time = datetime("now");
                         break;
                     end
                 end
-
                 % Fade all distractor color to dim
                 try
                     d = findobj(this.fig.Children, "Tag", "Distractor");
                     this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Distractor'), 'Dim_Distractors')
                     [d.Color] = deal(this.StimulusStruct.DimColor);
-                catch
-                    % Ignore errors related to finding and updating distractors
+                catch % Ignore errors related to finding and updating distractors
                 end
-
-                response_time = etime(clock, response_timer);
+                response_time = seconds(response_time-response_timer_start);
             catch err
                 this.unwrapError(err);
             end
-
             % Translate event to decision enum
             switch event
                 case -1
@@ -1088,6 +1043,66 @@ classdef BehaviorBoxNose < handle
                         WhatDecision = 'right wrong';
                     end
             end
+        end
+        function stable = Left_StableChoice_DuringTrial(this, checkDelay)
+            % Check if the sensor value remains stable for 1 second
+            if checkDelay
+                delayTime = this.Setting_Struct.Input_Delay_Respond;
+            else
+                delayTime = 0;
+            end
+            STABLE = true;
+            % Ensure the value remains 1 for the specified duration
+            tic
+            while toc < delayTime
+                pause(0.01); % Pause is needed otherwise Arduino callback won't update
+                if ~this.a.ReadNone()
+                    stable = false;
+                    return;
+                elseif this.a.ReadRight()
+                    stable = false;
+                    return;
+                elseif this.a.ReadMiddle()
+                    stable = false;
+                    return;
+                elseif this.a.ReadLeft()
+                    if this.isLeftTrial
+                        this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'Flash_Contour')
+                    end
+                end
+            end
+            toc
+            stable = STABLE && this.a.ReadLeft;
+        end
+        function stable = Right_StableChoice_DuringTrial(this, checkDelay)
+            % Check if the sensor value remains stable for 1 second
+            if checkDelay
+                delayTime = this.Setting_Struct.Input_Delay_Respond;
+            else
+                delayTime = 0;
+            end
+            STABLE = true;
+            % Ensure the value remains 1 for the specified duration
+            tic
+            while toc < delayTime
+                pause(0.01); % Pause is needed otherwise Arduino callback won't update
+                if ~this.a.ReadNone()
+                    stable = false;
+                    return;
+                elseif this.a.ReadLeft()
+                    stable = false;
+                    return;
+                elseif this.a.ReadMiddle()
+                    stable = false;
+                    return;
+                elseif this.a.ReadRight()
+                    if ~this.isLeftTrial
+                        this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'Flash_Contour')
+                    end
+                end
+            end
+            toc
+            stable = STABLE && this.a.ReadRight;
         end
         %read the lever (digital read)
         function [WhatDecision, response_time] = readLeverLoopDigital_OnlyCorrect(this)
@@ -1118,14 +1133,14 @@ classdef BehaviorBoxNose < handle
                     end
 
                     % Check for left or right decisions with stability
-                    if this.isStableForOneSecond(@(x) x.ReadLeft(), true)  % With delay
+                    if this.StableChoice_DuringTrial(@(x) x.ReadLeft(), true)  % With delay
                         if this.isLeftTrial
                             event = 3;
                             break;
                         else
                             this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), 'Make_Background', false);
                         end
-                    elseif this.isStableForOneSecond(@(x) x.ReadRight(), true)  % With delay
+                    elseif this.StableChoice_DuringTrial(@(x) x.ReadRight(), true)  % With delay
                         if ~this.isLeftTrial
                             event = 3;
                             break;
@@ -1291,7 +1306,7 @@ classdef BehaviorBoxNose < handle
         end
         %open reward valves
         function GiveRewardAndFlash(this)
-            if this.Box.KeyboardInput == true
+            if this.a.KeyboardInput == true
                 return
             end
             %Get reward valve, pulse number and time:
@@ -1402,7 +1417,7 @@ classdef BehaviorBoxNose < handle
             if get(this.stop_handle, 'Value')
                 return
             end
-            if ~this.Box.KeyboardInput
+            if ~this.a.KeyboardInput
                 switch this.Box.Input_type
                     case 3 % Nose
                         this.ReadyCue(1)
