@@ -709,7 +709,7 @@ classdef BehaviorBoxNose < handle
                     STABLE = false;
                     break;
                 elseif this.a.ReadMiddle()
-                    this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'ReadyCueDot'), 'WaitForInput')
+                    this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'ReadyCueDot'), "WaitForInput")
                 end
             end
             stable = STABLE && this.a.ReadMiddle();
@@ -841,7 +841,7 @@ classdef BehaviorBoxNose < handle
                     this.confirmCorrectChoice();
                 end
                 if this.a.ReadMiddle()
-                    this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), 'NewStim');
+                    this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), "NewStim");
                     tic; % Restart the timer to avoid skipping confirmation period
                 end
                 this.updateInputIgnoredMessage();
@@ -850,9 +850,9 @@ classdef BehaviorBoxNose < handle
         end
         function confirmCorrectChoice(this)
             if this.Left_StableChoice_DuringTrial(true) && this.isLeftTrial
-                this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'Flash_Contour');
+                this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), "Flash_Contour");
             elseif this.Right_StableChoice_DuringTrial(true) && ~this.isLeftTrial
-                this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'Flash_Contour');
+                this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), "Flash_Contour");
             end
         end
         function updateInputIgnoredMessage(this)
@@ -902,15 +902,16 @@ classdef BehaviorBoxNose < handle
             set(this.message_handle, 'Text', sprintf('Persisting correct stimulus for %.1f sec...', thisInt));
             tic
             while toc <= thisInt
-                this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'Flash_Contour');
+                this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), "Flash_Contour");
             end
         end
         function handleWrongDecision(this)
             set(this.message_handle, 'Text', sprintf('%s - Penalty...', this.WhatDecision));
-            this.pauseForDrinking();
+            %this.pauseForDrinking();
 
             if ~get(this.stop_handle, 'Value') && this.StimulusStruct.PersistIncorrect
                 this.persistIncorrectStimulus();
+                this.hideStimulus();
             else
                 this.hideStimulus();
                 this.fig.Color = 'k';
@@ -921,7 +922,7 @@ classdef BehaviorBoxNose < handle
             thisInt = this.StimulusStruct.PersistIncorrectInterv;
             tic
             while toc <= thisInt
-                this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'Flash_Contour');
+                this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), "Flash_Contour");
             end
         end
         function handleOnlyCorrect(this)
@@ -932,7 +933,6 @@ classdef BehaviorBoxNose < handle
             this.DrinkTime = toc;
             this.persistCorrectStimulus();
             this.hideStimulus();
-
             % Change the WhatDecision back to the actual incorrect
             % choice so that it is recorded correctly
             if this.isLeftTrial
@@ -951,7 +951,7 @@ classdef BehaviorBoxNose < handle
         function hideStimulus(this)
             o = findobj(this.fig.Children);
         %Fade all to background color, the turn visible off
-            this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Distractor'), 'Make_Background', true)
+            this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Distractor'), "Make_Background", true)
             [o(:).Visible] = deal(0);
         end
         function updatePause(this, interval)
@@ -1000,7 +1000,7 @@ classdef BehaviorBoxNose < handle
                     end
                     % Handle middle reading for inter-trial malingering
                     if this.a.ReadMiddle()
-                        this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), 'Make_Background', false);
+                        this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), "Make_Background", false);
                         this.DuringTMal = this.DuringTMal + 1;
                     end
                     % Check for left or right decisions with stability
@@ -1017,7 +1017,7 @@ classdef BehaviorBoxNose < handle
                 % Fade all distractor color to dim
                 try
                     d = findobj(this.fig.Children, "Tag", "Distractor");
-                    this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Distractor'), 'Dim_Distractors')
+                    this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Distractor'), "Dim_Distractors")
                     [d.Color] = deal(this.StimulusStruct.DimColor);
                 catch % Ignore errors related to finding and updating distractors
                 end
@@ -1067,11 +1067,11 @@ classdef BehaviorBoxNose < handle
                     return;
                 elseif this.a.ReadLeft()
                     if this.isLeftTrial
-                        this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'Flash_Contour')
+                        this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), "Flash_Contour")
                     end
                 end
             end
-            toc
+            %toc
             stable = STABLE && this.a.ReadLeft;
         end
         function stable = Right_StableChoice_DuringTrial(this, checkDelay)
@@ -1097,11 +1097,11 @@ classdef BehaviorBoxNose < handle
                     return;
                 elseif this.a.ReadRight()
                     if ~this.isLeftTrial
-                        this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), 'Flash_Contour')
+                        this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), "Flash_Contour")
                     end
                 end
             end
-            toc
+            %toc
             stable = STABLE && this.a.ReadRight;
         end
         %read the lever (digital read)
@@ -1111,13 +1111,11 @@ classdef BehaviorBoxNose < handle
             event = -1;
             try
                 timeout_value = this.Box.Timeout_after_time;
-                timeout_timer = clock;
-                response_timer = clock;
-
+                response_timer_start = datetime("now");
                 % Main loop to wait for actions
-                while timeout_value == 0 || etime(clock, timeout_timer) < timeout_value
-                    pause(0.1); drawnow;
-
+                tic
+                while timeout_value == 0 || toc < timeout_value
+                    pause(0.01); % Pause is needed otherwise Arduino callback won't update
                     % Check for skip or stop conditions
                     if get(this.Skip, 'Value')
                         this.Skip.Value = 0;
@@ -1125,47 +1123,41 @@ classdef BehaviorBoxNose < handle
                     elseif get(this.stop_handle, 'Value')
                         break;
                     end
-
                     % Handle middle reading for inter-trial malingering
                     if this.a.ReadMiddle()
-                        this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), 'Make_Background', false);
+                        this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), "Make_Background", false);
                         this.DuringTMal = this.DuringTMal + 1;
                     end
-
                     % Check for left or right decisions with stability
-                    if this.StableChoice_DuringTrial(@(x) x.ReadLeft(), true)  % With delay
+                    if this.Left_StableChoice_DuringTrial(true)  % With delay
                         if this.isLeftTrial
                             event = 3;
+                            response_time = datetime("now");
                             break;
                         else
-                            this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), 'Make_Background', false);
+                            this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), "Make_Background", false);
                         end
-                    elseif this.StableChoice_DuringTrial(@(x) x.ReadRight(), true)  % With delay
+                    elseif this.Right_StableChoice_DuringTrial(true)  % With delay
                         if ~this.isLeftTrial
                             event = 3;
+                            response_time = datetime("now");
                             break;
                         else
-                            this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), 'Make_Background', false);
+                            this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), "Make_Background", false);
                         end
                     end
                 end
-
-                % Update visual elements after reading
+                % Fade all distractor color to dim
                 try
-                    a = this.fig.findobj("Type", "Axes");
-                    a = a(contains({a.Tag}, 'Correct'));
-                    c = a.findobj("Tag", "Contour");
-                    [c.Color] = deal(this.StimulusStruct.FlashColor);
-                    d = a.findobj("Tag", "Distractor");
+                    d = findobj(this.fig.Children, "Tag", "Distractor");
+                    this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Distractor'), "Dim_Distractors")
                     [d.Color] = deal(this.StimulusStruct.DimColor);
-                catch
+                catch % Ignore errors related to finding and updating distractors
                 end
-
-                response_time = etime(clock, response_timer);
+                response_time = seconds(response_time-response_timer_start);
             catch err
                 this.unwrapError(err);
             end
-
             % Translate event to decision enum
             switch event
                 case -1
@@ -1199,46 +1191,27 @@ classdef BehaviorBoxNose < handle
             if isempty(Lines) || ~Stim.FlashStim
                 return
             end
-            drawnow;
-            switch whatdecision
-                case 'wrong'
-                    Reps = Stim.RepFlashAfterW;
-                case {'correct', 'OC'}
-                    Reps = Stim.RepFlashAfterC;
-                otherwise
-                    Reps = Stim.RepFlashInitial;
-            end
-            if Reps == 0, return; end
             start_color = Stim.LineColor;
             flash_color = Stim.FlashColor;
             dark_color = Stim.DimColor;
             background_color = Stim.BackgroundColor;
             if whatdecision == "WaitForInput" % New name - Flash Dim
-                Reps = 1;
                 Steps = Stim.FreqFlashInitial;
-                this.BasicFlashCosine("Lines",Lines, "NewColor", dark_color, "steps", Steps, "Interruptor", @(x)~this.a.ReadNone())
+                this.BasicFlashCosine("Lines",Lines, "NewColor", flash_color, "steps", Steps, "Interruptor", @(x)~this.a.ReadNone())
             elseif whatdecision == "Flash_Contour" % New name - Flash Bright
-                Reps = 1;
                 Steps = Stim.FreqFlashInitial;
                 this.BasicFlashCosine("Lines",Lines, "NewColor", flash_color, "steps", Steps, "Interruptor", @(x)this.a.ReadMiddle())
-            elseif whatdecision == "Dim_Distractors" % New name - Flash Bright
-                Reps = 1;
+            elseif whatdecision == "Dim_Distractors" % Make Dim color
                 Steps = Stim.FreqFlashInitial;
                 this.BasicFlashCosine("Lines",Lines, "NewColor", dark_color, "steps", Steps, "OneWay", true)
-            elseif whatdecision == "Make_Background" % New name - Flash Bright
-                Reps = 1;
+            elseif whatdecision == "Make_Background" % Make Background color
                 Steps = Stim.FreqFlashInitial;
                 this.BasicFlashCosine("Lines",Lines, "NewColor", background_color, "steps", Steps, "OneWay", OneWay)
-            elseif whatdecision == "Make_Bright" %Wheel hold still interval
-                Reps = 1;
+            elseif whatdecision == "Make_Bright" % Make start color
                 Steps = 100;
                 this.BasicFlashCosine("Lines",Lines, "NewColor", start_color, "steps", Steps, "OneWay", true)
             else
                 Steps = Stim.FreqFlashAfter;
-                d = findobj(this.fig.Children, 'Tag', 'Distractor');
-                if isempty(d)
-                    d = struct();
-                end
                 switch 1
                     case contains(whatdecision, 'wrong')
                         Reps = Stim.RepFlashAfterW;
@@ -1247,7 +1220,6 @@ classdef BehaviorBoxNose < handle
                         end
                     case contains(whatdecision, 'correct') || contains(whatdecision, 'OC')
                         Reps = Stim.RepFlashAfterC;
-                        OneWay = true;
                         if Reps > 0
                             this.BasicFlashCosine("Lines",Lines, "NewColor", flash_color, "steps", Steps)
                         end
