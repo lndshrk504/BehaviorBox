@@ -902,7 +902,7 @@ classdef BehaviorBoxNose < handle
             set(this.message_handle, 'Text', sprintf('Persisting correct stimulus for %.1f sec...', thisInt));
             tic
             while toc <= thisInt
-                this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), "Flash_Contour");
+                this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), this.WhatDecision);
             end
         end
         function handleWrongDecision(this)
@@ -1182,8 +1182,8 @@ classdef BehaviorBoxNose < handle
         function FlashNew(this, Stim, Box, Lines, whatdecision, OneWay)
             arguments
                 this
-                Stim % from Setting structure
-                Box
+                Stim = this.StimulusStruct % from Setting structure
+                Box = this.Box
                 Lines = findobj(this.fig.Children, 'Tag', 'Contour')
                 whatdecision = "time out"
                 OneWay logical = false
@@ -1195,23 +1195,18 @@ classdef BehaviorBoxNose < handle
             flash_color = Stim.FlashColor;
             dark_color = Stim.DimColor;
             background_color = Stim.BackgroundColor;
+            Steps = Stim.FreqAnimation;
             if whatdecision == "WaitForInput" % New name - Flash Dim
-                Steps = Stim.FreqFlashInitial;
                 this.BasicFlashCosine("Lines",Lines, "NewColor", flash_color, "steps", Steps, "Interruptor", @(x)~this.a.ReadNone())
             elseif whatdecision == "Flash_Contour" % New name - Flash Bright
-                Steps = Stim.FreqFlashInitial;
                 this.BasicFlashCosine("Lines",Lines, "NewColor", flash_color, "steps", Steps, "Interruptor", @(x)this.a.ReadMiddle())
             elseif whatdecision == "Dim_Distractors" % Make Dim color
-                Steps = Stim.FreqFlashInitial;
                 this.BasicFlashCosine("Lines",Lines, "NewColor", dark_color, "steps", Steps, "OneWay", true)
             elseif whatdecision == "Make_Background" % Make Background color
-                Steps = Stim.FreqFlashInitial;
                 this.BasicFlashCosine("Lines",Lines, "NewColor", background_color, "steps", Steps, "OneWay", OneWay)
             elseif whatdecision == "Make_Bright" % Make start color
-                Steps = 100;
                 this.BasicFlashCosine("Lines",Lines, "NewColor", start_color, "steps", Steps, "OneWay", true)
             else
-                Steps = Stim.FreqFlashAfter;
                 switch 1
                     case contains(whatdecision, 'wrong')
                         Reps = Stim.RepFlashAfterW;
