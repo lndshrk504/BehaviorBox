@@ -274,8 +274,7 @@ classdef BehaviorBoxWheel < handle
                             comsnum = "/dev/tty"+this.app.Arduino_Com.Value;
                         end
                         this.a = BehaviorBoxSerial(comsnum, 115200, 'Wheel');
-                        this.Box.Reward =  'D6';
-                        this.Box.use_wheel = 1;
+                        this.Box.KeyboardInput = 0;
                         pause(2)
                         this.a.SetupReward("Which", "Right", "DurationRight", this.Box.Rrewardtime);
                     case 8 %Keyboard, used if no arduino connected
@@ -354,7 +353,6 @@ classdef BehaviorBoxWheel < handle
                 this.ReadyCueStruct.Ax = this.ReadyCueAx;
                 this.StimulusStruct.ReadyCue = this.ReadyCueStruct;
             end
-            this.Box.use_wheel = 1;
             % this.toggleButtonsOnOff(this.Buttons,0); % Turn off all buttons
             fprintf("- - - - -\n");
             txt = "Start trial Mouse "+this.Setting_Struct.Subject+" at "+string(datetime('now'));
@@ -639,7 +637,7 @@ classdef BehaviorBoxWheel < handle
             this.a.DispOutput = false;
             this.a.Reset();
             switch true
-                case ~this.Box.KeyboardInput && this.Box.Input_type==6 %Wheel 2.0, wait for the mouse to hold the wheel still for the interval to start a new trial
+                case ~isempty(this.a) && this.Box.Input_type==6 %Wheel 2.0, wait for the mouse to hold the wheel still for the interval to start a new trial
                     if this.i ~=1
                         this.ReadyCue(true);
                         set(this.FLAx, 'Visible', true);
