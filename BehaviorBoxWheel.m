@@ -256,58 +256,35 @@ classdef BehaviorBoxWheel < handle
             OUT.ChooseLevel = @(x)OUT.PossibleLevels(randperm(numel(PossibleLevels), 1));
         end
         %set hardware (arduino) parameters
-        function ConfigureBox(this, options)
+        function ConfigureBox(this)
             arguments
                 this
-                options.Rebuild logical = false
             end
             this.message_handle.Text = 'Connecting Arduino. . .';
             tic
             try
                 % https://docs.arduino.cc/learn/microcontrollers/digital-pins
-                if this.Setting_Struct.Box_Input_type == 8 %Skip all this if keyboard mode
-                    this.Box.ardunioReadDigital = 0;
-                    return
-                end
-                if ispc
-                    comsnum = "COM"+this.app.Arduino_Com.Value;
-                elseif ismac
-                    comsnum = "/dev/tty.usbmodem"+this.app.Arduino_Com.Value;
-                elseif isunix
-                    comsnum = "/dev/tty"+this.app.Arduino_Com.Value;
-                end
-                this.Box.use_ball = 0; %All these are automatically off
-                this.Box.use_wheel = 0;
-                this.Box.ardunioReadDigital = 0;
-                this.Box.KeyboardInput = 0;
-                %set which lever is what and what the input setup is from
-                this.Box.ResetPin        = 'D4';
-                this.Box.TriggerPin      = 'D5';
-                this.Box.Timestamp       = 'D9';
                 switch this.Setting_Struct.Box_Input_type
                     case 6 %Rotating Wheel
-                        try
-                            this.a = BehaviorBoxSerial(comsnum, 115200, 'Wheel');
-                            this.Box.Reward =  'D6';
-                            this.Box.use_wheel = 1;
-                            pause(2)
-                            this.a.SetupReward("Which", "Right", "DurationRight", this.Box.Rrewardtime);
-                        catch
-                            this.Box.use_ball = 0; %All these are automatically off
-                            this.Box.use_wheel = 0;
-                            this.Box.ardunioReadDigital = 0;
-                            this.Box.KeyboardInput = 1;
-                            this.Setting_Struct.Box_Input_type = 8;
+                        if ispc
+                            comsnum = "COM"+this.app.Arduino_Com.Value;
+                        elseif ismac
+                            comsnum = "/dev/tty.usbmodem"+this.app.Arduino_Com.Value;
+                        elseif isunix
+                            comsnum = "/dev/tty"+this.app.Arduino_Com.Value;
                         end
+                        this.a = BehaviorBoxSerial(comsnum, 115200, 'Wheel');
+                        this.Box.Reward =  'D6';
+                        this.Box.use_wheel = 1;
+                        pause(2)
+                        this.a.SetupReward("Which", "Right", "DurationRight", this.Box.Rrewardtime);
                     case 8 %Keyboard, used if no arduino connected
                         this.Box.KeyboardInput = 1;
                         return
                 end
                 toc
             catch err
-                this.Box.use_ball = 0; %All these are automatically off
                 this.Box.use_wheel = 0;
-                this.Box.ardunioReadDigital = 0;
                 this.Box.KeyboardInput = 1;
                 this.Setting_Struct.Box_Input_type = 8;
                 this.a = [];
@@ -475,11 +452,7 @@ classdef BehaviorBoxWheel < handle
             this.GUI_numbers.choices = this.i- this.timeout_counter;
             this.GUI_numbers.difficulty = this.Level;
             try %Will fail before first trial is begun bc this.start_time is empty
-                num2str(floor(minutes(datetime("now")-this.start_time)))
-                MIN = floor( minutes(datetime("now")-this.start_time));
-                SEC = round(seconds(datetime("now")-this.start_time),2) - 60*floor( minutes(datetime("now")-this.start_time));
-                TXT = MIN+" min : "+SEC+" sec";
-                this.GUI_numbers.time = TXT;
+                this.GUI_numbers.time = string(datetime("now") - this.start_time);
             catch
             end
             %update Gui window
@@ -537,7 +510,7 @@ classdef BehaviorBoxWheel < handle
             [this.Level] = this.Setting_Struct.Starting_opacity;
         end
         %Choose if Left or Right will be correct
-        function isLeftTrial = PickSideForCorrect(this, isLeftTrial, SB)
+        function isLeftTrial = PickSideForCorrect(this, isLeftTrial, ~)
             % ATTENTION!!!
             % Do NOT double the & and | to && and || just because the Matlab error
             % warning says it will be "faster." Doubling them will change the logical
@@ -557,20 +530,21 @@ classdef BehaviorBoxWheel < handle
                 end
                 choice = [0 1];
                 isLeftTrial = choice(randperm(2,1));
-                return
             else
                 switch this.StimulusStruct.side
                     case 1 %Random
                         % Add 0.5 bc values oscillate -0.5 to 0.5
                         choice = [0 1];
                         isLeftTrial = choice(randperm(2,1));
-                        try % Fails at trial 1
+                        try
                             SB_Ratio = 0.5+this.Data_Object.AnalyzedData.TrialData.SB.Stimulus{:}(end);
-                            if SB_Ratio > 0.7 % too many Left
-                                isLeftTrial = 0;
-                            elseif SB_Ratio < 0.3 % too many Right
-                                isLeftTrial = 1;
-                            end
+                        catch
+                            return
+                        end
+                        if SB_Ratio > 0.7 % too many Left
+                            isLeftTrial = 0;
+                        elseif SB_Ratio < 0.3 % too many Right
+                            isLeftTrial = 1;
                         end
                     case 2 %all left
                         isLeftTrial = 1;
@@ -661,11 +635,11 @@ classdef BehaviorBoxWheel < handle
         function WaitForInput(this)
             this.TrialStartTime = 0;
             set(this.message_handle,'Text','Waiting for Trial initialization');
-            this.t1 = clock; t2 = this.t1;%In case of crash
+            this.t1 = datetime("now"); t2 = this.t1; %In case of crash
             this.a.DispOutput = false;
             this.a.Reset();
             switch true
-                case ~this.Box.KeyboardInput && this.Box.Input_type==6%Wheel 2.0, wait for the mouse to hold the wheel still for the interval to start a new trial
+                case ~this.Box.KeyboardInput && this.Box.Input_type==6 %Wheel 2.0, wait for the mouse to hold the wheel still for the interval to start a new trial
                     if this.i ~=1
                         this.ReadyCue(true);
                         set(this.FLAx, 'Visible', true);
@@ -754,7 +728,7 @@ classdef BehaviorBoxWheel < handle
                 this.TrialStartTime = 0;
             end
             if this.i == 1 %start the timer after the first trial has begun. Maybe this should be put somewhere else but I don't want the timer to start until the mouse begins the first trial so where else?
-                this.start_time = clock;
+                this.start_time = datetime("now");
                 this.Data_Object.GetStartTime;
             end
         end
@@ -876,24 +850,19 @@ classdef BehaviorBoxWheel < handle
                 this
                 options.Test logical = false
             end
-
             if get(this.stop_handle, 'Value')
                 return;
             end
-
             % Default values
             keyboardInput = this.Box.KeyboardInput;
             inputType = this.Box.Input_type;
             this.WhatDecision = 'time out';
             this.DrinkTime = 0;
-
             % Optimized background and ready cue handling
             this.setVisibleChildren(this.fig.Children, true);
             drawnow limitrate;  % Globally limit drawnow frequency for performance gains
-
             % Ignore input for a defined duration
             startTime = tic;
-
             % Send Next File signal to ScanImage
             this.a.Acquisition('Next');
             pause(0.2); % The nextfile acquisition signal has a builtin 200 ms delay
@@ -901,24 +870,18 @@ classdef BehaviorBoxWheel < handle
             this.a.TimeStamp;  % Toggle timestamp
             this.flashStimulus();
             this.Data_Object.addStimEvent(this.isLeftTrial);  % Record stimulus event
-
             % Enhanced decision-making loop based on inputType
             if ~keyboardInput && inputType == 6
                 [this.WhatDecision, this.ResponseTime] = this.readLeverLoopAnalogWheel();
             else
                 [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput();
             end
-
             % Toggle timestamp
             this.a.TimeStamp;
-
-
             % Retry for only correct answers if necessary
             this.handleOnlyCorrectMode();
-
             % Minimize redundant flash draws by handling decision directly
             this.processAfterDecision(keyboardInput, inputType);
-
         end
         function setVisibleChildren(this, children, isVisible)
             OBJ = children.findobj('Type','Line');
@@ -1054,18 +1017,16 @@ classdef BehaviorBoxWheel < handle
             RoundUp = (this.Setting_Struct.RoundUpVal/100); %Default is 75 --> 0.75
             this.a.Reset();
             pause(0.1)
-            %this.Box.encoder.resetCount();
             if this.Setting_Struct.RoundUp
                 thresh = RoundUp*thresh;
             end
             if this.app.Animate_MimicTrial.Value
                 this.SimulateTrial()
             end
-            i = 0;
+            I = 0;
             tic
             while timeout_value == 0 | toc<=timeout_value && ~this.app.Animate_MimicTrial.Value% do NOT replace | with || or the expression is changed.
                 dist = str2double(this.a.SerialRead);
-                %dist = this.Box.encoder.readCount;
                 delta = (dist/threshold)*StimDistance;
                 if abs(delta)>thresh
                     if sign(delta)>0
@@ -1079,9 +1040,9 @@ classdef BehaviorBoxWheel < handle
                 elseif ~this.isLeftTrial & delta > thresh*RoundUp
                     delta = thresh*RoundUp;
                 end
-                i = i+1;
-                this.wheelchoice{i} = delta;
-                this.wheelchoicetime{i} = toc;
+                I = I+1;
+                this.wheelchoice{I} = delta;
+                this.wheelchoicetime{I} = toc;
                 pos1 = pos1i + ([delta 0 0 0]);
                 axes(1).Position = pos1;
                 if numel(axes) > 1
@@ -1155,7 +1116,6 @@ classdef BehaviorBoxWheel < handle
             if isempty(Lines)
                 return
             end
-            drawnow
             if ~Stim.FlashStim
                 return
             end
@@ -1171,28 +1131,19 @@ classdef BehaviorBoxWheel < handle
             start_color = Stim.LineColor;
             flash_color = Stim.FlashColor;
             dark_color = Stim.DimColor;
+            background_color = Stim.BackgroundColor;
+            Steps = Stim.FreqAnimation;
             if whatdecision == "time out"
-                Reps = Stim.RepFlashInitial;
-                Steps = Stim.FreqFlashInitial;
                 this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
             elseif whatdecision == "Mal" %Wheel hold still interval
-                Reps = 1;
-                Steps = 10;
                 this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
             elseif whatdecision == "NewStim" %L or R poke during intertrial
-                Reps = Stim.RepFlashInitial;
-                Steps = Stim.FreqFlashInitial;
                 this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
             elseif whatdecision == "center" %Center poke during trial
-                Reps = 1;
-                Steps = Stim.FreqFlashInitial;
                 this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
             elseif whatdecision == "Correct_Confirmation"
-                Reps = 1;
-                Steps = Stim.FreqFlashInitial;
                 this.BasicFlash("Lines",Lines, "NewColor", dark_color, "steps", Steps)
             else
-                Steps = Stim.FreqFlashAfter;
                 d = findobj('Tag', 'Distractor');
                 if isempty(d)
                     d = struct();
@@ -1207,10 +1158,7 @@ classdef BehaviorBoxWheel < handle
                         Reps = Stim.RepFlashAfterC;
                         OneWay = true;
                         if Reps > 0
-                            %[Lines.Color] = deal(dark_color);
                             this.BasicFlash("Lines",Lines, "NewColor", flash_color, "steps", Steps)
-                            %this.BasicFlash(Lines, flash_color, Steps)
-                            %[Lines.Color] = deal(Stim.LineColor);
                         end
                 end
             end
@@ -1255,6 +1203,98 @@ classdef BehaviorBoxWheel < handle
             mat = interp1( [1 ; steps], [start_color ; NewColor], STEPS);
             for i = mat'
                 set(obj, COLOR_PROP, i);  drawnow
+                if ~isempty(vars.Interruptor) && vars.Interruptor() %This is all very slow and will be sped up later
+                    set(obj, COLOR_PROP, start_color)
+                    break
+                end
+            end
+        end
+        function FlashNew_FromNose(this, Stim, Box, Lines, whatdecision, OneWay)
+            arguments
+                this
+                Stim = this.StimulusStruct % from Setting structure
+                Box = this.Box
+                Lines = findobj(this.fig.Children, 'Tag', 'Contour')
+                whatdecision = "time out"
+                OneWay logical = false
+            end
+            if isempty(Lines) || ~Stim.FlashStim
+                return
+            end
+            start_color = Stim.LineColor;
+            flash_color = Stim.FlashColor;
+            dark_color = Stim.DimColor;
+            background_color = Stim.BackgroundColor;
+            Steps = Stim.FreqAnimation;
+            if whatdecision == "WaitForInput" % New name - Flash Dim
+                this.BasicFlashCosine("Lines",Lines, "NewColor", flash_color, "steps", Steps, "Interruptor", @(x)~this.a.ReadNone())
+            elseif whatdecision == "Flash_Contour" % New name - Flash Bright
+                this.BasicFlashCosine("Lines",Lines, "NewColor", flash_color, "steps", Steps, "Interruptor", @(x)this.a.ReadMiddle())
+            elseif whatdecision == "Dim_Distractors" % Make Dim color
+                this.BasicFlashCosine("Lines",Lines, "NewColor", dark_color, "steps", Steps, "OneWay", true)
+            elseif whatdecision == "Make_Background" % Make Background color
+                this.BasicFlashCosine("Lines",Lines, "NewColor", background_color, "steps", Steps, "OneWay", OneWay)
+            elseif whatdecision == "Make_Bright" % Make start color
+                this.BasicFlashCosine("Lines",Lines, "NewColor", start_color, "steps", Steps, "OneWay", true)
+            else
+                switch 1
+                    case contains(whatdecision, 'wrong')
+                        Reps = Stim.RepFlashAfterW;
+                        if Reps > 0
+                            this.BasicFlashCosine("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
+                        end
+                    case contains(whatdecision, 'correct') || contains(whatdecision, 'OC')
+                        Reps = Stim.RepFlashAfterC;
+                        if Reps > 0
+                            this.BasicFlashCosine("Lines",Lines, "NewColor", flash_color, "steps", Steps)
+                        end
+                end
+            end
+        end
+        function BasicFlashCosine(this, vars)
+            arguments
+                this
+                vars.Lines = findobj(this.fig.Children, 'Tag','Contour')
+                vars.NewColor
+                vars.steps
+                vars.OneWay logical = false
+                vars.Interruptor = [];
+            end
+            if vars.steps == 1
+                return
+            end
+            obj = vars.Lines;
+            NewColor = vars.NewColor;
+            steps = vars.steps;
+            OneWay = vars.OneWay;
+            if OneWay
+                X = linspace(0,pi, steps);
+            else
+                X = linspace(0,2*pi, 2*steps-1);
+            end
+            % This blinks the Obj to the NewColor and back, over a total of
+            % 2*steps increments
+            if obj(1).Type == "scatter"
+                start_color = [obj(1).MarkerFaceColor];
+                COLOR_PROP = 'MarkerFaceColor';
+            elseif obj(1).Type == "polygon"
+                start_color = [obj(1).FaceColor];
+            elseif obj(1).Type == "line"
+                start_color = [obj(1).Color];
+                COLOR_PROP = 'Color';
+            else
+                return %prevent an error crash
+            end
+% Calculations for Cosine function:
+% A cosine oscillates from 1 to -1 and 1, some adjustments must be made:
+            Range = start_color(1) - NewColor(1); % Maximum - Minimum of cosine oscillation
+            Amplitude = Range/2; % Half of the Range
+            Offset = (start_color(1) + NewColor(1))/2; % Vertical Shift
+            y = Amplitude * cos(X) + Offset; % Cosine smoothed oscillation between start and new color
+            mat = repmat(y,3,1); % Expand to RGB values
+            for C = mat
+                set(obj, COLOR_PROP, C); drawnow
+                %pause(0.01)
                 if ~isempty(vars.Interruptor) && vars.Interruptor() %This is all very slow and will be sped up later
                     set(obj, COLOR_PROP, start_color)
                     break
@@ -1473,6 +1513,7 @@ classdef BehaviorBoxWheel < handle
                 for r = rmv
                     try
                         Settings = rmfield(Settings, r);
+                    catch
                     end
                 end
                 newData.Settings = Settings;
@@ -1491,6 +1532,7 @@ classdef BehaviorBoxWheel < handle
                         Idcs = unique([cell2mat(this.SetUpdate) length(newData.TimeStamp)]);
                         [~, ~, newData.SetIdx] = histcounts(1:length(newData.TimeStamp), Idcs);
                         newData.Include = Ts(newData.SetIdx);
+                    catch
                     end
                 end
                 newData.Weight = this.Setting_Struct.Weight;
@@ -1533,7 +1575,7 @@ classdef BehaviorBoxWheel < handle
             this.stop_handle.Value = 0;%Turn off Stop button
             %close stimulus if still open
             delete(findobj("Type", "figure", "Name", "Stimulus"))
-            disp_string = ['Stopped training Mouse ',num2str(this.Setting_Struct.Subject), ' at ',datestr(now)];
+            disp_string = ['Stopped training Mouse ',num2str(this.Setting_Struct.Subject), ' at ',string(datetime("now"))];
             disp(disp_string);
             disp('- - - - -');
         end
@@ -1787,6 +1829,7 @@ classdef BehaviorBoxWheel < handle
             tic % Begin time recording
             try
                 this.a.TimeStamp(); % 300 milisec builtin pause
+            catch
             end
             one_drop_only = true;
 
@@ -1892,14 +1935,14 @@ classdef BehaviorBoxWheel < handle
             % fileName = sprintf('Frame%04d.tiff', 0);
             % fullFilePath = fullfile(folderName, fileName);
             % print(this.fig, '-dtiff', fullFilePath)
-            i = 1;
+            I = 1;
             while all([~this.app.Animate_End.Value ~this.app.Stop.Value])
                 % Update positions for axes
                 AX.Position(X_or_Y) = AX.Position(X_or_Y) + direction * stepSize;
                 BX.Position(X_or_Y) = BX.Position(X_or_Y) + direction * stepSize;
                 Pos = AX.Position(X_or_Y);
                 %fileName = sprintf('Frame-Pos%+05.2f-Frame%04d.tiff', Pos, i);
-                fileName = sprintf('Frame-%04d-Pos%+05.2f.tiff', i, Pos);
+                fileName = sprintf('Frame-%04d-Pos%+05.2f.tiff', I, Pos);
                 fullFilePath = fullfile(folderName, fileName);
                 if ~exist(fullFilePath, 'file')
                     print(this.fig, '-dtiff', fullFilePath)
@@ -1913,7 +1956,7 @@ classdef BehaviorBoxWheel < handle
                     AX.Position(X_or_Y) = maxPosition;
                 end
                 drawnow;
-                i = i+1;
+                I = I+1;
             end
             close(this.fig)
         end
@@ -1963,59 +2006,6 @@ classdef BehaviorBoxWheel < handle
             arguments
                 this
                 options.What = 'all'
-            end
-        end
-        function WaitForInputKeyboard(this)
-            InterTMalInterv = this.Setting_Struct.IntertrialMalSec;
-            prompt = 'Initialize: Press L for Left, R for Right, C or M for Middle: ';
-            set(this.message_handle, 'Text', prompt);
-            fprintf([prompt '\n']);
-
-            while true
-                currkey = input('L, R, or M/C: ', 's');
-
-                switch lower(currkey)
-                    case {'l', 'r'}
-                        this.HandleKeyboardMalingering(InterTMalInterv);
-                    case {'c', 'm', ''}
-                        return;
-                    otherwise
-                        disp('Please only press one of the indicated keys...');
-                end
-
-                if get(this.stop_handle, 'Value')
-                    this.message_handle.Text = 'Ending session...';
-                    break;
-                end
-            end
-        end
-        function HandleIntertrialMalingering(this)
-            this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.BackgroundColor;
-            drawnow;
-            timerStart = datetime("now");
-
-            while true
-                time = this.Setting_Struct.IntertrialMalSec - seconds(datetime("now") - timerStart);
-                txt = sprintf("Do not poke L or R! Intertrial Malingering timeout: %.1f sec...", time);
-                set(this.message_handle, 'Text', txt);
-
-                if this.a.ReadLeft() || this.a.ReadRight()
-                    timerStart = datetime("now");
-                end
-
-                if this.CheckForInterruptions()
-                    break;
-                end
-
-                if seconds(datetime("now") - timerStart) > this.Setting_Struct.IntertrialMalSec
-                    this.FlashNew(this.StimulusStruct, this.Box, findobj('Tag', 'ReadyCueDot'), 'Mal');
-                    this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.LineColor;
-                    set(this.message_handle, 'Text', 'Waiting for Trial initialization');
-                    drawnow;
-                    break;
-                end
-
-                pause(0.01);
             end
         end
         function interrupted = CheckForInterruptions(this)
@@ -2072,11 +2062,11 @@ classdef BehaviorBoxWheel < handle
         function [WhatDecision, response_time] = readKeyboardInput(stop_handle, message_handle, isLeftTrial)
             text = 'Respond: Press L for Left, R for Right, C or M for Middle:'; set(message_handle,'Text',text); fprintf([text '\n']); drawnow
             prompt = 'L, R, or M/C:   ';
-            keypress = 0; t1 = clock;
+            keypress = 0; t1 = datetime("now");
             while keypress==0
                 pause(0.01); drawnow;
                 currkey = input(prompt,"s");
-                response_time = etime(clock, t1);
+                response_time = seconds(datetime("now") - t1);
                 switch true
                     case strcmp(currkey, 'l') || strcmp(currkey, 'L')
                         text = 'Left choice...'; fprintf([text '\n']); set(message_handle,'Text',text); drawnow

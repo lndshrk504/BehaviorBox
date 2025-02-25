@@ -529,7 +529,7 @@ classdef BehaviorBoxNose < handle
             [this.Level] = this.Setting_Struct.Starting_opacity;
         end
         %Choose if Left or Right will be correct
-        function isLeftTrial = PickSideForCorrect(this, isLeftTrial, SB)
+        function isLeftTrial = PickSideForCorrect(this, isLeftTrial, ~)
             % ATTENTION!!!
             % Do NOT double the & and | to && and || just because the Matlab error
             % warning says it will be "faster." Doubling them will change the logical
@@ -1539,14 +1539,12 @@ classdef BehaviorBoxNose < handle
             %f.Visible = 1;
             this.setMessage(this.message_handle, 'Data saved successfully.', saveasname);
         end
-
         function newData = ensureColumns(~, newData)
             names = fieldnames(newData);
             for n = names(structfun(@isrow, newData) & structfun(@length, newData) > 1)'
                 newData.(n{:}) = newData.(n{:})';
             end
         end
-
         function newData = alignDataLengths(~, newData)
             if isempty(newData.TimeStamp)
                 return
@@ -1557,19 +1555,16 @@ classdef BehaviorBoxNose < handle
                 newData.(n{:}) = newData.(n{:})(1:FullTrials);
             end
         end
-
         function StimHist = filterNonEmptyRows(~, StimHistory)
 % This is not working correctly. Only 1 trial's stim is being saved
             nonEmptyRows = any(~cellfun(@isempty, StimHistory'));
             StimHist = StimHistory(nonEmptyRows, :);
         end
-
         function newData = setDataIndexes(this, newData, Settings)
             [~, newData.Include] = this.getTimeline(newData);
             newData.SetStr = this.SetStr;
             newData.Settings = this.removeUnwantedFields(Settings);
         end
-        
         function [Ts, Include] = getTimeline(this, newData)
         % This fcn causes errors. How necessary is it? All trials are
         % Included, so a vector labelling each trial is unnecessary
@@ -1590,7 +1585,6 @@ classdef BehaviorBoxNose < handle
                 Include = ones(size(newData.SetIdx));
             end
         end
-        
         function Settings = removeUnwantedFields(~, Settings)
             toRemove = {'GUI_numbers', 'encoder'};
             for r = toRemove
@@ -1599,7 +1593,6 @@ classdef BehaviorBoxNose < handle
                 end
             end
         end
-        
         function handleSaveError(this, err, saveasname, Settings, newData, Notes)
             this.unwrapError(err);
             f = figure("MenuBar","none","Visible","off");
@@ -1609,14 +1602,12 @@ classdef BehaviorBoxNose < handle
             save(fullfile(path, file), 'Settings', 'newData', 'Notes');
             this.saveFigure(f, savefolder, saveasname);
         end
-        
         function setMessage(~, message_handle, message, saveasname)
             msg = message+" "+saveasname;
             set(message_handle, 'Text', msg);
             disp(msg);
         end
-
-        %when done, clean up
+%when done, clean up
         function cleanUP(this)
             %switch on all buttons
             this.toggleButtonsOnOff(this.Buttons,1);
