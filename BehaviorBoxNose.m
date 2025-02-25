@@ -758,7 +758,7 @@ classdef BehaviorBoxNose < handle
                 end
 
                 if seconds(datetime("now") - timerStart) > this.Setting_Struct.IntertrialMalSec
-                    this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'ReadyCueDot'), "Make_Bright");
+                    this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'ReadyCueDot'), "Make_StartColor");
                     %this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.LineColor;
                     set(this.message_handle, 'Text', 'Waiting for Trial initialization');
                     drawnow;
@@ -832,7 +832,7 @@ classdef BehaviorBoxNose < handle
             this.fig.Color = this.StimulusStruct.BackgroundColor;
             this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'ReadyCueDot'), "Make_Background", true);
             this.ReadyCue(0);
-            this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'line'), "Make_Bright");
+            this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'line'), "Make_StartColor");
         end
         function processIgnoredInput(this)
             tic;
@@ -1017,7 +1017,7 @@ classdef BehaviorBoxNose < handle
                 % Fade all distractor color to dim
                 try
                     d = findobj(this.fig.Children, "Tag", "Distractor");
-                    this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Distractor'), "Dim_Distractors")
+                    this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Distractor'), "Make_Dim")
                     [d.Color] = deal(this.StimulusStruct.DimColor);
                 catch % Ignore errors related to finding and updating distractors
                 end
@@ -1150,7 +1150,7 @@ classdef BehaviorBoxNose < handle
                 % Fade all distractor color to dim
                 try
                     d = findobj(this.fig.Children, "Tag", "Distractor");
-                    this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Distractor'), "Dim_Distractors")
+                    this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Distractor'), "Make_Dim")
                     [d.Color] = deal(this.StimulusStruct.DimColor);
                 catch % Ignore errors related to finding and updating distractors
                 end
@@ -1196,16 +1196,18 @@ classdef BehaviorBoxNose < handle
             dark_color = Stim.DimColor;
             background_color = Stim.BackgroundColor;
             Steps = Stim.FreqAnimation;
-            if whatdecision == "WaitForInput" % New name - Flash Dim
+            if whatdecision == "WaitForInput" % Interrupt flash if mouse stops selecting center
                 this.BasicFlashCosine("Lines",Lines, "NewColor", flash_color, "steps", Steps, "Interruptor", @(x)~this.a.ReadNone())
-            elseif whatdecision == "Flash_Contour" % New name - Flash Bright
+            elseif whatdecision == "Flash_Contour" % Interrupt flash if mouse stops selecting correct side
                 this.BasicFlashCosine("Lines",Lines, "NewColor", flash_color, "steps", Steps, "Interruptor", @(x)this.a.ReadMiddle())
-            elseif whatdecision == "Dim_Distractors" % Make Dim color
+            elseif whatdecision == "Make_Dim"
                 this.BasicFlashCosine("Lines",Lines, "NewColor", dark_color, "steps", Steps, "OneWay", true)
-            elseif whatdecision == "Make_Background" % Make Background color
+            elseif whatdecision == "Make_Background"
                 this.BasicFlashCosine("Lines",Lines, "NewColor", background_color, "steps", Steps, "OneWay", OneWay)
-            elseif whatdecision == "Make_Bright" % Make start color
+            elseif whatdecision == "Make_StartColor"
                 this.BasicFlashCosine("Lines",Lines, "NewColor", start_color, "steps", Steps, "OneWay", true)
+            elseif whatdecision == "Make_FlashColor"
+                this.BasicFlashCosine("Lines",Lines, "NewColor", flash_color, "steps", Steps, "OneWay", true)
             else
                 switch 1
                     case contains(whatdecision, 'wrong')
@@ -1240,7 +1242,8 @@ classdef BehaviorBoxNose < handle
             if OneWay
                 X = linspace(0,pi, steps);
             else
-                X = linspace(0,2*pi, 2*steps-1);
+                %X = linspace(0,2*pi, 2*steps-1);
+                X = linspace(0,2*pi, steps);
             end
             % This blinks the Obj to the NewColor and back, over a total of
             % 2*steps increments
@@ -1388,7 +1391,7 @@ classdef BehaviorBoxNose < handle
                 switch this.Box.Input_type
                     case 3 % Nose
                         this.ReadyCue(1)
-                        this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'ReadyCueDot'), "Make_Bright");
+                        this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'ReadyCueDot'), "Make_StartColor");
                 end
             end
             %Wait for interval
@@ -1720,7 +1723,7 @@ classdef BehaviorBoxNose < handle
             toc
             pause(0.1)
             drawnow
-            this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'line'), "Make_Bright")
+            this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'line'), "Make_StartColor")
             this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'line'), "Make_Background")
             if options.SaveStimulus
                 name = "Stim-Lv-"+this.Setting_Struct.Starting_opacity;
