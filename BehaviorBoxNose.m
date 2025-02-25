@@ -1715,10 +1715,13 @@ classdef BehaviorBoxNose < handle
             end
             [~,~] = this.Stimulus_Object.DisplayOnScreen(this.PickSideForCorrect(0, 0), this.Setting_Struct.Starting_opacity);
             this.fig = this.Stimulus_Object.fig;
-            [this.fig.findobj(this.fig.Children, 'Tag','Spotlight').Visible] = deal(1);
+            [this.fig.findobj('Tag','Spotlight').Visible] = deal(1);
+            set(this.fig.findobj('Type','Line'), 'Color', this.StimulusStruct.BackgroundColor)
             toc
             pause(0.1)
+            drawnow
             this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'line'), "Make_Bright")
+            this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'line'), "Make_Background")
             if options.SaveStimulus
                 name = "Stim-Lv-"+this.Setting_Struct.Starting_opacity;
                 this.Data_Object.SaveManyFigures([],name)
