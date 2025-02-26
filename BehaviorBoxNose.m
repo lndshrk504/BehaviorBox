@@ -820,7 +820,7 @@ classdef BehaviorBoxNose < handle
             this.recordStimulusEvent();
 
             this.WhatDecision = this.getDecision();
-            this.handleIncorrectDecision();
+            %this.handleIncorrectDecision();
             this.processDecision();
         end
         function setupStimulus(this)
@@ -877,13 +877,17 @@ classdef BehaviorBoxNose < handle
             else
                 [decision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial);
             end
-        end
-        function handleIncorrectDecision(this)
-            if this.Setting_Struct.OnlyCorrect && contains(this.WhatDecision, 'wrong', 'IgnoreCase', true)
+            if this.Setting_Struct.OnlyCorrect && contains(decision, 'wrong', 'IgnoreCase', true)
                 set(this.message_handle, 'Text', sprintf('Reanswer... Waiting for %s choice...', this.current_side));
-                this.WhatDecision = this.getDecision();
+                [decision, this.ResponseTime] = readLeverLoopDigital_OnlyCorrect(this);
             end
         end
+        % function handleIncorrectDecision(this)
+        %     if this.Setting_Struct.OnlyCorrect && contains(this.WhatDecision, 'wrong', 'IgnoreCase', true)
+        %         set(this.message_handle, 'Text', sprintf('Reanswer... Waiting for %s choice...', this.current_side));
+        %         this.WhatDecision = this.getDecision();
+        %     end
+        % end
         function processDecision(this)
             switch true
                 case contains(this.WhatDecision, 'correct', 'IgnoreCase', true)
@@ -1144,19 +1148,19 @@ classdef BehaviorBoxNose < handle
                     % Check for left or right decisions with stability
                     if this.Left_StableChoice_DuringTrial(true)  % With delay
                         if this.isLeftTrial
-                            event = 3;
+                            event = 1;
                             response_time = datetime("now");
                             break;
                         else
-                            this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), "Make_Background", false);
+                            %this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), "Make_Background", false);
                         end
                     elseif this.Right_StableChoice_DuringTrial(true)  % With delay
                         if ~this.isLeftTrial
-                            event = 3;
+                            event = 2;
                             response_time = datetime("now");
                             break;
                         else
-                            this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), "Make_Background", false);
+                            %this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), "Make_Background", false);
                         end
                     end
                 end
@@ -1178,13 +1182,13 @@ classdef BehaviorBoxNose < handle
                     response_time = 0;
                 case 1
                     if this.isLeftTrial == 1 || this.isLeftTrial == -1
-                        WhatDecision = 'left correct';
+                        WhatDecision = 'left correct OC';
                     else
                         WhatDecision = 'left wrong';
                     end
                 case 2
                     if this.isLeftTrial == 0 || this.isLeftTrial == -1
-                        WhatDecision = 'right correct';
+                        WhatDecision = 'right correct OC';
                     else
                         WhatDecision = 'right wrong';
                     end
@@ -1353,9 +1357,11 @@ classdef BehaviorBoxNose < handle
         end
         %Use this function instead of pausing, so that buttons are checked and settings are updated during the pause
         function UpdatePause(this, interval)
-            starttime = clock;
-            while etime(clock, starttime) < interval
-                pause(0.1); drawnow;
+            starttime = datetime("now");
+            tic
+            while toc < interval
+                pause(0.5); drawnow;
+                set(this.message_handle, 'Text', sprintf('Interval for %.1f sec...', max(interval-toc,0)));
                 if this.Pause.Value
                     set(this.message_handle,'Text','Paused, click pause button again to continue...');
                     o = findobj(this.fig.Children);

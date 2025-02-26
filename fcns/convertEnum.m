@@ -3,7 +3,11 @@ function [int_out] = convertEnum(enum_decision)
 switch enum_decision
     case 'left correct'
         int_out = 1;
+    case 'left correct OC' % When only correct mode is active, answered incorrectly but program stalled until correct response
+        int_out = 1;
     case 'right correct'
+        int_out = 2;
+    case 'right correct OC' % When only correct mode is active, answered incorrectly but program stalled until correct response
         int_out = 2;
     case 'left wrong'
         int_out = 3;
