@@ -655,11 +655,16 @@ classdef BehaviorBoxNose < handle
             this.TrialStartTime = 0;
             set(this.message_handle, 'Text', 'Waiting for Trial initialization');
             startTime = datetime("now");
-
-            if this.Box.ardunioReadDigital == 1
-                this.WaitForInputArduino();
+            if ~this.Setting_Struct.SkipWaitForInput
+                if this.Box.ardunioReadDigital == 1
+                    this.WaitForInputArduino();
+                else
+                    this.WaitForInputKeyboard();
+                end
             else
-                this.WaitForInputKeyboard();
+                while this.a.ReadLeft() || this.a.ReadRight()
+                    pause(0.5)
+                end
             end
 
             if ~get(this.stop_handle, 'Value')
@@ -899,10 +904,13 @@ classdef BehaviorBoxNose < handle
         end
         function persistCorrectStimulus(this)
             thisInt = this.StimulusStruct.PersistCorrectInterv;
-            set(this.message_handle, 'Text', sprintf('Persisting correct stimulus for %.1f sec...', thisInt));
+            %set(this.message_handle, 'Text', sprintf('Persisting correct stimulus for %.1f sec...', thisInt));
             tic
-            while toc <= thisInt
-                this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), this.WhatDecision);
+            while toc < thisInt
+                % Too much flashing
+                pause(0.5)
+                set(this.message_handle, 'Text', sprintf('Persisting correct stimulus for %.1f sec...', max(thisInt-toc,0)));
+                %this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), this.WhatDecision);
             end
         end
         function handleWrongDecision(this)
@@ -918,11 +926,14 @@ classdef BehaviorBoxNose < handle
             end
         end
         function persistIncorrectStimulus(this)
-            set(this.message_handle,'Text','Persisting correct stimulus...');
+            %set(this.message_handle,'Text','Persisting correct stimulus...');
             thisInt = this.StimulusStruct.PersistIncorrectInterv;
             tic
-            while toc <= thisInt
-                this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), "Flash_Contour");
+            while toc < thisInt
+                % Too much flashing
+                pause(0.5)
+                set(this.message_handle, 'Text', sprintf('Persisting correct stimulus for %.1f sec...', max(thisInt-toc,0)));
+                %this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), this.WhatDecision);
             end
         end
         function handleOnlyCorrect(this)
@@ -951,7 +962,7 @@ classdef BehaviorBoxNose < handle
         function hideStimulus(this)
             o = findobj(this.fig.Children);
         %Fade all to background color, the turn visible off
-            this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Distractor'), "Make_Background", true)
+            this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), "Make_Background", true)
             [o(:).Visible] = deal(0);
         end
         function updatePause(this, interval)
@@ -994,8 +1005,10 @@ classdef BehaviorBoxNose < handle
                     % Check for skip or stop conditions
                     if get(this.Skip, 'Value')
                         this.Skip.Value = 0;
+                        response_time = response_timer_start;
                         break;
                     elseif get(this.stop_handle, 'Value')
+                        response_time = response_timer_start;
                         break;
                     end
                     % Handle middle reading for inter-trial malingering
@@ -1387,6 +1400,9 @@ classdef BehaviorBoxNose < handle
             if get(this.stop_handle, 'Value')
                 return
             end
+            this.updateMessageBox();
+            %Wait for interval
+            this.UpdatePause(interval_time);
             if ~this.a.KeyboardInput
                 switch this.Box.Input_type
                     case 3 % Nose
@@ -1394,9 +1410,6 @@ classdef BehaviorBoxNose < handle
                         this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'ReadyCueDot'), "Make_StartColor");
                 end
             end
-            %Wait for interval
-            this.UpdatePause(interval_time);
-            this.updateMessageBox();
             if this.Temp_Active
                 this.Setting_Struct = this.Temp_Old_Settings;
             end
