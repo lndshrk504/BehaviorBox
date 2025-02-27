@@ -57,7 +57,7 @@ PREFIX = '';
 FOLDER = '';
 switch true
     case ispc
-        PREFIX = 'D:';
+        PREFIX = 'G:';
         FOLDER = 'Dropbox @RU Dropbox';
     case ismac
         PREFIX = getenv('HOME');
@@ -78,7 +78,7 @@ PREFIX = '';
 FOLDER = '';
 switch true
     case ispc
-        PREFIX = 'D:';
+        PREFIX = 'G:';
         FOLDER = 'Dropbox @RU Dropbox';
     case ismac
         PREFIX = getenv('HOME');
