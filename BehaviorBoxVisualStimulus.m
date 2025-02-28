@@ -208,12 +208,17 @@ classdef BehaviorBoxVisualStimulus
                 Level
                 options.AnimateMode logical = false
                 options.StimType char = 'Stimulus'
+                options.NoDelete logical = false
+                options.OnlyCorrect logical = false
+                options.StartHidden logical = false
             end
             this = findfigs(this);
             delete(findobj([this.fig], "Type", "Line"))
             delete(findobj([this.fig], "Tag", "XLine"))
             delete(findobj([this.fig], "Tag", "YLine"))
-            delete(findobj([this.fig], "Tag", "DotAx"))
+            if ~options.NoDelete
+                delete(findobj([this.fig], "Tag", "DotAx"))
+            end
             this.LStimAx.Position(1) = 0;
             this.RStimAx.Position(1) = 0.5;
             try
@@ -280,6 +285,9 @@ classdef BehaviorBoxVisualStimulus
                 case 12
                     ShowStimulusBBTrainingDensity(this)
             end
+            if options.StartHidden
+                set(this.fig.findobj('Type', 'Line'), 'Visible', false)
+            end
             %o = findobj(this.fig.Children);
             %[o(:).Visible] = deal(0);
         end
@@ -317,7 +325,9 @@ classdef BehaviorBoxVisualStimulus
             % axis image;
             SZ = this.DotSize/100;
             POS = [0.5-(SZ/2) 0.5-(SZ/2) SZ SZ];
-            Dot = rectangle(AX, "Position", POS , 'Curvature', [1 1], "FaceColor", this.LineColor, "EdgeColor", "none", "Tag", "Dot");
+            Dot = rectangle(AX, "Position", POS , 'Curvature', [1 1], "FaceColor", 'k', "EdgeColor", "none", "Tag", "Dot");
+            AX.DataAspectRatio = [1 1 1];
+            set(AX, 'Visible', 0)
         end
         function this = findfigs(this)
             try
