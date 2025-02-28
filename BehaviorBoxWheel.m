@@ -1657,15 +1657,15 @@ classdef BehaviorBoxWheel < handle
             if contains(options.StimType, "-Line")
                 this.app.Animate_XPosition.Value = 0.5;
                 this.app.Animate_YPosition.Value = 0.5;
-                this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'ConstantLine'), "NewStim")
+                %this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'ConstantLine'), "NewStim")
             elseif contains(options.StimType, "Dot")
                 this.app.Animate_XPosition.Value = 0.5;
                 this.app.Animate_YPosition.Value = 0.5;
-                this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Dot'), "NewStim")
+                %this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Dot'), "NewStim")
             else
                 this.app.Animate_XPosition.Value = 0.25;
                 this.app.Animate_YPosition.Value = 0.5;
-                this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
+                %this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
             end
             if options.SaveStimulus
                 name = "Stim-Lv-"+this.Setting_Struct.Starting_opacity;
@@ -1764,7 +1764,7 @@ classdef BehaviorBoxWheel < handle
             arguments
                 this
                 options.Type = 'normal';
-                options.Record logical = true; % Make sure to turn this off 
+                options.Record logical = false; % Make sure to turn this off after
             end
             set(this.fig, 'Renderer', 'OpenGL'); % openGL is the default but this may help 
             if options.Record
@@ -1784,6 +1784,18 @@ classdef BehaviorBoxWheel < handle
                     maxPosition = 0.74; % Maximum x-axis position to move to
                     minPosition = -0.25; % Maximum x-axis position to move to
                     X_or_Y = 1;
+                    % Make the Lv 20 Stim
+                    [~,~] = this.Stimulus_Object.DisplayOnScreen(this.app.Animate_Side.Value == "Left", ...
+                        20, "NoDelete", true, "StartHidden", true);
+                    %Handle for correct axis
+                    CORRECTAX = this.fig.findobj('-regexp','Tag','Correct');
+                    DOT = AX.Children(1);
+                    % Set Dot to Background color
+                    DOT.FaceColor = this.StimulusStruct.BackgroundColor;
+                    Flash_Steps = this.StimulusStruct.FreqAnimation;
+                linspace(0, 1, Flash_Steps)
+                %COLORS = repmat(linspace(0, 1, Flash_Steps),3,1);
+                COLORS = repmat(cos(linspace(pi/2, 0, Flash_Steps)),3,1);
                 case "X-Line"
                     AX = this.fig.Children(1);
                     BX.Position(1) = NaN;
@@ -1832,31 +1844,73 @@ classdef BehaviorBoxWheel < handle
             one_drop_only = true;
 
             % Continuous loop for movement, stops when condition met or manually interrupted
-            i = 1;
-            Pos_Record(i,1) = toc;
-            Pos_Record(i,2) = AX.Position(X_or_Y); % Record initial position
-            while all([~this.app.Animate_End.Value ~this.app.Stop.Value])
-                % Update positions for axes
-                AX.Position(X_or_Y) = AX.Position(X_or_Y) + direction * stepSize;
-                BX.Position(X_or_Y) = BX.Position(X_or_Y) + direction * stepSize;
-                if ~one_drop_only && AX.Position(X_or_Y) > (Center-0.01) && AX.Position(X_or_Y) < (Center+0.01)
+            I = 1;
+            Pos_Record(I,1) = toc;
+            Pos_Record(I,2) = AX.Position(X_or_Y); % Record initial position
+            if this.app.Animate_Style.Value ~= "Dot"
+% All other stimuli translate across the screen and the timestamp is
+% matched to their position
+                while all([~this.app.Animate_End.Value ~this.app.Stop.Value])
+                    % Update positions for axes
+                    AX.Position(X_or_Y) = AX.Position(X_or_Y) + direction * stepSize;
+                    BX.Position(X_or_Y) = BX.Position(X_or_Y) + direction * stepSize;
+                    if ~one_drop_only && AX.Position(X_or_Y) > (Center-0.01) && AX.Position(X_or_Y) < (Center+0.01)
+                        if this.app.Animate_MimicTrial.Value
+                            this.a.GiveReward
+                            one_drop_only = true;
+                        end
+                    end
+                    % Check boundaries and reset position
+                    if AX.Position(X_or_Y) > maxPosition
+                        AX.Position(X_or_Y) = minPosition;
+                        one_drop_only = false;
+                    elseif AX.Position(X_or_Y) < minPosition
+                        AX.Position(X_or_Y) = maxPosition;
+                        one_drop_only = false;
+                    end
+                    drawnow;
+                    I = I+1;
+                    Pos_Record(I,1) = toc;
+                    Pos_Record(I,2) = AX.Position(X_or_Y);
+                end
+            elseif this.app.Animate_Style.Value == "Dot"
+% The Dot mode oscillates brighter and dimmer and shows a Lv 20 stimulus
+% when at maximum brightness, and the timestamp is matched to the
+% brightness
+                while all([~this.app.Animate_End.Value ~this.app.Stop.Value])
+                    % Update positions for axes
+                    for C = COLORS
+                        set(DOT, 'FaceColor', C)
+                        drawnow
+                        pause(stepSize);
+                        I = I+1;
+                        Pos_Record(I,1) = toc;
+                        Pos_Record(I,2) = C(1);
+                    end
+                    set(CORRECTAX.Children, 'Visible',true)
+                    drawnow
+                    pause(stepSize);
+                    I = I+1;
+                    Pos_Record(I,1) = toc;
+                    Pos_Record(I,2) = 2;
                     if this.app.Animate_MimicTrial.Value
                         this.a.GiveReward
-                        one_drop_only = true;
+                    end
+                    set(CORRECTAX.Children, 'Visible',false)
+                    drawnow
+                    pause(stepSize);
+                    I = I+1;
+                    Pos_Record(I,1) = toc;
+                    Pos_Record(I,2) = 3;
+                    for C = flip(COLORS,2) % Reverse order, fade the dot out
+                        set(DOT, 'FaceColor', C)
+                        drawnow
+                        pause(stepSize);
+                        I = I+1;
+                        Pos_Record(I,1) = toc;
+                        Pos_Record(I,2) = C(1);
                     end
                 end
-                % Check boundaries and reset position
-                if AX.Position(X_or_Y) > maxPosition
-                    AX.Position(X_or_Y) = minPosition;
-                    one_drop_only = false;
-                elseif AX.Position(X_or_Y) < minPosition
-                    AX.Position(X_or_Y) = maxPosition;
-                    one_drop_only = false;
-                end
-                drawnow;
-                i = i+1;
-                Pos_Record(i,1) = toc;
-                Pos_Record(i,2) = AX.Position(X_or_Y);
             end
             close(this.fig)
             %Remove empty rows from Pos_Record
