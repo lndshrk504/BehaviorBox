@@ -1789,9 +1789,10 @@ classdef BehaviorBoxWheel < handle
                     X_or_Y = 1;
                     % Make the Lv 20 Stim
                     [~,~] = this.Stimulus_Object.DisplayOnScreen(this.app.Animate_Side.Value == "Left", ...
-                        20, "NoDelete", true, "StartHidden", true);
+                        this.Temp_Settings.Starting_opacity, "NoDelete", true, "StartHidden", true);
                     %Handle for correct axis
                     CORRECTAX = this.fig.findobj('-regexp','Tag','Correct');
+                    set(this.fig.findobj('-regexp','Tag','Spotlight'), 'Visible', false)
                     CORRECTAX.Position(1) = 0.25;
                     DOT = AX.Children(1);
                     % Set Dot to Background color
