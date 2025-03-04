@@ -361,8 +361,11 @@ classdef BehaviorBoxWheel < handle
             this.i = 0;
             this.timeout_counter = 0;
             this.Temp_Active = false;
-% Send Start Acquisition signal to ScanImage
-            this.a.Acquisition('Start');
+            % Send Start Acquisition signal to ScanImage
+            try
+                this.a.Acquisition('Start');
+            catch
+            end
         end
         %Do some things before each trial
         function BeforeTrial(this)
@@ -1789,13 +1792,13 @@ classdef BehaviorBoxWheel < handle
                         20, "NoDelete", true, "StartHidden", true);
                     %Handle for correct axis
                     CORRECTAX = this.fig.findobj('-regexp','Tag','Correct');
+                    CORRECTAX.Position(1) = 0.25;
                     DOT = AX.Children(1);
                     % Set Dot to Background color
                     DOT.FaceColor = this.StimulusStruct.BackgroundColor;
                     Flash_Steps = this.StimulusStruct.FreqAnimation;
-                linspace(0, 1, Flash_Steps)
-                %COLORS = repmat(linspace(0, 1, Flash_Steps),3,1);
-                COLORS = repmat(cos(linspace(pi/2, 0, Flash_Steps)),3,1);
+                    %COLORS = repmat(linspace(0, 1, Flash_Steps),3,1);
+                    COLORS = repmat(cos(linspace(pi/2, 0, Flash_Steps)),3,1);
                 case "X-Line"
                     AX = this.fig.Children(1);
                     BX.Position(1) = NaN;
@@ -1887,7 +1890,10 @@ classdef BehaviorBoxWheel < handle
                         Pos_Record(I,1) = toc;
                         Pos_Record(I,2) = C(1);
                     end
+                    set(DOT, 'Visible',false)
+                    pause(0.5)
                     set(CORRECTAX.Children, 'Visible',true)
+                    pause(0.5)
                     drawnow
                     pause(stepSize);
                     I = I+1;
@@ -1897,6 +1903,8 @@ classdef BehaviorBoxWheel < handle
                         this.a.GiveReward
                     end
                     set(CORRECTAX.Children, 'Visible',false)
+                    pause(0.5)
+                    set(DOT, 'Visible',true)
                     drawnow
                     pause(stepSize);
                     I = I+1;
