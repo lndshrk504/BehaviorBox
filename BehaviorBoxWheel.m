@@ -1861,6 +1861,11 @@ classdef BehaviorBoxWheel < handle
 % All other stimuli translate across the screen and the timestamp is
 % matched to their position
                 while all([~this.app.Animate_End.Value ~this.app.Stop.Value])
+                    try
+                    % Send Next File signal to ScanImage
+                    this.a.Acquisition('Next');
+                    catch
+                    end
                     % Update positions for axes
                     AX.Position(X_or_Y) = AX.Position(X_or_Y) + direction * stepSize;
                     BX.Position(X_or_Y) = BX.Position(X_or_Y) + direction * stepSize;
