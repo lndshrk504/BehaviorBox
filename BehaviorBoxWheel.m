@@ -865,7 +865,10 @@ classdef BehaviorBoxWheel < handle
             % Ignore input for a defined duration
             startTime = tic;
             % Send Next File signal to ScanImage
+            try
             this.a.Acquisition('Next');
+            catch
+            end
             pause(0.2); % The nextfile acquisition signal has a builtin 200 ms delay
             % Display stimulus
             this.a.TimeStamp;  % Toggle timestamp
@@ -1570,7 +1573,10 @@ classdef BehaviorBoxWheel < handle
         end
         function cleanUP(this)
 % Send Stop Acquisition signal to ScanImage
+            try
             this.a.Acquisition('Stop');
+            catch
+            end
             %switch on all buttons
             this.toggleButtonsOnOff(this.Buttons,1);
             this.stop_handle.Value = 0;%Turn off Stop button
@@ -1882,6 +1888,11 @@ classdef BehaviorBoxWheel < handle
 % when at maximum brightness, and the timestamp is matched to the
 % brightness
                 while all([~this.app.Animate_End.Value ~this.app.Stop.Value])
+                    try
+                    % Send Next File signal to ScanImage
+                    this.a.Acquisition('Next');
+                    catch
+                    end
                     % Update positions for axes
                     for C = COLORS
                         set(DOT, 'FaceColor', C)
@@ -1892,25 +1903,37 @@ classdef BehaviorBoxWheel < handle
                         Pos_Record(I,2) = C(1);
                     end
                     set(DOT, 'Visible',false)
+                    I = I+1;
+                    Pos_Record(I,1) = toc;
+                    Pos_Record(I,2) = 2;
                     pause(0.5)
                     set(CORRECTAX.Children, 'Visible',true)
+                    I = I+1;
+                    Pos_Record(I,1) = toc;
+                    Pos_Record(I,2) = 3;
                     pause(0.5)
                     drawnow
                     pause(stepSize);
                     I = I+1;
                     Pos_Record(I,1) = toc;
-                    Pos_Record(I,2) = 2;
+                    Pos_Record(I,2) = 4;
                     if this.app.Animate_MimicTrial.Value
                         this.a.GiveReward
                     end
                     set(CORRECTAX.Children, 'Visible',false)
+                    I = I+1;
+                    Pos_Record(I,1) = toc;
+                    Pos_Record(I,2) = 5;
                     pause(0.5)
                     set(DOT, 'Visible',true)
+                    I = I+1;
+                    Pos_Record(I,1) = toc;
+                    Pos_Record(I,2) = 6;
                     drawnow
                     pause(stepSize);
                     I = I+1;
                     Pos_Record(I,1) = toc;
-                    Pos_Record(I,2) = 3;
+                    Pos_Record(I,2) = 7;
                     for C = flip(COLORS,2) % Reverse order, fade the dot out
                         set(DOT, 'FaceColor', C)
                         drawnow
@@ -1920,6 +1943,10 @@ classdef BehaviorBoxWheel < handle
                         Pos_Record(I,2) = C(1);
                     end
                 end
+            end
+            try
+            this.a.Acquisition('Stop');
+            catch
             end
             close(this.fig)
             %Remove empty rows from Pos_Record
