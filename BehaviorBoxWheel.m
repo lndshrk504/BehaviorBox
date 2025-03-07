@@ -1870,7 +1870,7 @@ classdef BehaviorBoxWheel < handle
                     end
                     % Update positions for axes
                     AX.Position(X_or_Y) = AX.Position(X_or_Y) + direction * stepSize;
-                    BX.Position(X_or_Y) = BX.Position(X_or_Y) + direction * stepSize;
+                    %BX.Position(X_or_Y) = BX.Position(X_or_Y) + direction * stepSize;
                     if ~one_drop_only && AX.Position(X_or_Y) > (Center-0.01) && AX.Position(X_or_Y) < (Center+0.01)
                         if this.app.Animate_MimicTrial.Value
                             this.a.GiveReward
@@ -1914,7 +1914,7 @@ classdef BehaviorBoxWheel < handle
                     Pos_Record(I,1) = toc;
                     Pos_Record(I,2) = 2;
                     pause(0.5)
-                    if this.app.Animate_OnlyCorrectButton
+                    if this.app.Animate_OnlyIncorrectButton.Value
                         set(INCORRECTAX.Children, 'Visible',true)
                     else
                         set(CORRECTAX.Children, 'Visible',true)
@@ -1931,7 +1931,7 @@ classdef BehaviorBoxWheel < handle
                     if this.app.Animate_MimicTrial.Value
                         this.a.GiveReward
                     end
-                    if this.app.Animate_OnlyCorrectButton
+                    if this.app.Animate_OnlyIncorrectButton.Value
                         set(INCORRECTAX.Children, 'Visible',false)
                     else
                         set(CORRECTAX.Children, 'Visible',false)
