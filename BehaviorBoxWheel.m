@@ -1798,8 +1798,10 @@ classdef BehaviorBoxWheel < handle
                         this.Temp_Settings.Starting_opacity, "NoDelete", true, "StartHidden", true);
                     %Handle for correct axis
                     CORRECTAX = this.fig.findobj('-regexp','Tag','Correct');
+                    INCORRECTAX = this.fig.findobj('-regexp','Tag','Incorrect');
                     set(this.fig.findobj('-regexp','Tag','Spotlight'), 'Visible', false)
                     CORRECTAX.Position(1) = 0.25;
+                    INCORRECTAX.Position(1) = 0.25;
                     DOT = AX.Children(1);
                     % Set Dot to Background color
                     DOT.FaceColor = this.StimulusStruct.BackgroundColor;
@@ -1912,7 +1914,11 @@ classdef BehaviorBoxWheel < handle
                     Pos_Record(I,1) = toc;
                     Pos_Record(I,2) = 2;
                     pause(0.5)
-                    set(CORRECTAX.Children, 'Visible',true)
+                    if this.app.Animate_OnlyCorrectButton
+                        set(INCORRECTAX.Children, 'Visible',true)
+                    else
+                        set(CORRECTAX.Children, 'Visible',true)
+                    end
                     I = I+1;
                     Pos_Record(I,1) = toc;
                     Pos_Record(I,2) = 3;
@@ -1925,7 +1931,11 @@ classdef BehaviorBoxWheel < handle
                     if this.app.Animate_MimicTrial.Value
                         this.a.GiveReward
                     end
-                    set(CORRECTAX.Children, 'Visible',false)
+                    if this.app.Animate_OnlyCorrectButton
+                        set(INCORRECTAX.Children, 'Visible',false)
+                    else
+                        set(CORRECTAX.Children, 'Visible',false)
+                    end
                     I = I+1;
                     Pos_Record(I,1) = toc;
                     Pos_Record(I,2) = 5;
