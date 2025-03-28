@@ -1,4 +1,4 @@
-classdef BehaviorBoxSerial < handle
+classdef BehaviorBoxSerialInput < handle
     % WBS 10 - 10 - 2024
     % The NosePoke uses an Arduino programmed with Photogate.ino.
     % The Wheel uses an Arduino programmed with Rotary-Encoder-Arduino.ino.
@@ -23,7 +23,7 @@ classdef BehaviorBoxSerial < handle
     end
 
     methods
-        function this = BehaviorBoxSerial(port, baudRate, Input_type)
+        function this = BehaviorBoxSerialInput(port, baudRate, Input_type)
             arguments
                 port char = 'COM4'
                 baudRate double = 115200

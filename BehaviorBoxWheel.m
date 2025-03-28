@@ -273,7 +273,7 @@ classdef BehaviorBoxWheel < handle
                         elseif isunix
                             comsnum = "/dev/tty"+this.app.Arduino_Com.Value;
                         end
-                        this.a = BehaviorBoxSerial(comsnum, 115200, 'Wheel');
+                        this.a = BehaviorBoxSerialInput(comsnum, 115200, 'Wheel');
                         this.Box.KeyboardInput = 0;
                         pause(2)
                         this.a.SetupReward("Which", "Right", "DurationRight", this.Box.Rrewardtime);

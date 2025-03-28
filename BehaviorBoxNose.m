@@ -299,7 +299,7 @@ classdef BehaviorBoxNose < handle
                         elseif isunix
                             comsnum = "/dev/tty"+this.app.Arduino_Com.Value;
                         end
-                        this.a = BehaviorBoxSerial(comsnum, 115200, 'NosePoke');
+                        this.a = BehaviorBoxSerialInput(comsnum, 115200, 'NosePoke');
                         pause(2)
                         this.a.SetupReward("Which", "Both", "DurationLeft", this.Box.Lrewardtime, "DurationRight", this.Box.Rrewardtime);
                         this.Box.ardunioReadDigital = 1;
