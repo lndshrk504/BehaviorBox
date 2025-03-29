@@ -172,10 +172,16 @@ classdef BehaviorBoxData < handle
 
             % Construct the starting path for directory search
             startpath = fullfile(GetFilePath("Data"), this.Inv, this.Inp, '**', '*');
-            dirlist = dir(startpath);
-            dirlist = dirlist([dirlist.isdir] & ...
-                ~contains({dirlist.name}, {'.', 'settings', 'alltime', 'Rescued'}, 'IgnoreCase',true) ...
-                & contains({dirlist.name}, this.Sub, "IgnoreCase",true));
+            % dirlist = dir(startpath);
+            % dirlist = dirlist([dirlist.isdir] & ...
+            %     ~contains({dirlist.name}, {'.', 'settings', 'alltime', 'Rescued'}, 'IgnoreCase',true) ...
+            %     & contains({dirlist.name}, this.Sub, "IgnoreCase",true));
+
+            level1Folders = dir(startpath);
+            level1Folders = level1Folders([level1Folders.isdir]); % Keep only directories
+            dirlist = level1Folders(~ismember({level1Folders.name}, {'.', '..'}) ...
+                & contains({level1Folders.name}, this.Sub, "IgnoreCase",true) ...
+                & ~contains({level1Folders.name}, 'time', "IgnoreCase",true)); % Exclude . and ..
 
             % Attempt to group directories
             if isempty(dirlist)
@@ -214,7 +220,7 @@ classdef BehaviorBoxData < handle
             FDS = [];
             SUBDIR = [];
             try
-                FDS = fileDatastore(direc, "ReadMode", "file" ,"ReadFcn", @readFcn, "FileExtensions", ".mat", "IncludeSubfolders",true);
+                FDS = fileDatastore(direc, "ReadMode", "file" ,"ReadFcn", @readFcn, "FileExtensions", ".mat", "IncludeSubfolders",false);
                 forest = cellfun(@(x) split(x,filesep), FDS.Files', 'UniformOutput', false);
                 [~,this.Sub]=findgroups(cellfun(@(x) x(end-1), forest));
                 [~,strains]=findgroups(cellfun(@(x) x(end-2), forest));
@@ -2079,6 +2085,10 @@ classdef BehaviorBoxData < handle
                 this
                 options.Save logical = false
             end
+            t = [];
+            if isempty(this.DayData)
+                return
+            end
             for S = struct2cell(this.DayData)'
                 try
                     Name = string(S{:}{1,3}.Settings(end).Subject);
@@ -2926,7 +2936,8 @@ classdef BehaviorBoxData < handle
             Data = Data(:,[1,7]);
         % Load timestamp text files
             timestampFiles = dir(cell2mat(fullfile(this.filedir, '*.txt')));
-            timestampFiles = timestampFiles(contains({timestampFiles.name}, 'linesweep'));
+            %timestampFiles = timestampFiles(contains({timestampFiles.name}, 'linesweep'));
+            timestampFiles = timestampFiles(contains({timestampFiles.name}, 'time'));
             Q = numel(timestampFiles);
             TStable = table('Size', [Q 5], ...
                 'VariableTypes', {'string', 'cell', 'cell', 'double', 'double'}, ...
@@ -2935,6 +2946,7 @@ classdef BehaviorBoxData < handle
             for i = 1:Q
                 TS = readlines(fullfile(timestampFiles(i).folder, timestampFiles(i).name));
                 TS = erase(TS, " (micros) - Frame RISING");
+                TS = TS(5:end-1);
                 TStable{i,2} = {TS};
             % Add a dummy end index to handle splitting up to the end of the array
                 rowIndices = find(startsWith(TS, "0 hours"));
@@ -2957,14 +2969,15 @@ classdef BehaviorBoxData < handle
                     MICROS(~isnan(SECS), 2) = 1:sum(~isnan(SECS));
                 % Set some output variables:
                     MicrosTable = array2table(MICROS);
-                    MicrosTable.Properties.VariableTypes = {'string', 'double'};
+                    MicrosTable.Properties.VariableTypes = {'double', 'double'};
                     MicrosTable.Properties.VariableNames = {'ImagingTime', 'Frame'};
+                    MicrosTable.ImagingTime = MicrosTable.ImagingTime - MicrosTable.ImagingTime(1);
                     splitStrings.Txt{sidx} = MicrosTable;
                     splitStrings.Frames{sidx} = sum(~isnan(SECS));
-                    TT = str2double(MicrosTable.ImagingTime(end));
-                    if isnan(TT)
-                        TT = str2double(MicrosTable.ImagingTime(end-1));
-                    end
+                    TT = MicrosTable.ImagingTime(end);
+                    % if isnan(TT)
+                    %     TT = str2double(MicrosTable.ImagingTime(end-1));
+                    % end
                     splitStrings.TotalTime{sidx} = TT;
                     sidx = sidx+1;
                 end

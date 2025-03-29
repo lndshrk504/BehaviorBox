@@ -3,7 +3,7 @@ function [data,variables,done] = readFcn(filename,variables)
 if contains(filename, '2471951')
     1;
 end
-data = cell(1,7);
+data = cell(1,8);
 t = load(filename);
 tree = split(filename, filesep);
 data{1} = tree{end}; %filename
@@ -11,8 +11,14 @@ data{2} = str2double(tree{end}(1:6)); %Date of session
 data{6} = char(tree{end-1}); %name of the subfolder, Mouse's name
 if isfield(t, 'Position_Record')
     data{7} = t.Position_Record;
+end
+if isfield(t, 'Settings')
+    data{8} = t.Settings;
+end
+if ~isfield(t, 'newData')
     return
 end
+
 % if data{2} == 241025 % For debugging certain days
 %     1;
 % end
