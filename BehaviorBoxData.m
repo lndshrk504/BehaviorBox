@@ -2930,7 +2930,12 @@ classdef BehaviorBoxData < handle
             [g,groups] = findgroups(names);
         end
 
-        function OUT = ProcessPositionRecord(this)
+        function OUT = ProcessPositionRecord(this, options)
+            arguments
+                this
+                options.SaveCSV logical = false
+                options.ExportFrames logical = true
+            end
             OUT = [];
             Data = this.loadedData;
             Data = Data(:,[1,7]);
@@ -3064,6 +3069,7 @@ classdef BehaviorBoxData < handle
                     end
                     Out2(fc,[1 2 3]) = num2cell([fc Stim(Sidx,[2 1])]);
                 end
+        % Change table variable names depending on animation settings:
                 if any(StimStamp.Settings{c}.Animate_Style == [2 3 4])
                     % Make trigonometric corrections, turn figure location into degrees of visual field
                     Out2.StimPosition = this.TransformToVisualDegrees(Out2.StimPosition, 'Type', 'X-Bar');
@@ -3080,6 +3086,25 @@ classdef BehaviorBoxData < handle
                 
                 StimStamp.Matched(c) = {Out2};
             end
+            % Save the Match Table
+            if options.SaveCSV
+                SaveDir = fullfile(this.filedir{:}, 'MatchCSVs');
+                if ~isfolder(SaveDir)
+                    mkdir(SaveDir)
+                end
+                TC = 0;
+                for M = StimStamp.Matched'
+                    tbl = M{:};
+                    TC = TC+1;
+                    filename = fullfile(SaveDir, "Match-"+TC+".csv");
+                    writetable(tbl, filename)
+                end
+            end
+
+            if options.ExportFrames
+                this.ReconstructStimuli(StimStamp)
+            end
+
             % Load in the deltaF/F values for each imaging frame
 
         end
@@ -3110,9 +3135,39 @@ classdef BehaviorBoxData < handle
                     error('Unsupported transformation type. Use X-Bar or Y-Bar.');
             end
         end
-        function ReconstructStimuli(this)
+        function ReconstructStimuli(this, StimStamp)
             arguments
                 this
+                StimStamp
+            end
+% Set up the figure window
+
+% Loop through the stimuli
+            for W = 1:size(StimStamp,1)
+                Settings = StimStamp.Settings{W};
+                StimulusStruct = struct();
+                StimulusStruct = appendStruct(StimulusStruct, PullOut(Settings, 'Stimulus_'));
+                ReadyCueStruct = struct();
+                ReadyCueStruct = appendStruct(ReadyCueStruct, PullOut(Settings, 'ReadyCue_'));
+                [Stimulus_Object] = BehaviorBoxVisualStimulus(StimulusStruct); drawnow;
+                [fig, LStimAx, RStimAx, FLAx, ~] = Stimulus_Object.setUpFigure();
+                Stimulus_Object.DotSize = ReadyCueStruct.Size;
+        % Adapted from BBWheel... edit to work...
+                switch this.app.Animate_Side.Value
+                    case "Left"
+                        this.isLeftTrial = true;
+                    case "Random"
+                        this.isLeftTrial = this.PickSideForCorrect(0, 0);
+                    case "Right"
+                        this.isLeftTrial = false;
+                    otherwise
+                end
+                [~,~] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, ...
+                    this.Setting_Struct.Starting_opacity, "AnimateMode", true, "StimType", options.StimType);
+                [fig.findobj('Tag','Spotlight').Visible] = deal(1);
+                
+
+
             end
             
         end
