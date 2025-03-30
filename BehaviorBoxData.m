@@ -2960,18 +2960,28 @@ classdef BehaviorBoxData < handle
             % Split the string array at each index
                 sidx = 1;
                 for j = 1:length(rowIndices) - 1
-                    startIdx = rowIndices(j);
-                    endIdx = rowIndices(j + 1) - 1;
-                    Window = TS(startIdx:endIdx);
-                    MICROS = Window;
+                    % startIdx = rowIndices(j);
+                    % endIdx = rowIndices(j + 1) - 1;
+                    % Window = TS(startIdx:endIdx);
+                    % MICROS = Window;
+                    MICROS = TS;
                     SECS = cellfun(@(x) str2double(x)/1e6, MICROS, 'UniformOutput', true);
                     MICROS(~isnan(SECS)) = SECS(~isnan(SECS));
                     MICROS(~isnan(SECS), 2) = 1:sum(~isnan(SECS));
+                    MICROS(~isnan(SECS), 3) = SECS(~isnan(SECS));
                 % Set some output variables:
                     MicrosTable = array2table(MICROS);
-                    MicrosTable.Properties.VariableTypes = {'double', 'double'};
-                    MicrosTable.Properties.VariableNames = {'ImagingTime', 'Frame'};
-                    MicrosTable.ImagingTime = MicrosTable.ImagingTime - MicrosTable.ImagingTime(1);
+                    MicrosTable.Properties.VariableTypes = {'double', 'double', 'double'};
+                    MicrosTable.Properties.VariableNames = {'ImagingTime', 'Frame', 'Raw'};
+% Sometimes the timestamp text log records more frames than are saved in
+% the .TIFF file. I believe this is due to the resonator/galvos being
+% active before the Neft File signal is sent. In the text log this appears
+% as non-contiguous timestamps. So remove these noncontiguous entries:
+                    Frame_Rate = 8; % Frame rate is usually 17.07, but unlikely to be slower than 1/8
+                    Hz = 1/Frame_Rate;
+                    Test_Noncontig = diff(MicrosTable.ImagingTime);
+                    First_Real_Frame_Idx = find(Test_Noncontig<Hz, 1, 'first');
+                    MicrosTable.ImagingTime = MicrosTable.ImagingTime - MicrosTable.ImagingTime(First_Real_Frame_Idx);
                     splitStrings.Txt{sidx} = MicrosTable;
                     splitStrings.Frames{sidx} = sum(~isnan(SECS));
                     TT = MicrosTable.ImagingTime(end);
@@ -2984,48 +2994,91 @@ classdef BehaviorBoxData < handle
                 TStable{i,3} = {splitStrings};
             end
             StampTable = vertcat(TStable.txt_split{:});
+            StampTable.Filename = TStable.Filename;
             % Coordinate the frame timestamps to the figure timestamps
-            StimStamp = array2table(this.loadedData(:,[1 7]));
-            StimStamp.Properties.VariableNames = {'Filename', 'StimRecord'};
+            StimStamp = array2table(this.loadedData(:,[1 7 8]));
+            StimStamp.Properties.VariableNames = {'Filename', 'StimRecord', 'Settings'};
             Time = cell2mat(cellfun(@(x) max(x), StimStamp.StimRecord(:,1), 'UniformOutput', false));
             StimStamp.StimTime = Time(:,1);
             [StimStamp.Frames(:)] = cell(size(StimStamp.StimTime));
             [StimStamp.FramesTime(:)] = zeros(size(StimStamp.StimTime));
+            [StimStamp.MatchedFilename(:)] = cell(size(StimStamp.StimTime));
             [StimStamp.Matched(:)] = cell(size(StimStamp.StimTime));
             c = 0;
             for t = StimStamp.StimTime'
                 c = c+1;
-                [~, W] = min(abs(t-[StampTable.TotalTime{:}]'));
-                StimStamp.Frames(c) = StampTable.Txt(W);
-                StimStamp.FramesTime(c) = StampTable.TotalTime{W};
+                %[~, W] = min(abs(t-[StampTable.TotalTime{:}]'));
+                StimStamp.Frames(c) = StampTable.Txt(c);
+                StimStamp.FramesTime(c) = StampTable.TotalTime{c};
+                StimStamp.MatchedFilename{c} = StampTable.Filename{c};
             end
             c = 0;
             for t = [StimStamp.StimRecord StimStamp.Frames]'
                 c = c+1;
                 Stim = t{1};
-                Frame = str2double(t{2}{:,1});
+                Frame = t{2}{:,1};
                 Out = table('Size', [size(Stim,1),4], ...
                     'VariableTypes', {'double', 'double', 'double', 'double'}, ...
                     'VariableNames', {'FrameIDX', 'StimPosition', 'StimTime', 'ImagingTime'});
     % Stim position was recorded at ~60Hz, Imaging at ~15Hz
     % Match timestamps from Stim to Image Frames
     % Find row of first timestamp after stimulus onset (after 3rd NaN)
-                CropRow = find(isnan(Frame), 1, 'first')+2;
-                Frame(1:CropRow) = [];
-                SC = 0;
-                for S = Stim'
-                    try
-                        SC = SC+1;
-                        %[~, Fidx] = min(abs(Frame - S(1))); % Find the closest timestamp
-                        Fidx = find(Frame>=S(1), 1, 'first'); % Find the soonest frame after
-                        Out(SC, :) =  num2cell([Fidx + CropRow, S(2), S(1), Frame(Fidx)]);
-                    catch err % Fails when more stimulus than frame timestamps
-                        break
+                %CropRow = find(isnan(Frame), 1, 'first')+2;
+                %Frame(1:CropRow) = [];
+
+% One method : match each recorded stimulus timestamp to a frame, not recommended...
+                % SC = 0;
+                % for S = Stim'
+                %     try
+                %         SC = SC+1;
+                %         %[~, Fidx] = min(abs(Frame - S(1))); % Find the closest timestamp
+                %         Fidx = find(Frame>=S(1), 1, 'first'); % Find the soonest frame after
+                %         Out(SC, :) =  num2cell([Fidx, S(2), S(1), Frame(Fidx)]);
+                %     catch err % Fails when more stimulus than frame timestamps
+                %         break
+                %     end
+                % end% Keep the last unique row from the frist column
+                % [~, last_indices] = unique(Out(:, 1), 'last');
+                % AllFrames = table('Size', [size(Frame,1),4], ...
+                %     'VariableTypes', {'double', 'double', 'double', 'double'}, ...
+                %     'VariableNames', {'FrameIDX', 'StimPosition', 'StimTime', 'ImagingTime'});
+                % Range_to_match = Out{last_indices(1),1}:Out{last_indices(end),1}; % Fails here when c = 3
+                % AllFrames{:,1} = (1:size(Frame,1))';
+                % AllFrames(Range_to_match,:) = Out(last_indices,:);
+
+% Better method : match each frame timestamp to the stimulus timestamp vector
+                fc = 0;
+                realFrames = sum(Frame>=0);
+                Out2 = table('Size', [size(Frame,1),4], ...
+                    'VariableTypes', {'double', 'double', 'double', 'double'}, ...
+                    'VariableNames', {'FrameIDX', 'StimPosition', 'StimTime', 'ImagingTime'});
+                Out2.ImagingTime = Frame;
+                for F = Frame'
+                    fc = fc+1;
+                    if F < 0
+                        continue
                     end
+                    Sidx = find(F>Stim(:,1), 1, 'last');
+                    if isempty(Sidx)
+                        continue
+                    end
+                    Out2(fc,[1 2 3]) = num2cell([fc Stim(Sidx,[2 1])]);
                 end
-                % Make trigonometric corrections, turn figure location into degrees of visual field
-                Out.StimPosition = this.TransformToVisualDegrees(Out.StimPosition, 'Type', 'X-Bar');
-                StimStamp.Matched(c) = {Out};
+                if any(StimStamp.Settings{c}.Animate_Style == [2 3 4])
+                    % Make trigonometric corrections, turn figure location into degrees of visual field
+                    Out2.StimPosition = this.TransformToVisualDegrees(Out2.StimPosition, 'Type', 'X-Bar');
+                end
+                Out2((Out2.ImagingTime<0),:) = []; % Crop the first non-contiguous timestamps
+                % Framel stamps usually run a little longer than the stimulus, as the microscope is still running while the program is turning off
+                Last_Stim_Stamp = Stim(end,1);
+                OffFrame = find(Out2.ImagingTime>Last_Stim_Stamp, 1, 'first')+1;
+                Out2{OffFrame:end, [2 3]} = NaN;
+                First_Stim_Stamp = Stim(1,1);
+                OnFrame = find(Out2.ImagingTime<First_Stim_Stamp, 1, 'last');
+                Out2{1:OnFrame, [2 3]} = NaN;
+                Out2.FrameIDX = (1:size(Out2,1))';
+                
+                StimStamp.Matched(c) = {Out2};
             end
             % Load in the deltaF/F values for each imaging frame
 
