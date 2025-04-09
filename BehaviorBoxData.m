@@ -3113,6 +3113,24 @@ classdef BehaviorBoxData < handle
             end
 
             % Load in the deltaF/F values for each imaging frame
+            Path = fullfile(this.filedir, 'F_tables');
+            StimStamp.DFF = GetDFF(Path);
+            for i = 1:size(StimStamp,1)
+                F_values = StimStamp.DFF{i};
+                StimTable = StimStamp.Matched{i};
+                FigVar = StimTable.FigureVariable;
+                f = figure();
+                I = imagesc(F_values);
+                AX = I.Parent;
+                colorbar
+                X = repmat(4000, 1 , numel(FigVar));
+                Off = isnan(FigVar);
+                StimOn = find(~Off, 1, 'first');
+                Son = xline(StimOn, "LineWidth",10, "Parent",AX);
+                StimOff = find(~Off, 1, 'last')+1;
+                Soff = xline(StimOff, "LineWidth",10, "Parent",AX);
+                L = line(1:numel(FigVar), 5000+1000*FigVar, "Parent", AX, "LineWidth", 10, "Color", [0 0 0]);
+            end
 
         end
         function OUT = TransformToVisualDegrees(this, Pos, options)
