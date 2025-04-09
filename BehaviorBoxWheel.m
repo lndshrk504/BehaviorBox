@@ -1793,7 +1793,7 @@ classdef BehaviorBoxWheel < handle
                     maxPosition = 0.74; % Maximum x-axis position to move to
                     minPosition = -0.25; % Maximum x-axis position to move to
                     X_or_Y = 1;
-                    % Make the Lv 20 Stim
+                    % Make the Trial Stim at Indicated Level (Temp Settings Panel)
                     [~,~] = this.Stimulus_Object.DisplayOnScreen(this.app.Animate_Side.Value == "Left", ...
                         this.Temp_Settings.Starting_opacity, "NoDelete", true, "StartHidden", true);
                     %Handle for correct axis
@@ -1929,7 +1929,10 @@ classdef BehaviorBoxWheel < handle
                     Pos_Record(I,1) = toc;
                     Pos_Record(I,2) = 4;
                     if this.app.Animate_MimicTrial.Value
-                        this.a.GiveReward
+                        try
+                            this.a.GiveReward
+                        catch 
+                        end
                     end
                     if this.app.Animate_OnlyIncorrectButton.Value
                         set(INCORRECTAX.Children, 'Visible',false)

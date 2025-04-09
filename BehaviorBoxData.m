@@ -13,16 +13,20 @@ classdef BehaviorBoxData < handle
     %This class is called by BehaviorBoxNose or Wheel
     %THIS FILE IS PART OF A SET OF FILES CONTAINING:
     %BehaviorBox.mlapp
-    %BehaviorBoxWheel.m OR %BehaviorBoxNose.m
+    %BehaviorBoxSerialInput.m
+    %BehaviorBoxSerialTime.m
+    %BehaviorBoxWheel.m
+    %BehaviorBoxNose.m
     %BehaviorBoxData.m
     %BehaviorBoxVisualStimulus.m
-    % Optional and currently unused files:
+    % Currently unused files:
     %BehaviorBoxSuper.m
     %BehaviorBoxSub2.m
     %BehaviorBoxVisualGratingObject.m
     %BehaviorBoxVisualStimulusTraining.m
     %
     %   Will Snyder 12/2022
+    %
     %====================================================================
     properties
         TrainingNow=0;
@@ -181,7 +185,8 @@ classdef BehaviorBoxData < handle
             level1Folders = level1Folders([level1Folders.isdir]); % Keep only directories
             dirlist = level1Folders(~ismember({level1Folders.name}, {'.', '..'}) ...
                 & contains({level1Folders.name}, this.Sub, "IgnoreCase",true) ...
-                & ~contains({level1Folders.name}, 'time', "IgnoreCase",true)); % Exclude . and ..
+                & ~contains({level1Folders.name}, 'time', "IgnoreCase",true) ...
+                & ~contains({level1Folders.name}, '_', "IgnoreCase",true)); % Exclude . and ..
 
             % Attempt to group directories
             if isempty(dirlist)
@@ -3031,7 +3036,7 @@ classdef BehaviorBoxData < handle
                 %CropRow = find(isnan(Frame), 1, 'first')+2;
                 %Frame(1:CropRow) = [];
 
-% One method : match each recorded stimulus timestamp to a frame, not recommended...
+% One method: match each recorded stimulus timestamp to a frame, not recommended...
                 % SC = 0;
                 % for S = Stim'
                 %     try
@@ -3051,12 +3056,12 @@ classdef BehaviorBoxData < handle
                 % AllFrames{:,1} = (1:size(Frame,1))';
                 % AllFrames(Range_to_match,:) = Out(last_indices,:);
 
-% Better method : match each frame timestamp to the stimulus timestamp vector
+% Better method: match each frame timestamp to the stimulus timestamp vector
                 fc = 0;
                 realFrames = sum(Frame>=0);
                 Out2 = table('Size', [size(Frame,1),4], ...
                     'VariableTypes', {'double', 'double', 'double', 'double'}, ...
-                    'VariableNames', {'FrameIDX', 'StimPosition', 'StimTime', 'ImagingTime'});
+                    'VariableNames', {'FrameIDX', 'FigureVariable', 'StimTime', 'ImagingTime'});
                 Out2.ImagingTime = Frame;
                 for F = Frame'
                     fc = fc+1;
@@ -3072,7 +3077,9 @@ classdef BehaviorBoxData < handle
         % Change table variable names depending on animation settings:
                 if any(StimStamp.Settings{c}.Animate_Style == [2 3 4])
                     % Make trigonometric corrections, turn figure location into degrees of visual field
-                    Out2.StimPosition = this.TransformToVisualDegrees(Out2.StimPosition, 'Type', 'X-Bar');
+                    Out2.StimVisAngPos = this.TransformToVisualDegrees(Out2.FigureVariable, 'Type', 'X-Bar');
+                else
+                    Out2.Properties.VariableNames{2} = 'DotColorStimOn';
                 end
                 Out2((Out2.ImagingTime<0),:) = []; % Crop the first non-contiguous timestamps
                 % Framel stamps usually run a little longer than the stimulus, as the microscope is still running while the program is turning off
@@ -3140,36 +3147,327 @@ classdef BehaviorBoxData < handle
                 this
                 StimStamp
             end
-% Set up the figure window
+            % Set up save dir
+            Folder = this.filedir{:};
+            Top_Dir = fullfile(Folder, 'RecordedStimuli');
+            if ~isfolder(Top_Dir)
+                mkdir(Top_Dir)
+            end
 
-% Loop through the stimuli
+            % Set up the figure window
+
+            % Loop through the stimuli
             for W = 1:size(StimStamp,1)
-                Settings = StimStamp.Settings{W};
+                Recorded = StimStamp.Matched{W};
+                FrameTotal = size(Recorded, 1);
+                file = erase(StimStamp.Filename{W}, '.mat');
+                Save_Dir = fullfile(Top_Dir, file, 'frames');
+                if ~isfolder(Save_Dir)
+                    mkdir(Save_Dir)
+                end
+                Files = dir(Save_Dir);
+                Files = Files(contains({Files.name}, '.tif'));
+                if numel(Files) == FrameTotal
+                    continue
+                end
+                img = zeros(448, 580, 3, FrameTotal);
+                FC = 0;
+                Set = StimStamp.Settings{W};
+                switch Set.Animate_Style
+                    case 1
+                        Set.Animate_Style = 'X-Line';
+                    case 2
+                        Set.Animate_Style = 'Y-Line';
+                    case 3
+                        Set.Animate_Style = 'Bar';
+                    case 4
+                        Set.Animate_Style = 'Stimulus';
+                    case 5
+                        Set.Animate_Style = 'Dot';
+                    otherwise
+                end
                 StimulusStruct = struct();
-                StimulusStruct = appendStruct(StimulusStruct, PullOut(Settings, 'Stimulus_'));
+                StimulusStruct = appendStruct(StimulusStruct, PullOut(Set, 'Stimulus_'));
                 ReadyCueStruct = struct();
-                ReadyCueStruct = appendStruct(ReadyCueStruct, PullOut(Settings, 'ReadyCue_'));
+                ReadyCueStruct = appendStruct(ReadyCueStruct, PullOut(Set, 'ReadyCue_'));
                 [Stimulus_Object] = BehaviorBoxVisualStimulus(StimulusStruct); drawnow;
                 [fig, LStimAx, RStimAx, FLAx, ~] = Stimulus_Object.setUpFigure();
                 Stimulus_Object.DotSize = ReadyCueStruct.Size;
-        % Adapted from BBWheel... edit to work...
-                switch this.app.Animate_Side.Value
-                    case "Left"
-                        this.isLeftTrial = true;
-                    case "Random"
-                        this.isLeftTrial = this.PickSideForCorrect(0, 0);
-                    case "Right"
-                        this.isLeftTrial = false;
+                % Adapted from BBWheel... edit to work...
+                switch Set.Animate_Side
+                    case 1 % "Left"
+                        isLeftTrial = true;
+                    case 2 % "Random"
+                        isLeftTrial = PickSideForCorrect(0, 0);
+                    case 3 % "Right"
+                        isLeftTrial = false;
                     otherwise
                 end
-                [~,~] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, ...
-                    this.Setting_Struct.Starting_opacity, "AnimateMode", true, "StimType", options.StimType);
+                [~,~] = Stimulus_Object.DisplayOnScreen(isLeftTrial, ...
+                    Set.Starting_opacity, "AnimateMode", true, "StimType", Set.Animate_Style);
                 [fig.findobj('Tag','Spotlight').Visible] = deal(1);
+                set(fig, 'Renderer', 'OpenGL'); % openGL is the default but this may help
+                fig.Units = "pixels";
                 
 
+                Center = 0;
+                switch Set.Animate_Style
+                    case "Dot"
+                        AX = fig.Children(1);
+                        maxPosition = 0.74; % Maximum x-axis position to move to
+                        minPosition = -0.25; % Maximum x-axis position to move to
+                        X_or_Y = 1;
+                % Make the Trial Stim at Indicated Level (Temp Settings Panel)
+                        [~,~] = Stimulus_Object.DisplayOnScreen(isLeftTrial, ...
+                            Set.Starting_opacity_Temp, "NoDelete", true, "StartHidden", true);
+                        %Handle for correct axis
+                        CORRECTAX = fig.findobj('-regexp','Tag','Correct');
+                        INCORRECTAX = fig.findobj('-regexp','Tag','Incorrect');
+                        set(fig.findobj('-regexp','Tag','Spotlight'), 'Visible', true)
+                        CORRECTAX.Position(1) = 0.25;
+                        INCORRECTAX.Position(1) = 0.25;
+                        DOT = AX.Children(1);
+                        % Set Dot to Background color
+                        DOT.FaceColor = StimulusStruct.BackgroundColor;
+                        Flash_Steps = StimulusStruct.FreqAnimation;
+                        %COLORS = repmat(linspace(0, 1, Flash_Steps),3,1);
+                        COLORS = repmat(cos(linspace(pi/2, 0, Flash_Steps)),3,1);
+                    case "X-Line"
+                        AX = fig.Children(1);
+                        BX.Position(1) = NaN;
+                        maxPosition = 0.5; % Maximum x-axis position to move to
+                        minPosition = -0.5; % Maximum x-axis position to move to
+                        X_or_Y = 1;
+                    case "Y-Line"
+                        AX = fig.Children(1);
+                        BX.Position(1) = NaN;
+                        maxPosition = 0.5; % Maximum x-axis position to move to
+                        minPosition = -0.5; % Maximum x-axis position to move to
+                        X_or_Y = 2;
+                    case "Bar"
+                        AX = Stimulus_Object.LStimAx;
+                        BX = Stimulus_Object.RStimAx;
+                        maxPosition = 0.74; % Maximum x-axis position to move to
+                        minPosition = -0.25; % Maximum x-axis position to move to
+                        X_or_Y = 1;
+                        Center = 0.25;
+                    case "Stimulus"
+                        AX = Stimulus_Object.LStimAx;
+                        BX = Stimulus_Object.RStimAx;
+                        BX.Children.Visible = false;
+                        maxPosition = 0.74; % Maximum x-axis position to move to
+                        minPosition = -0.25; % Maximum x-axis position to move to
+                        X_or_Y = 1;
+                        Center = 0.25;
+                end
+                if contains(Set.Animate_Style, "Y-Line") || contains(Set.Animate_Style, "X-Line")
+                    % All other stimuli translate across the screen and the timestamp is
+                    % matched to their position
+                    Pos = Recorded.FigureVariable;
+                    tic
+                    for P = Pos'
+                        % Update figure children
+                        if isnan(P)
+                            [AX.Children(:).Visible] = deal('off');
+                        else
+                            [AX.Children(:).Visible] = deal('on');
+                            % Update positions for axes
+                            AX.Position(X_or_Y) = P;
+                        end
+                        % Save as Tiff
+                        FC = FC+1;
+                        filename = sprintf('Frame_%u.tiff', FC);
+                        Save_File = fullfile(Save_Dir, filename);
+                        output = frame2im(getframe(fig));
+                        New = imresize(output, (1/5.47));
+                        imwrite(New, Save_File)
+                        img(:,:,:,FC) = New;
+                    end
+                    toc
+                elseif contains(Set.Animate_Style, "Stimulus")
+                    % All other stimuli translate across the screen and the timestamp is
+                    % matched to their position
+                    Pos = Recorded.FigureVariable;
+                    tic
+                    for P = Pos'
+                        % Update figure children
+                        if isnan(P)
+                            [AX.Children(:).Visible] = deal('off');
+                        else
+                            [AX.Children(:).Visible] = deal('on');
+                            % Update positions for axes
+                            AX.Position(X_or_Y) = P;
+                        end
+                        % Save as Tiff
+                        FC = FC+1;
+                        filename = sprintf('Frame_%u.tiff', FC);
+                        Save_File = fullfile(Save_Dir, filename);
+                        output = frame2im(getframe(fig));
+                        New = imresize(output, (1/5.47));
+                        imwrite(New, Save_File)
+                        img(:,:,:,FC) = New;
+                    end
+                    toc
+                elseif contains(Set.Animate_Style, "Dot")
+                    % The Dot mode oscillates brighter and dimmer and shows a Lv 20 stimulus
+                    % when at maximum brightness, and the timestamp is matched to the
+                    % brightness
 
+                    Pos = Recorded.DotColorStimOn;
+                    tic
+                    for P = Pos'
+                        if isnan(P) % Black screen, everything off
+                            set(DOT, 'Visible',false)
+                            set(fig.findobj('Type','Line'), 'Visible',false)
+                            INCORRECTAX.findobj('Tag','Spotlight').Visible = 0;
+                            CORRECTAX.findobj('Tag','Spotlight').Visible = 0;
+                        elseif P < 1
+                            set(DOT, 'Visible',true)
+                            set(fig.findobj('Type','Line'), 'Visible',false)
+                            INCORRECTAX.findobj('Tag','Spotlight').Visible = 0;
+                            CORRECTAX.findobj('Tag','Spotlight').Visible = 0;
+                            set(DOT, 'FaceColor', repmat(P,1,3))
+                        else
+                            switch P
+                                case 2
+                                    set(DOT, 'Visible',false)
+                                    set(fig.findobj('Type','Line'), 'Visible',false)
+                                    INCORRECTAX.findobj('Tag','Spotlight').Visible = 0;
+                                    CORRECTAX.findobj('Tag','Spotlight').Visible = 0;
+                                case 3
+                                    if Set.Animate_OnlyIncorrectButton
+                                        set(INCORRECTAX.findobj('Type','Line'), 'Visible',true)
+                                        INCORRECTAX.findobj('Tag','Spotlight').Visible = 1;
+                                        CORRECTAX.findobj('Tag','Spotlight').Visible = 0;
+                                    else
+                                        set(CORRECTAX.findobj('Type','Line'), 'Visible',true)
+                                        INCORRECTAX.findobj('Tag','Spotlight').Visible = 0;
+                                        CORRECTAX.findobj('Tag','Spotlight').Visible = 1;
+                                    end
+                                    set(DOT, 'Visible',false)
+                                case 4
+                                    if Set.Animate_OnlyIncorrectButton
+                                        set(INCORRECTAX.findobj('Type','Line'), 'Visible',true)
+                                        INCORRECTAX.findobj('Tag','Spotlight').Visible = 1;
+                                        CORRECTAX.findobj('Tag','Spotlight').Visible = 0;
+                                    else
+                                        set(CORRECTAX.findobj('Type','Line'), 'Visible',true)
+                                        INCORRECTAX.findobj('Tag','Spotlight').Visible = 0;
+                                        CORRECTAX.findobj('Tag','Spotlight').Visible = 1;
+                                    end
+                                    set(DOT, 'Visible',false)
+                                case 5
+                                    if Set.Animate_OnlyIncorrectButton
+                                        set(INCORRECTAX.findobj('Type','Line'), 'Visible',false)
+                                    else
+                                        set(CORRECTAX.findobj('Type','Line'), 'Visible',false)
+                                    end
+                                    set(DOT, 'Visible',false)
+                                    INCORRECTAX.findobj('Tag','Spotlight').Visible = 0;
+                                    CORRECTAX.findobj('Tag','Spotlight').Visible = 0;
+                                case 6
+                                    if Set.Animate_OnlyIncorrectButton
+                                        set(INCORRECTAX.findobj('Type','Line'), 'Visible',false)
+                                    else
+                                        set(CORRECTAX.findobj('Type','Line'), 'Visible',false)
+                                    end
+                                    set(DOT, 'Visible',false)
+                                    INCORRECTAX.findobj('Tag','Spotlight').Visible = 0;
+                                    CORRECTAX.findobj('Tag','Spotlight').Visible = 0;
+                                case 7
+                                    if Set.Animate_OnlyIncorrectButton
+                                        set(INCORRECTAX.findobj('Type','Line'), 'Visible',false)
+                                    else
+                                        set(CORRECTAX.findobj('Type','Line'), 'Visible',false)
+                                    end
+                                    set(DOT, 'Visible',false)
+                                    INCORRECTAX.findobj('Tag','Spotlight').Visible = 0;
+                                    CORRECTAX.findobj('Tag','Spotlight').Visible = 0;
+                            end
+                            
+                            % Code from BBWheel:
+                            % % Update positions for axes
+                            % for C = COLORS
+                            %     set(DOT, 'FaceColor', C)
+                            %     drawnow
+                            %     pause(stepSize);
+                            %     I = I+1;
+                            %     Pos_Record(I,1) = toc;
+                            %     Pos_Record(I,2) = C(1);
+                            % end
+                            % set(DOT, 'Visible',false)
+                            % I = I+1;
+                            % Pos_Record(I,1) = toc;
+                            % Pos_Record(I,2) = 2;
+                            % pause(0.5)
+                            % if Set.Animate_OnlyIncorrectButton
+                            %     set(INCORRECTAX.Children, 'Visible',true)
+                            % else
+                            %     set(CORRECTAX.Children, 'Visible',true)
+                            % end
+                            % I = I+1;
+                            % Pos_Record(I,1) = toc;
+                            % Pos_Record(I,2) = 3;
+                            % pause(0.5)
+                            % drawnow
+                            % pause(stepSize);
+                            % I = I+1;
+                            % Pos_Record(I,1) = toc;
+                            % Pos_Record(I,2) = 4;
+                            % if this.app.Animate_MimicTrial.Value
+                            %     try
+                            %         this.a.GiveReward
+                            %     catch
+                            %     end
+                            % end
+                            % if Set.Animate_OnlyIncorrectButton
+                            %     set(INCORRECTAX.Children, 'Visible',false)
+                            % else
+                            %     set(CORRECTAX.Children, 'Visible',false)
+                            % end
+                            % I = I+1;
+                            % Pos_Record(I,1) = toc;
+                            % Pos_Record(I,2) = 5;
+                            % pause(0.5)
+                            % set(DOT, 'Visible',true)
+                            % I = I+1;
+                            % Pos_Record(I,1) = toc;
+                            % Pos_Record(I,2) = 6;
+                            % drawnow
+                            % pause(stepSize);
+                            % I = I+1;
+                            % Pos_Record(I,1) = toc;
+                            % Pos_Record(I,2) = 7;
+                            % for C = flip(COLORS,2) % Reverse order, fade the dot out
+                            %     set(DOT, 'FaceColor', C)
+                            %     drawnow
+                            %     pause(stepSize);
+                            %     I = I+1;
+                            %     Pos_Record(I,1) = toc;
+                            %     Pos_Record(I,2) = C(1);
+                            % end
+                        end
+
+                        % Save as Tiff
+                        FC = FC+1;
+                        filename = sprintf('Frame_%u.tiff', FC);
+                        Save_File = fullfile(Save_Dir, filename);
+                        output = frame2im(getframe(fig));
+                        New = imresize(output, (1/5.47));
+                        imwrite(New, Save_File)
+                        img(:,:,:,FC) = New;
+                    end
+                    toc
+                end
+                % Save as Tiff stack
+                tic
+                for I = 1:size(img,4)
+                    Save_File = fullfile(Top_Dir, file, 'Frames.tiff');
+                    imwrite(img(:, :, :, I), Save_File, 'WriteMode', 'append',  'Compression','none');
+                end
+                toc
             end
-            
+
         end
 
     end %end methods
