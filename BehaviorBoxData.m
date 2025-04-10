@@ -2939,7 +2939,7 @@ classdef BehaviorBoxData < handle
             arguments
                 this
                 options.SaveCSV logical = false
-                options.ExportFrames logical = true
+                options.ExportFrames logical = false
             end
             OUT = [];
             Data = this.loadedData;
@@ -3115,21 +3115,51 @@ classdef BehaviorBoxData < handle
             % Load in the deltaF/F values for each imaging frame
             Path = fullfile(this.filedir, 'F_tables');
             StimStamp.DFF = GetDFF(Path);
-            for i = 1:size(StimStamp,1)
+            for i = 4:size(StimStamp,1)
                 F_values = StimStamp.DFF{i};
                 StimTable = StimStamp.Matched{i};
-                FigVar = StimTable.FigureVariable;
+                try
+                    FigVar = StimTable.FigureVariable;
+                catch
+                    FigVar = StimTable.DotColorStimOn;
+                end
+                Half_Height = ceil(0.5*size(F_values, 1));
+                NAME = strrep(StimStamp.Filename{i}, '.mat','.pdf');
+                Save_Name = fullfile(Path{:}, NAME);
                 f = figure();
                 I = imagesc(F_values);
                 AX = I.Parent;
-                colorbar
-                X = repmat(4000, 1 , numel(FigVar));
+                AX.Position = [0 0 1 1];
+                %colorbar
                 Off = isnan(FigVar);
                 StimOn = find(~Off, 1, 'first');
-                Son = xline(StimOn, "LineWidth",10, "Parent",AX);
+                Son = xline(StimOn, "LineWidth", 5, "Parent",AX);
                 StimOff = find(~Off, 1, 'last')+1;
-                Soff = xline(StimOff, "LineWidth",10, "Parent",AX);
-                L = line(1:numel(FigVar), 5000+1000*FigVar, "Parent", AX, "LineWidth", 10, "Color", [0 0 0]);
+                Soff = xline(StimOff, "LineWidth", 5, "Parent",AX);
+                if contains(NAME, 'Stimulus')
+                    %L = line(1:numel(FigVar), Half_Height+1000*FigVar, "Parent", AX, "LineWidth", 10, "Color", [0 0 0 0.5]);
+                elseif contains(NAME, 'Linesweep')
+                    %L = line(1:numel(FigVar), Half_Height+1000*FigVar, "Parent", AX, "LineWidth", 10, "Color", [0 0 0 0.5]);
+                elseif contains(NAME, 'Dot')
+                    StimAppearFrames = find(FigVar==3);
+                    Groupings = [1 ; find(diff(StimAppearFrames)>1)+1];
+                    Stim_Appear = StimAppearFrames( Groupings);
+                    AX.XTick = Stim_Appear;
+                    AX.XGrid = true;
+                    AX.GridAlpha = 1;
+                end
+
+
+                width = 10;
+                height = 20;
+                set(f, 'PaperUnits', 'inches');
+                f.PaperPosition = [0 0 f.PaperSize];
+                drawnow
+                %set(f, 'PaperPosition', [0 0 width, height]);
+                %set(f, "PaperSize", [width height])
+                %exportgraphics(AX, Save_Name)
+                print(f, Save_Name, '-dpdf')
+                close(f)
             end
 
         end
