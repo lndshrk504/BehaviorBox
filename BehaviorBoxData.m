@@ -3114,8 +3114,8 @@ classdef BehaviorBoxData < handle
 
             % Load in the deltaF/F values for each imaging frame
             Path = fullfile(this.filedir, 'F_tables');
-            StimStamp.DFF = GetDFF(Path);
-            for i = 4:size(StimStamp,1)
+            StimStamp.DFF = ProcessDFF(Path);
+            for i = 3:size(StimStamp,1)
                 F_values = StimStamp.DFF{i};
                 StimTable = StimStamp.Matched{i};
                 try
@@ -3127,9 +3127,12 @@ classdef BehaviorBoxData < handle
                 NAME = strrep(StimStamp.Filename{i}, '.mat','.pdf');
                 Save_Name = fullfile(Path{:}, NAME);
                 f = figure();
+                nexttile
                 I = imagesc(F_values);
-                AX = I.Parent;
-                AX.Position = [0 0 1 1];
+                AX = f.findobj("Type","axes");
+                T = f.Children(1);
+
+                T.Position = [0 0 1 1];
                 %colorbar
                 Off = isnan(FigVar);
                 StimOn = find(~Off, 1, 'first');
@@ -3138,8 +3141,14 @@ classdef BehaviorBoxData < handle
                 Soff = xline(StimOff, "LineWidth", 5, "Parent",AX);
                 if contains(NAME, 'Stimulus')
                     %L = line(1:numel(FigVar), Half_Height+1000*FigVar, "Parent", AX, "LineWidth", 10, "Color", [0 0 0 0.5]);
-                elseif contains(NAME, 'Linesweep')
+                    AX.XGrid = true;
+                    AX.GridAlpha = 1;
+                    AX.XTick = find(diff(FigVar)>0.1); % Label everytime the line reset, from bottom to top
+                elseif contains(NAME, 'Line')
                     %L = line(1:numel(FigVar), Half_Height+1000*FigVar, "Parent", AX, "LineWidth", 10, "Color", [0 0 0 0.5]);
+                    AX.XGrid = true;
+                    AX.GridAlpha = 1;
+                    AX.XTick = find(diff(FigVar)>0.1); % Label everytime the line reset, from bottom to top
                 elseif contains(NAME, 'Dot')
                     StimAppearFrames = find(FigVar==3);
                     Groupings = [1 ; find(diff(StimAppearFrames)>1)+1];
@@ -3151,14 +3160,16 @@ classdef BehaviorBoxData < handle
 
 
                 width = 10;
-                height = 20;
+                height = 10;
+                f.Renderer = "opengl";
                 set(f, 'PaperUnits', 'inches');
                 f.PaperPosition = [0 0 f.PaperSize];
+                set(f, 'PaperPosition', [0 0 width, height]);
+                set(f, "PaperSize", [width height])
                 drawnow
-                %set(f, 'PaperPosition', [0 0 width, height]);
-                %set(f, "PaperSize", [width height])
-                %exportgraphics(AX, Save_Name)
-                print(f, Save_Name, '-dpdf')
+                pause(0.1)
+                %exportgraphics(f, Save_Name)
+                print(f, Save_Name, '-dpdf', '-vector')
                 close(f)
             end
 
