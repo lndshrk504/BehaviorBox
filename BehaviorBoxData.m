@@ -967,11 +967,11 @@ classdef BehaviorBoxData < handle
             this = this.CalculateTrialData();
             try
                 this.setGUI(this.current_data_struct, this.GUInum)
-                % try
-                %     this.plotTimerHists(this.Axes.TimeHist, this.current_data_struct)
-                % catch
-                % end
-                % this.plotTrialHistory(this.Axes.TrialHistory, this.current_data_struct)
+                try
+                    this.plotTimerHists(this.Axes.TimeHist, this.current_data_struct)
+                    this.plotTPM(this.Axes.TrialHistory, this.current_data_struct)
+                catch
+                end
                 this.plotBinnedPerformance(this.Axes.BinnedPerf, this.current_data_struct)
                 this.plotAllLevelPerformance()
                 this.plotSideBias(this.Axes.SideBias, this.current_data_struct)
@@ -979,6 +979,9 @@ classdef BehaviorBoxData < handle
             catch err
                 unwrapErr(err)
             end
+        end
+        function plotTPM(this, Ax, Data)
+            
         end
         function plotTimerHists(this, ~, Data)
             %plot time to start trial histogram of session

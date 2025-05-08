@@ -1298,7 +1298,7 @@ classdef BehaviorBoxNose < handle
         end
         %open reward valves
         function GiveRewardAndFlash(this)
-            if this.a.KeyboardInput == true
+            if isempty(this.a) || this.a.KeyboardInput == true
                 return
             end
             %Get reward valve, pulse number and time:
@@ -1414,7 +1414,7 @@ classdef BehaviorBoxNose < handle
             this.updateMessageBox();
             %Wait for interval
             this.UpdatePause(interval_time);
-            if ~this.a.KeyboardInput
+            if ~isempty(this.a) && ~this.a.KeyboardInput
                 switch this.Box.Input_type
                     case 3 % Nose
                         this.ReadyCue(1)
