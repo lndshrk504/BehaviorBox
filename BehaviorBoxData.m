@@ -967,11 +967,11 @@ classdef BehaviorBoxData < handle
             this = this.CalculateTrialData();
             try
                 this.setGUI(this.current_data_struct, this.GUInum)
-                try
-                    this.plotTimerHists(this.Axes, this.current_data_struct)
-                catch
-                end
-                this.plotTrialHistory(this.Axes.TrialHistory, this.current_data_struct)
+                % try
+                %     this.plotTimerHists(this.Axes.TimeHist, this.current_data_struct)
+                % catch
+                % end
+                % this.plotTrialHistory(this.Axes.TrialHistory, this.current_data_struct)
                 this.plotBinnedPerformance(this.Axes.BinnedPerf, this.current_data_struct)
                 this.plotAllLevelPerformance()
                 this.plotSideBias(this.Axes.SideBias, this.current_data_struct)
@@ -2683,7 +2683,7 @@ classdef BehaviorBoxData < handle
         %Setup figures to display data
         function Axes = CreateAllTimeGraphs(this,P)
             %Create the TiledLayout in the Panel for all of the graphs...
-            r = 2;
+            r = 3;
             c = 5;
             TL = tiledlayout(P, r, c, ...
                 'Padding','tight', ...
@@ -2728,6 +2728,19 @@ classdef BehaviorBoxData < handle
             % Create axes8
             DT = nexttile(TL, [1 5]);
             DT.Tag = 'Axes_TrialsMin';
+            %title(DT, 'Performance by Trial')
+            DT.Toolbar.Visible = 'off';
+            DT.TickLength = [0 0];
+            DT.XTick = [];
+            DT.YTick = [];
+            DT.NextPlot = 'add';
+            DT.Box = 'off';
+            %DT.BoxStyle = 'full';
+            DT.PickableParts = 'none';
+
+            % Create axes8
+            DT = nexttile(TL, [1 5]);
+            DT.Tag = 'Axes_TimeHist';
             %title(DT, 'Performance by Trial')
             DT.Toolbar.Visible = 'off';
             DT.TickLength = [0 0];
