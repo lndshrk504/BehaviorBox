@@ -127,11 +127,21 @@ classdef BehaviorBoxData < handle
                 case any(CodedChoice == [5 6])
                     Score = 2;
             end
-            addStruct = struct('Score', Score, 'Level', Level, 'isLeftTrial', isLeftTrial, ...
-                'CodedChoice', CodedChoice, 'RewardPulses', RewardPulses, 'InterTMal', InterTMal, ...
-                'DuringTMal', DuringTMal, 'TrialStartTime', TrialStartTime, 'ResponseTime', ResponseTime, ...
-                'DrinkTime', DrinkTime, 'BetweenTrialTime', BetweenTrialTime, 'SideBias', SideBias, ...
-                'SetIdx', SetIdx, 'SetStr', SetStr);
+            addStruct = struct( ...
+                'Score', Score, ...
+                'Level', Level, ...
+                'isLeftTrial', isLeftTrial, ...
+                'CodedChoice', CodedChoice, ...
+                'RewardPulses', RewardPulses, ...
+                'InterTMal', InterTMal, ...
+                'DuringTMal', DuringTMal, ...
+                'TrialStartTime', TrialStartTime, ...
+                'ResponseTime', ResponseTime, ...
+                'DrinkTime', DrinkTime, ...
+                'BetweenTrialTime', BetweenTrialTime, ...
+                'SideBias', SideBias, ...
+                'SetIdx', SetIdx, ...
+                'SetStr', SetStr);
             this.current_data_struct = this.addDataRow(addStruct);
         end
         function addStimEvent(this, ~) %Get the timestamp of when the stimulus appeared
@@ -957,11 +967,11 @@ classdef BehaviorBoxData < handle
             this = this.CalculateTrialData();
             try
                 this.setGUI(this.current_data_struct, this.GUInum)
-                % try
-                %     this.plotTimerHists(this.Axes, this.current_data_struct)
-                % catch
-                % end
-                %this.plotTrialHistory(this.Axes.TrialHistory, this.current_data_struct)
+                try
+                    this.plotTimerHists(this.Axes, this.current_data_struct)
+                catch
+                end
+                this.plotTrialHistory(this.Axes.TrialHistory, this.current_data_struct)
                 this.plotBinnedPerformance(this.Axes.BinnedPerf, this.current_data_struct)
                 this.plotAllLevelPerformance()
                 this.plotSideBias(this.Axes.SideBias, this.current_data_struct)
@@ -2673,14 +2683,14 @@ classdef BehaviorBoxData < handle
         %Setup figures to display data
         function Axes = CreateAllTimeGraphs(this,P)
             %Create the TiledLayout in the Panel for all of the graphs...
-            r = 4;
+            r = 2;
             c = 5;
             TL = tiledlayout(P, r, c, ...
                 'Padding','tight', ...
                 'TileSpacing','tight');
             % Create Binned Perf
-            BP = nexttile(TL, [1 4]);
-            BP.Tag = 'Axes_BinnedPerf';
+            BP = nexttile(TL, [1 5]);
+            BP.Tag = 'Axes_ResponseTime';
             %title(BP, 'Binned Performance')
             BP.Toolbar.Visible = 'off';
             BP.TickLabelInterpreter = 'none';
@@ -2697,27 +2707,27 @@ classdef BehaviorBoxData < handle
             %BP.BoxStyle = 'full';
             BP.PickableParts = 'none';
 
-            % Create LP
-            LP = nexttile(TL, [1 1]);
-            LP.Tag = 'Axes_LevelCount';
-            %title(LP, 'Level Performance')
-            LP.Toolbar.Visible = 'off';
-            LP.YLim = [0 1];
-            LP.XTick = [];
-            LP.YTick = [];
-            %LP.YTick = [0 0.1 0.5 0.75 1];
-            %LP.YTickLabelRotation = 90;
-            %LP.YTickLabel = {''; '#'; '50%'; '75%'; ''};
-            LP.YGrid = 'on';
-            LP.TickDir = 'none';
-            LP.NextPlot = 'add';
-            LP.Box = 'off';
-            %LP.BoxStyle = 'full';
-            LP.PickableParts = 'none';
+            % % Create LP
+            % LP = nexttile(TL, [1 1]);
+            % LP.Tag = 'Axes_LevelCount';
+            % %title(LP, 'Level Performance')
+            % LP.Toolbar.Visible = 'off';
+            % LP.YLim = [0 1];
+            % LP.XTick = [];
+            % LP.YTick = [];
+            % %LP.YTick = [0 0.1 0.5 0.75 1];
+            % %LP.YTickLabelRotation = 90;
+            % %LP.YTickLabel = {''; '#'; '50%'; '75%'; ''};
+            % LP.YGrid = 'on';
+            % LP.TickDir = 'none';
+            % LP.NextPlot = 'add';
+            % LP.Box = 'off';
+            % %LP.BoxStyle = 'full';
+            % LP.PickableParts = 'none';
 
             % Create axes8
-            DT = nexttile(TL, [2 5]);
-            DT.Tag = 'Axes_AllLevelPerf';
+            DT = nexttile(TL, [1 5]);
+            DT.Tag = 'Axes_TrialsMin';
             %title(DT, 'Performance by Trial')
             DT.Toolbar.Visible = 'off';
             DT.TickLength = [0 0];
@@ -2746,19 +2756,19 @@ classdef BehaviorBoxData < handle
             %             TH.HitTest = 'off';
             %             TH.PickableParts = 'none';
 
-            % Create SB
-            SB = nexttile(TL, [1 5]);
-            SB.Tag = 'Axes_SideBias';
-            %title(SB, 'Side Bias History')
-            SB.Toolbar.Visible = 'off';
-            SB.YLim = [0 1];
-            SB.TickLength = [0 0];
-            SB.XTick = [];
-            SB.YTick = [];
-            SB.NextPlot = 'add';
-            SB.Box = 'off';
-            %SB.BoxStyle = 'full';
-            SB.PickableParts = 'none';
+            % % Create SB
+            % SB = nexttile(TL, [1 5]);
+            % SB.Tag = 'Axes_SideBias';
+            % %title(SB, 'Side Bias History')
+            % SB.Toolbar.Visible = 'off';
+            % SB.YLim = [0 1];
+            % SB.TickLength = [0 0];
+            % SB.XTick = [];
+            % SB.YTick = [];
+            % SB.NextPlot = 'add';
+            % SB.Box = 'off';
+            % %SB.BoxStyle = 'full';
+            % SB.PickableParts = 'none';
 
             %             % Create axes6
             %             ST = nexttile(TL, [1 1]);

@@ -27,6 +27,7 @@ classdef BehaviorBoxNose < handle
         RStimAx; %Axis that contains the left stimulus plot
         FLAx; %Axis that contains the 2 finish line triangles
         graphFig;
+        timerFig;
         TrialPhase char = 'intertrial' % Either : BeforeTrial, Intertrial, AfterTrial
         ReadyCueStruct = struct();
         StimulusStruct = struct();
@@ -346,8 +347,12 @@ classdef BehaviorBoxNose < handle
             [this.Stimulus_Object] = BehaviorBoxVisualStimulus(this.StimulusStruct); drawnow;
             this.Data_Object.StimType = erase(this.app.Stimulus_type.Value, ' ');
             this.graphFig = this.app.PerformanceTab.Children.Children;
+            this.timerFig = this.app.TimersTab.Children.Children;
             clo(this.graphFig);
-            this.Data_Object.Axes = this.Data_Object.CreateDailyGraphs(this.graphFig);
+            clo(this.timerFig);
+            Ax_G = this.Data_Object.CreateDailyGraphs(this.graphFig);
+            Ax_T = this.Data_Object.CreateAllTimeGraphs(this.timerFig);
+            this.Data_Object.Axes = appendStruct(Ax_T, Ax_G);
             this.Data_Object.SB = this.Setting_Struct.Data_Sbin; %Make these names match
             this.Data_Object.BB = this.Setting_Struct.Data_Lbin*this.Setting_Struct.Data_Sbin;
             this.Data_Object.current_data_struct = this.Data_Object.new_init_data_struct();
