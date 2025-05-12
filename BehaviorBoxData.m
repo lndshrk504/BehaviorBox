@@ -968,9 +968,10 @@ classdef BehaviorBoxData < handle
             try
                 this.setGUI(this.current_data_struct, this.GUInum)
                 try
-                    this.plotTimerHists(this.Axes.TimeHist, this.current_data_struct)
-                    this.plotTPM(this.Axes.TrialHistory, this.current_data_struct)
-                catch
+                    % this.plotTimerHists(this.Axes.TimeHist, this.current_data_struct)
+                    this.plotTPM(this.Axes.TrialsMin, this.current_data_struct)
+                catch err
+                    unwrapErr(err)
                 end
                 this.plotBinnedPerformance(this.Axes.BinnedPerf, this.current_data_struct)
                 this.plotAllLevelPerformance()
@@ -981,7 +982,27 @@ classdef BehaviorBoxData < handle
             end
         end
         function plotTPM(this, Ax, Data)
-            
+            YL = 0:0.25:3;
+            YGrid = yline(YL, "Parent",Ax);
+            TimeStamp_Min = Data.TimeStamp;
+            Min_Per_Trial = diff(TimeStamp_Min);
+            [m,n] = size(Min_Per_Trial);
+            TPM = zeros(m-10, n);
+            %ZI = find(TPM==0);
+            %ZI(end+1:end)=[];
+            %TPM(ZI) = NaN;
+            for tx = 10:numel(Min_Per_Trial)
+                w = (tx-9):tx;
+                TPM(tx) = (1/mean(Min_Per_Trial(w)));
+            end
+            T = plot(TPM, "Parent",Ax);
+            if isempty(T)
+                return
+            end
+            T.LineWidth = 2;
+            T.Color = 'k';
+            Ax.XLimitMethod = "tight";
+            Ax.XLim = [0.5 m];
         end
         function plotTimerHists(this, ~, Data)
             %plot time to start trial histogram of session
@@ -1253,7 +1274,7 @@ classdef BehaviorBoxData < handle
             Ax.YAxis.MinorTickValues = 0:0.1:1;
             Ax.YAxis.TickLabels = [];
             %Change limits, ticks, grids:
-            Bx.XLim = [0.5 numel(tnum)+0.5];
+            Bx.XLim = [0.5 numel(tnum)];
             Bx.YLim = [0 1];
             Bx.YTick = []; % Customize y-axis tick marks
             Bx.YTickLabel = [];
@@ -2549,7 +2570,7 @@ classdef BehaviorBoxData < handle
         %Setup figures to display data
         function Axes = CreateDailyGraphs(this,P)
             %Create the TiledLayout in the Panel for all of the graphs...
-            r = 5;
+            r = 6;
             c = 5;
             TL = tiledlayout(P, r, c, ...
                 'Padding','tight', ...
@@ -2635,6 +2656,19 @@ classdef BehaviorBoxData < handle
             SB.Box = 'off';
             %SB.BoxStyle = 'full';
             SB.PickableParts = 'none';
+
+            % Create axes8
+            DT = nexttile(TL, [1 5]);
+            DT.Tag = 'Axes_TrialsMin';
+            %title(DT, 'Performance by Trial')
+            DT.Toolbar.Visible = 'off';
+            DT.TickLength = [0 0];
+            DT.XTick = [];
+            DT.YTick = [];
+            DT.NextPlot = 'add';
+            DT.Box = 'off';
+            %DT.BoxStyle = 'full';
+            DT.PickableParts = 'none';
 
             % Create Binomial by trial
             BN = nexttile(TL, [1 5]);
