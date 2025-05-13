@@ -289,7 +289,7 @@ classdef BehaviorBoxNose < handle
             end
             this.message_handle.Text = 'Connecting to Arduino. . .';
             tic
-            try
+            try 
                 % https://docs.arduino.cc/learn/microcontrollers/digital-pins
                 switch this.Setting_Struct.Box_Input_type
                     case 3 %Three Pokes
