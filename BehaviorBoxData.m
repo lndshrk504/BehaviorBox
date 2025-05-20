@@ -971,7 +971,7 @@ classdef BehaviorBoxData < handle
                     % this.plotTimerHists(this.Axes.TimeHist, this.current_data_struct)
                     this.plotTPM(this.Axes.TrialsMin, this.current_data_struct)
                 catch err
-                    unwrapErr(err)
+                    %unwrapErr(err)
                 end
                 this.plotBinnedPerformance(this.Axes.BinnedPerf, this.current_data_struct)
                 this.plotAllLevelPerformance()
@@ -982,8 +982,6 @@ classdef BehaviorBoxData < handle
             end
         end
         function plotTPM(this, Ax, Data)
-            YL = 0:0.25:3;
-            YGrid = yline(YL, "Parent",Ax);
             TimeStamp_Min = Data.TimeStamp;
             Min_Per_Trial = diff(TimeStamp_Min);
             [m,n] = size(Min_Per_Trial);
@@ -995,6 +993,9 @@ classdef BehaviorBoxData < handle
                 w = (tx-9):tx;
                 TPM(tx) = (1/mean(Min_Per_Trial(w)));
             end
+            maxTPM = ceil(max(TPM));
+            YL = 0:0.25:maxTPM;
+            YGrid = yline(YL, "Parent",Ax);
             T = plot(TPM, "Parent",Ax);
             if isempty(T)
                 return
