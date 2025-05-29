@@ -261,14 +261,14 @@ classdef BehaviorBoxNose < handle
         function OUT = ManyLevels(~, In)
             OUT = In;
             if ~isnumeric(In.HardLvList)
-                HardLevs = str2num(In.HardLvList); %#ok<ST2NM>
+                HardLevs = str2num(string(In.HardLvList)); %#ok<ST2NM>
             else
-                HardLevs = In.HardLvList;
+                HardLevs = str2num(string(In.HardLvList));
             end
             if ~isnumeric(In.EasyLvList)
                 EasyLevs = str2num(string(In.EasyLvList)); %#ok<ST2NM>
             else
-                EasyLevs = In.EasyLvList;
+                EasyLevs = str2num(string(In.EasyLvList));
             end
             LEVELS = {EasyLevs HardLevs; In.EasyLvProb In.HardLvProb};
             PossibleLevels = [];
