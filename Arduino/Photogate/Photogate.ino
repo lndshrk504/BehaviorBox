@@ -16,7 +16,8 @@ enum State {
   LEFT_OPEN,
   LEFT_SETUP,
   RIGHT_SETUP,
-  WHO
+  WHO,
+  SETUP
 };
 
 State currentState = READING;
@@ -92,6 +93,10 @@ void displayWelcomeMessage() {
   Serial.println();
 }
 
+void displayID() {
+  Serial.print("Box ID: "); Serial.println("1");
+}
+
 void checkAndPrintPhotogateState() {
   if (digitalRead(PIN_4) == LOW && !hasPrintedFlags[0]) {
     Serial.println('L');
@@ -104,6 +109,7 @@ void checkAndPrintPhotogateState() {
     setFlags(2);
   } else if (digitalRead(PIN_4) == HIGH && digitalRead(PIN_5) == HIGH && digitalRead(PIN_6) == HIGH && !hasPrintedFlags[3]) {
     Serial.println('-');
+    resetFlags(); // Uncomment to only reset flags when None are selected (Multiple mice in one box)
     setFlags(3);
   }
 }
@@ -115,7 +121,7 @@ void resetFlags() {
 }
 
 void setFlags(int index) {
-  resetFlags();
+  // resetFlags(); // Uncomment to reset flags every time a new port is selected (One mouse per box)
   hasPrintedFlags[index] = true;
 }
 
@@ -153,6 +159,10 @@ void handleStateChange() {
       currentState = READING;
       break;
     case WHO:
+      displayID();
+      currentState = READING;
+      break;
+    case SETUP:
       displayWelcomeMessage();
       currentState = READING;
       break;
@@ -185,7 +195,8 @@ void loop() {
       case 'l': currentState = LEFT_OPEN; break;
       case 's': currentState = RIGHT_SETUP; break;
       case 'S': currentState = LEFT_SETUP; break;
-      case 'W': currentState = WHO; break;
+      case 'W': currentState = SETUP; break;
+      case '?': currentState = WHO; break;
       default: break;
     }
   }
