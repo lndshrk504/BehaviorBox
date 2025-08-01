@@ -13,4 +13,5 @@
 *.avi
 *.tif
 *.tiff
-
+# Folders
+*.idea/
