@@ -214,32 +214,18 @@ void pulsePinHighForDuration(int pin, int duration) {
 void displayWelcomeMessage() {
   Serial.println();
   Serial.println("Welcome to BehaviorBox - Wheel");
-  Serial.println();
-  Serial.println("WIRING:");
-  Serial.println("The encoder 'myEnc' is connected to the interrupt pins 2 and 3");
-  Serial.println("PIN_8 (Reward) is connected to digital pin 8");
-  Serial.println("PIN_9 (Start Acquisition (SI)) is connected to digital pin 9");
-  Serial.println("PIN_10 (Next File (SI)) is connected to digital pin 10");
-  Serial.println("PIN_11 (End Acquisition (SI)) is connected to digital pin 11");
-  Serial.println("PIN_12 (Timestamp (Time)) is connected to digital pin 12");
-  Serial.println();
-  Serial.println("SETTINGS:");
   Serial.print("Right reward: "); Serial.print(rightdur, 4); Serial.println(" sec");
-  Serial.println();
   Serial.println("USAGE:");
-  Serial.println("The default behavior is to read from the Photogates and output L, M, R or -");
-  Serial.println("Please enter one of the following characters to control the state:");
+  Serial.println("Please enter one of the following case-sensitive characters to control the state:");
   Serial.println("If the letter 'R' is entered, the current state will switch to RIGHT_REWARDING");
   Serial.println("If the letter 'r' is entered, the current state will switch to RIGHT_OPEN");
   Serial.println("If the letter 's' is entered, the current state will switch to RIGHT_SETUP");
   Serial.println("If the letter 'W' is entered, the current state will switch to WHO, which is an identifying state.");
   Serial.println("If the number '0' is entered, the encoder's position will be reset to 0 counts");
   Serial.println("If the letter 'T' is entered, the Timestamping pin will toggle");
-  Serial.println("Note: The system is case sensitive, uppercase and lowercase letters will trigger different states.");
   Serial.println("Readout begins below...");
-  Serial.println();
   resetEncoder();
-  Serial.println(0);
+  checkAndPrintEncoderState();
 }
 
 void checkAndPrintEncoderState() {
