@@ -63,65 +63,37 @@ float getDurationFromSerial(const char* prompt) {
 }
 
 void displayWelcomeMessage() {
-  Serial.println();
-  Serial.println("Welcome to BehaviorBox - NosePoke");
-  Serial.println();
-  Serial.println("WIRING:");
-  Serial.println("PIN_4 (Left) is connected to digital pin 4");
-  Serial.println("PIN_5 (Middle) is connected to digital pin 5");
-  Serial.println("PIN_6 (Right) is connected to digital pin 6");
-  Serial.println("PIN_7 (Left Reward) is connected to digital pin 7");
-  Serial.println("PIN_8 (Right Reward) is connected to digital pin 8");
-  Serial.println();
-  Serial.println("SETTINGS:");
-  Serial.print("Right reward: "); Serial.print(rightdur, 4); Serial.println(" sec");
-  Serial.print("Left reward: "); Serial.print(leftdur, 4); Serial.println(" sec");
-  Serial.println();
-  Serial.println("USAGE:");
-  Serial.println("The default behavior is to read from the Photogates and output L, M, R or -");
-  Serial.println("Please enter one of the following characters to control the state:");
-  Serial.println("If the letter 'R' is entered, the current state will switch to RIGHT_REWARDING");
-  Serial.println("If the letter 'r' is entered, the current state will switch to RIGHT_OPEN");
-  Serial.println("If the letter 'L' is entered, the current state will switch to LEFT_REWARDING");
-  Serial.println("If the letter 'l' is entered, the current state will switch to LEFT_OPEN");
-  Serial.println("If the letter 'S' is entered, the current state will switch to LEFT_SETUP");
-  Serial.println("If the letter 's' is entered, the current state will switch to RIGHT_SETUP");
-  Serial.println("If the letter 'W' is entered, the current state will switch to WHO, which is an identifying state.");
-  Serial.println("Note: The system is case sensitive, uppercase and lowercase letters will trigger different states.");
-  Serial.println("Readout begins below...");
-  Serial.println();
-  Serial.println();
 }
 
 void displayID() {
-  Serial.print("Box ID: "); Serial.println("1");
+  Serial.print("Box ID: "); Serial.println("Nose1");
 }
 
 void checkAndPrintPhotogateState() {
-  if (digitalRead(PIN_4) == LOW && !hasPrintedFlags[0]) {
+  if (!hasPrintedFlags[0] && digitalRead(PIN_4) == LOW) {
     Serial.println('L');
     //setFlags(0);
     hasPrintedFlags[0] = true;
     hasPrintedFlags[3] = false;
-  } else if (digitalRead(PIN_5) == LOW && !hasPrintedFlags[1]) {
+  } else if (!hasPrintedFlags[1] && digitalRead(PIN_5) == LOW) {
     Serial.println('M');
     //setFlags(1);
     hasPrintedFlags[1] = true;
     hasPrintedFlags[3] = false;
-  } else if (digitalRead(PIN_6) == LOW && !hasPrintedFlags[2]) {
+  } else if (!hasPrintedFlags[2] && digitalRead(PIN_6) == LOW) {
     Serial.println('R');
     //setFlags(2);
     hasPrintedFlags[2] = true;
     hasPrintedFlags[3] = false;
-  } else if (digitalRead(PIN_4) == HIGH && digitalRead(PIN_5) == HIGH && digitalRead(PIN_6) == HIGH && !hasPrintedFlags[3]) {
+  } else if (!hasPrintedFlags[3] && digitalRead(PIN_4) == HIGH && digitalRead(PIN_5) == HIGH && digitalRead(PIN_6) == HIGH) {
     Serial.println('-');
     resetFlags(); // Uncomment to only reset flags when None are selected (Multiple mice in one box)
     setFlags(3);
-  } else if (digitalRead(PIN_4) == HIGH && hasPrintedFlags[0]) {
+  } else if (hasPrintedFlags[0] && digitalRead(PIN_4) == HIGH) {
     hasPrintedFlags[0] = false;
-  } else if (digitalRead(PIN_5) == HIGH && hasPrintedFlags[1]) {
+  } else if (hasPrintedFlags[1] && digitalRead(PIN_5) == HIGH) {
     hasPrintedFlags[1] = false;
-  } else if (digitalRead(PIN_6) == HIGH && hasPrintedFlags[2]) {
+  } else if (hasPrintedFlags[2] && digitalRead(PIN_6) == HIGH) {
     hasPrintedFlags[2] = false;
   }
 }
