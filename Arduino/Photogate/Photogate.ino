@@ -1,4 +1,4 @@
-// WBS 8-29-2024
+// WBS 8-6-2025
 
 #include <Arduino.h>
 
@@ -100,17 +100,29 @@ void displayID() {
 void checkAndPrintPhotogateState() {
   if (digitalRead(PIN_4) == LOW && !hasPrintedFlags[0]) {
     Serial.println('L');
-    setFlags(0);
+    //setFlags(0);
+    hasPrintedFlags[0] = true;
+    hasPrintedFlags[3] = false;
   } else if (digitalRead(PIN_5) == LOW && !hasPrintedFlags[1]) {
     Serial.println('M');
-    setFlags(1);
+    //setFlags(1);
+    hasPrintedFlags[1] = true;
+    hasPrintedFlags[3] = false;
   } else if (digitalRead(PIN_6) == LOW && !hasPrintedFlags[2]) {
     Serial.println('R');
-    setFlags(2);
+    //setFlags(2);
+    hasPrintedFlags[2] = true;
+    hasPrintedFlags[3] = false;
   } else if (digitalRead(PIN_4) == HIGH && digitalRead(PIN_5) == HIGH && digitalRead(PIN_6) == HIGH && !hasPrintedFlags[3]) {
     Serial.println('-');
     resetFlags(); // Uncomment to only reset flags when None are selected (Multiple mice in one box)
     setFlags(3);
+  } else if (digitalRead(PIN_4) == HIGH && hasPrintedFlags[0]) {
+    hasPrintedFlags[0] = false;
+  } else if (digitalRead(PIN_5) == HIGH && hasPrintedFlags[1]) {
+    hasPrintedFlags[1] = false;
+  } else if (digitalRead(PIN_6) == HIGH && hasPrintedFlags[2]) {
+    hasPrintedFlags[2] = false;
   }
 }
 
@@ -121,7 +133,7 @@ void resetFlags() {
 }
 
 void setFlags(int index) {
-  // resetFlags(); // Uncomment to reset flags every time a new port is selected (One mouse per box)
+  resetFlags(); // Uncomment to reset flags every time a new port is selected (One mouse per box)
   hasPrintedFlags[index] = true;
 }
 
