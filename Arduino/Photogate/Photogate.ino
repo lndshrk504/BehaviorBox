@@ -63,10 +63,14 @@ float getDurationFromSerial(const char* prompt) {
 }
 
 void displayWelcomeMessage() {
+  Serial.println("NosePoke");
+  Serial.print("Right reward duration set to: "); Serial.println(rightdur);
+  Serial.print("Left reward duration set to: "); Serial.println(leftdur);
 }
 
 void displayID() {
-  Serial.print("Box ID: "); Serial.println("Nose1");
+  Serial.print("Box ID: ");Serial.println("Nose1");
+  resetFlags();
 }
 
 void checkAndPrintPhotogateState() {
@@ -148,7 +152,7 @@ void handleStateChange() {
       break;
     case SETUP:
       displayWelcomeMessage();
-      currentState = READING;
+      currentState = WHO;
       break;
     default: break;
   }
