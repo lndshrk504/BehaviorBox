@@ -60,6 +60,7 @@ void setup() {
   setupPins();
   Serial.println();
   Serial.println("Wheel"); // Identify this as the wheel
+  Serial.print("Right reward: "); Serial.print(rightdur, 4); Serial.println(" sec");
   Serial.println();
   resetEncoder();
 }
