@@ -13,17 +13,22 @@ function selectedDevice = arduinoServer(desiredIdentity)
     % List available serial ports on your system
     serialPortInfo = serialportlist;
 
-    % Initialize an empty structure to hold port and identity information
-    devicesInfo = struct('Port', {}, 'Identity', {});
+    % Preallocate the devicesInfo structure array with maximum possible size
+    maxPorts = length(serialPortInfo);
+    devicesInfo(maxPorts).Port = '';
+    devicesInfo(maxPorts).Identity = '';
+
+    % Initialize an index to keep track of actual devices found
+    deviceCount = 0;
 
     % Iterate through each serial port
-    for i = 1:length(serialPortInfo)
+    for i = 1:maxPorts
         try
             % Create serial port object
             device = serialport(serialPortInfo(i), 115200); % Modify the baud rate if required
 
             % Define a cleanup function to close the port eventually
-            finishup = onCleanup(@() clear device);
+            finishup = onCleanup(@() clear(device));
 
             % Pause to allow time for connection; some devices may require a brief wait
             pause(0.5);
@@ -35,9 +40,12 @@ function selectedDevice = arduinoServer(desiredIdentity)
             pause(0.5); % Add a pause if the response takes time
             response = readline(device);
 
-            % Store the port and identity
-            devicesInfo(end + 1).Port = serialPortInfo(i);
-            devicesInfo(end).Identity = strtrim(response); % Trim the response for consistency
+            % Increment the device count
+            deviceCount = deviceCount + 1;
+
+            % Store the port and identity in the preallocated array
+            devicesInfo(deviceCount).Port = serialPortInfo(i);
+            devicesInfo(deviceCount).Identity = strtrim(response); % Trim the response for consistency
 
             % Disconnect the device as we are only identifying at this stage
             clear('device');
@@ -47,11 +55,14 @@ function selectedDevice = arduinoServer(desiredIdentity)
         end
     end
 
+    % Retain only the populated entries in devicesInfo
+    devicesInfo = devicesInfo(1:deviceCount);
+
     % Find and connect to the desired device
     selectedDevice = [];
-    for i = 1:length(devicesInfo)
+    for i = 1:deviceCount
         if strcmp(devicesInfo(i).Identity, desiredIdentity)
-            selectedDevice = serialport(devicesInfo(i).Port, 115200); % Reconnect to desired device
+            selectedDevice = serialport(devicesInfo(i).Port, 115200); % Reconnect to the desired device
             fprintf('Connected to device: %s on port: %s\n', devicesInfo(i).Identity, devicesInfo(i).Port);
             break;
         end
