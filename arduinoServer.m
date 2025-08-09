@@ -1,0 +1,64 @@
+function selectedDevice = arduinoServer(desiredIdentity)
+    % arduinoServer Connects to a specific Arduino device based on its identity.
+    % 
+    % selectedDevice = arduinoServer(desiredIdentity)
+    % 
+    % Inputs:
+    %   - desiredIdentity: A string representing the identity of the desired Arduino.
+    %
+    % Outputs:
+    %   - selectedDevice: A serialport object for the desired Arduino device.
+    %     If no matching device is found, returns an empty array.
+
+    % List available serial ports on your system
+    serialPortInfo = serialportlist;
+
+    % Initialize an empty structure to hold port and identity information
+    devicesInfo = struct('Port', {}, 'Identity', {});
+
+    % Iterate through each serial port
+    for i = 1:length(serialPortInfo)
+        try
+            % Create serial port object
+            device = serialport(serialPortInfo(i), 9600); % Modify the baud rate if required
+
+            % Define a cleanup function to close the port eventually
+            finishup = onCleanup(@() clear device);
+
+            % Pause to allow time for connection; some devices may require a brief wait
+            pause(0.5);
+
+            % Send the identification character 'W'
+            writeline(device, 'W');
+
+            % Read the response from the serial device
+            pause(0.5); % Add a pause if the response takes time
+            response = readline(device);
+
+            % Store the port and identity
+            devicesInfo(end + 1).Port = serialPortInfo(i);
+            devicesInfo(end).Identity = strtrim(response); % Trim the response for consistency
+
+            % Disconnect the device as we are only identifying at this stage
+            clear('device');
+        catch
+            % If an error occurs, such as a timeout, skip this device
+            fprintf('Error with port %s. Skipping.\n', serialPortInfo(i));
+        end
+    end
+
+    % Find and connect to the desired device
+    selectedDevice = [];
+    for i = 1:length(devicesInfo)
+        if strcmp(devicesInfo(i).Identity, desiredIdentity)
+            selectedDevice = serialport(devicesInfo(i).Port, 9600); % Reconnect to desired device
+            fprintf('Connected to device: %s on port: %s\n', devicesInfo(i).Identity, devicesInfo(i).Port);
+            break;
+        end
+    end
+
+    % Check if the desired device was not found
+    if isempty(selectedDevice)
+        disp('Desired device was not found.');
+    end
+end
