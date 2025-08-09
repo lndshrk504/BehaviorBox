@@ -20,7 +20,7 @@ function selectedDevice = arduinoServer(desiredIdentity)
     for i = 1:length(serialPortInfo)
         try
             % Create serial port object
-            device = serialport(serialPortInfo(i), 9600); % Modify the baud rate if required
+            device = serialport(serialPortInfo(i), 115200); % Modify the baud rate if required
 
             % Define a cleanup function to close the port eventually
             finishup = onCleanup(@() clear device);
@@ -51,7 +51,7 @@ function selectedDevice = arduinoServer(desiredIdentity)
     selectedDevice = [];
     for i = 1:length(devicesInfo)
         if strcmp(devicesInfo(i).Identity, desiredIdentity)
-            selectedDevice = serialport(devicesInfo(i).Port, 9600); % Reconnect to desired device
+            selectedDevice = serialport(devicesInfo(i).Port, 115200); % Reconnect to desired device
             fprintf('Connected to device: %s on port: %s\n', devicesInfo(i).Identity, devicesInfo(i).Port);
             break;
         end
