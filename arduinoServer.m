@@ -12,6 +12,7 @@ function selectedDevice = arduinoServer(desiredIdentity)
 
     % List available serial ports on your system
     serialPortInfo = serialportlist;
+    serialPortInfo = serialPortInfo(contains(serialPortInfo, 'ACM')); % get Arduinos only
 
     % Preallocate the devicesInfo structure array with maximum possible size
     maxPorts = length(serialPortInfo);
@@ -26,25 +27,37 @@ function selectedDevice = arduinoServer(desiredIdentity)
         try
             % Create serial port object
             device = serialport(serialPortInfo(i), 115200); % Modify the baud rate if required
-
+            configureTerminator(device, "CR/LF")
+            
             % Define a cleanup function to close the port eventually
-            finishup = onCleanup(@() clear(device));
+            finishup = onCleanup(@() delete(device));
+            pause(1)
 
+            Data = string;
+            while device.NumBytesAvailable > 0
+                Data(end+1,1) = strip(readline(device));
+            end
             % Pause to allow time for connection; some devices may require a brief wait
-            pause(0.5);
+            pause(1);
 
             % Send the identification character 'W'
             writeline(device, 'W');
 
             % Read the response from the serial device
-            pause(0.5); % Add a pause if the response takes time
-            response = readline(device);
+            pause(1); % Add a pause if the response takes time
+
+            while device.NumBytesAvailable > 0
+                Data(end+1,1) = strip(readline(device));
+            end
+            response = Data;
 
             % Increment the device count
             deviceCount = deviceCount + 1;
 
             % Store the port and identity in the preallocated array
             devicesInfo(deviceCount).Port = serialPortInfo(i);
+            Identity = response(contains(response, 'Box ID'));
+
             devicesInfo(deviceCount).Identity = strtrim(response); % Trim the response for consistency
 
             % Disconnect the device as we are only identifying at this stage
