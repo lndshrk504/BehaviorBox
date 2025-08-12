@@ -612,7 +612,7 @@ classdef BehaviorBoxWheel < handle
                 end
             end
             % Check if Responses show side bias, correct that
-            if this.i>1
+            if this.StimulusStruct.side == 1 & this.i>1
                 Resp_Ratio = 0.5+this.Data_Object.AnalyzedData.TrialData.SB.Responses{:}(end);
                 if Resp_Ratio >= 0.72
                     isLeftTrial = 0;
