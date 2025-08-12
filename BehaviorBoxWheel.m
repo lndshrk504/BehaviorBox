@@ -1005,6 +1005,7 @@ classdef BehaviorBoxWheel < handle
         function [WhatDecision, response_time] = readLeverLoopAnalogWheel(this)
             event = -1;
             delta = 0;
+            this.wheelchoice = cell(1,1e6);
             timeout_value = this.Box.Timeout_after_time;
             threshold = this.Setting_Struct.TurnMag;
             o = this.fig.findobj('Type', 'Axes');
@@ -1319,11 +1320,9 @@ classdef BehaviorBoxWheel < handle
             lines = findobj(this.fig.Children, 'Tag', 'Contour');
             this.FlashNew(this.StimulusStruct, this.Box,  lines, "Correct_Confirmation");
             for i = 2:PulseNum
+                pause(this.Box.SecBwPulse)
                 this.a.GiveReward();
-                this.Flash(this.StimulusStruct, this.Box,  findobj('Tag', 'Contour'),  this.WhatDecision);
-                if i < PulseNum
-                    pause(this.Box.SecBwPulse)
-                end
+                this.FlashNew(this.StimulusStruct, this.Box,  lines, "Correct_Confirmation");
             end
         end
         %Use this function instead of pausing, so that buttons are checked and settings are updated during the pause
@@ -2421,7 +2420,7 @@ classdef BehaviorBoxWheel < handle
                 Freq = Stim.FreqFlashInitial;
                 RQFlash()
             else
-                Freq = Stim.FreqFlashAfter;
+                Freq = Stim.FreqAnimation;
                 d = findobj('Tag', 'Distractor');
                 if isempty(d)
                     d = struct();

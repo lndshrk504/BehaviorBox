@@ -42,6 +42,7 @@ bool wasZeroSpeed = false; // Initialize a flag to track the zero speed state
 
 // Function prototypes
 void handleStateChange();
+void displayID();
 void setupPins();
 void initializeSerial();
 void customDelay(float duration);
@@ -58,11 +59,26 @@ void pulsePinHighForDuration(int pin, int duration);
 void setup() {
   initializeSerial();
   setupPins();
-  Serial.println();
-  Serial.println("Wheel"); // Identify this as the wheel
-  Serial.print("Right reward: "); Serial.print(rightdur, 4); Serial.println(" sec");
-  Serial.println();
+  displayID();
+  Serial.println("Readout begins below...");
   resetEncoder();
+}
+
+void initializeSerial() {
+  Serial.begin(115200); // start the serial at 115200 baud
+  while (!Serial) { } // wait for serial port to connect. Needed for native USB port only
+}
+
+void setupPins() {
+  pinMode(PIN_8, OUTPUT); // set pin 8 as output
+  pinMode(PIN_9, OUTPUT); // set pin 9 as output
+  pinMode(PIN_10, OUTPUT); // set pin 10 as output
+  pinMode(PIN_11, OUTPUT); // set pin 11 as output
+  pinMode(PIN_12, OUTPUT); // set pin 12 as output
+}
+
+void displayID() {
+  Serial.print("Box ID: ");Serial.println("Wheel1");
 }
 
 void loop() {
@@ -151,19 +167,6 @@ void handleStateChange() {
       break;
     default: break;
   }
-}
-
-void setupPins() {
-  pinMode(PIN_8, OUTPUT); // set pin 8 as output
-  pinMode(PIN_9, OUTPUT); // set pin 9 as output
-  pinMode(PIN_10, OUTPUT); // set pin 10 as output
-  pinMode(PIN_11, OUTPUT); // set pin 11 as output
-  pinMode(PIN_12, OUTPUT); // set pin 12 as output
-}
-
-void initializeSerial() {
-  Serial.begin(115200); // start the serial at 115200 baud
-  while (!Serial) { } // wait for serial port to connect. Needed for native USB port only
 }
 
 void customDelay(float duration) {
