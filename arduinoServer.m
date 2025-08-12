@@ -21,43 +21,40 @@ end
     maxPorts = length(serialPortInfo);
     devicesInfo(maxPorts).Port = '';
     devicesInfo(maxPorts).Identity = '';
+    devicesInfo(maxPorts).Device = {};
 
     % Initialize an index to keep track of actual devices found
     deviceCount = 0;
-    Ards  = struct();
 
     % Iterate through each serial port
     for i = 1:maxPorts
         try
+            % Increment the device count
+            deviceCount = deviceCount + 1;
+            % Store the port and identity in the preallocated array
+            devicesInfo(deviceCount).Port = erase(serialPortInfo(i), '/dev/tty');
+
             % Create serial port object
-            device = serialport(serialPortInfo(i), 115200); % Modify the baud rate if required
-            configureTerminator(device, "CR/LF")
-            
-            % Define a cleanup function to close the port eventually
-            finishup = onCleanup(@() delete(device));
+            devicesInfo(deviceCount).Device = serialport(serialPortInfo(i), 115200); % Modify the baud rate if required
+            configureTerminator(devicesInfo(deviceCount).Device, "CR/LF")
+            device = devicesInfo(deviceCount).Device;
+
             pause(2)
 
             Data = string;
             while device.NumBytesAvailable > 0
                 Data(end+1,1) = strip(readline(device));
             end
-
             response = Data;
 
-            % Increment the device count
-            deviceCount = deviceCount + 1;
-
             % Store the port and identity in the preallocated array
-            devicesInfo(deviceCount).Port = erase(serialPortInfo(i), '/dev/tty');
             Identity = response(contains(response, 'Box ID'));
-            Identity = erase(Identity, 'Box ID: ');
-            devicesInfo(deviceCount).Identity = Identity; % Trim the response for consistency
-
-            % Disconnect the device as we are only identifying at this stage
-            clear('device');
+            Identity = erase(Identity, 'Box ID: '); % Trim the response for consistency
+            devicesInfo(deviceCount).Identity = Identity; 
         catch
             % If an error occurs, such as a timeout, skip this device
-            fprintf('Error with port %s. Skipping.\n', serialPortInfo(i));
+            devicesInfo(deviceCount).Identity = 'Busy';
+            fprintf('Port %s is not available...\n', serialPortInfo(i));
         end
     end
 
@@ -68,7 +65,9 @@ end
     selectedDevice = [];
     for i = 1:deviceCount
         if strcmp(devicesInfo(i).Identity, desiredIdentity)
-            selectedDevice = serialport(devicesInfo(i).Port, 115200); % Reconnect to the desired device
+            [devicesInfo(:).Device] = deal([]);
+            %selectedDevice = serialport("/dev/tty"+devicesInfo(i).Port, 115200); % Reconnect to the desired device
+            selectedDevice = "/dev/tty"+devicesInfo(i).Port; % Reconnect to the desired device
             fprintf('Connected to device: %s on port: %s\n', devicesInfo(i).Identity, devicesInfo(i).Port);
             break;
         end
