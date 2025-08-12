@@ -1,4 +1,7 @@
 function selectedDevice = arduinoServer(desiredIdentity)
+arguments 
+    desiredIdentity = "Nose1"
+end
     % arduinoServer Connects to a specific Arduino device based on its identity.
     % 
     % selectedDevice = arduinoServer(desiredIdentity)
@@ -21,6 +24,7 @@ function selectedDevice = arduinoServer(desiredIdentity)
 
     % Initialize an index to keep track of actual devices found
     deviceCount = 0;
+    Ards  = struct();
 
     % Iterate through each serial port
     for i = 1:maxPorts
@@ -31,34 +35,23 @@ function selectedDevice = arduinoServer(desiredIdentity)
             
             % Define a cleanup function to close the port eventually
             finishup = onCleanup(@() delete(device));
-            pause(1)
+            pause(2)
 
             Data = string;
             while device.NumBytesAvailable > 0
                 Data(end+1,1) = strip(readline(device));
             end
-            % Pause to allow time for connection; some devices may require a brief wait
-            pause(1);
 
-            % Send the identification character 'W'
-            writeline(device, 'W');
-
-            % Read the response from the serial device
-            pause(1); % Add a pause if the response takes time
-
-            while device.NumBytesAvailable > 0
-                Data(end+1,1) = strip(readline(device));
-            end
             response = Data;
 
             % Increment the device count
             deviceCount = deviceCount + 1;
 
             % Store the port and identity in the preallocated array
-            devicesInfo(deviceCount).Port = serialPortInfo(i);
+            devicesInfo(deviceCount).Port = erase(serialPortInfo(i), '/dev/tty');
             Identity = response(contains(response, 'Box ID'));
-
-            devicesInfo(deviceCount).Identity = strtrim(response); % Trim the response for consistency
+            Identity = erase(Identity, 'Box ID: ');
+            devicesInfo(deviceCount).Identity = Identity; % Trim the response for consistency
 
             % Disconnect the device as we are only identifying at this stage
             clear('device');

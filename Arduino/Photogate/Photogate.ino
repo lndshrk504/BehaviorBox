@@ -69,7 +69,7 @@ void displayWelcomeMessage() {
 }
 
 void displayID() {
-  Serial.print("Box ID: ");Serial.println("Nose1");
+  Serial.print("Box ID: ");Serial.println("Nose2");
   resetFlags();
 }
 

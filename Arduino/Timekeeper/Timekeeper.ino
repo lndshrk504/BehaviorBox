@@ -25,11 +25,12 @@ void setup() {
   pinMode(INPUT_PIN_3, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(INPUT_PIN_2), StimulusOn, RISING);
   attachInterrupt(digitalPinToInterrupt(INPUT_PIN_3), RecordFrame, RISING);
+  
 
-  Serial.println("Monitoring rising edges on input pins:");
-  Serial.println("- INPUT_PIN_2 (Pin 2): Stimulus Signal");
-  Serial.println("- INPUT_PIN_3 (Pin 3): Frame Clock Signal");
-  Serial.println("Using `micros()` for high precision timestamps.");
+  Serial.println("Box ID: Timekeeper1");
+  Serial.println("Timestamp for rising edges");
+  Serial.println("Pin 2 Stimulus");
+  Serial.println("Pin 3 Frame");
 }
 
 void loop() {
