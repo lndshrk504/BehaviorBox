@@ -59,7 +59,8 @@ classdef BehaviorBoxWheel < handle
         SetUpdate = {0};
         StimHistory = cell(400,2); %Use the one in BBData
         Box = struct(); %Equipment variables for arduino, sensors, valves
-        a; %The arduino
+        a; %The arduino for behavior
+        Time; % The arduino for timestampping
         %Variables for running training loop:
         i=0; %Trial Number
         trial; %All trial data that is added to data structure
@@ -266,26 +267,29 @@ classdef BehaviorBoxWheel < handle
                 % https://docs.arduino.cc/learn/microcontrollers/digital-pins
                 switch this.Setting_Struct.Box_Input_type
                     case 6 %Rotating Wheel
-                        % if ispc
-                        %     comsnum = "COM"+this.app.Arduino_Com.Value;
-                        % elseif ismac
-                        %     comsnum = "/dev/tty.usbmodem"+this.app.Arduino_Com.Value;
-                        % elseif isunix
-                        %     comsnum = "/dev/tty"+this.app.Arduino_Com.Value;
-                        % end
-                        
+                        % Behavior Arduino:
                         try
+                            disp('- - - Connecting to Behavior Arduino - - -')
                             [comsnum, ID] = arduinoServer(this.app.Arduino_Com.Value);
                             this.a = BehaviorBoxSerialInput(comsnum, 115200, 'Wheel');
                         catch err
                             [comsnum, ID] = arduinoServer('Wheel');
                             this.a = BehaviorBoxSerialInput(comsnum, 115200, 'Wheel');
                             this.app.Arduino_Com.Value = ID;
-                            this.app.LoadComputerSpecifics();                            
+                            this.app.LoadComputerSpecifics();
                         end
                         this.Box.KeyboardInput = 0;
                         pause(2)
                         this.a.SetupReward("Which", "Right", "DurationRight", this.Box.Rrewardtime);
+                        disp('- - - Success - - -')
+                        try
+                            % Timekeeper Arduino
+                            disp('- - - Connecting to Timestamp Arduino - - -')
+                            [comsnum, ID] = arduinoServer('Time');
+                            this.Time = BehaviorBoxSerialTime(comsnum, 115200);
+                            disp('- - - Success - - -')
+                        catch err
+                        end
                     case 8 %Keyboard, used if no arduino connected
                         this.Box.KeyboardInput = 1;
                         return

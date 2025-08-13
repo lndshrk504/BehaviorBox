@@ -36,13 +36,33 @@ classdef BehaviorBoxSerialInput < handle
                     "Timeout", 2);
                 configureTerminator(this.Ard,"CR/LF");
                 configureCallback(this.Ard, "terminator", @this.SerialRead);
-                this.Reset();
             catch err
                 disp('Serial connection failed.')
             end
             if this.Input_type == "Wheel"
                 this.DispOutput = true;
             end
+        end
+
+        function Reading = SerialRead(this, src, ~)
+            % Used for Callback that reads when a line is sent to serial
+            arguments
+                this
+                src = this.Ard
+                ~
+            end
+            if src.BytesAvailable == 0
+                Reading = this.Reading;
+                return
+            end
+            % Read data from the serial port
+            newReading = readline(src);
+            Reading = this.processReading(newReading);
+            % Display the output if DispOutput is true
+            if this.DispOutput
+                disp(Reading);
+            end
+            this.Reading = Reading;
         end
 
         function Who(this)
@@ -112,27 +132,6 @@ classdef BehaviorBoxSerialInput < handle
         function TimeStamp(this)
             write(this.Ard, "T", "char");
             pause(0.3);
-        end
-
-        function Reading = SerialRead(this, src, ~)
-            % Used for Callback that reads when a line is sent to serial
-            arguments
-                this
-                src = this.Ard
-                ~
-            end
-            if src.BytesAvailable == 0
-                Reading = this.Reading;
-                return
-            end
-            % Read data from the serial port
-            newReading = readline(src);
-            Reading = this.processReading(newReading);
-            % Display the output if DispOutput is true
-            if this.DispOutput
-                disp(Reading);
-            end
-            this.Reading = Reading;
         end
 
         function result = processReading(~, newReading)
@@ -211,7 +210,7 @@ classdef BehaviorBoxSerialInput < handle
 
         function delete(this)
             this.Ard = [];
-            disp('Serial port is closed');
+            disp('Behavior Serial port is closed');
         end
     end
 end

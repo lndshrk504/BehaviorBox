@@ -8,16 +8,15 @@ classdef BehaviorBoxSerialTime < handle
     properties
         Ard = {}
         Reading % char for NosePoke and integer for Wheel
-        DispOutput logical = true % This helps to debug
-        TimestampLog string = {}
+        DispOutput logical = false % This helps to debug
+        Log string = {}
     end
 
     methods
-        function this = BehaviorBoxSerialTime(port, baudRate, Input_type)
+        function this = BehaviorBoxSerialTime(port, baudRate)
             arguments
                 port char = 'COM4'
                 baudRate double = 115200
-                Input_type char = 'NosePoke'
             end
             try
                 %port = '/dev/ttyACM1';
@@ -26,7 +25,6 @@ classdef BehaviorBoxSerialTime < handle
                 this.Ard.InputBufferSize = 1048576; % 1048576 is 1 MB
                 configureTerminator(this.Ard,"CR/LF");
                 configureCallback(this.Ard, "terminator", @this.SerialRead);
-                this.Reset();
             catch err
                 disp('Serial connection failed.')
             end
@@ -53,26 +51,26 @@ classdef BehaviorBoxSerialTime < handle
             this.Reading = Reading;
         end
 
-        function result = processReading(~, newReading)
+        function result = processReading(this, newReading)
         % This stores the value of newReading in this.TimestampLog
         % and returns the value of newReading
             arguments
-                ~
+                this
                 newReading string
             end
             result = newReading;
             if ~isempty(newReading)
-                this.TimestampLog(end+1) = newReading;
+                this.Log(end+1,1) = newReading;
             end
 
         end
         function Reset(this)
             % Set the timestamp log to empty
-            this.TimestampLog = {};
+            this.Log = {};
             % and the reading to 0
             this.Reading = [];
             % Reset the Arduino
-            writeline(this.Ard, '0', 'char')
+            % writeline(this.Ard, '0', 'char')
         end
 
         function Who(this)
@@ -94,6 +92,11 @@ classdef BehaviorBoxSerialTime < handle
             for f = fieldnames(BoxStruct)'
                 this.(f{:}) = BoxStruct.(f{:});
             end
+        end
+
+        function delete(this)
+            this.Ard = [];
+            disp('Timestamp Serial port is closed');
         end
     end
 end

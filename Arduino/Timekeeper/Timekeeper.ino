@@ -27,8 +27,8 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(INPUT_PIN_3), RecordFrame, RISING);
   
 
-  Serial.println("Box ID: Timekeeper1");
-  Serial.println("Timestamp for rising edges");
+  Serial.println("Box ID: Time1");
+  Serial.println("Timestamp on rise:");
   Serial.println("Pin 2 Stimulus");
   Serial.println("Pin 3 Frame");
 }
