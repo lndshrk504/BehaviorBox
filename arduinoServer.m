@@ -1,6 +1,7 @@
-function [COM, ID] = arduinoServer(desiredIdentity)
+function [COM, ID] = arduinoServer(desiredIdentity, opts)
 arguments 
     desiredIdentity = "Nose1"
+    opts.FindFirst logical = true
 end
     % arduinoServer Connects to a specific Arduino device based on its identity.
     % 
@@ -15,6 +16,14 @@ end
 
     % List available serial ports on your system
     serialPortInfo = serialportlist;
+
+    % if ispc
+    %     comsnum = "COM"+this.app.Arduino_Com.Value;
+    % elseif ismac
+    %     comsnum = "/dev/tty.usbmodem"+this.app.Arduino_Com.Value;
+    % elseif isunix
+    %     comsnum = "/dev/tty"+this.app.Arduino_Com.Value;
+    % end
     switch true
         case ismac
                 sl = sl(contains(sl, '/dev/tty', IgnoreCase=true));
@@ -61,8 +70,13 @@ end
             % Store the port and identity in the preallocated array
             Identity = response(contains(response, 'Box ID'));
             Identity = erase(Identity, 'Box ID: '); % Trim the response for consistency
-            devicesInfo(deviceCount).Identity = Identity; 
+            devicesInfo(deviceCount).Identity = Identity;
             fprintf('Found device: %s on port: %s\n', devicesInfo(i).Identity, devicesInfo(i).Port);
+            if opts.FindFirst && contains(Identity, desiredIdentity)
+                COM = serialPortInfo(i);
+                ID = Identity;
+                return
+            end
         catch
             % If an error occurs, such as a timeout, skip this device
             devicesInfo(deviceCount).Identity = 'Busy';

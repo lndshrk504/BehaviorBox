@@ -300,8 +300,14 @@ classdef BehaviorBoxNose < handle
                         % elseif isunix
                         %     comsnum = "/dev/tty"+this.app.Arduino_Com.Value;
                         % end
-                        comsnum = arduinoServer(this.app.Arduino_Com.Value);
-                        this.a = BehaviorBoxSerialInput(comsnum, 115200, 'NosePoke');
+                        try
+                            [comsnum, ID] = arduinoServer(this.app.Arduino_Com.Value);
+                            this.a = BehaviorBoxSerialInput(comsnum, 115200, 'NosePoke');
+                        catch err
+                            [comsnum, ID] = arduinoServer('Nose');
+                            this.app.Arduino_Com.Value = ID;
+                            this.app.LoadComputerSpecifics();
+                        end
                         pause(2)
                         this.a.SetupReward("Which", "Both", "DurationLeft", this.Box.Lrewardtime, "DurationRight", this.Box.Rrewardtime);
                         this.Box.ardunioReadDigital = 1;
