@@ -140,11 +140,13 @@ void handleStateChange() {
       leftdur = getDurationFromSerial("Enter new duration for left reward:");
       Serial.print("Left reward duration set to: "); Serial.println(leftdur);
       currentState = READING;
+      resetFlags();
       break;
     case RIGHT_SETUP:
       rightdur = getDurationFromSerial("Enter new duration for right reward:");
       Serial.print("Right reward duration set to: "); Serial.println(rightdur);
       currentState = READING;
+      resetFlags();
       break;
     case WHO:
       displayID();
