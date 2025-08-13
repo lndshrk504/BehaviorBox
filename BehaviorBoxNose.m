@@ -293,13 +293,14 @@ classdef BehaviorBoxNose < handle
                 % https://docs.arduino.cc/learn/microcontrollers/digital-pins
                 switch this.Setting_Struct.Box_Input_type
                     case 3 %Three Pokes
-                        if ispc
-                            comsnum = "COM"+this.app.Arduino_Com.Value;
-                        elseif ismac
-                            comsnum = "/dev/tty.usbmodem"+this.app.Arduino_Com.Value;
-                        elseif isunix
-                            comsnum = "/dev/tty"+this.app.Arduino_Com.Value;
-                        end
+                        % if ispc
+                        %     comsnum = "COM"+this.app.Arduino_Com.Value;
+                        % elseif ismac
+                        %     comsnum = "/dev/tty.usbmodem"+this.app.Arduino_Com.Value;
+                        % elseif isunix
+                        %     comsnum = "/dev/tty"+this.app.Arduino_Com.Value;
+                        % end
+                        comsnum = arduinoServer(this.app.Arduino_Com.Value);
                         this.a = BehaviorBoxSerialInput(comsnum, 115200, 'NosePoke');
                         pause(2)
                         this.a.SetupReward("Which", "Both", "DurationLeft", this.Box.Lrewardtime, "DurationRight", this.Box.Rrewardtime);

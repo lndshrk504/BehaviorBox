@@ -1,4 +1,4 @@
-function selectedDevice = arduinoServer(desiredIdentity)
+function [COM, ID] = arduinoServer(desiredIdentity)
 arguments 
     desiredIdentity = "Nose1"
 end
@@ -15,7 +15,18 @@ end
 
     % List available serial ports on your system
     serialPortInfo = serialportlist;
-    serialPortInfo = serialPortInfo(contains(serialPortInfo, 'ACM')); % get Arduinos only
+    switch true
+        case ismac
+                sl = sl(contains(sl, '/dev/tty', IgnoreCase=true));
+                sl(contains(sl, 'debug-console', IgnoreCase=true)) = [];
+                sl(contains(sl, 'Beats', IgnoreCase=true)) = [];
+                sl(contains(sl, 'Beoplay', IgnoreCase=true)) = [];
+        case isunix
+            serialPortInfo = serialPortInfo(contains(serialPortInfo, 'ACM')); % get Arduinos only
+        case ispc
+                sl(contains(sl, {'COM1', 'COM3'}, IgnoreCase=true)) = [];
+        otherwise
+    end
 
     % Preallocate the devicesInfo structure array with maximum possible size
     maxPorts = length(serialPortInfo);
@@ -51,6 +62,7 @@ end
             Identity = response(contains(response, 'Box ID'));
             Identity = erase(Identity, 'Box ID: '); % Trim the response for consistency
             devicesInfo(deviceCount).Identity = Identity; 
+            fprintf('Found device: %s on port: %s\n', devicesInfo(i).Identity, devicesInfo(i).Port);
         catch
             % If an error occurs, such as a timeout, skip this device
             devicesInfo(deviceCount).Identity = 'Busy';
@@ -62,19 +74,20 @@ end
     devicesInfo = devicesInfo(1:deviceCount);
 
     % Find and connect to the desired device
-    selectedDevice = [];
+    COM = [];
     for i = 1:deviceCount
-        if strcmp(devicesInfo(i).Identity, desiredIdentity)
+        if contains(devicesInfo(i).Identity, desiredIdentity)
             [devicesInfo(:).Device] = deal([]);
             %selectedDevice = serialport("/dev/tty"+devicesInfo(i).Port, 115200); % Reconnect to the desired device
-            selectedDevice = "/dev/tty"+devicesInfo(i).Port; % Reconnect to the desired device
-            fprintf('Connected to device: %s on port: %s\n', devicesInfo(i).Identity, devicesInfo(i).Port);
+            COM = "/dev/tty"+devicesInfo(i).Port; % Reconnect to the desired device
+            ID = devicesInfo(i).Identity;
+            fprintf('Selecting device: %s on port: %s\n', devicesInfo(i).Identity, devicesInfo(i).Port);
             break;
         end
     end
 
     % Check if the desired device was not found
-    if isempty(selectedDevice)
+    if isempty(COM)
         disp('Desired device was not found.');
     end
 end
