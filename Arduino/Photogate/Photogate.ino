@@ -28,6 +28,11 @@ bool hasPrintedFlags[4] = {false, false, false, false};
 bool RightOpen = false;
 bool LeftOpen = false;
 
+void displayID() {
+  Serial.print("Box ID: ");Serial.println("Nose3");
+  resetFlags();
+}
+
 void customDelay(float duration) {
   if (duration < 0.001) {
     delayMicroseconds(duration * 1e6); // Convert seconds to microseconds
@@ -66,11 +71,6 @@ void displayWelcomeMessage() {
   Serial.println("NosePoke");
   Serial.print("Right reward duration set to: "); Serial.println(rightdur);
   Serial.print("Left reward duration set to: "); Serial.println(leftdur);
-}
-
-void displayID() {
-  Serial.print("Box ID: ");Serial.println("Nose2");
-  resetFlags();
 }
 
 void checkAndPrintPhotogateState() {
