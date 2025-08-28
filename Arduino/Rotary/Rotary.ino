@@ -142,22 +142,22 @@ void handleStateChange() {
       currentState = READING;
       break;
      case STARTACQ:
-      pulsePinHighForDuration(PIN_9, 10);   // Pulse PIN_9 high for 200 milliseconds
+      pulsePinHighForDuration(PIN_9, 10);   // Pulse PIN_9 high
       Serial.println("Starting acquisition...");
       currentState = READING;
       break;
     case NEXTFILE:
-      pulsePinHighForDuration(PIN_10, 10);   // Pulse PIN_10 high for 200 milliseconds
+      pulsePinHighForDuration(PIN_10, 10);   // Pulse PIN_10 high
       Serial.println("Next file...");
       currentState = READING;
       break;
     case ENDACQ:
-      pulsePinHighForDuration(PIN_11, 10);   // Pulse PIN_11 high for 200 milliseconds
+      pulsePinHighForDuration(PIN_11, 10);   // Pulse PIN_11 high
       Serial.println("Ending acquisition...");
       currentState = READING;
       break;
     case TIMESTAMPING:
-      pulsePinHighForDuration(PIN_12, 10);   // Pulse PIN_12 high for 200 milliseconds
+      pulsePinHighForDuration(PIN_12, 10);   // Pulse PIN_12 high
       Serial.println("Timestamp");
       currentState = READING;
       break;

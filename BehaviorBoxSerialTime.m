@@ -64,6 +64,7 @@ classdef BehaviorBoxSerialTime < handle
             end
 
         end
+        
         function Reset(this)
             % Set the timestamp log to empty
             this.Log = {};

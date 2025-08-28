@@ -82,7 +82,9 @@ classdef BehaviorBoxWheel < handle
         WhatDecision;
         wheelchoice = cell(1,1e6); %Use the one in BBData
         wheelchoicetime = cell(1,1e6);
+        timestamps = cell(1,1e6);
         wheelchoice_record = cell(400,3); %All wheel choice processes with what_decision
+        timestamps_record = cell(400,3); %All wheel choice processes with what_decision
         %Timers during each trial:
         start_time; %Clock time at initiation of first trial
         t1; %Used to record times between different functions
@@ -95,6 +97,7 @@ classdef BehaviorBoxWheel < handle
         Sound_Object = struct();
         Sound_Struct = struct(); %This is only used to make the sounds, which are not used anymore since mice are trained concurrently.
         textdiary
+        
     end
     methods
         function this = BehaviorBoxWheel(GUI_handles, app)
@@ -267,8 +270,7 @@ classdef BehaviorBoxWheel < handle
                 % https://docs.arduino.cc/learn/microcontrollers/digital-pins
                 switch this.Setting_Struct.Box_Input_type
                     case 6 %Rotating Wheel
-                        % Behavior Arduino:
-                        try
+                        try % Behavior Arduino:
                             disp('- - - Connecting to Behavior Arduino - - -')
                             [comsnum, ID] = arduinoServer(this.app.Arduino_Com.Value);
                             this.a = BehaviorBoxSerialInput(comsnum, 115200, 'Wheel');
@@ -281,9 +283,8 @@ classdef BehaviorBoxWheel < handle
                         this.Box.KeyboardInput = 0;
                         pause(2)
                         this.a.SetupReward("Which", "Right", "DurationRight", this.Box.Rrewardtime);
-                        disp('- - - Success - - -')
-                        try
-                            % Timekeeper Arduino
+                        disp('- - - Success - - -')                        
+                        try % Timekeeper Arduino
                             disp('- - - Connecting to Timestamp Arduino - - -')
                             [comsnum, ID] = arduinoServer('Time');
                             this.Time = BehaviorBoxSerialTime(comsnum, 115200);
@@ -876,15 +877,21 @@ classdef BehaviorBoxWheel < handle
             this.setVisibleChildren(this.fig.Children, true);
             drawnow limitrate;  % Globally limit drawnow frequency for performance gains
             % Ignore input for a defined duration
-            startTime = tic;
-            % Send Next File signal to ScanImage
-            try
+            startTime = tic;            
+            try % Send Next File signal to ScanImage
             this.a.Acquisition('Next');
             catch
             end
             pause(0.2); % The nextfile acquisition signal has a builtin 200 ms delay
             % Display stimulus
-            this.a.TimeStamp;  % Toggle timestamp
+            try % Clear timestamp log
+            this.Time.Reset();  
+            catch
+            end
+            try % Stimulus On timestamp
+            this.a.TimeStamp;  
+            catch
+            end
             this.flashStimulus();
             this.Data_Object.addStimEvent(this.isLeftTrial);  % Record stimulus event
             % Enhanced decision-making loop based on inputType
