@@ -1095,7 +1095,7 @@ classdef BehaviorBoxNose < handle
                     stable = false;
                     return;
                 elseif this.a.ReadLeft()
-                    if this.isLeftTrial
+                    if this.isLeftTrial && this.Setting_Struct.ConfirmChoice
                         this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), "Flash_Contour")
                     end
                 end
@@ -1125,7 +1125,7 @@ classdef BehaviorBoxNose < handle
                     stable = false;
                     return;
                 elseif this.a.ReadRight()
-                    if ~this.isLeftTrial
+                    if ~this.isLeftTrial && this.Setting_Struct.ConfirmChoice
                         this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), "Flash_Contour")
                     end
                 end
