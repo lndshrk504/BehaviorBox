@@ -658,6 +658,16 @@ classdef BehaviorBoxWheel < handle
                     if this.i ~=1
                         this.ReadyCue(true);
                         set(this.FLAx, 'Visible', true);
+                        try % Send Next File signal to ScanImage
+                            this.a.Acquisition('Next');
+                        catch
+                        end
+                        pause(0.2); % The nextfile acquisition signal has a builtin 200 ms delay
+                        % Display stimulus
+                        try % Clear timestamp log
+                            this.Time.Reset();
+                        catch
+                        end
                         drawnow
                         timelimit = this.Setting_Struct.HoldStill;
                         tic;
@@ -878,16 +888,17 @@ classdef BehaviorBoxWheel < handle
             drawnow limitrate;  % Globally limit drawnow frequency for performance gains
             % Ignore input for a defined duration
             startTime = tic;            
-            try % Send Next File signal to ScanImage
-            this.a.Acquisition('Next');
-            catch
-            end
-            pause(0.2); % The nextfile acquisition signal has a builtin 200 ms delay
-            % Display stimulus
-            try % Clear timestamp log
-            this.Time.Reset();  
-            catch
-            end
+% Moved the file handling to wait for input function
+            % try % Send Next File signal to ScanImage
+            % this.a.Acquisition('Next');
+            % catch
+            % end
+            % pause(0.2); % The nextfile acquisition signal has a builtin 200 ms delay
+            % % Display stimulus
+            % try % Clear timestamp log
+            % this.Time.Reset();  
+            % catch
+            % end
             try % Stimulus On timestamp
             this.a.TimeStamp;  
             catch
@@ -1691,9 +1702,9 @@ classdef BehaviorBoxWheel < handle
             end
         end
         function cleanUP(this)
-% Send Stop Acquisition signal to ScanImage
+            % Send Stop Acquisition signal to ScanImage
             try
-            this.a.Acquisition('Stop');
+                this.a.Acquisition('End');
             catch
             end
             %switch on all buttons
@@ -2082,7 +2093,7 @@ classdef BehaviorBoxWheel < handle
                 end
             end
             try
-            this.a.Acquisition('Stop');
+            this.a.Acquisition('End');
             catch
             end
             close(this.fig)
