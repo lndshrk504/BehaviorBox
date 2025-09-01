@@ -1140,11 +1140,11 @@ classdef BehaviorBoxWheel < handle
             % A full revolution is about 4000 pulses 4400/360 = 12.22 pulses/degree 90 deg is ~1000 pulses
             StimDistance = 0.3;
             axes = [this.RStimAx this.LStimAx];
-            pos1i = axes(1).Position;
+            pos1i = ([0.25 0 0.5 1]);
             if numel(axes) > 1
                 pos2i = axes(2).Position;
             end
-            thresh = abs(pos1i(1)/2);
+            thresh = abs(0.5/2);
             RoundUp = (this.Setting_Struct.RoundUpVal/100); %Default is 75 --> 0.75
             if this.Setting_Struct.RoundUp
                 thresh = RoundUp*thresh;
@@ -1153,7 +1153,7 @@ classdef BehaviorBoxWheel < handle
             tic
             while timeout_value == 0 | toc<timeout_value % do NOT replace | with || or the expression is changed.
                 dist = str2double(this.a.SerialRead);
-                delta = (dist/threshold)*StimDistance;
+                delta = (dist/threshold)*StimDistance
                 if abs(delta)>thresh
                     if sign(delta)>0
                         delta =  thresh;
@@ -1170,18 +1170,22 @@ classdef BehaviorBoxWheel < handle
                 %this.wheelchoice{i} = delta;
                 %this.wheelchoicetime{i} = toc;
                 pos1 = pos1i + ([delta 0 0 0]);
-                axes(1).Position = pos1;
+                axes(1).Position = pos1
                 if numel(axes) > 1
                     pos2 = pos2i + ([delta 0 0 0]);
                     axes(2).Position = pos2;
                 end
                 drawnow
                 if this.isLeftTrial & delta <= -thresh*RoundUp
-                    event = 2;
-                    break
+                    if pos1(1) < 0.8
+                        event = 2;
+                        break
+                    end
                 elseif ~this.isLeftTrial & delta >= thresh*RoundUp
-                    event = 1;
-                    break
+                    if pos1(1) < 0.3
+                        event = 1;
+                        break
+                    end
                 end
                 if double(abs(delta)) >= double(thresh) %If a choice is made: !!! Add code to round up the correct choice but not accept an incorrect choice until it is fully made. Accept the correct choice early but wait for a full incorrect choice.
                     if sign(delta) > 0
