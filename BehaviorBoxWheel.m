@@ -1482,7 +1482,7 @@ classdef BehaviorBoxWheel < handle
         %Update data structure, update graphs, do intertrial time
         function AfterTrial(this)
             %this.a.Acquisition('End')
-            this.timestamps_record{this.i} = this.Time.Log;
+            this.timestamps_record{this.i} = this.Time.Log;   
             decision = this.WhatDecision;
             settingStruct = this.Setting_Struct;
             switch true
