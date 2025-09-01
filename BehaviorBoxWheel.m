@@ -1162,7 +1162,7 @@ classdef BehaviorBoxWheel < handle
             tic
             while timeout_value == 0 | toc<timeout_value % do NOT replace | with || or the expression is changed.
                 dist = str2double(this.a.SerialRead);
-                delta = (dist/threshold)*StimDistance
+                delta = (dist/threshold)*StimDistance;
                 if abs(delta)>thresh
                     if sign(delta)>0
                         delta =  thresh;
@@ -1179,7 +1179,7 @@ classdef BehaviorBoxWheel < handle
                 %this.wheelchoice{i} = delta;
                 %this.wheelchoicetime{i} = toc;
                 pos1 = pos1i + ([delta 0 0 0]);
-                axes(1).Position = pos1
+                axes(1).Position = pos1;
                 if numel(axes) > 1
                     pos2 = pos2i + ([delta 0 0 0]);
                     axes(2).Position = pos2;
@@ -1799,7 +1799,7 @@ classdef BehaviorBoxWheel < handle
             this.fig = this.Stimulus_Object.fig;
             [this.fig.findobj('Tag','Spotlight').Visible] = deal(1);
             toc
-            pause(0.01)
+            drawnow
             if contains(options.StimType, "-Line")
                 this.app.Animate_XPosition.Value = 0.5;
                 this.app.Animate_YPosition.Value = 0.5;

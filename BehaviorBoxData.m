@@ -2937,8 +2937,8 @@ classdef BehaviorBoxData < handle
                 fig
                 filename string
                 options.format string = ".pdf"
-                options.Columns = 30     %Inches across
-                options.Rows = 5 %Inches high
+                options.Columns = 10     %Inches across
+                options.Rows = 3 %Inches high
                 options.SameFolder logical = false
             end
             if isempty(fig) % Put empty brackets [] for the figure
