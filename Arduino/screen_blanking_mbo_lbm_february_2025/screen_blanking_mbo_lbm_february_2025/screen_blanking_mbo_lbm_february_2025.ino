@@ -1,9 +1,12 @@
 // pin connected to the screen backlight
 const byte pulse_pin = 13;
+// Ground wire from screen driver board goes to any of the board's ground pins
 
 // Only use the falling edge from the resonant mirror signal
 // (You can leave the falling edge pin as before)
+// Red wire from BNC goes into pin 3
 const byte interrupt_pin_falling = 3;
+// Black wire from BNC goes into ground
 
 // (Optionally, if you have a rising edge input on pin 2, you can simply not attach it.)
 //

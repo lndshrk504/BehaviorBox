@@ -84,7 +84,7 @@ classdef BehaviorBoxWheel < handle
         wheelchoicetime = cell(1,1e6);
         timestamps = cell(1,1e6);
         wheelchoice_record = cell(400,3); %All wheel choice processes with what_decision
-        timestamps_record = cell(400,3); %All wheel choice processes with what_decision
+        timestamps_record = cell(400,1); %All wheel choice processes with what_decision
         %Timers during each trial:
         start_time; %Clock time at initiation of first trial
         t1; %Used to record times between different functions
@@ -375,6 +375,12 @@ classdef BehaviorBoxWheel < handle
             this.i = 0;
             this.timeout_counter = 0;
             this.Temp_Active = false;
+            try % Clear timestamp log
+                this.Time.Reset();
+                pause(0.1)
+                this.Time.Log(end+1) = "Trial 1";
+            catch
+            end
             % Send Start Acquisition signal to ScanImage
             try
                 this.a.Acquisition('Start');
@@ -658,6 +664,18 @@ classdef BehaviorBoxWheel < handle
                     if this.i ~=1
                         this.ReadyCue(true);
                         set(this.FLAx, 'Visible', true);
+                        try % Send Next File signal to ScanImage
+                            this.a.Acquisition('Next');
+                        catch
+                        end
+                        pause(0.2); % The nextfile acquisition signal has a builtin 200 ms delay
+                        % Display stimulus
+                        try % Clear timestamp log
+                            this.Time.Reset();
+                            pause(0.1)
+                            this.Time.Log(end+1) = "Trial "+this.i;
+                        catch
+                        end
                         drawnow
                         timelimit = this.Setting_Struct.HoldStill;
                         tic;
@@ -878,21 +896,12 @@ classdef BehaviorBoxWheel < handle
             drawnow limitrate;  % Globally limit drawnow frequency for performance gains
             % Ignore input for a defined duration
             startTime = tic;            
-            try % Send Next File signal to ScanImage
-            this.a.Acquisition('Next');
-            catch
-            end
-            pause(0.2); % The nextfile acquisition signal has a builtin 200 ms delay
-            % Display stimulus
-            try % Clear timestamp log
-            this.Time.Reset();  
-            catch
-            end
+% Moved the file handling to wait for input function
             try % Stimulus On timestamp
             this.a.TimeStamp;  
             catch
             end
-            this.flashStimulus();
+            %this.flashStimulus(); % Do not flash when imaging
             this.Data_Object.addStimEvent(this.isLeftTrial);  % Record stimulus event
             % Enhanced decision-making loop based on inputType
             if ~keyboardInput && inputType == 6
@@ -900,10 +909,10 @@ classdef BehaviorBoxWheel < handle
             else
                 [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput();
             end
-            % Toggle timestamp
-            this.a.TimeStamp;
             % Retry for only correct answers if necessary
             this.handleOnlyCorrectMode();
+            % Toggle timestamp
+            this.a.TimeStamp;
             % Minimize redundant flash draws by handling decision directly
             this.processAfterDecision(keyboardInput, inputType);
         end
@@ -1476,6 +1485,8 @@ classdef BehaviorBoxWheel < handle
         end
         %Update data structure, update graphs, do intertrial time
         function AfterTrial(this)
+            %this.a.Acquisition('End')
+            this.timestamps_record{this.i} = this.Time.Log;   
             decision = this.WhatDecision;
             settingStruct = this.Setting_Struct;
             switch true
@@ -1647,6 +1658,9 @@ classdef BehaviorBoxWheel < handle
                 if this.Box.Input_type == 6
                     newData.wheel_record = this.wheelchoice_record;
                     newData.wheel_record(any(cellfun(@isempty, newData.wheel_record)'),:) = [];
+                    this.timestamps_record(any(cellfun(@isempty, this.timestamps_record)'),:) = [];
+                    newData.TtimestampRecord = this.timestamps_record;
+
                 end
                 if isscalar(this.SetUpdate) % Settings never changed during the session.
                     newData.SetStr = this.SetStr;
@@ -1695,9 +1709,9 @@ classdef BehaviorBoxWheel < handle
             end
         end
         function cleanUP(this)
-% Send Stop Acquisition signal to ScanImage
+            % Send Stop Acquisition signal to ScanImage
             try
-            this.a.Acquisition('Stop');
+                this.a.Acquisition('End');
             catch
             end
             %switch on all buttons
@@ -2086,7 +2100,7 @@ classdef BehaviorBoxWheel < handle
                 end
             end
             try
-            this.a.Acquisition('Stop');
+            this.a.Acquisition('End');
             catch
             end
             close(this.fig)
