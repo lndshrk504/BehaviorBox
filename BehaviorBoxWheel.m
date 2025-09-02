@@ -1040,18 +1040,18 @@ classdef BehaviorBoxWheel < handle
             o = this.fig.findobj('Type', 'Axes');
             C = o(contains({o.Tag}, 'Correct'));
             W = o(contains({o.Tag}, 'Incorrect'));
-            % A full revolution is about 4000 pulses 4400/360 = 12.22 pulses/degree 90 deg is ~1000 pulses
             StimDistance = 0.3;
             axes = [this.RStimAx this.LStimAx];
-            pos1i = axes(1).Position;
+            pos1i = axes(1).Position; % Axes1 (right) default position is [0.5 0 0.5 1]
             if numel(axes) > 1
-                pos2i = axes(2).Position;
+                pos2i = axes(2).Position; % Axes2 (Left) default position is [0 0 0.5 1]
             end
-            thresh = abs(pos1i(1)/2);
-            RoundUp = (this.Setting_Struct.RoundUpVal/100); %Default is 75 --> 0.75
+            thresh = abs(pos1i(1)/2); % Should be 0.25 usually
+            RoundUp = 1; %Default is 75 --> 0.75
             this.a.Reset();
             pause(0.1)
             if this.Setting_Struct.RoundUp
+                RoundUp = (this.Setting_Struct.RoundUpVal/100); %Default is 75 --> 0.75
                 thresh = RoundUp*thresh;
             end
             if this.app.Animate_MimicTrial.Value
@@ -1061,8 +1061,8 @@ classdef BehaviorBoxWheel < handle
             tic
             while timeout_value == 0 | toc<=timeout_value && ~this.app.Animate_MimicTrial.Value% do NOT replace | with || or the expression is changed.
                 dist = str2double(this.a.SerialRead);
-                delta = (dist/threshold)*StimDistance;
-                if abs(delta)>thresh
+                delta = (dist/threshold)*StimDistance;  % A full revolution is about 4000 pulses 4400/360 = 12.22 pulses/degree 90 deg is ~1000 pulses
+                if abs(delta)>thresh % Prevent stim from being pushed off screen
                     if sign(delta)>0
                         delta =  thresh;
                     elseif sign(delta)<0
@@ -1083,8 +1083,8 @@ classdef BehaviorBoxWheel < handle
                     pos2 = pos2i + ([delta 0 0 0]);
                     axes(2).Position = pos2;
                 end
-                drawnow  %limitrate nocallbacks
-                % The frame rate is very low on the new Ubuntu mini PC head fixation rig.
+                %disp("Dist is "+dist+"; delta is "+delta); disp("R pos1 is is "+pos1(1)+"; L pos2 is "+pos2(1))
+                drawnow  %limitrate nocallbacks % The frame rate is very low on the new Ubuntu mini PC head fixation rig.
                 if this.isLeftTrial & delta <= -thresh*RoundUp
                     event = 2;
                     break
@@ -1141,29 +1141,35 @@ classdef BehaviorBoxWheel < handle
         function [WhatDecision, response_time] = readLeverLoopAnalogWheel_OnlyCorrect(this)
             event = -1;
             delta = 0;
+            %this.wheelchoice = cell(1,1e6);
             timeout_value = this.Box.Timeout_after_time;
             threshold = this.Setting_Struct.TurnMag;
             o = this.fig.findobj('Type', 'Axes');
             C = o(contains({o.Tag}, 'Correct'));
             W = o(contains({o.Tag}, 'Incorrect'));
-            % A full revolution is about 4000 pulses 4400/360 = 12.22 pulses/degree 90 deg is ~1000 pulses
             StimDistance = 0.3;
             axes = [this.RStimAx this.LStimAx];
-            pos1i = ([0.25 0 0.5 1]);
+            pos1i = [0.5 0 0.5 1];% axes(1).Position; % Axes1 (right) default position is [0.5 0 0.5 1]
             if numel(axes) > 1
-                pos2i = axes(2).Position;
+                pos2i = [0 0 0.5 1]; % axes(2).Position; % Axes2 (Left) default position is [0 0 0.5 1]
             end
             thresh = abs(0.5/2);
-            RoundUp = (this.Setting_Struct.RoundUpVal/100); %Default is 75 --> 0.75
+            RoundUp = 1; %Default is 75 --> 0.75
+            % this.a.Reset();
+            % pause(0.1)
             if this.Setting_Struct.RoundUp
+                RoundUp = (this.Setting_Struct.RoundUpVal/100); %Default is 75 --> 0.75
                 thresh = RoundUp*thresh;
             end
-            i = 0;
+            % if this.app.Animate_MimicTrial.Value
+            %     this.SimulateTrial()
+            % end
+            I = 0;
             tic
             while timeout_value == 0 | toc<timeout_value % do NOT replace | with || or the expression is changed.
                 dist = str2double(this.a.SerialRead);
-                delta = (dist/threshold)*StimDistance;
-                if abs(delta)>thresh
+                delta = (dist/threshold)*StimDistance; % A full revolution is about 4000 pulses 4400/360 = 12.22 pulses/degree 90 deg is ~1000 pulses
+                if abs(delta)>thresh % Prevent stim from being pushed off screen
                     if sign(delta)>0
                         delta =  thresh;
                     elseif sign(delta)<0
@@ -1175,36 +1181,33 @@ classdef BehaviorBoxWheel < handle
                 elseif ~this.isLeftTrial & delta > thresh*RoundUp
                     delta = thresh*RoundUp;
                 end
-                i = i+1;
-                %this.wheelchoice{i} = delta;
-                %this.wheelchoicetime{i} = toc;
+                I = I+1;
+                %this.wheelchoice{I} = delta;
+                %this.wheelchoicetime{I} = toc;
                 pos1 = pos1i + ([delta 0 0 0]);
                 axes(1).Position = pos1;
                 if numel(axes) > 1
                     pos2 = pos2i + ([delta 0 0 0]);
                     axes(2).Position = pos2;
                 end
+                %disp("Dist is "+dist+"; delta is "+delta); disp("R pos1 is is "+pos1(1)+"; L pos2 is "+pos2(1))
                 drawnow
-                if this.isLeftTrial & delta <= -thresh*RoundUp
-                    if pos1(1) < 0.8
-                        event = 2;
-                        break
-                    end
-                elseif ~this.isLeftTrial & delta >= thresh*RoundUp
-                    if pos1(1) < 0.3
-                        event = 1;
-                        break
-                    end
+                if this.isLeftTrial & pos2(1) >= 0.24
+                    event = 1;
+                    break
+                elseif ~this.isLeftTrial & pos1(1) <= 0.26
+                    event = 2;
+                    break
                 end
-                if double(abs(delta)) >= double(thresh) %If a choice is made: !!! Add code to round up the correct choice but not accept an incorrect choice until it is fully made. Accept the correct choice early but wait for a full incorrect choice.
-                    if sign(delta) > 0
-                        event = 1;
-                        break
-                    elseif sign(delta) < 0
-                        event = 2;
-                        break
-                    end
-                end
+                % if double(abs(delta)) >= double(thresh) %If a choice is made: !!! Add code to round up the correct choice but not accept an incorrect choice until it is fully made. Accept the correct choice early but wait for a full incorrect choice.
+                %     if sign(delta) > 0
+                %         event = 1;
+                %         break
+                %     elseif sign(delta) < 0
+                %         event = 2;
+                %         break
+                %     end
+                % end
                 if get(this.Skip, 'Value')
                     set(this.Skip, 'Value', 0) %Turn the button off
                     break
