@@ -376,6 +376,7 @@ classdef BehaviorBoxWheel < handle
             this.timeout_counter = 0;
             this.Temp_Active = false;
             try % Clear timestamp log
+                set(this.message_handle, 'Text', "Clearing timestamp log ...");
                 this.Time.Reset();
                 pause(0.1)
                 this.Time.Log(end+1) = "Trial 1";
@@ -383,6 +384,7 @@ classdef BehaviorBoxWheel < handle
             end
             % Send Start Acquisition signal to ScanImage
             try
+                set(this.message_handle, 'Text', "Starting acquisition (ScanImage)...");
                 this.a.Acquisition('Start');
             catch
             end
@@ -665,12 +667,14 @@ classdef BehaviorBoxWheel < handle
                         this.ReadyCue(true);
                         set(this.FLAx, 'Visible', true);
                         try % Send Next File signal to ScanImage
+                            set(this.message_handle, 'Text', "Next file (ScanImage)...");
                             this.a.Acquisition('Next');
                         catch
                         end
                         pause(0.2); % The nextfile acquisition signal has a builtin 200 ms delay
                         % Display stimulus
                         try % Clear timestamp log
+                            set(this.message_handle, 'Text', "Clearing timestamp log ...");
                             this.Time.Reset();
                             pause(0.1)
                             this.Time.Log(end+1) = "Trial "+this.i;
@@ -895,15 +899,17 @@ classdef BehaviorBoxWheel < handle
             this.setVisibleChildren(this.fig.Children, true);
             drawnow limitrate;  % Globally limit drawnow frequency for performance gains
             % Ignore input for a defined duration
-            startTime = tic;            
-% Moved the file handling to wait for input function
+            startTime = tic;
+            % Moved the file handling to wait for input function
             try % Stimulus On timestamp
-            this.a.TimeStamp;  
+                set(this.message_handle, 'Text', "Stimulus on timestamp...");
+                this.a.TimeStamp;
             catch
             end
             %this.flashStimulus(); % Do not flash when imaging
             this.Data_Object.addStimEvent(this.isLeftTrial);  % Record stimulus event
             % Enhanced decision-making loop based on inputType
+            set(this.message_handle, 'Text', sprintf('Waiting for %s choice...', this.current_side));
             if ~keyboardInput && inputType == 6
                 [this.WhatDecision, this.ResponseTime] = this.readLeverLoopAnalogWheel();
             else
@@ -912,7 +918,11 @@ classdef BehaviorBoxWheel < handle
             % Retry for only correct answers if necessary
             this.handleOnlyCorrectMode();
             % Toggle timestamp
-            this.a.TimeStamp;
+            try % Stimulus On timestamp
+                set(this.message_handle, 'Text', "Stimulus off timestamp...");
+                this.a.TimeStamp;
+            catch
+            end
             % Minimize redundant flash draws by handling decision directly
             this.processAfterDecision(keyboardInput, inputType);
         end
@@ -1714,6 +1724,7 @@ classdef BehaviorBoxWheel < handle
         function cleanUP(this)
             % Send Stop Acquisition signal to ScanImage
             try
+                set(this.message_handle, 'Text', "Stopping acquisition (ScanImage)...");
                 this.a.Acquisition('End');
             catch
             end
@@ -2005,6 +2016,7 @@ classdef BehaviorBoxWheel < handle
                 while all([~this.app.Animate_End.Value ~this.app.Stop.Value])
                     try
                     % Send Next File signal to ScanImage
+                    set(this.message_handle, 'Text', "Next file (ScanImage)...");
                     this.a.Acquisition('Next');
                     catch
                     end
@@ -2037,6 +2049,7 @@ classdef BehaviorBoxWheel < handle
                 while all([~this.app.Animate_End.Value ~this.app.Stop.Value])
                     try
                     % Send Next File signal to ScanImage
+                    set(this.message_handle, 'Text', "Next file (ScanImage)...");
                     this.a.Acquisition('Next');
                     catch
                     end
@@ -2103,6 +2116,7 @@ classdef BehaviorBoxWheel < handle
                 end
             end
             try
+                set(this.message_handle, 'Text', "Ending acquisition (ScanImage)...");
             this.a.Acquisition('End');
             catch
             end

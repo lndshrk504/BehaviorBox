@@ -24,6 +24,7 @@ void setup() {
   pinMode(INPUT_PIN_2, INPUT_PULLUP); // Should be pullup because otherwise too sensitive (erroneous timestamps appear)
   pinMode(INPUT_PIN_3, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(INPUT_PIN_2), StimulusOn, RISING);
+  //attachInterrupt(digitalPinToInterrupt(INPUT_PIN_2), RecordStimulus, CHANGE);
   attachInterrupt(digitalPinToInterrupt(INPUT_PIN_3), RecordFrame, RISING);
   
 
@@ -57,15 +58,50 @@ void StimulusOn() {
   unsigned int hours = totalMinutes / 60;
 
   // Print formatted time
-  Serial.print(hours);
-  Serial.print(" hours ");
-  Serial.print(minutes);
-  Serial.print(" minutes ");
-  Serial.print(seconds);
-  Serial.print(" seconds of Total Run Time,");
-  Serial.println("Stimulus RISING");
+  //Serial.print(hours);
+  //Serial.print(" hours ");
+  //Serial.print(minutes);
+  //Serial.print(" minutes ");
+  //Serial.print(seconds);
+  //Serial.print(" seconds of Total Run Time,");
+  Serial.println("Stimulus On - Frame clock reset to zero");
   
-  Serial.println("Frame clock reset to zero");
+  lastMicros = currentMicros;
+}
+
+void RecordStimulus() {
+  unsigned long currentMicros = micros();
+  if (currentMicros < lastMicros) {
+    overflows++;
+  }
+  unsigned long adjustedMicros = currentMicros + (overflows * OVERFLOW_INCREMENT);
+
+  if (digitalRead(INPUT_PIN_2) == HIGH) {
+    // RISING
+    startTime = adjustedMicros;
+
+    // Convert microseconds to total seconds
+    unsigned long totalSeconds = startTime / 1000000;
+    unsigned int seconds = totalSeconds % 60;
+    unsigned int totalMinutes = totalSeconds / 60;
+    unsigned int minutes = totalMinutes % 60;
+    unsigned int hours = totalMinutes / 60;
+
+    // Print formatted time
+    //Serial.print(hours);
+    //Serial.print(" hours ");
+    //Serial.print(minutes);
+    //Serial.print(" minutes ");
+    //Serial.print(seconds);
+    //Serial.print(" seconds of Total Run Time,");
+    Serial.print(adjustedMicros);
+    Serial.println("Stimulus On - Frame clock reset to zero");
+
+  } else {
+    // FALLING
+    Serial.print(adjustedMicros);
+    Serial.println(" Stimulus Off");
+  }
 
   lastMicros = currentMicros;
 }
