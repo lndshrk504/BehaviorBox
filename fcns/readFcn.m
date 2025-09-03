@@ -68,6 +68,9 @@ try
     if ~isfield(t.newData, 'wheel_record')
         t.newData.wheel_record = [];
     end
+    if ~isfield(t.newData, 'TtimestampRecord')
+        t.newData.TtimestampRecord = [];
+    end
     if isfield(t.newData, 'Weight')
         if isnumeric(t.newData.Weight)
             %do nothing, it should be double

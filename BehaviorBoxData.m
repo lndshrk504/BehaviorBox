@@ -63,10 +63,10 @@ classdef BehaviorBoxData < handle
         %constructor
         function this = BehaviorBoxData(options)
             arguments
-                options.Inv (1,:) char = 'Will';
-                options.Inp (1,:) char = 'NosePoke';
-                options.Str (1,:) char = 'New';
-                options.Sub (1,:) cell = {'123456'};
+                options.Inv (1,:) char
+                options.Inp (1,:) char
+                options.Str (1,:) char
+                options.Sub (1,:) cell
                 options.BB double = 20;
                 options.SB double = 10;
                 options.load logical = 1;
