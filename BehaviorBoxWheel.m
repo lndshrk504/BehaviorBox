@@ -1186,11 +1186,11 @@ classdef BehaviorBoxWheel < handle
                         delta = -thresh;
                     end
                 end
-                if this.isLeftTrial & delta < -thresh*RoundUp
-                    delta = -thresh*RoundUp;
-                elseif ~this.isLeftTrial & delta > thresh*RoundUp
-                    delta = thresh*RoundUp;
-                end
+                % if this.isLeftTrial & delta < -thresh*RoundUp
+                %     delta = -thresh*RoundUp;
+                % elseif ~this.isLeftTrial & delta > thresh*RoundUp
+                %     delta = thresh*RoundUp;
+                % end
                 I = I+1;
                 %this.wheelchoice{I} = delta;
                 %this.wheelchoicetime{I} = toc;
@@ -1202,6 +1202,11 @@ classdef BehaviorBoxWheel < handle
                 end
                 %disp("Dist is "+dist+"; delta is "+delta); disp("R pos1 is is "+pos1(1)+"; L pos2 is "+pos2(1))
                 drawnow
+                if this.isLeftTrial & pos2(1)<=-0.25
+                    this.a.Reset()
+                elseif ~this.isLeftTrial & pos1(1) >= 0.75
+                    this.a.Reset()
+                end
                 if this.isLeftTrial & pos2(1) >= 0.24
                     event = 1;
                     break
