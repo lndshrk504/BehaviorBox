@@ -120,6 +120,8 @@ void RecordFrame() {
   unsigned long adjustedMicros = currentMicros + (overflows * 4294967296UL);
   unsigned long timestamp = adjustedMicros - startTime;
   
+  // 3) Increment and print frame counter
+  frameCount++;
   Serial.print(timestamp);
   Serial.print(", F ");
   Serial.println(frameCount);  // 3) Print the frame count
