@@ -1057,9 +1057,8 @@ classdef BehaviorBoxWheel < handle
                 pos2i = axes(2).Position; % Axes2 (Left) default position is [0 0 0.5 1]
             end
             thresh = abs(pos1i(1)/2); % Should be 0.25 usually
-            RoundUp = 1; %Default is 75 --> 0.75
             this.a.Reset();
-            pause(0.1)
+            % pause(0.1)
             if this.Setting_Struct.RoundUp
                 RoundUp = (this.Setting_Struct.RoundUpVal/100); %Default is 75 --> 0.75
                 thresh = RoundUp*thresh;
@@ -1079,10 +1078,10 @@ classdef BehaviorBoxWheel < handle
                         delta = -thresh;
                     end
                 end
-                if this.isLeftTrial & delta < -thresh*RoundUp
-                    delta = -thresh*RoundUp;
-                elseif ~this.isLeftTrial & delta > thresh*RoundUp
-                    delta = thresh*RoundUp;
+                if this.isLeftTrial & delta < -thresh
+                    delta = -thresh;
+                elseif ~this.isLeftTrial & delta > thresh
+                    delta = thresh;
                 end
                 I = I+1;
                 this.wheelchoice{I} = delta;
@@ -1095,10 +1094,10 @@ classdef BehaviorBoxWheel < handle
                 end
                 %disp("Dist is "+dist+"; delta is "+delta); disp("R pos1 is is "+pos1(1)+"; L pos2 is "+pos2(1))
                 drawnow  %limitrate nocallbacks % The frame rate is very low on the new Ubuntu mini PC head fixation rig.
-                if this.isLeftTrial & delta <= -thresh*RoundUp
+                if this.isLeftTrial & delta <= -thresh
                     event = 2;
                     break
-                elseif ~this.isLeftTrial & delta >= thresh*RoundUp
+                elseif ~this.isLeftTrial & delta >= thresh
                     event = 1;
                     break
                 end
@@ -1122,7 +1121,7 @@ classdef BehaviorBoxWheel < handle
             this.wheelchoicetime = cell2mat(this.wheelchoicetime);
             response_time = toc;
             if event == -1 %If the mouse was close to picking a side, round up their choice:
-                if abs(delta) >= thresh*RoundUp
+                if abs(delta) >= thresh
                     if sign(delta) > 0
                         event = 1;
                     elseif sign(delta) < 0
@@ -1164,9 +1163,6 @@ classdef BehaviorBoxWheel < handle
                 pos2i = [0 0 0.5 1]; % axes(2).Position; % Axes2 (Left) default position is [0 0 0.5 1]
             end
             thresh = abs(0.5/2);
-            RoundUp = 1; %Default is 75 --> 0.75
-            % this.a.Reset();
-            % pause(0.1)
             if this.Setting_Struct.RoundUp
                 RoundUp = (this.Setting_Struct.RoundUpVal/100); %Default is 75 --> 0.75
                 thresh = RoundUp*thresh;
@@ -1186,10 +1182,10 @@ classdef BehaviorBoxWheel < handle
                         delta = -thresh;
                     end
                 end
-                % if this.isLeftTrial & delta < -thresh*RoundUp
-                %     delta = -thresh*RoundUp;
-                % elseif ~this.isLeftTrial & delta > thresh*RoundUp
-                %     delta = thresh*RoundUp;
+                % if this.isLeftTrial & delta < -thresh
+                %     delta = -thresh;
+                % elseif ~this.isLeftTrial & delta > thresh
+                %     delta = thresh;
                 % end
                 I = I+1;
                 %this.wheelchoice{I} = delta;
@@ -1234,7 +1230,7 @@ classdef BehaviorBoxWheel < handle
             %this.wheelchoicetime = cell2mat(this.wheelchoicetime);
             response_time = toc;
             if event == -1 %If the mouse was close to picking a side, round up their choice:
-                if abs(delta) >= thresh*RoundUp
+                if abs(delta) >= thresh
                     if sign(delta) > 0
                         event = 1;
                     elseif sign(delta) < 0
