@@ -17,6 +17,8 @@
 volatile unsigned long startTime = 0; // Reference time for resetting
 volatile unsigned long lastMicros = 0; // To track previous micros for overflow detection
 volatile unsigned long overflows = 0;  // Count overflow occurrences
+// 1) Add a global frame counter
+volatile unsigned long frameCount = 0;  
 
 void setup() {
   Serial.begin(115200);
@@ -79,6 +81,8 @@ void RecordStimulus() {
   if (digitalRead(INPUT_PIN_2) == HIGH) {
     // RISING
     startTime = adjustedMicros;
+    // Reset the frame counter when stimulus goes on
+    frameCount = 0;  
 
     // Convert microseconds to total seconds
     unsigned long totalSeconds = startTime / 1000000;
@@ -117,7 +121,8 @@ void RecordFrame() {
   unsigned long timestamp = adjustedMicros - startTime;
   
   Serial.print(timestamp);
-  Serial.println(", F");
+  Serial.print(", F ");
+  Serial.println(frameCount);  // 3) Print the frame count
 
   lastMicros = currentMicros;
 }
