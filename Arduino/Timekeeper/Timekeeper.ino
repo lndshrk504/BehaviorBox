@@ -23,8 +23,8 @@ void setup() {
   while (!Serial) { }; // wait for serial port to connect. Needed for native USB port only
   pinMode(INPUT_PIN_2, INPUT_PULLUP); // Should be pullup because otherwise too sensitive (erroneous timestamps appear)
   pinMode(INPUT_PIN_3, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(INPUT_PIN_2), StimulusOn, RISING);
-  //attachInterrupt(digitalPinToInterrupt(INPUT_PIN_2), RecordStimulus, CHANGE);
+  //attachInterrupt(digitalPinToInterrupt(INPUT_PIN_2), StimulusOn, RISING);
+  attachInterrupt(digitalPinToInterrupt(INPUT_PIN_2), RecordStimulus, CHANGE);
   attachInterrupt(digitalPinToInterrupt(INPUT_PIN_3), RecordFrame, RISING);
   
 
@@ -94,13 +94,13 @@ void RecordStimulus() {
     //Serial.print(" minutes ");
     //Serial.print(seconds);
     //Serial.print(" seconds of Total Run Time,");
-    Serial.print(adjustedMicros);
-    Serial.println("Stimulus On - Frame clock reset to zero");
+    Serial.print("S On-Frame reset ");
+    Serial.println(adjustedMicros);
 
   } else {
     // FALLING
-    Serial.print(adjustedMicros);
-    Serial.println(" Stimulus Off");
+    Serial.print("S Off ");
+    Serial.println(adjustedMicros);
   }
 
   lastMicros = currentMicros;
@@ -117,7 +117,7 @@ void RecordFrame() {
   unsigned long timestamp = adjustedMicros - startTime;
   
   Serial.print(timestamp);
-  Serial.println(", (micros) - Frame RISING");
+  Serial.println(", F");
 
   lastMicros = currentMicros;
 }

@@ -17,6 +17,8 @@ enum State {
   RIGHT_OPEN,
   RIGHT_SETUP,
   TIMESTAMPING,
+  TIMESTAMP_ON,
+  TIMESTAMP_OFF,
   STARTACQ,
   NEXTFILE,
   ENDACQ,
@@ -89,7 +91,8 @@ void loop() {
       case 'R': currentState = RIGHT_REWARDING; break; // Capital letter R
       case 'r': currentState = RIGHT_OPEN; break; // Lowercase letter r
       case 's': currentState = RIGHT_SETUP; break; // Lowercase letter s
-      case 'T': currentState = TIMESTAMPING; break;
+      case 'T': currentState = TIMESTAMP_ON; break;
+      case 't': currentState = TIMESTAMP_OFF; break;
       case 'I': currentState = STARTACQ; break; // Capital letter I
       case 'N': currentState = NEXTFILE; break; 
       case 'i': currentState = ENDACQ; break; // Lowercase letter i
@@ -159,6 +162,16 @@ void handleStateChange() {
     case TIMESTAMPING:
       pulsePinHighForDuration(PIN_12, 10);   // Pulse PIN_12 high
       Serial.println("Timestamp");
+      currentState = READING;
+      break;
+    case TIMESTAMP_ON:
+      digitalWrite(PIN_12, HIGH);   // Set the pin high
+      Serial.println("Timestamp On");
+      currentState = READING;
+      break;
+    case TIMESTAMP_OFF:
+      digitalWrite(PIN_12, LOW);   // Set the pin high
+      Serial.println("Stitmulus Off");
       currentState = READING;
       break;
     case WHO:
