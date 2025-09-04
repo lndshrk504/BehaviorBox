@@ -944,12 +944,8 @@ classdef BehaviorBoxWheel < handle
         end
         function handleOnlyCorrectMode(this)
             % Handle retries in 'Only Correct' mode
-            if this.Setting_Struct.OnlyCorrect && contains(this.WhatDecision , 'wrong', 'IgnoreCase', true)
-                if ~this.Box.KeyboardInput && this.Box.Input_type == 6
-                    [this.WhatDecision, this.ResponseTime] = this.readLeverLoopAnalogWheel_OnlyCorrect();
-                else
-                    [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput();
-                end
+            if this.Box.KeyboardInput && this.Setting_Struct.OnlyCorrect && contains(this.WhatDecision , 'wrong', 'IgnoreCase', true)
+                [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput();
             end
         end
         function processAfterDecision(this, keyboardInput, inputType)
@@ -1115,10 +1111,6 @@ classdef BehaviorBoxWheel < handle
                     break
                 end
             end
-            this.wheelchoice(cellfun('isempty',this.wheelchoice)) = [];
-            this.wheelchoice = cell2mat(this.wheelchoice);
-            this.wheelchoicetime(cellfun('isempty',this.wheelchoicetime)) = [];
-            this.wheelchoicetime = cell2mat(this.wheelchoicetime);
             response_time = toc;
             if event == -1 %If the mouse was close to picking a side, round up their choice:
                 if abs(delta) >= thresh
@@ -1146,8 +1138,97 @@ classdef BehaviorBoxWheel < handle
                         WhatDecision = 'right wrong';
                     end
             end
+            if contains(WhatDecision, 'wrong')&& this.Setting_Struct.OnlyCorrect
+                tic
+                while timeout_value == 0 | toc<timeout_value % do NOT replace | with || or the expression is changed.
+                    dist = str2double(this.a.SerialRead);
+                    delta = (dist/threshold)*StimDistance; % A full revolution is about 4000 pulses 4400/360 = 12.22 pulses/degree 90 deg is ~1000 pulses
+                    if abs(delta)>thresh % Prevent stim from being pushed off screen
+                        if sign(delta)>0
+                            delta =  thresh;
+                        elseif sign(delta)<0
+                            delta = -thresh;
+                        end
+                    end
+                    % if this.isLeftTrial & delta < -thresh
+                    %     delta = -thresh;
+                    % elseif ~this.isLeftTrial & delta > thresh
+                    %     delta = thresh;
+                    % end
+                    I = I+1;
+                    this.wheelchoice{I} = delta;
+                    this.wheelchoicetime{I} = toc;
+                    pos1 = pos1i + ([delta 0 0 0]);
+                    axes(1).Position = pos1;
+                    if numel(axes) > 1
+                        pos2 = pos2i + ([delta 0 0 0]);
+                        axes(2).Position = pos2;
+                    end
+                    %disp("Dist is "+dist+"; delta is "+delta); disp("R pos1 is is "+pos1(1)+"; L pos2 is "+pos2(1))
+                    drawnow
+                    if this.isLeftTrial & pos2(1)<=-0.25
+                        this.a.Reset()
+                    elseif ~this.isLeftTrial & pos1(1) >= 0.75
+                        this.a.Reset()
+                    end
+                    if this.isLeftTrial & pos2(1) >= 0.24
+                        event = 1;
+                        break
+                    elseif ~this.isLeftTrial & pos1(1) <= 0.26
+                        event = 2;
+                        break
+                    end
+                    % if double(abs(delta)) >= double(thresh) %If a choice is made: !!! Add code to round up the correct choice but not accept an incorrect choice until it is fully made. Accept the correct choice early but wait for a full incorrect choice.
+                    %     if sign(delta) > 0
+                    %         event = 1;
+                    %         break
+                    %     elseif sign(delta) < 0
+                    %         event = 2;
+                    %         break
+                    %     end
+                    % end
+                    if get(this.Skip, 'Value')
+                        set(this.Skip, 'Value', 0) %Turn the button off
+                        break
+                    end
+                end
+                Old_response_time = response_time;
+                New_response_time = toc;
+                response_time = New_response_time + Old_response_time;
+                if event == -1 %If the mouse was close to picking a side, round up their choice:
+                    if abs(delta) >= thresh
+                        if sign(delta) > 0
+                            event = 1;
+                        elseif sign(delta) < 0
+                            event = 2;
+                        end
+                    end
+                end
+                %translate response to decision
+                switch event
+                    case -1
+                        WhatDecision = 'time out';
+                    case 1
+                        if this.isLeftTrial == 1
+                            WhatDecision = 'left correct';
+                        else
+                            WhatDecision = 'left wrong';
+                        end
+                    case 2
+                        if this.isLeftTrial == 0
+                            WhatDecision = 'right correct';
+                        else
+                            WhatDecision = 'right wrong';
+                        end
+                end
+            end
+            this.wheelchoice(cellfun('isempty',this.wheelchoice)) = [];
+            this.wheelchoice = cell2mat(this.wheelchoice);
+            this.wheelchoicetime(cellfun('isempty',this.wheelchoicetime)) = [];
+            this.wheelchoicetime = cell2mat(this.wheelchoicetime);
         end
         function [WhatDecision, response_time] = readLeverLoopAnalogWheel_OnlyCorrect(this)
+% Unused and has been merged into the main function: thtis.readLeverLoopAnalogWheel()
             event = -1;
             delta = 0;
             %this.wheelchoice = cell(1,1e6);
