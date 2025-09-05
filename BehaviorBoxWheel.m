@@ -375,18 +375,20 @@ classdef BehaviorBoxWheel < handle
             this.i = 0;
             this.timeout_counter = 0;
             this.Temp_Active = false;
-            try
-                this.a.TimeStamp('Off')
-            end
-            try % Clear timestamp log
-                set(this.message_handle, 'Text', "Clearing timestamp log ...");
-                this.Time.Reset();
-                pause(0.1)
-                this.Time.Log(end+1) = "Trial 1";
-            catch
-            end
+            % try
+            %     this.a.TimeStamp('Off')
+            % end
+            % try % Clear timestamp log
+            %     set(this.message_handle, 'Text', "Clearing timestamp log ...");
+            %     this.Time.Reset();
+            %     pause(0.1)
+            %     this.Time.Log(end+1) = "Trial 1";
+            % catch
+            % end
             % Send Start Acquisition signal to ScanImage
             try
+                this.Time.Reset();
+                pause(0.1)
                 set(this.message_handle, 'Text', "Starting acquisition (ScanImage)...");
                 this.a.Acquisition('Start');
             catch
@@ -405,6 +407,9 @@ classdef BehaviorBoxWheel < handle
                 LastScore = this.Data_Object.current_data_struct.CodedChoice(end);
             catch
                 LastScore = 1;
+            end
+            try
+                this.a.TimeStamp('Off')
             end
             if this.Setting_Struct.Repeat_wrong==1 && any(LastScore == [3 4]) %If repeat wrong and they got it wrong
                 if isvalid(this.fig)
@@ -664,25 +669,25 @@ classdef BehaviorBoxWheel < handle
             this.t1 = datetime("now"); t2 = this.t1; %In case of crash
             this.a.DispOutput = false;
             this.a.Reset();
+            pause(0.2); % The nextfile acquisition signal has a builtin 200 ms delay
+            % Display stimulus
+            try % Clear timestamp log
+                set(this.message_handle, 'Text', "Clearing timestamp log ...");
+                this.Time.Reset();
+                pause(0.1)
+                this.Time.Log(end+1,1) = "Trial "+this.i;
+            catch
+            end
+            try % Send Next File signal to ScanImage
+                set(this.message_handle, 'Text', "Next file (ScanImage)...");
+                this.a.Acquisition('Next');
+            catch
+            end
             switch true
                 case ~isempty(this.a) && this.Box.Input_type==6 %Wheel 2.0, wait for the mouse to hold the wheel still for the interval to start a new trial
                     if this.i ~=1
                         this.ReadyCue(true);
                         set(this.FLAx, 'Visible', true);
-                        try % Send Next File signal to ScanImage
-                            set(this.message_handle, 'Text', "Next file (ScanImage)...");
-                            this.a.Acquisition('Next');
-                        catch
-                        end
-                        pause(0.2); % The nextfile acquisition signal has a builtin 200 ms delay
-                        % Display stimulus
-                        try % Clear timestamp log
-                            set(this.message_handle, 'Text', "Clearing timestamp log ...");
-                            this.Time.Reset();
-                            pause(0.1)
-                            this.Time.Log(end+1) = "Trial "+this.i;
-                        catch
-                        end
                         drawnow
                         timelimit = this.Setting_Struct.HoldStill;
                         tic;
@@ -1582,9 +1587,7 @@ classdef BehaviorBoxWheel < handle
             end
         end
         %Update data structure, update graphs, do intertrial time
-        function AfterTrial(this)
-            %this.a.Acquisition('End')
-            this.timestamps_record{this.i} = this.Time.Log;   
+        function AfterTrial(this) 
             decision = this.WhatDecision;
             settingStruct = this.Setting_Struct;
             switch true
@@ -1618,6 +1621,8 @@ classdef BehaviorBoxWheel < handle
             if this.Temp_Active
                 this.Setting_Struct = this.Temp_Old_Settings;
             end
+            this.a.Acquisition('End')
+            this.timestamps_record{this.i} = this.Time.Log;
         end
         function updateMessageBox(this)
             try
