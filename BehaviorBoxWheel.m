@@ -375,6 +375,9 @@ classdef BehaviorBoxWheel < handle
             this.i = 0;
             this.timeout_counter = 0;
             this.Temp_Active = false;
+            try
+                this.a.TimeStamp('Off')
+            end
             try % Clear timestamp log
                 set(this.message_handle, 'Text', "Clearing timestamp log ...");
                 this.Time.Reset();
@@ -903,7 +906,7 @@ classdef BehaviorBoxWheel < handle
             % Moved the file handling to wait for input function
             try % Stimulus On timestamp
                 set(this.message_handle, 'Text', "Stimulus on timestamp...");
-                this.a.TimeStamp;
+                this.a.TimeStamp('On');
             catch
             end
             %this.flashStimulus(); % Do not flash when imaging
@@ -920,7 +923,7 @@ classdef BehaviorBoxWheel < handle
             % Toggle timestamp
             try % Stimulus On timestamp
                 set(this.message_handle, 'Text', "Stimulus off timestamp...");
-                this.a.TimeStamp;
+                this.a.TimeStamp('Off');
             catch
             end
             % Minimize redundant flash draws by handling decision directly
@@ -2083,7 +2086,7 @@ classdef BehaviorBoxWheel < handle
 
             tic % Begin time recording
             try
-                this.a.TimeStamp(); % 300 milisec builtin pause
+                this.a.TimeStamp('On'); % 300 milisec builtin pause
             catch
             end
             one_drop_only = true;
@@ -2208,7 +2211,7 @@ classdef BehaviorBoxWheel < handle
             this.SaveAllData("Activity", "Animate", "PosRecord", Pos_Record);
 
             try
-                this.a.TimeStamp(); % 300 milisec builtin pause
+                this.a.TimeStamp('Off'); % 300 milisec builtin pause
             end
         end
         function RecordStimuli(this, options)

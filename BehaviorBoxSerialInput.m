@@ -129,8 +129,21 @@ classdef BehaviorBoxSerialInput < handle
             end
         end
 
-        function TimeStamp(this)
-            write(this.Ard, "T", "char");
+        function TimeStamp(this, Type)
+            arguments
+                this
+                Type char = 'On'
+            end
+            try % will fail if no arduino...
+                switch Type
+                    case 'On'
+                        write(this.Ard, "T", "char");
+                    case 'Off'
+                        write(this.Ard, 't', "char");
+                    otherwise
+                        % nothing
+                end
+            end
             pause(0.3);
         end
 
