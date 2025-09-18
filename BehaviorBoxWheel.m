@@ -375,7 +375,6 @@ classdef BehaviorBoxWheel < handle
             this.i = 0;
             this.timeout_counter = 0;
             this.Temp_Active = false;
-<<<<<<< Updated upstream
             % try
             %     this.a.TimeStamp('Off')
             % end
@@ -386,7 +385,6 @@ classdef BehaviorBoxWheel < handle
             %     this.Time.Log(end+1) = "Trial 1";
             % catch
             % end
-=======
             try
                 this.a.TimeStamp('Off')
             catch
@@ -398,7 +396,6 @@ classdef BehaviorBoxWheel < handle
                 this.Time.Log(end+1,1) = "Trial 1";
             catch
             end
->>>>>>> Stashed changes
             % Send Start Acquisition signal to ScanImage
             try
                 this.Time.Reset();
@@ -702,8 +699,6 @@ classdef BehaviorBoxWheel < handle
                     if this.i ~=1
                         this.ReadyCue(true);
                         set(this.FLAx, 'Visible', true);
-<<<<<<< Updated upstream
-=======
                         try % Send Next File signal to ScanImage
                             set(this.message_handle, 'Text', "Next file (ScanImage)...");
                             this.a.Acquisition('Next');
@@ -718,7 +713,6 @@ classdef BehaviorBoxWheel < handle
                             this.Time.Log(end+1,1) = "Trial "+this.i;
                         catch
                         end
->>>>>>> Stashed changes
                         drawnow
                         timelimit = this.Setting_Struct.HoldStill;
                         tic;
