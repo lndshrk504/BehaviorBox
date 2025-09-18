@@ -17,8 +17,16 @@ function [devicesInfo, COM, ID] = arduinoServer(opts)
     %   - selectedDevice: A serialport object for the desired Arduino device.
     %     If no matching device is found, returns an empty array.
     
-    if ~isempty(opts.ArduinoInfo)
-
+    if size(fields(opts.ArduinoInfo),1) > 0
+        Ards = opts.ArduinoInfo.Arduinos;
+        IDs = [Ards.Identity];
+        W_Ard = contains(IDs, opts.desiredIdentity);
+        ID = IDs(W_Ard);
+        Ports = [Ards.Port];
+        COM = "/dev/tty"+Ports(W_Ard);
+        devicesInfo = opts.ArduinoInfo;
+        return
+    end
 
     COM = [];
     ID = [];
@@ -45,21 +53,25 @@ function [devicesInfo, COM, ID] = arduinoServer(opts)
     end
     
     maxPorts = length(serialPortInfo); % Preallocate the devicesInfo structure array with maximum possible size
-    devicesInfo(maxPorts).Port = '';
-    devicesInfo(maxPorts).Identity = '';
-    devicesInfo(maxPorts).Device = {};
-    
+
+    devicesInfo.Tag = 'Arduino';
+    devicesInfo.Type = opts.desiredIdentity;
+    devicesInfo.Value = opts.desiredIdentity;
+    Ards_Info(maxPorts).Port = '';
+    Ards_Info(maxPorts).Identity = '';
+    Ards_Info(maxPorts).Device = {};
+    devicesInfo.Arduinos = Ards_Info;
     deviceCount = 0; % Initialize an index to keep track of actual devices found
     
     for i = 1:maxPorts % Iterate through each serial port
         try
             deviceCount = deviceCount + 1; % Increment the device count
-            devicesInfo(deviceCount).Port = erase(serialPortInfo(i), '/dev/tty'); % Store the port and identity in the preallocated array
+            Ards_Info(deviceCount).Port = erase(serialPortInfo(i), '/dev/tty'); % Store the port and identity in the preallocated array
     
             % Create serial port object
-            devicesInfo(deviceCount).Device = serialport(serialPortInfo(i), 115200); % Modify the baud rate if required
-            configureTerminator(devicesInfo(deviceCount).Device, "CR/LF")
-            device = devicesInfo(deviceCount).Device;
+            Ards_Info(deviceCount).Device = serialport(serialPortInfo(i), 115200); % Modify the baud rate if required
+            configureTerminator(Ards_Info(deviceCount).Device, "CR/LF")
+            device = Ards_Info(deviceCount).Device;
     
             pause(2)
     
@@ -72,37 +84,40 @@ function [devicesInfo, COM, ID] = arduinoServer(opts)
             % Store the port and identity in the preallocated array
             Identity = response(contains(response, 'Box ID'));
             Identity = erase(Identity, 'Box ID: '); % Trim the response for consistency
-            devicesInfo(deviceCount).Identity = Identity;
-            fprintf('Found device: %s on port: %s\n', devicesInfo(i).Identity, devicesInfo(i).Port);
+            Ards_Info(deviceCount).Identity = Identity;
+            fprintf('Found device: %s on port: %s\n', Ards_Info(i).Identity, Ards_Info(i).Port);
             if opts.FindFirst && contains(Identity, opts.desiredIdentity)
                 COM = serialPortInfo(i);
                 ID = Identity;
                 return
             end
+            delete(device)
         catch % If an error occurs, such as a timeout, skip this device
-            devicesInfo(deviceCount).Identity = 'Busy';
+            Ards_Info(deviceCount).Identity = 'Busy';
             fprintf('Port %s is not available...\n', serialPortInfo(i));
         end
     end
+    [Ards_Info(:).Device] = deal([]);
+    devicesInfo.Arduinos = Ards_Info;
     
     % Retain only the populated entries in devicesInfo
-    devicesInfo = devicesInfo(1:deviceCount);
-    opts.ArduinoInfo = devicesInfo;
+    Ards_Info = Ards_Info(1:deviceCount);
+    opts.ArduinoInfo = Ards_Info;
     if opts.desiredIdentity == ""
         return
     end
 
     % Find and connect to the desired device
     for i = 1:deviceCount
-        if contains(devicesInfo(i).Identity, opts.desiredIdentity)
-            [devicesInfo(:).Device] = deal([]);
+        if contains(Ards_Info(i).Identity, opts.desiredIdentity)
             %selectedDevice = serialport("/dev/tty"+devicesInfo(i).Port, 115200); % Reconnect to the desired device
-            COM = "/dev/tty"+devicesInfo(i).Port;
-            ID = devicesInfo(i).Identity;
-            fprintf('Selecting device: %s on port: %s\n', devicesInfo(i).Identity, devicesInfo(i).Port);
+            COM = "/dev/tty"+Ards_Info(i).Port;
+            ID = Ards_Info(i).Identity;
+            fprintf('Selecting device: %s on port: %s\n', Ards_Info(i).Identity, Ards_Info(i).Port);
             break;
         end
     end
+    devicesInfo.Value = ID;
     
     % Check if the desired device was not found
     if isempty(COM)

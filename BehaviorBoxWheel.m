@@ -204,15 +204,19 @@ classdef BehaviorBoxWheel < handle
             %Get the settings label from the setting structure, to label the data.
             this.SetIdx = 1;
             [this.SetStr, this.Include] = this.structureSettings(this.Setting_Struct);
-            function Types = GetType(App, Props)
+            function Types = GetType( App, Props)
                 %Types = cellfun(@(x) App.(x).Type, Props, 'UniformOutput', false);
                 n = numel(Props);
                 Types = cell(1, n);
                 for i = 1:n
+                    if Props{i} == "ArduinoInfo"
+                        Types{i} = 'Arduino';
+                        continue
+                    end
                     try
-                    Types{i} = App.(Props{i}).Type;
+                        Types{i} = App.(Props{i}).Type;
                     catch err
-                        1;
+                        Types{i} = 'null';
                     end
                 end
             end
@@ -272,21 +276,20 @@ classdef BehaviorBoxWheel < handle
                     case 6 %Rotating Wheel
                         try % Behavior Arduino:
                             disp('- - - Connecting to Behavior Arduino - - -')
-                            [comsnum, ID] = arduinoServer(this.app.Arduino_Com.Value);
-                            this.a = BehaviorBoxSerialInput(comsnum, 115200, 'Wheel');
+                            [~, comsnum, ~] = arduinoServer('ArduinoInfo', this.app.ArduinoInfo, 'desiredIdentity', this.app.Arduino_Com.Value, 'FindExact', true);
                         catch err
-                            [comsnum, ID] = arduinoServer('Wheel');
-                            this.a = BehaviorBoxSerialInput(comsnum, 115200, 'Wheel');
+                            [comsnum, ID] = arduinoServer('desiredIdentity', 'Wheel', 'FindFirst', true);
                             this.app.Arduino_Com.Value = ID;
                             this.app.LoadComputerSpecifics();
                         end
+                        this.a = BehaviorBoxSerialInput(comsnum, 115200, 'Wheel');
                         this.Box.KeyboardInput = 0;
                         pause(2)
                         this.a.SetupReward("Which", "Right", "DurationRight", this.Box.Rrewardtime);
                         disp('- - - Success - - -')                        
                         try % Timekeeper Arduino
                             disp('- - - Connecting to Timestamp Arduino - - -')
-                            [comsnum, ID] = arduinoServer('Time');
+                            [~, comsnum, ~] = arduinoServer('ArduinoInfo', this.app.ArduinoInfo, 'desiredIdentity', 'Time', 'FindExact', true);
                             this.Time = BehaviorBoxSerialTime(comsnum, 115200);
                             disp('- - - Success - - -')
                         catch err

@@ -228,18 +228,35 @@ classdef BehaviorBoxNose < handle
             this.SetIdx = 1;
             [this.SetStr, this.Include] = this.structureSettings(this.Setting_Struct);
         end
-        function Types = GetTag(this, App, Props)
-            Types = cellfun(@(x) App.(x).Tag, Props, 'UniformOutput', false);
+        function Tags = GetTag(this, App, Props)
+            n = numel(Props);
+            Tags = cell(1, n);
+            for i = 1:n
+                if Props{i} == "ArduinoInfo"
+                    Tags{i} = 'Arduino';
+                    %continue
+                end
+                try
+                    Tags{i} = App.(Props{i}).Tag;
+                catch err
+                    Tags{i} = 'null';
+                end
+            end
+            % Tags = cellfun(@(x) App.(x).Tag, Props, 'UniformOutput', false);
         end
         function Types = GetType(this, App, Props)
             %Types = cellfun(@(x) App.(x).Type, Props, 'UniformOutput', false);
             n = numel(Props);
             Types = cell(1, n);
             for i = 1:n
+                if Props{i} == "ArduinoInfo"
+                    Types{i} = 'Arduino';
+                    %continue
+                end
                 try
                     Types{i} = App.(Props{i}).Type;
                 catch err
-                    1;
+                    Types{i} = 'null';
                 end
             end
         end
@@ -301,13 +318,13 @@ classdef BehaviorBoxNose < handle
                         %     comsnum = "/dev/tty"+this.app.Arduino_Com.Value;
                         % end
                         try
-                            [comsnum, ID] = arduinoServer(this.app.Arduino_Com.Value);
-                            this.a = BehaviorBoxSerialInput(comsnum, 115200, 'NosePoke');
+                            [~, comsnum, ~] = arduinoServer('ArduinoInfo', this.app.ArduinoInfo, 'desiredIdentity', this.app.Arduino_Com.Value, 'FindExact', true);
                         catch err
-                            [comsnum, ID] = arduinoServer('Nose');
+                            [~, comsnum, ID] = arduinoServer('desiredIdentity', 'Nose', 'FindFirst', true);
                             this.app.Arduino_Com.Value = ID;
                             this.app.LoadComputerSpecifics();
                         end
+                        this.a = BehaviorBoxSerialInput(comsnum, 115200, 'NosePoke');
                         pause(2)
                         this.a.SetupReward("Which", "Both", "DurationLeft", this.Box.Lrewardtime, "DurationRight", this.Box.Rrewardtime);
                         this.Box.ardunioReadDigital = 1;
