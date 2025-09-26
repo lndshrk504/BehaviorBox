@@ -183,7 +183,7 @@ classdef BehaviorBoxNose < handle
             props = properties(this.app); %Get all names
             props(props == "MsgBox") = [];
             props(props == "NotesText") = [];
-            skiptypes = {'buttongroup', 'figure', 'label', 'panel', 'annotationpane', 'axes', 'tab', 'uigridlayout'};
+            skiptypes = {'buttongroup', 'figure', 'label', 'panel', 'annotationpane', 'axes', 'tab', 'uigridlayout', 'null', 'uistatebutton'};
             types = this.GetType(this.app, props); %cellfun(@(x) this.app.(x).Type, props, 'UniformOutput', false); %Get their types
             props = props(~contains(types, skiptypes, "IgnoreCase",true));
             types = this.GetType(this.app, props);
@@ -1747,7 +1747,7 @@ classdef BehaviorBoxNose < handle
         function TestStimulus(this, options)
             arguments
                 this
-                options.SaveStimulus logical = 1
+                options.SaveStimulus logical = 0
             end
             tic
             this.app.ShowStim.Enable = 0; %Set to 1 when debugging...
