@@ -280,12 +280,12 @@ classdef BehaviorBoxNose < handle
             if ~isnumeric(In.HardLvList)
                 HardLevs = str2num(string(In.HardLvList)); %#ok<ST2NM>
             else
-                HardLevs = str2num(string(In.HardLvList));
+                HardLevs = str2num(string(In.HardLvList)); %#ok<ST2NM>
             end
             if ~isnumeric(In.EasyLvList)
                 EasyLevs = str2num(string(In.EasyLvList)); %#ok<ST2NM>
             else
-                EasyLevs = str2num(string(In.EasyLvList));
+                EasyLevs = str2num(string(In.EasyLvList)); %#ok<ST2NM>
             end
             LEVELS = {EasyLevs HardLevs; In.EasyLvProb In.HardLvProb};
             PossibleLevels = [];
