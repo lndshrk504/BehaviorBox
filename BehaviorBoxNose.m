@@ -141,13 +141,14 @@ classdef BehaviorBoxNose < handle
                     if errorc >= 5 || get(this.stop_handle, 'Value') %check if stop pressed
                         close(this.fig)
                         break;
-                    end 
+                    end
                     % Uncomment these when needing to time the trial
                     % profile on
                     this.BeforeTrial();
                     this.WaitForInput();
                     this.WaitForInputAndGiveReward();
                     this.AfterTrial();
+                    this.app.TabGroup.SelectedTab = this.app.TabGroup.Children(5);
                     pause(0.01);
                     errorc = 0;
                     % Uncomment these when needing to time the trial

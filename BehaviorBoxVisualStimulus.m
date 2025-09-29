@@ -134,7 +134,7 @@ classdef BehaviorBoxVisualStimulus
                     "HandleVisibility","on", ...
                     "InvertHardcopy","off");
                 %fig.Renderer = "painters";
-                set(fig, 'Renderer', 'OpenGL'); % openGL is the default but this may help
+                %set(fig, 'Renderer', 'OpenGL'); % openGL is the default but this may help
                 %fig.WindowStyle = "alwaysontop";
                 fig.Units = "inches";
                 fig.Position = this.figpos;

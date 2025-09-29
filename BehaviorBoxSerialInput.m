@@ -93,9 +93,10 @@ classdef BehaviorBoxSerialInput < handle
                 opts.DurationLeft string = this.Lrewardtime;
                 opts.Which string = "Right"
             end
-            if this.Input_type == "Wheel"
-                this.DispOutput = true;
-            end
+            this.DispOutput = true;
+            % if this.Input_type == "Wheel"
+            %     this.DispOutput = true;
+            % end
             if ismember(opts.Which, ["Right", "Both"])
                 %write(this.Ard, "s", "char");
                 writeline(this.Ard, "s"+opts.DurationRight);
@@ -109,10 +110,13 @@ classdef BehaviorBoxSerialInput < handle
             % Update properties
             this.Rrewardtime = str2double(opts.DurationRight);
             this.Lrewardtime = str2double(opts.DurationLeft);
-            if this.Input_type == "Wheel"
-                pause(0.1)
-                this.DispOutput = false;
-            end
+            pause(0.1)
+            % % this.DispOutput = false;
+            
+            % if this.Input_type == "Wheel"
+            %     pause(0.1)
+            %     this.DispOutput = false;
+            % end
         end
 
         function GiveReward(this, opts)
