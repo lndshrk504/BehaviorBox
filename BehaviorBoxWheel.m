@@ -169,30 +169,30 @@ classdef BehaviorBoxWheel < handle
             props = properties(this.app); %Get all names
             props(props == "MsgBox") = [];
             props(props == "NotesText") = [];
-            skiptypes = {'buttongroup', 'figure', 'label', 'panel', 'annotationpane', 'axes', 'tab', 'uigridlayout'};
-            types = GetType(this.app, props); %cellfun(@(x) this.app.(x).Type, props, 'UniformOutput', false); %Get their types
+            skiptypes = {'buttongroup', 'figure', 'label', 'panel', 'annotationpane', 'axes', 'tab', 'uigridlayout', 'null', 'uistatebutton'};
+            types = this.GetType(this.app, props); %cellfun(@(x) this.app.(x).Type, props, 'UniformOutput', false); %Get their types
             props = props(~contains(types, skiptypes, "IgnoreCase",true));
-            types = GetType(this.app, props);
+            types = this.GetType(this.app, props);
             %Make Button structure
             buttons = props(contains(types, {'button'}) & ~contains(types, {'radiobutton'}));
-            bTags = GetTag(this.app, buttons);
-            this.Buttons = cell2struct(cellfun(@(x)(this.app.(x)), buttons, 'UniformOutput',false), bTags);
-            props = props(~contains(types, {'button'}) | contains(types, {'radiobutton'})); types = GetType(this.app, props);
+            bTags = this.GetTag(this.app, buttons);
+            this.Buttons = cell2struct(cellfun(@(x)(this.app.(x)), buttons, 'UniformOutput',false, 'ErrorHandler', @errorFuncNaN), bTags);
+            props = props(~contains(types, {'button'}) | contains(types, {'radiobutton'})); types = this.GetType(this.app, props);
             %Make Dropdown structure
             this.appProps = props;
             this.appPropsTypes = types;
             Dropdowns = props(contains(types, {'dropdown'}));
-            dTags = GetTag(this.app, Dropdowns);
+            dTags = this.GetTag(this.app, Dropdowns);
             DropVals = cellfun(@(x)find(matches(this.app.(x).Items, this.app.(x).Value)), Dropdowns, 'UniformOutput',false);
             this.dropdowns = cell2struct(DropVals, dTags);
-            props = props(~contains(types, {'dropdown'})); types = GetType(this.app, props);
+            props = props(~contains(types, {'dropdown'})); types = this.GetType(this.app, props);
             %Make Checkbox structure
             setVals = cell(size(props));
             CIdx = contains(types, {'check'});
             Checkboxes = props(CIdx);
             cVals = cellfun(@(x)logical(this.app.(x).Value), Checkboxes, 'UniformOutput',false);
             setVals(CIdx) = cVals;
-            pTags = GetTag(this.app, props);
+            pTags = this.GetTag(this.app, props);
             setVals(~CIdx) = cellfun(@(x)str2double(this.app.(x).Value), props(~CIdx), 'UniformOutput',false);
             ReDo = cellfun(@isnan, setVals, 'UniformOutput',true);
             setVals(ReDo) = cellfun(@(x)(this.app.(x).Value), props(ReDo), 'UniformOutput',false);
@@ -204,24 +204,37 @@ classdef BehaviorBoxWheel < handle
             %Get the settings label from the setting structure, to label the data.
             this.SetIdx = 1;
             [this.SetStr, this.Include] = this.structureSettings(this.Setting_Struct);
-            function Types = GetType( App, Props)
-                %Types = cellfun(@(x) App.(x).Type, Props, 'UniformOutput', false);
-                n = numel(Props);
-                Types = cell(1, n);
-                for i = 1:n
-                    if Props{i} == "ArduinoInfo"
-                        Types{i} = 'Arduino';
-                        continue
-                    end
-                    try
-                        Types{i} = App.(Props{i}).Type;
-                    catch err
-                        Types{i} = 'null';
-                    end
+        end
+        function Tags = GetTag(this, App, Props)
+            n = numel(Props);
+            Tags = cell(1, n);
+            for i = 1:n
+                if Props{i} == "ArduinoInfo"
+                    Tags{i} = 'Arduino';
+                    %continue
+                end
+                try
+                    Tags{i} = App.(Props{i}).Tag;
+                catch err
+                    Tags{i} = 'null';
                 end
             end
-            function Types = GetTag(App, Props)
-                Types = cellfun(@(x) App.(x).Tag, Props, 'UniformOutput', false);
+            % Tags = cellfun(@(x) App.(x).Tag, Props, 'UniformOutput', false);
+        end
+        function Types = GetType(this, App, Props)
+            %Types = cellfun(@(x) App.(x).Type, Props, 'UniformOutput', false);
+            n = numel(Props);
+            Types = cell(1, n);
+            for i = 1:n
+                if Props{i} == "ArduinoInfo"
+                    Types{i} = 'Arduino';
+                    %continue
+                end
+                try
+                    Types{i} = App.(Props{i}).Type;
+                catch err
+                    Types{i} = 'null';
+                end
             end
         end
         function makeTrialStructures(this, Settings)
@@ -586,9 +599,10 @@ classdef BehaviorBoxWheel < handle
                         catch
                             return
                         end
-                        if SB_Ratio > 0.7 % too many Left
+                        Delta = this.Setting_Struct.Side_delta;
+                        if SB_Ratio > 0.5+Delta % too many Left
                             isLeftTrial = 0;
-                        elseif SB_Ratio < 0.3 % too many Right
+                        elseif SB_Ratio < 0.5+Delta % too many Right
                             isLeftTrial = 1;
                         end
                     case 2 %all left
@@ -1861,6 +1875,9 @@ classdef BehaviorBoxWheel < handle
                     set(this.ReadyCueAx, 'Visible', isVis)
                 case isVis == "Create"
                     RCAx = axes('Parent', this.fig, 'Position', [0 0 1 1], 'Color', 'k', 'Tag', 'ReadyCue');
+                    RCAx.YTick = [];
+                    RCAx.XTick = [];
+                    RCAx.TickLength = [0 0];
                     this.fig.Children = [this.fig.Children([2 3 1 4 5])];
                 % case ischar(isVis) %Letter color abbrev.
                 %     ax = findobj(this.ReadyCueAx, 'Type', 'Axes');
@@ -2401,12 +2418,6 @@ classdef BehaviorBoxWheel < handle
     end
     %STATIC FUNCTIONS====
     methods(Static = true)
-        function Types = GetType(App, Props)
-            Types = cellfun(@(x) App.(x).Type, Props, 'UniformOutput', false);
-        end
-        function Types = GetTag(App, Props)
-            Types = cellfun(@(x) App.(x).Tag, Props, 'UniformOutput', false);
-        end
         %toggle GUI buttons active/inactive
         function toggleButtonsOnOff(Buttons, on)
             ON = logical(on);

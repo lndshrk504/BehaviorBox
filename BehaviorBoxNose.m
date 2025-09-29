@@ -191,15 +191,6 @@ classdef BehaviorBoxNose < handle
             %Make Button structure
             buttons = props(contains(types, {'button'}) & ~contains(types, {'radiobutton'}));
             bTags = this.GetTag(this.app, buttons);
-            % Out = struct();
-            % for B = buttons'
-            %     name = B{:};
-            %     try
-            %         Out.(name) = this.app.(name);
-            %     catch err
-            %         unwrapErr(err)
-            %     end
-            % end
             this.Buttons = cell2struct(cellfun(@(x)(this.app.(x)), buttons, 'UniformOutput',false, 'ErrorHandler', @errorFuncNaN), bTags);
             props = props(~contains(types, {'button'}) | contains(types, {'radiobutton'})); types = this.GetType(this.app, props);
             %Make Dropdown structure
@@ -590,9 +581,10 @@ classdef BehaviorBoxNose < handle
                         catch
                             return
                         end
-                        if SB_Ratio > 0.7 % too many Left
+                        Delta = this.Setting_Struct.Side_delta;
+                        if SB_Ratio > 0.5+Delta % too many Left
                             isLeftTrial = 0;
-                        elseif SB_Ratio < 0.3 % too many Right
+                        elseif SB_Ratio < 0.5+Delta % too many Right
                             isLeftTrial = 1;
                         end
                     case 2 %all left
