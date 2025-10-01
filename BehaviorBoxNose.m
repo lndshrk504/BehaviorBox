@@ -1355,7 +1355,7 @@ classdef BehaviorBoxNose < handle
             end
             while contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && ~WaitCorrect() %Wait for NosePoke Don't dispense the reward unless the mouse is waiting for it! Wait indefinitely between pulses for them to learn to collect all the water
                 pause(0.2); drawnow;
-                if get(this.Buttons.Stop, 'Value') || get(this.Buttons.FastForward, 'Value')
+                if get(this.stop_handle, 'Value') || get(this.app.FastForward, 'Value')
                     break
                 end
             end
@@ -1368,7 +1368,7 @@ classdef BehaviorBoxNose < handle
                     pause(this.Box.SecBwPulse)
                     while contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && ~WaitCorrect() %Wait for NosePoke Don't dispense the reward unless the mouse is waiting for it! Wait indefinitely between pulses for them to learn to collect all the water
                         pause(0.2); drawnow;
-                        if get(this.Buttons.Stop, 'Value') || get(this.Buttons.FastForward, 'Value')
+                        if get(this.stop_handle, 'Value') || get(this.app.FastForward, 'Value')
                             break
                         end
                     end
