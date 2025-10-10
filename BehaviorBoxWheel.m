@@ -1260,13 +1260,13 @@ classdef BehaviorBoxWheel < handle
                         WhatDecision = 'time out';
                     case 1
                         if this.isLeftTrial == 1
-                            WhatDecision = 'left correct';
+                            WhatDecision = 'left correct OC';
                         else
                             WhatDecision = 'left wrong';
                         end
                     case 2
                         if this.isLeftTrial == 0
-                            WhatDecision = 'right correct';
+                            WhatDecision = 'right correct OC';
                         else
                             WhatDecision = 'right wrong';
                         end
@@ -1589,8 +1589,10 @@ classdef BehaviorBoxWheel < handle
             %Get reward valve, pulse number and time:
             if contains(this.WhatDecision, 'correct', 'IgnoreCase', true)
                 PulseNum = this.Box.RightPulse;
+            elseif contains(this.WhatDecision, 'OC', 'IgnoreCase', true)
+                PulseNum = this.Box.OCPulse;
             else
-                return; % Do nothing for incorrect events
+                return
             end
             % Give first drop only once
             this.a.GiveReward();

@@ -1337,11 +1337,7 @@ classdef BehaviorBoxNose < handle
                                 return
                             end
                         case contains(this.WhatDecision, 'OC', 'IgnoreCase', true)
-                            if this.isLeftTrial
-                                PulseNum = this.Box.OCPulse;
-                            else
-                                PulseNum = this.Box.OCPulse;
-                            end
+                            PulseNum = this.Box.OCPulse;
                     end
                 case 6 % Wheel
                     switch true
