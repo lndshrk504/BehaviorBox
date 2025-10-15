@@ -12,13 +12,14 @@
 
 #define INPUT_PIN_2 2 // Stimulus signal (BB Wheel)
 #define INPUT_PIN_3 3 // Frame clock signal (SI)
+#define INPUT_PIN_4 4 // New signal pin (using PCINT)
 #define OVERFLOW_INCREMENT 4294967296UL
 
 volatile unsigned long startTime = 0; // Reference time for resetting
 volatile unsigned long lastMicros = 0; // To track previous micros for overflow detection
 volatile unsigned long overflows = 0;  // Count overflow occurrences
-// 1) Add a global frame counter
-volatile unsigned long frameCount = 0;  
+volatile unsigned long frameCount = 0; // Frame counter
+volatile uint8_t lastPin4State = HIGH;  // Track previous state of pin 4
 
 void setup() {
   Serial.begin(115200);
@@ -28,12 +29,22 @@ void setup() {
   //attachInterrupt(digitalPinToInterrupt(INPUT_PIN_2), StimulusOn, RISING);
   attachInterrupt(digitalPinToInterrupt(INPUT_PIN_2), RecordStimulus, CHANGE);
   attachInterrupt(digitalPinToInterrupt(INPUT_PIN_3), RecordFrame, RISING);
-  
+
+  // Setup Pin Change Interrupt for pin 4
+  // Pin 4 is PCINT20 which belongs to PCIE2 group (Port D)
+  cli(); // Disable interrupts during setup
+  PCICR |= (1 << PCIE2);     // Enable PCIE2 (Pin Change Interrupt Enable 2)
+  PCMSK2 |= (1 << PCINT20);  // Enable PCINT20 (pin 4) specifically
+  sei(); // Re-enable interrupts
+
+  // Initialize pin 4 state
+  lastPin4State = digitalRead(INPUT_PIN_4);
 
   Serial.println("Box ID: Time1");
   Serial.println("Timestamp on rise:");
   Serial.println("Pin 2 Stimulus");
   Serial.println("Pin 3 Frame");
+  Serial.println("Pin 4 Next File");
 }
 
 void loop() {
@@ -109,7 +120,6 @@ void RecordStimulus() {
 
   lastMicros = currentMicros;
 }
-
 // Frame clock from ScanImage, goes HIGH when the Y-Galvo flys back to start a new frame
 void RecordFrame() {
   unsigned long currentMicros = micros();
@@ -127,4 +137,27 @@ void RecordFrame() {
   Serial.println(frameCount);  // 3) Print the frame count
 
   lastMicros = currentMicros;
+}
+
+// Pin Change Interrupt Service Routine for Port D (handles pin 4)
+ISR(PCINT2_vect) {
+  // Check if pin 4 actually changed (since PCINT2 covers multiple pins)
+  uint8_t currentPin4State = digitalRead(INPUT_PIN_4);
+  
+  if (currentPin4State != lastPin4State) {
+    // Pin 4 changed, record the event
+    unsigned long currentMicros = micros();
+    if (currentMicros < lastMicros) {
+      overflows++;
+    }
+    unsigned long adjustedMicros = currentMicros + (overflows * OVERFLOW_INCREMENT);
+    
+    if (currentPin4State == HIGH) {
+      Serial.print("Next File ");
+    }
+    Serial.println(adjustedMicros);
+    
+    lastMicros = currentMicros;
+    lastPin4State = currentPin4State;
+  }
 }
