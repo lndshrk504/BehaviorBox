@@ -668,7 +668,6 @@ classdef BehaviorBoxWheel < handle
                             end
                         end
                     case 5 % Repeat Wrong basic mode
-                        A = 1;
                         if this.Data_Object.current_data_struct.Score(end) == 0
                             return
                         else

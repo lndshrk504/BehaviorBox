@@ -550,26 +550,18 @@ classdef BehaviorBoxNose < handle
             [this.Level] = this.Setting_Struct.Starting_opacity;
         end
         %Choose if Left or Right will be correct
+        %Choose if Left or Right will be correct
         function isLeftTrial = PickSideForCorrect(this, isLeftTrial, ~)
-            % ATTENTION!!!
-            % Do NOT double the & and | to && and || just because the Matlab error
-            % warning says it will be "faster." Doubling them will change the logical
-            % meaning of the phrase and will ruin how repeat wrong functions. Keeping
-            % the boolean operators singular (& and | as opposed to && and ||) prevents
-            % short circuiting and keeps the code from erroneourly engaging repeat
-            % wrong. Use debug mode to check the outcomes of all of these commands to
-            % ensure that repeat wrong can be disabled. WBS 3/11/2022
-            %Also do NOT change the order of the if statements.
-            if all(this.StimulusStruct.side ~= [2 3 8]) && this.i == 1 %%If not left/right only and first trial, no data structure exists yet.
-                if this.StimulusStruct.side == 7 %Pseudo random
-                    this.Setting_Struct.Repeat_wrong = 1;
-                elseif this.StimulusStruct.side == 5 %Alternate random
-                    range = this.Setting_Struct.MinRandAlt:this.Setting_Struct.MaxRandAlt;
-                    this.Setting_Struct.Change_alternate = range(randperm(numel(range),1));
-                    this.counter_for_alternate = 0;
-                end
+            if all(this.StimulusStruct.side ~= [2 3]) && this.i == 1 %%If not left/right only and first trial, no data structure exists yet.
                 choice = [0 1];
                 isLeftTrial = choice(randperm(2,1));
+            elseif this.Setting_Struct.Repeat_wrong
+                if this.Data_Object.current_data_struct.Score(end) == 0
+                    return
+                else
+                    choice = [0 1];
+                    isLeftTrial = choice(randperm(2,1));
+                end
             else
                 switch this.StimulusStruct.side
                     case 1 %Random
@@ -578,14 +570,14 @@ classdef BehaviorBoxNose < handle
                         isLeftTrial = choice(randperm(2,1));
                         try
                             SB_Ratio = 0.5+this.Data_Object.AnalyzedData.TrialData.SB.Stimulus{:}(end);
+                            Delta = this.Setting_Struct.Side_delta;
+                            if SB_Ratio > 0.5+Delta % too many Left
+                                isLeftTrial = 0;
+                            elseif SB_Ratio < 0.5+Delta % too many Right
+                                isLeftTrial = 1;
+                            end
                         catch
                             return
-                        end
-                        Delta = this.Setting_Struct.Side_delta;
-                        if SB_Ratio > 0.5+Delta % too many Left
-                            isLeftTrial = 0;
-                        elseif SB_Ratio < 0.5+Delta % too many Right
-                            isLeftTrial = 1;
                         end
                     case 2 %all left
                         isLeftTrial = 1;
@@ -649,16 +641,24 @@ classdef BehaviorBoxNose < handle
                                     set(this.message_handle,'Text',text);
                             end
                         end
+                    case 5 % Repeat Wrong basic mode
+                        if this.Data_Object.current_data_struct.Score(end) == 0
+                            return
+                        else
+                            choice = [0 1];
+                            isLeftTrial = choice(randperm(2,1));
+                        end
                 end
             end
             % Check if Responses show side bias, correct that
-            if this.StimulusStruct.side == 1 & this.i>1
+            if this.StimulusStruct.side == 1 & this.i>1 % Correction to Random setting only
                 Resp_Ratio = 0.5+this.Data_Object.AnalyzedData.TrialData.SB.Responses{:}(end);
-                if Resp_Ratio >= 0.72
+                Delta = this.Setting_Struct.Side_delta;
+                if Resp_Ratio >= 0.5+Delta
                     isLeftTrial = 0;
                     this.Setting_Struct.Repeat_wrong = 1;
                     this.app.Repeat_wrong.Value = 1;
-                elseif Resp_Ratio <= 0.28
+                elseif Resp_Ratio <= 0.5+Delta
                     isLeftTrial = 1;
                     this.Setting_Struct.Repeat_wrong = 1;
                     this.app.Repeat_wrong.Value = 1;
