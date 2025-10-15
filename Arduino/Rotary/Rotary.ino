@@ -80,7 +80,7 @@ void setupPins() {
 }
 
 void displayID() {
-  Serial.print("Box ID: ");Serial.println("Wheel1");
+  Serial.print("Box ID: ");Serial.println("Wheel2");
 }
 
 void loop() {

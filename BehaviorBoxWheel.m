@@ -581,6 +581,13 @@ classdef BehaviorBoxWheel < handle
             if all(this.StimulusStruct.side ~= [2 3]) && this.i == 1 %%If not left/right only and first trial, no data structure exists yet.
                 choice = [0 1];
                 isLeftTrial = choice(randperm(2,1));
+            elseif this.Setting_Struct.Repeat_wrong
+                if this.Data_Object.current_data_struct.Score(end) == 0
+                    return
+                else
+                    choice = [0 1];
+                    isLeftTrial = choice(randperm(2,1));
+                end
             else
                 switch this.StimulusStruct.side
                     case 1 %Random
@@ -662,10 +669,16 @@ classdef BehaviorBoxWheel < handle
                         end
                     case 5 % Repeat Wrong basic mode
                         A = 1;
+                        if this.Data_Object.current_data_struct.Score(end) == 0
+                            return
+                        else
+                            choice = [0 1];
+                            isLeftTrial = choice(randperm(2,1));
+                        end
                 end
             end
             % Check if Responses show side bias, correct that
-            if this.StimulusStruct.side == 1 & this.i>1
+            if this.StimulusStruct.side == 1 & this.i>1 % Correction to Random setting only
                 Resp_Ratio = 0.5+this.Data_Object.AnalyzedData.TrialData.SB.Responses{:}(end);
                 Delta = this.Setting_Struct.Side_delta;
                 if Resp_Ratio >= 0.5+Delta
