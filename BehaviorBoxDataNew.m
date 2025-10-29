@@ -1372,6 +1372,7 @@ classdef BehaviorBoxDataNew < handle
                 opts.LevelProgress logical = 0
                 opts.LevelProgressIndividual logical = 0
                 opts.Save logical = 1
+                opts.FileName char = ''
             end
             Num = num2cell(1:numel(this.Sub));
             tic
@@ -1380,7 +1381,7 @@ classdef BehaviorBoxDataNew < handle
 % Plots an average of the # of trials for subjects to meet the threshold
                 this.BinomialProgress();
                 if opts.Save
-                    this.SaveManyFigures([],'Binomial', SameFolder=1)
+                    this.SaveManyFigures([],"Binomial-"+opts.FileName, SameFolder=1)
                     close all
                 end
             end
@@ -1389,7 +1390,7 @@ classdef BehaviorBoxDataNew < handle
                 for P = 1:3
                     this.BinomialProgressIndividual("WhichPValue",P);
                     if opts.Save
-                        this.SaveManyFigures([],'BinomialIndividual', SameFolder=1)
+                        this.SaveManyFigures([],"Binomial-"+opts.FileName, SameFolder=1)
                         close all
                     end
                 end
@@ -1398,14 +1399,14 @@ classdef BehaviorBoxDataNew < handle
                 cellfun(@(x){this.PlotBinomialLevels(Sc=x)}, Num);
                 %cellfun(@(x){this.PlotLevelGroupsByDay(Sc=x, Which='Binomial')}, Num);
                 if opts.Save
-                    this.SaveManyFigures([],'LevelGroup', SameFolder=1)
+                    this.SaveManyFigures([],"LevelGroup-"+opts.FileName, SameFolder=1)
                     close all
                 end
             end
             if opts.History
                 ACell = cellfun(@(x){this.plotLvByDayOneAxis(Sc=x, LevDay=0)}, Num);
                 if opts.Save
-                    this.SaveManyFigures([],'AllLevelsByDay', SameFolder=1)
+                    this.SaveManyFigures([],"AllLevelsByDay-"+opts.FileName, SameFolder=1)
                     close all
                 end
                 %cellfun(@(x) set(x, 'Visible', 'on'), ACell)
@@ -1587,7 +1588,8 @@ classdef BehaviorBoxDataNew < handle
             arguments
                 this
                 options.Sc double = 1
-                options.Lvs double = 1:20 %[3 6 8 10 12 16 18 20] %
+                %options.Lvs double = 1:20 %[3 6 8 10 12 16 18 20] %
+                options.Lvs double = [1 6 10 15 20] %
                 options.Threshold double = 0.7 % Passing threshold for each level
                 options.count double = 10 % Num of consecutive trials above threshold before passing
                 options.tol double = 0 % How many below-threshold trials in the streak of options.count to be tolerated
@@ -1643,7 +1645,7 @@ classdef BehaviorBoxDataNew < handle
             arguments
                 this
                 options.Sc double = 1
-                options.Lvs double = [1:20] %  [2 3 5 6 8] %
+                options.Lvs double = 1:20 %[3 6 8 10 12 16 18 20] %
                 options.Threshold double = 0.7 % Passing threshold for each level
                 options.count double = 10 % Num of consecutive trials above threshold before passing
                 options.tol double = 0 % How many below-threshold trials in the streak of options.count to be tolerated
