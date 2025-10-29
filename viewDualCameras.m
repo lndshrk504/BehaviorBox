@@ -57,6 +57,9 @@ for id = cell2mat(IDS)
         
         % Preview the video input
         previewWindow = preview(vid);
+        drawnow
+        previewWindow.Parent.Parent.Parent.Parent.Units = "normalized";
+        drawnow
 % The actual figure is 4 parent levels up:
         previewWindow.Parent.Parent.Parent.Parent.DeleteFcn = @(src,~) savePosition(src, saveFile);
         CamName = previewWindow.Parent.Parent.Parent.Parent.Name;
@@ -64,6 +67,7 @@ for id = cell2mat(IDS)
         if any(contains(Positions.CameraName, CamName))
             W = contains(Positions.CameraName, CamName);
             previewWindow.Parent.Parent.Parent.Parent.Position = Positions.Position(W,:);
+            drawnow
         end
     catch err
         unwrapErr(err)
