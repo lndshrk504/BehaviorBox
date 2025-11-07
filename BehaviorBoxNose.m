@@ -552,10 +552,10 @@ classdef BehaviorBoxNose < handle
         %Choose if Left or Right will be correct
         %Choose if Left or Right will be correct
         function isLeftTrial = PickSideForCorrect(this, isLeftTrial, ~)
-            if all(this.StimulusStruct.side ~= [2 3]) && this.i == 1 %%If not left/right only and first trial, no data structure exists yet.
+            if all(this.StimulusStruct.side ~= [2 3]) && this.i <= 1 %%If not left/right only and first trial, no data structure exists yet.
                 choice = [0 1];
                 isLeftTrial = choice(randperm(2,1));
-            elseif this.Setting_Struct.Repeat_wrong
+            elseif all(this.StimulusStruct.side ~= [2 3]) && this.Setting_Struct.Repeat_wrong
                 if this.Data_Object.current_data_struct.Score(end) == 0
                     return
                 else
