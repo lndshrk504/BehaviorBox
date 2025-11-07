@@ -64,7 +64,7 @@ for id = cell2mat(IDS)
         previewWindow.Parent.Parent.Parent.Parent.DeleteFcn = @(src,~) savePosition(src, saveFile);
         CamName = previewWindow.Parent.Parent.Parent.Parent.Name;
         % Set position if it was saved previously
-        if any(contains(Positions.CameraName, CamName))
+        if ~isempty(Positions) && any(contains(Positions.CameraName, CamName))
             W = contains(Positions.CameraName, CamName);
             previewWindow.Parent.Parent.Parent.Parent.Position = Positions.Position(W,:);
             drawnow
