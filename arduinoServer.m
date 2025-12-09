@@ -19,10 +19,19 @@ function [devicesInfo, COM, ID] = arduinoServer(opts)
     
     if size(fields(opts.ArduinoInfo),1) > 0
         Ards = opts.ArduinoInfo.Arduinos;
-        IDs = [Ards.Identity];
+        B = struct2cell(Ards);
+        Z = size(B,3);
+        IDs = string(1:4);
+        for z = 1:Z
+            if isempty(B{2,1,z})
+                IDs(z) = ""; % Store the identity of the current Arduino
+            else
+                IDs(z) = B{2,1,z}; % Store the identity of the current Arduino
+            end
+        end
         W_Ard = contains(IDs, opts.desiredIdentity);
         ID = IDs(W_Ard);
-        Ports = [Ards.Port];
+        Ports = [B{1,1,:}];
         COM = "/dev/tty"+Ports(W_Ard);
         devicesInfo = opts.ArduinoInfo;
         return
