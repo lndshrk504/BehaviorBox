@@ -677,22 +677,22 @@ classdef BehaviorBoxWheel < handle
                 end
             end
             % Check if Responses show side bias, correct that
-            if this.StimulusStruct.side == 1 & this.i>1 % Correction to Random setting only
-                Resp_Ratio = 0.5+this.Data_Object.AnalyzedData.TrialData.SB.Responses{:}(end);
-                Delta = this.Setting_Struct.Side_delta;
-                if Resp_Ratio >= 0.5+Delta
-                    isLeftTrial = 0;
-                    this.Setting_Struct.Repeat_wrong = 1;
-                    this.app.Repeat_wrong.Value = 1;
-                elseif Resp_Ratio <= 0.5+Delta
-                    isLeftTrial = 1;
-                    this.Setting_Struct.Repeat_wrong = 1;
-                    this.app.Repeat_wrong.Value = 1;
-                else
-                    this.Setting_Struct.Repeat_wrong = 0;
-                    this.app.Repeat_wrong.Value = 0;
-                end
-            end
+            % if this.StimulusStruct.side == 1 & this.i>1 % Correction to Random setting only
+            %     Resp_Ratio = 0.5+this.Data_Object.AnalyzedData.TrialData.SB.Responses{:}(end);
+            %     Delta = this.Setting_Struct.Side_delta;
+            %     if Resp_Ratio >= 0.5+Delta
+            %         isLeftTrial = 0;
+            %         this.Setting_Struct.Repeat_wrong = 1;
+            %         this.app.Repeat_wrong.Value = 1;
+            %     elseif Resp_Ratio <= 0.5+Delta
+            %         isLeftTrial = 1;
+            %         this.Setting_Struct.Repeat_wrong = 1;
+            %         this.app.Repeat_wrong.Value = 1;
+            %     else
+            %         this.Setting_Struct.Repeat_wrong = 0;
+            %         this.app.Repeat_wrong.Value = 0;
+            %     end
+            % end
             if isLeftTrial %Set properties
                 this.current_side = 'left';
             else
