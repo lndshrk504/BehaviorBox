@@ -407,30 +407,18 @@ classdef BehaviorBoxNose < handle
             catch
                 LastScore = 1;
             end
-            if this.Setting_Struct.Repeat_wrong==1 && any(LastScore == [3 4]) %If repeat wrong and they got it wrong
+            this.isLeftTrial = this.PickSideForCorrect(this.isLeftTrial, this.SideBias); %Pick if isLeftTrial
+            %Pick next difficulty level, if variable
+            if this.Setting_Struct.EasyTrials
+                [this.Level] = this.PickDifficultyLevel();
+            else
                 this.Level = this.Setting_Struct.Starting_opacity;
-                if isvalid(this.fig)
-                    this.StimHistory(this.i,:) = this.StimHistory(this.i-1,:); %Use the same stimulus from last time
-                    %[this.StimHistory{this.i,1},this.StimHistory{this.i,2}] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, this.Level); %Plot new stimulus as hidden objects, record positions and angles of the segments
-                else
-                    [this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.Stimulus_Object.setUpFigure();
-                    this.StimHistory(this.i,:) = this.StimHistory(this.i-1,:); %Use the same stimulus from last time
-                    %[this.StimHistory{this.i,1},this.StimHistory{this.i,2}] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, this.Level); %Plot new stimulus as hidden objects, record positions and angles of the segments
-                end
-            else %If correct or no repeat wrong
-                this.isLeftTrial = this.PickSideForCorrect(this.isLeftTrial, this.SideBias); %Pick if isLeftTrial
-                %Pick next difficulty level, if variable
-                if this.Setting_Struct.EasyTrials
-                    [this.Level] = this.PickDifficultyLevel();
-                else
-                    this.Level = this.Setting_Struct.Starting_opacity;
-                end
-                if isvalid(this.fig)
-                    [this.StimHistory{this.i,1},this.StimHistory{this.i,2}] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, this.Level); %Plot new stimulus as hidden objects, record positions and angles of the segments
-                else
-                    [this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.Stimulus_Object.setUpFigure();
-                    [this.StimHistory{this.i,1},this.StimHistory{this.i,2}] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, this.Level); %Plot new stimulus as hidden objects, record positions and angles of the segments
-                end
+            end
+            if isvalid(this.fig)
+                [this.StimHistory{this.i,1},this.StimHistory{this.i,2}] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, this.Level); %Plot new stimulus as hidden objects, record positions and angles of the segments
+            else
+                [this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.Stimulus_Object.setUpFigure();
+                [this.StimHistory{this.i,1},this.StimHistory{this.i,2}] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, this.Level); %Plot new stimulus as hidden objects, record positions and angles of the segments
             end
             %Update GUI window numbers
             this.updateGUIbeforeIteration(); %Update again, in case the level changed
@@ -568,17 +556,17 @@ classdef BehaviorBoxNose < handle
                         % Add 0.5 bc values oscillate -0.5 to 0.5
                         choice = [0 1];
                         isLeftTrial = choice(randperm(2,1));
-                        try
-                            SB_Ratio = 0.5+this.Data_Object.AnalyzedData.TrialData.SB.Stimulus{:}(end);
-                            Delta = this.Setting_Struct.Side_delta;
-                            if SB_Ratio > 0.5+Delta % too many Left
-                                isLeftTrial = 0;
-                            elseif SB_Ratio < 0.5+Delta % too many Right
-                                isLeftTrial = 1;
-                            end
-                        catch
-                            return
-                        end
+                        % try
+                        %     SB_Ratio = 0.5+this.Data_Object.AnalyzedData.TrialData.SB.Stimulus{:}(end);
+                        %     Delta = this.Setting_Struct.Side_delta;
+                        %     if SB_Ratio > 0.5+Delta % too many Left
+                        %         isLeftTrial = 0;
+                        %     elseif SB_Ratio < 0.5+Delta % too many Right
+                        %         isLeftTrial = 1;
+                        %     end
+                        % catch
+                        %     return
+                        % end
                     case 2 %all left
                         isLeftTrial = 1;
                     case 3 %all right
@@ -651,22 +639,22 @@ classdef BehaviorBoxNose < handle
                 end
             end
             % Check if Responses show side bias, correct that
-            if this.StimulusStruct.side == 1 & this.i>1 % Correction to Random setting only
-                Resp_Ratio = 0.5+this.Data_Object.AnalyzedData.TrialData.SB.Responses{:}(end);
-                Delta = this.Setting_Struct.Side_delta;
-                if Resp_Ratio >= 0.5+Delta
-                    isLeftTrial = 0;
-                    this.Setting_Struct.Repeat_wrong = 1;
-                    this.app.Repeat_wrong.Value = 1;
-                elseif Resp_Ratio <= 0.5+Delta
-                    isLeftTrial = 1;
-                    this.Setting_Struct.Repeat_wrong = 1;
-                    this.app.Repeat_wrong.Value = 1;
-                else
-                    this.Setting_Struct.Repeat_wrong = 0;
-                    this.app.Repeat_wrong.Value = 0;
-                end
-            end
+            % if this.StimulusStruct.side == 1 & this.i>1 % Correction to Random setting only
+            %     Resp_Ratio = 0.5+this.Data_Object.AnalyzedData.TrialData.SB.Responses{:}(end);
+            %     Delta = this.Setting_Struct.Side_delta;
+            %     if Resp_Ratio >= 0.5+Delta
+            %         isLeftTrial = 0;
+            %         this.Setting_Struct.Repeat_wrong = 1;
+            %         this.app.Repeat_wrong.Value = 1;
+            %     elseif Resp_Ratio <= 0.5+Delta
+            %         isLeftTrial = 1;
+            %         this.Setting_Struct.Repeat_wrong = 1;
+            %         this.app.Repeat_wrong.Value = 1;
+            %     else
+            %         this.Setting_Struct.Repeat_wrong = 0;
+            %         this.app.Repeat_wrong.Value = 0;
+            %     end
+            % end
             if isLeftTrial %Set properties
                 this.current_side = 'left';
             else
