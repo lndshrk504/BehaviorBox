@@ -944,7 +944,7 @@ classdef BehaviorBoxWheel < handle
             this.DrinkTime = 0;
             % Optimized background and ready cue handling
             this.setVisibleChildren(this.fig.Children, true);
-            drawnow limitrate;  % Globally limit drawnow frequency for performance gains
+            drawnow
             % Ignore input for a defined duration
             startTime = tic;
             % Moved the file handling to wait for input function
@@ -955,6 +955,12 @@ classdef BehaviorBoxWheel < handle
             end
             %this.flashStimulus(); % Do not flash when imaging
             this.Data_Object.addStimEvent(this.isLeftTrial);  % Record stimulus event
+            if this.Setting_Struct.Input_ignored
+                set(this.message_handle, 'Text', sprintf('Input ignored for %s sec...', num2str(this.Setting_Struct.Pokes_ignored_time)));
+                pause(this.Setting_Struct.Pokes_ignored_time)
+                Lines = [findobj('Tag', 'Contour') ; findobj('Tag', 'Distractor')];
+                this.FlashNew(this.StimulusStruct, this.Box, Lines, 'NewStim')
+            end
             % Enhanced decision-making loop based on inputType
             set(this.message_handle, 'Text', sprintf('Waiting for %s choice...', this.current_side));
             if ~keyboardInput && inputType == 6
