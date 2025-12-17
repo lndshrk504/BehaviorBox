@@ -4,7 +4,7 @@
 % !!!  For some reason, Trial number 1 and 2 are messed up. There is a bug
 % in the way the timestamps are saved. Not yet fixed.
 % 
-% Tiff stack #1 is always an artifact, before the program loop begins.
+% Tiff stack #1 is always an artefact, before the program loop begins.
 % 
 % This day has 2 sessions, but only the second was imaged. 
 % 
@@ -27,24 +27,14 @@ if exist(variableName, 'var') ~= 1
         toc
     else
         tic
-        MAT_idx = contains({Data_Files.name}, ".mat");
-        F_idx = contains({Data_Files.name}, "_F.");
-        Fneu_idx = contains({Data_Files.name}, "_Fneu.");
-        Spks_idx = contains({Data_Files.name}, "_spks.");
-        % Filter the list of files to only include those that match the criteria
-        F_Files = Data_Files(F_idx & MAT_idx);
-        Fneu_Files = Data_Files(Fneu_idx & MAT_idx);
-        Spks_Files = Data_Files(Spks_idx & MAT_idx);
-
+        F_Files_fds = fileDatastore(Data_Dir, FileExtensions=".mat", ReadFcn=@load);
+        F_Files_fds.Files(contains(F_Files_fds.Files, "Matched")) = [];
+        F_Planes = F_Files_fds.readall;
+        
         All_F_Fneu_Spks = cell(1,3);
-        for FILE = [F_Files Fneu_Files Spks_Files]'
-            F_Data = load(fullfile(FILE(1).folder, FILE(1).name));
-            All_F_Fneu_Spks{1,1} = [All_F_Fneu_Spks{1,1}; F_Data.data]; % Assuming 'F' contains the neuron F traces
-            Fneu_Data = load(fullfile(FILE(2).folder, FILE(2).name));
-            All_F_Fneu_Spks{1,2} = [All_F_Fneu_Spks{1,2}; Fneu_Data.data]; % Assuming 'F' contains the neuron F traces
-            Spks_Data = load(fullfile(FILE(3).folder, FILE(3).name));
-            All_F_Fneu_Spks{1,3} = [All_F_Fneu_Spks{1,3}; Spks_Data.data]; % Assuming 'F' contains the neuron F traces
-        end
+        All_F_Fneu_Spks{1,1} = cell2mat(cellfun(@(x) x.F(find(x.iscell(:,1)),:), F_Planes, 'UniformOutput', false));
+        All_F_Fneu_Spks{1,2} = cell2mat(cellfun(@(x) x.Fneu(find(x.iscell(:,1)),:), F_Planes, 'UniformOutput', false));
+        All_F_Fneu_Spks{1,3} = cell2mat(cellfun(@(x) x.spks(find(x.iscell(:,1)),:), F_Planes, 'UniformOutput', false));
         disp("Fluorescence data created")
         toc
 
