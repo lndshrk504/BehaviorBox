@@ -391,16 +391,6 @@ classdef BehaviorBoxWheel < handle
             this.i = 0;
             this.timeout_counter = 0;
             this.Temp_Active = false;
-            % try
-            %     this.a.TimeStamp('Off')
-            % end
-            % try % Clear timestamp log
-            %     set(this.message_handle, 'Text', "Clearing timestamp log ...");
-            %     this.Time.Reset();
-            %     pause(0.1)
-            %     this.Time.Log(end+1) = "Trial 1";
-            % catch
-            % end
             try
                 this.a.TimeStamp('Off')
             catch
@@ -409,7 +399,7 @@ classdef BehaviorBoxWheel < handle
                 set(this.message_handle, 'Text', "Clearing timestamp log ...");
                 this.Time.Reset();
                 pause(0.1)
-                this.Time.Log(end+1,1) = "Trial 1";
+                this.Time.Log(end+1,1) = "Before Trial Loop";
             catch
             end
             % Send Start Acquisition signal to ScanImage
@@ -689,6 +679,12 @@ classdef BehaviorBoxWheel < handle
             end
         end
         function WaitForInput(this)
+            if this.i == 1
+                % Stop acquisition and save those timestamps to the record
+                this.a.Acquisition('End')
+                this.timestamps_record{this.i} = this.Time.Log;
+                pause(0.1)
+            end
             this.TrialStartTime = 0;
             set(this.message_handle,'Text','Waiting for Trial initialization');
             this.t1 = datetime("now"); t2 = this.t1; %In case of crash
@@ -701,6 +697,7 @@ classdef BehaviorBoxWheel < handle
                 this.Time.Reset();
                 pause(0.1)
                 this.Time.Log(end+1,1) = "Trial "+this.i;
+                this.Time.Log(end+1,1) = "Hold still";
             catch
             end
             try % Send Next File signal to ScanImage
@@ -713,20 +710,6 @@ classdef BehaviorBoxWheel < handle
                     if this.i ~=1
                         this.ReadyCue(true);
                         set(this.FLAx, 'Visible', true);
-                        try % Send Next File signal to ScanImage
-                            set(this.message_handle, 'Text', "Next file (ScanImage)...");
-                            this.a.Acquisition('Next');
-                        catch
-                        end
-                        pause(0.2); % The nextfile acquisition signal has a builtin 200 ms delay
-                        % Display stimulus
-                        try % Clear timestamp log
-                            set(this.message_handle, 'Text', "Clearing timestamp log ...");
-                            this.Time.Reset();
-                            pause(0.1)
-                            this.Time.Log(end+1,1) = "Trial "+this.i;
-                        catch
-                        end
                         drawnow
                         timelimit = this.Setting_Struct.HoldStill;
                         tic;
@@ -970,14 +953,14 @@ classdef BehaviorBoxWheel < handle
             end
             % Retry for only correct answers if necessary
             this.handleOnlyCorrectMode();
+            % Minimize redundant flash draws by handling decision directly
+            this.processAfterDecision(keyboardInput, inputType);
             % Toggle timestamp
-            try % Stimulus On timestamp
+            try % Stimulus Off timestamp
                 set(this.message_handle, 'Text', "Stimulus off timestamp...");
                 this.a.TimeStamp('Off');
             catch
             end
-            % Minimize redundant flash draws by handling decision directly
-            this.processAfterDecision(keyboardInput, inputType);
         end
         function setVisibleChildren(this, children, isVisible)
             OBJ = children.findobj('Type','Line');
@@ -1165,6 +1148,7 @@ classdef BehaviorBoxWheel < handle
                 end
             end
             response_time = toc;
+            this.Time.Log(end+1,1) = "Choice made";
             if event == -1 %If the mouse was close to picking a side, round up their choice:
                 if abs(delta) >= thresh
                     if sign(delta) > 0
@@ -1597,6 +1581,7 @@ classdef BehaviorBoxWheel < handle
             else
                 return
             end
+            this.Time.Log(end+1,1) = "Reward";
             % Give first drop only once
             this.a.GiveReward();
             % then flash
@@ -1604,6 +1589,7 @@ classdef BehaviorBoxWheel < handle
             this.FlashNew(this.StimulusStruct, this.Box,  lines, "Correct_Confirmation");
             for i = 2:PulseNum
                 pause(this.Box.SecBwPulse)
+                this.Time.Log(end+1,1) = "Reward";
                 this.a.GiveReward();
                 this.FlashNew(this.StimulusStruct, this.Box,  lines, "Correct_Confirmation");
             end
@@ -1662,6 +1648,7 @@ classdef BehaviorBoxWheel < handle
                 return
             end
             this.ReadyCue(true)
+            this.Time.Log(end+1,1) = "Stim off";
             %Wait for interval
             this.UpdatePause(interval_time)
             this.updateMessageBox();
@@ -1669,7 +1656,7 @@ classdef BehaviorBoxWheel < handle
                 this.Setting_Struct = this.Temp_Old_Settings;
             end
             this.a.Acquisition('End')
-            this.timestamps_record{this.i} = this.Time.Log;
+            this.timestamps_record{(this.i+1)} = this.Time.Log; % +1 Offset to account for the frames that are recorded before trial 1 begins (setup period)
         end
         function updateMessageBox(this)
             try
