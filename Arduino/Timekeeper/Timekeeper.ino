@@ -32,13 +32,13 @@ void setup() {
 
   // Setup Pin Change Interrupt for pin 4
   // Pin 4 is PCINT20 which belongs to PCIE2 group (Port D)
-  cli(); // Disable interrupts during setup
-  PCICR |= (1 << PCIE2);     // Enable PCIE2 (Pin Change Interrupt Enable 2)
-  PCMSK2 |= (1 << PCINT20);  // Enable PCINT20 (pin 4) specifically
-  sei(); // Re-enable interrupts
+  //cli(); // Disable interrupts during setup
+  //PCICR |= (1 << PCIE2);     // Enable PCIE2 (Pin Change Interrupt Enable 2)
+  //PCMSK2 |= (1 << PCINT20);  // Enable PCINT20 (pin 4) specifically
+  //sei(); // Re-enable interrupts
 
   // Initialize pin 4 state
-  lastPin4State = digitalRead(INPUT_PIN_4);
+  //lastPin4State = digitalRead(INPUT_PIN_4);
 
   Serial.println("Box ID: Time1");
   Serial.println("Timestamp on rise:");
@@ -140,24 +140,23 @@ void RecordFrame() {
 }
 
 // Pin Change Interrupt Service Routine for Port D (handles pin 4)
-ISR(PCINT2_vect) {
+//ISR(PCINT2_vect) {
   // Check if pin 4 actually changed (since PCINT2 covers multiple pins)
-  uint8_t currentPin4State = digitalRead(INPUT_PIN_4);
-  
-  if (currentPin4State != lastPin4State) {
+//  uint8_t currentPin4State = digitalRead(INPUT_PIN_4);
+//  if (currentPin4State != lastPin4State) {
     // Pin 4 changed, record the event
-    unsigned long currentMicros = micros();
-    if (currentMicros < lastMicros) {
-      overflows++;
-    }
-    unsigned long adjustedMicros = currentMicros + (overflows * OVERFLOW_INCREMENT);
-    
-    if (currentPin4State == HIGH) {
-      Serial.print("Next File ");
-    }
-    Serial.println(adjustedMicros);
-    
-    lastMicros = currentMicros;
-    lastPin4State = currentPin4State;
-  }
-}
+//    unsigned long currentMicros = micros();
+//    if (currentMicros < lastMicros) {
+//      overflows++;
+//    }
+//    unsigned long adjustedMicros = currentMicros + (overflows * OVERFLOW_INCREMENT);
+//    
+//   if (currentPin4State == HIGH) {
+//      Serial.print("Next File ");
+//    }
+//    Serial.println(adjustedMicros);
+//    
+//    lastMicros = currentMicros;
+//    lastPin4State = currentPin4State;
+//  }
+//}
