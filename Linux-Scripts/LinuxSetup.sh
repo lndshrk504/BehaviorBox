@@ -1,6 +1,13 @@
 #!/bin/bash
 #
 #
+
+# Prevent running the script as root; must be run as a normal user
+if [ "$EUID" -eq 0 ]; then
+  echo "Please run this script as a normal user (do NOT use sudo ./LinuxArd.sh)."
+  exit 1
+fi
+
 # Install Arduino IDE, Git, etc.
 sudo apt update
 sudo ubuntu-drivers install 
