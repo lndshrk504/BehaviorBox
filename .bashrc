@@ -76,8 +76,8 @@ esac
 if [ -x /usr/bin/dircolors ]; then
     test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
     alias ls='ls --color=auto'
-    #alias dir='dir --color=auto'
-    #alias vdir='vdir --color=auto'
+    alias dir='dir --color=auto'
+    alias vdir='vdir --color=auto'
 
     alias grep='grep --color=auto'
     alias fgrep='fgrep --color=auto'
@@ -86,9 +86,11 @@ fi
 
 # colored GCC warnings and errors
 #export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
-export JAVA_TOOL_OPTIONS="-Djogl.disable.openglarbcontext=1"
+
+# Uncomment this for MATLAB to override default opengl behavior, unnecessary as this issue has been resolved
+#
+#export JAVA_TOOL_OPTIONS="-Djogl.disable.openglarbcontext=1"
 # some more ls aliases
-#alias matlab='unset MESA_LOADER_DRIVER_OVERRIDE; matlab'
 alias ll='ls -alF'
 alias la='ls -A'
 alias l='ls -CAF'
