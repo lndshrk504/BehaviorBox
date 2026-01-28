@@ -12,7 +12,7 @@ fi
 sudo apt update
 sudo ubuntu-drivers install 
 sudo apt install -y git vim-nox neofetch arduino v4l-utils ffmpeg
-sudo apt update && sudo apt autoremove -y
+sudo apt update && sudo apt upgrade && sudo apt autoremove -y
 
 # Configure global Git settings (will be the same on all machines)
 git config --global user.name "Will Snyder"
