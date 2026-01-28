@@ -43,7 +43,7 @@ fi
 
 cd $CLONE_DIR
 mv ~/.bashrc ~/.bashrc.backup
-ln -s $PWD/.bashrc ~/.bashrc
+ln -s "$PWD/Linux-Scripts/.bashrc" ~/.bashrc
 
 # Display a message to inform the user to log out and back in
 echo "Installation complete. Please log out and log back in for group changes to take effect."
