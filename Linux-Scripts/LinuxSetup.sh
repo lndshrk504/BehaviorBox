@@ -10,7 +10,7 @@ fi
 
 # Install Arduino IDE, Git, etc.
 sudo apt update
-sudo ubuntu-drivers install 
+#sudo ubuntu-drivers install 
 sudo apt install -y git vim-nox neofetch arduino v4l-utils ffmpeg
 sudo apt update && sudo apt autoremove -y
 
