@@ -1078,6 +1078,9 @@ classdef BehaviorBoxWheel < handle
             delta = 0;
             this.wheelchoice = cell(1,1e6);
             timeout_value = this.Box.Timeout_after_time;
+            if isempty(timeout_value)
+                timeout_value = 0;
+            end
             threshold = this.Setting_Struct.TurnMag;
             o = this.fig.findobj('Type', 'Axes');
             C = o(contains({o.Tag}, 'Correct'));
