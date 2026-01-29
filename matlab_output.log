@@ -1,0 +1,3004 @@
+-------------------------------------
+Log Date: 2025-12-31 02:00:01
+-------------------------------------
+
+                            < M A T L A B (R) >
+                  Copyright 1984-2023 The MathWorks, Inc.
+             R2023b Update 9 (23.2.0.2668659) 64-bit (glnxa64)
+                               July 10, 2024
+
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Arduino/triggered-screen-blanker] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples/MPR121test] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/target/shared/devicedrivers] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/sensors/thirdparty] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio/apps/arduinoexplorer] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/realtime/targets/arduinoide] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/hwsdk] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/sharedarduino] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/ddux] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Solutions] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/HelperScripts] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1/geometry] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise6] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise7] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise4] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise5] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DCMotorCharacterization] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3/images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/HelperFunctions] 
+ 
+To get started, type doc.
+For product information, visit www.mathworks.com.
+ 
+Found 1274 files for 9 subject(s) matching user input:
+ - 2471951 - F - Het
+ - 2471952 - F - WT
+ - 2471953 - F - WT
+ - 2618912 - F - WT
+ - 2618913 - F - WT
+ - 2618914 - F - Het
+ - 3142551 - F - WT
+ - 3142552 - F - WT
+ - 3142553 - F - WT
+[Warning: Sub: 2618913 - F - WT Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+Loaded... : 9.4165 seconds.
+Analyzed... : 84.1358 seconds.
+Found 1356 files for 12 subject(s) matching user input:
+ - 2471941 - M - WT
+ - 2471942 - M - Het
+ - 2471943 - M - Het
+ - 2822461 - M - Het
+ - 2822462 - M - WT
+ - 2822463 - M - WT
+ - 2822464 - M - Het
+ - 3142561 - M - Het
+ - 3142562 - M - Het
+ - 3142563 - M - WT
+ - 3169041 - M - WT
+ - 3169042 - M - Het
+[Warning: Sub: 2471941 - M - WT Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230130 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471943 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822461 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822462 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822463 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822464 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+Loaded... : 9.6041 seconds.
+Analyzed... : 84.2821 seconds.
+Fontconfig warning: "/usr/share/fontconfig/conf.avail/05-reset-dirs-sample.conf", line 6: unknown element "reset-dirs"
+Saved 1 files... etime: 3.0607 seconds.
+Saved 1 files... etime: 2.8601 seconds.
+Saved 1 files... etime: 2.429 seconds.
+Saved 1 files... etime: 2.2289 seconds.
+Total time: 2.3016 seconds.
+Saved 1 files... etime: 2.2617 seconds.
+Saved 1 files... etime: 2.6238 seconds.
+Saved 1 files... etime: 2.7072 seconds.
+Saved 1 files... etime: 2.5261 seconds.
+Total time: 2.5958 seconds.
+-------------------------------------
+Log Date: 2026-01-01 02:00:01
+-------------------------------------
+
+                            < M A T L A B (R) >
+                  Copyright 1984-2023 The MathWorks, Inc.
+             R2023b Update 9 (23.2.0.2668659) 64-bit (glnxa64)
+                               July 10, 2024
+
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Arduino/triggered-screen-blanker] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples/MPR121test] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/target/shared/devicedrivers] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/sensors/thirdparty] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio/apps/arduinoexplorer] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/realtime/targets/arduinoide] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/hwsdk] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/sharedarduino] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/ddux] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Solutions] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/HelperScripts] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1/geometry] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise6] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise7] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise4] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise5] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DCMotorCharacterization] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3/images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/HelperFunctions] 
+ 
+To get started, type doc.
+For product information, visit www.mathworks.com.
+ 
+Found 1274 files for 9 subject(s) matching user input:
+ - 2471951 - F - Het
+ - 2471952 - F - WT
+ - 2471953 - F - WT
+ - 2618912 - F - WT
+ - 2618913 - F - WT
+ - 2618914 - F - Het
+ - 3142551 - F - WT
+ - 3142552 - F - WT
+ - 3142553 - F - WT
+[Warning: Sub: 2618913 - F - WT Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+Loaded... : 9.3467 seconds.
+Analyzed... : 83.0785 seconds.
+Found 1356 files for 12 subject(s) matching user input:
+ - 2471941 - M - WT
+ - 2471942 - M - Het
+ - 2471943 - M - Het
+ - 2822461 - M - Het
+ - 2822462 - M - WT
+ - 2822463 - M - WT
+ - 2822464 - M - Het
+ - 3142561 - M - Het
+ - 3142562 - M - Het
+ - 3142563 - M - WT
+ - 3169041 - M - WT
+ - 3169042 - M - Het
+[Warning: Sub: 2471941 - M - WT Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230130 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471943 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822461 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822462 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822463 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822464 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+Loaded... : 9.6375 seconds.
+Analyzed... : 83.1097 seconds.
+Fontconfig warning: "/usr/share/fontconfig/conf.avail/05-reset-dirs-sample.conf", line 6: unknown element "reset-dirs"
+Saved 1 files... etime: 3.1447 seconds.
+Saved 1 files... etime: 2.7955 seconds.
+Saved 1 files... etime: 2.3927 seconds.
+Saved 1 files... etime: 2.2214 seconds.
+Total time: 2.2924 seconds.
+Saved 1 files... etime: 2.185 seconds.
+Saved 1 files... etime: 2.5738 seconds.
+Saved 1 files... etime: 2.5724 seconds.
+Saved 1 files... etime: 2.6122 seconds.
+Total time: 2.682 seconds.
+-------------------------------------
+Log Date: 2026-01-02 02:00:01
+-------------------------------------
+
+                            < M A T L A B (R) >
+                  Copyright 1984-2023 The MathWorks, Inc.
+             R2023b Update 9 (23.2.0.2668659) 64-bit (glnxa64)
+                               July 10, 2024
+
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Arduino/triggered-screen-blanker] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples/MPR121test] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/target/shared/devicedrivers] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/sensors/thirdparty] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio/apps/arduinoexplorer] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/realtime/targets/arduinoide] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/hwsdk] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/sharedarduino] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/ddux] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Solutions] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/HelperScripts] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1/geometry] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise6] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise7] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise4] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise5] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DCMotorCharacterization] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3/images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/HelperFunctions] 
+ 
+To get started, type doc.
+For product information, visit www.mathworks.com.
+ 
+Found 1274 files for 9 subject(s) matching user input:
+ - 2471951 - F - Het
+ - 2471952 - F - WT
+ - 2471953 - F - WT
+ - 2618912 - F - WT
+ - 2618913 - F - WT
+ - 2618914 - F - Het
+ - 3142551 - F - WT
+ - 3142552 - F - WT
+ - 3142553 - F - WT
+[Warning: Sub: 2618913 - F - WT Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+Loaded... : 9.3371 seconds.
+Analyzed... : 83.9411 seconds.
+Found 1356 files for 12 subject(s) matching user input:
+ - 2471941 - M - WT
+ - 2471942 - M - Het
+ - 2471943 - M - Het
+ - 2822461 - M - Het
+ - 2822462 - M - WT
+ - 2822463 - M - WT
+ - 2822464 - M - Het
+ - 3142561 - M - Het
+ - 3142562 - M - Het
+ - 3142563 - M - WT
+ - 3169041 - M - WT
+ - 3169042 - M - Het
+[Warning: Sub: 2471941 - M - WT Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230130 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471943 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822461 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822462 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822463 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822464 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+Loaded... : 9.6146 seconds.
+Analyzed... : 84.0247 seconds.
+Fontconfig warning: "/usr/share/fontconfig/conf.avail/05-reset-dirs-sample.conf", line 6: unknown element "reset-dirs"
+Saved 1 files... etime: 3.065 seconds.
+Saved 1 files... etime: 2.8062 seconds.
+Saved 1 files... etime: 2.4127 seconds.
+Saved 1 files... etime: 2.1964 seconds.
+Total time: 2.268 seconds.
+Saved 1 files... etime: 2.1841 seconds.
+Saved 1 files... etime: 2.5824 seconds.
+Saved 1 files... etime: 2.5742 seconds.
+Saved 1 files... etime: 2.47 seconds.
+Total time: 2.5395 seconds.
+-------------------------------------
+Log Date: 2026-01-04 02:00:01
+-------------------------------------
+
+                            < M A T L A B (R) >
+                  Copyright 1984-2023 The MathWorks, Inc.
+             R2023b Update 9 (23.2.0.2668659) 64-bit (glnxa64)
+                               July 10, 2024
+
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Arduino/triggered-screen-blanker] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples/MPR121test] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/target/shared/devicedrivers] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/sensors/thirdparty] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio/apps/arduinoexplorer] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/realtime/targets/arduinoide] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/hwsdk] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/sharedarduino] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/ddux] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Solutions] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/HelperScripts] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1/geometry] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise6] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise7] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise4] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise5] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DCMotorCharacterization] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3/images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/HelperFunctions] 
+ 
+To get started, type doc.
+For product information, visit www.mathworks.com.
+ 
+Found 1274 files for 9 subject(s) matching user input:
+ - 2471951 - F - Het
+ - 2471952 - F - WT
+ - 2471953 - F - WT
+ - 2618912 - F - WT
+ - 2618913 - F - WT
+ - 2618914 - F - Het
+ - 3142551 - F - WT
+ - 3142552 - F - WT
+ - 3142553 - F - WT
+[Warning: Sub: 2618913 - F - WT Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+Loaded... : 9.3567 seconds.
+Analyzed... : 83.8728 seconds.
+Found 1356 files for 12 subject(s) matching user input:
+ - 2471941 - M - WT
+ - 2471942 - M - Het
+ - 2471943 - M - Het
+ - 2822461 - M - Het
+ - 2822462 - M - WT
+ - 2822463 - M - WT
+ - 2822464 - M - Het
+ - 3142561 - M - Het
+ - 3142562 - M - Het
+ - 3142563 - M - WT
+ - 3169041 - M - WT
+ - 3169042 - M - Het
+[Warning: Sub: 2471941 - M - WT Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230130 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471943 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822461 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822462 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822463 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822464 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+Loaded... : 9.5878 seconds.
+Analyzed... : 83.8033 seconds.
+Fontconfig warning: "/usr/share/fontconfig/conf.avail/05-reset-dirs-sample.conf", line 6: unknown element "reset-dirs"
+Saved 1 files... etime: 3.1031 seconds.
+Saved 1 files... etime: 2.9008 seconds.
+Saved 1 files... etime: 2.419 seconds.
+Saved 1 files... etime: 2.2401 seconds.
+Total time: 2.3124 seconds.
+Saved 1 files... etime: 2.1925 seconds.
+Saved 1 files... etime: 2.5912 seconds.
+Saved 1 files... etime: 2.5774 seconds.
+Saved 1 files... etime: 2.6037 seconds.
+Total time: 2.6728 seconds.
+-------------------------------------
+Log Date: 2026-01-05 02:00:01
+-------------------------------------
+
+                            < M A T L A B (R) >
+                  Copyright 1984-2023 The MathWorks, Inc.
+             R2023b Update 9 (23.2.0.2668659) 64-bit (glnxa64)
+                               July 10, 2024
+
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Arduino/triggered-screen-blanker] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples/MPR121test] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/target/shared/devicedrivers] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/sensors/thirdparty] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio/apps/arduinoexplorer] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/realtime/targets/arduinoide] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/hwsdk] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/sharedarduino] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/ddux] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Solutions] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/HelperScripts] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1/geometry] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise6] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise7] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise4] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise5] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DCMotorCharacterization] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3/images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/HelperFunctions] 
+ 
+To get started, type doc.
+For product information, visit www.mathworks.com.
+ 
+Found 1274 files for 9 subject(s) matching user input:
+ - 2471951 - F - Het
+ - 2471952 - F - WT
+ - 2471953 - F - WT
+ - 2618912 - F - WT
+ - 2618913 - F - WT
+ - 2618914 - F - Het
+ - 3142551 - F - WT
+ - 3142552 - F - WT
+ - 3142553 - F - WT
+[Warning: Sub: 2618913 - F - WT Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+Loaded... : 9.3518 seconds.
+Analyzed... : 83.3078 seconds.
+Found 1356 files for 12 subject(s) matching user input:
+ - 2471941 - M - WT
+ - 2471942 - M - Het
+ - 2471943 - M - Het
+ - 2822461 - M - Het
+ - 2822462 - M - WT
+ - 2822463 - M - WT
+ - 2822464 - M - Het
+ - 3142561 - M - Het
+ - 3142562 - M - Het
+ - 3142563 - M - WT
+ - 3169041 - M - WT
+ - 3169042 - M - Het
+[Warning: Sub: 2471941 - M - WT Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230130 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471943 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822461 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822462 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822463 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822464 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+Loaded... : 9.6187 seconds.
+Analyzed... : 83.319 seconds.
+Fontconfig warning: "/usr/share/fontconfig/conf.avail/05-reset-dirs-sample.conf", line 6: unknown element "reset-dirs"
+Saved 1 files... etime: 3.1235 seconds.
+Saved 1 files... etime: 2.8041 seconds.
+Saved 1 files... etime: 2.3841 seconds.
+Saved 1 files... etime: 2.2293 seconds.
+Total time: 2.3015 seconds.
+Saved 1 files... etime: 2.1978 seconds.
+Saved 1 files... etime: 2.604 seconds.
+Saved 1 files... etime: 2.5667 seconds.
+Saved 1 files... etime: 2.6185 seconds.
+Total time: 2.6877 seconds.
+-------------------------------------
+Log Date: 2026-01-06 02:00:01
+-------------------------------------
+
+                            < M A T L A B (R) >
+                  Copyright 1984-2023 The MathWorks, Inc.
+             R2023b Update 9 (23.2.0.2668659) 64-bit (glnxa64)
+                               July 10, 2024
+
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Arduino/triggered-screen-blanker] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples/MPR121test] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/target/shared/devicedrivers] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/sensors/thirdparty] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio/apps/arduinoexplorer] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/realtime/targets/arduinoide] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/hwsdk] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/sharedarduino] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/ddux] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Solutions] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/HelperScripts] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1/geometry] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise6] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise7] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise4] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise5] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DCMotorCharacterization] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3/images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/HelperFunctions] 
+ 
+To get started, type doc.
+For product information, visit www.mathworks.com.
+ 
+Found 1274 files for 9 subject(s) matching user input:
+ - 2471951 - F - Het
+ - 2471952 - F - WT
+ - 2471953 - F - WT
+ - 2618912 - F - WT
+ - 2618913 - F - WT
+ - 2618914 - F - Het
+ - 3142551 - F - WT
+ - 3142552 - F - WT
+ - 3142553 - F - WT
+[Warning: Sub: 2618913 - F - WT Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+Loaded... : 9.3498 seconds.
+Analyzed... : 83.5373 seconds.
+Found 1356 files for 12 subject(s) matching user input:
+ - 2471941 - M - WT
+ - 2471942 - M - Het
+ - 2471943 - M - Het
+ - 2822461 - M - Het
+ - 2822462 - M - WT
+ - 2822463 - M - WT
+ - 2822464 - M - Het
+ - 3142561 - M - Het
+ - 3142562 - M - Het
+ - 3142563 - M - WT
+ - 3169041 - M - WT
+ - 3169042 - M - Het
+[Warning: Sub: 2471941 - M - WT Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230130 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471943 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822461 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822462 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822463 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822464 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+Loaded... : 9.6467 seconds.
+Analyzed... : 83.6633 seconds.
+Fontconfig warning: "/usr/share/fontconfig/conf.avail/05-reset-dirs-sample.conf", line 6: unknown element "reset-dirs"
+Saved 1 files... etime: 3.1012 seconds.
+Saved 1 files... etime: 2.831 seconds.
+Saved 1 files... etime: 2.4116 seconds.
+Saved 1 files... etime: 2.2237 seconds.
+Total time: 2.2931 seconds.
+Saved 1 files... etime: 2.2141 seconds.
+Saved 1 files... etime: 2.5854 seconds.
+Saved 1 files... etime: 2.5815 seconds.
+Saved 1 files... etime: 2.5858 seconds.
+Total time: 2.6594 seconds.
+-------------------------------------
+Log Date: 2026-01-07 02:00:01
+-------------------------------------
+
+                            < M A T L A B (R) >
+                  Copyright 1984-2023 The MathWorks, Inc.
+             R2023b Update 9 (23.2.0.2668659) 64-bit (glnxa64)
+                               July 10, 2024
+
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Arduino/triggered-screen-blanker] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples/MPR121test] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/target/shared/devicedrivers] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/sensors/thirdparty] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio/apps/arduinoexplorer] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/realtime/targets/arduinoide] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/hwsdk] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/sharedarduino] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/ddux] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Solutions] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/HelperScripts] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1/geometry] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise6] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise7] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise4] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise5] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DCMotorCharacterization] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3/images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/HelperFunctions] 
+ 
+To get started, type doc.
+For product information, visit www.mathworks.com.
+ 
+Found 1274 files for 9 subject(s) matching user input:
+ - 2471951 - F - Het
+ - 2471952 - F - WT
+ - 2471953 - F - WT
+ - 2618912 - F - WT
+ - 2618913 - F - WT
+ - 2618914 - F - Het
+ - 3142551 - F - WT
+ - 3142552 - F - WT
+ - 3142553 - F - WT
+[Warning: Sub: 2618913 - F - WT Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+Loaded... : 9.4221 seconds.
+Analyzed... : 83.3752 seconds.
+Found 1356 files for 12 subject(s) matching user input:
+ - 2471941 - M - WT
+ - 2471942 - M - Het
+ - 2471943 - M - Het
+ - 2822461 - M - Het
+ - 2822462 - M - WT
+ - 2822463 - M - WT
+ - 2822464 - M - Het
+ - 3142561 - M - Het
+ - 3142562 - M - Het
+ - 3142563 - M - WT
+ - 3169041 - M - WT
+ - 3169042 - M - Het
+[Warning: Sub: 2471941 - M - WT Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230130 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471943 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822461 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822462 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822463 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822464 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+Loaded... : 9.5719 seconds.
+Analyzed... : 83.3823 seconds.
+Fontconfig warning: "/usr/share/fontconfig/conf.avail/05-reset-dirs-sample.conf", line 6: unknown element "reset-dirs"
+Saved 1 files... etime: 3.081 seconds.
+Saved 1 files... etime: 2.8602 seconds.
+Saved 1 files... etime: 2.4069 seconds.
+Saved 1 files... etime: 2.2221 seconds.
+Total time: 2.2949 seconds.
+Saved 1 files... etime: 2.2046 seconds.
+Saved 1 files... etime: 2.6045 seconds.
+Saved 1 files... etime: 2.586 seconds.
+Saved 1 files... etime: 2.5016 seconds.
+Total time: 2.5718 seconds.
+-------------------------------------
+Log Date: 2026-01-08 02:00:01
+-------------------------------------
+
+                            < M A T L A B (R) >
+                  Copyright 1984-2023 The MathWorks, Inc.
+             R2023b Update 9 (23.2.0.2668659) 64-bit (glnxa64)
+                               July 10, 2024
+
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Arduino/triggered-screen-blanker] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples/MPR121test] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/target/shared/devicedrivers] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/sensors/thirdparty] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio/apps/arduinoexplorer] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/realtime/targets/arduinoide] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/hwsdk] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/sharedarduino] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/ddux] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Solutions] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/HelperScripts] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1/geometry] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise6] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise7] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise4] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise5] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DCMotorCharacterization] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3/images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/HelperFunctions] 
+ 
+To get started, type doc.
+For product information, visit www.mathworks.com.
+ 
+Found 1274 files for 9 subject(s) matching user input:
+ - 2471951 - F - Het
+ - 2471952 - F - WT
+ - 2471953 - F - WT
+ - 2618912 - F - WT
+ - 2618913 - F - WT
+ - 2618914 - F - Het
+ - 3142551 - F - WT
+ - 3142552 - F - WT
+ - 3142553 - F - WT
+[Warning: Sub: 2618913 - F - WT Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+Loaded... : 9.4963 seconds.
+Analyzed... : 83.8639 seconds.
+Found 1356 files for 12 subject(s) matching user input:
+ - 2471941 - M - WT
+ - 2471942 - M - Het
+ - 2471943 - M - Het
+ - 2822461 - M - Het
+ - 2822462 - M - WT
+ - 2822463 - M - WT
+ - 2822464 - M - Het
+ - 3142561 - M - Het
+ - 3142562 - M - Het
+ - 3142563 - M - WT
+ - 3169041 - M - WT
+ - 3169042 - M - Het
+[Warning: Sub: 2471941 - M - WT Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230130 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471943 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822461 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822462 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822463 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822464 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+Loaded... : 9.7045 seconds.
+Analyzed... : 83.9413 seconds.
+Fontconfig warning: "/usr/share/fontconfig/conf.avail/05-reset-dirs-sample.conf", line 6: unknown element "reset-dirs"
+Saved 1 files... etime: 3.1083 seconds.
+Saved 1 files... etime: 2.8565 seconds.
+Saved 1 files... etime: 2.4482 seconds.
+Saved 1 files... etime: 2.2326 seconds.
+Total time: 2.3043 seconds.
+Saved 1 files... etime: 2.1978 seconds.
+Saved 1 files... etime: 2.6273 seconds.
+Saved 1 files... etime: 2.6129 seconds.
+Saved 1 files... etime: 2.536 seconds.
+Total time: 2.6065 seconds.
+-------------------------------------
+Log Date: 2026-01-09 02:00:01
+-------------------------------------
+
+                            < M A T L A B (R) >
+                  Copyright 1984-2023 The MathWorks, Inc.
+             R2023b Update 9 (23.2.0.2668659) 64-bit (glnxa64)
+                               July 10, 2024
+
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Arduino/triggered-screen-blanker] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples/MPR121test] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/target/shared/devicedrivers] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/sensors/thirdparty] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio/apps/arduinoexplorer] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/realtime/targets/arduinoide] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/hwsdk] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/sharedarduino] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/ddux] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Solutions] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/HelperScripts] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1/geometry] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise6] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise7] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise4] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise5] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DCMotorCharacterization] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3/images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/HelperFunctions] 
+ 
+To get started, type doc.
+For product information, visit www.mathworks.com.
+ 
+Found 1274 files for 9 subject(s) matching user input:
+ - 2471951 - F - Het
+ - 2471952 - F - WT
+ - 2471953 - F - WT
+ - 2618912 - F - WT
+ - 2618913 - F - WT
+ - 2618914 - F - Het
+ - 3142551 - F - WT
+ - 3142552 - F - WT
+ - 3142553 - F - WT
+[Warning: Sub: 2618913 - F - WT Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+Loaded... : 9.3309 seconds.
+Analyzed... : 83.0222 seconds.
+Found 1356 files for 12 subject(s) matching user input:
+ - 2471941 - M - WT
+ - 2471942 - M - Het
+ - 2471943 - M - Het
+ - 2822461 - M - Het
+ - 2822462 - M - WT
+ - 2822463 - M - WT
+ - 2822464 - M - Het
+ - 3142561 - M - Het
+ - 3142562 - M - Het
+ - 3142563 - M - WT
+ - 3169041 - M - WT
+ - 3169042 - M - Het
+[Warning: Sub: 2471941 - M - WT Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230130 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471943 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822461 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822462 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822463 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822464 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+Loaded... : 9.6133 seconds.
+Analyzed... : 83.1006 seconds.
+Fontconfig warning: "/usr/share/fontconfig/conf.avail/05-reset-dirs-sample.conf", line 6: unknown element "reset-dirs"
+Saved 1 files... etime: 3.0921 seconds.
+Saved 1 files... etime: 2.8486 seconds.
+Saved 1 files... etime: 2.3983 seconds.
+Saved 1 files... etime: 2.2492 seconds.
+Total time: 2.3207 seconds.
+Saved 1 files... etime: 2.2529 seconds.
+Saved 1 files... etime: 2.5919 seconds.
+Saved 1 files... etime: 2.5669 seconds.
+Saved 1 files... etime: 2.6058 seconds.
+Total time: 2.6742 seconds.
+-------------------------------------
+Log Date: 2026-01-11 02:00:01
+-------------------------------------
+
+                            < M A T L A B (R) >
+                  Copyright 1984-2023 The MathWorks, Inc.
+             R2023b Update 9 (23.2.0.2668659) 64-bit (glnxa64)
+                               July 10, 2024
+
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Arduino/triggered-screen-blanker] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples/MPR121test] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/target/shared/devicedrivers] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/sensors/thirdparty] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio/apps/arduinoexplorer] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/realtime/targets/arduinoide] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/hwsdk] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/sharedarduino] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/ddux] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Solutions] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/HelperScripts] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1/geometry] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise6] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise7] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise4] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise5] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DCMotorCharacterization] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3/images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/HelperFunctions] 
+ 
+To get started, type doc.
+For product information, visit www.mathworks.com.
+ 
+Found 1274 files for 9 subject(s) matching user input:
+ - 2471951 - F - Het
+ - 2471952 - F - WT
+ - 2471953 - F - WT
+ - 2618912 - F - WT
+ - 2618913 - F - WT
+ - 2618914 - F - Het
+ - 3142551 - F - WT
+ - 3142552 - F - WT
+ - 3142553 - F - WT
+[Warning: Sub: 2618913 - F - WT Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+Loaded... : 9.4035 seconds.
+Analyzed... : 83.4775 seconds.
+Found 1356 files for 12 subject(s) matching user input:
+ - 2471941 - M - WT
+ - 2471942 - M - Het
+ - 2471943 - M - Het
+ - 2822461 - M - Het
+ - 2822462 - M - WT
+ - 2822463 - M - WT
+ - 2822464 - M - Het
+ - 3142561 - M - Het
+ - 3142562 - M - Het
+ - 3142563 - M - WT
+ - 3169041 - M - WT
+ - 3169042 - M - Het
+[Warning: Sub: 2471941 - M - WT Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230130 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471943 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822461 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822462 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822463 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822464 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+Loaded... : 9.6196 seconds.
+Analyzed... : 83.5915 seconds.
+Fontconfig warning: "/usr/share/fontconfig/conf.avail/05-reset-dirs-sample.conf", line 6: unknown element "reset-dirs"
+Saved 1 files... etime: 3.0927 seconds.
+Saved 1 files... etime: 2.8035 seconds.
+Saved 1 files... etime: 2.3655 seconds.
+Saved 1 files... etime: 2.1854 seconds.
+Total time: 2.2563 seconds.
+Saved 1 files... etime: 2.2026 seconds.
+Saved 1 files... etime: 2.5647 seconds.
+Saved 1 files... etime: 2.6659 seconds.
+Saved 1 files... etime: 2.4785 seconds.
+Total time: 2.5471 seconds.
+-------------------------------------
+Log Date: 2026-01-12 02:00:01
+-------------------------------------
+
+                            < M A T L A B (R) >
+                  Copyright 1984-2023 The MathWorks, Inc.
+             R2023b Update 9 (23.2.0.2668659) 64-bit (glnxa64)
+                               July 10, 2024
+
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Arduino/triggered-screen-blanker] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples/MPR121test] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/target/shared/devicedrivers] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/sensors/thirdparty] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio/apps/arduinoexplorer] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/realtime/targets/arduinoide] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/hwsdk] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/sharedarduino] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/ddux] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Solutions] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/HelperScripts] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1/geometry] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise6] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise7] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise4] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise5] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DCMotorCharacterization] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3/images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/HelperFunctions] 
+ 
+To get started, type doc.
+For product information, visit www.mathworks.com.
+ 
+Found 1274 files for 9 subject(s) matching user input:
+ - 2471951 - F - Het
+ - 2471952 - F - WT
+ - 2471953 - F - WT
+ - 2618912 - F - WT
+ - 2618913 - F - WT
+ - 2618914 - F - Het
+ - 3142551 - F - WT
+ - 3142552 - F - WT
+ - 3142553 - F - WT
+[Warning: Sub: 2618913 - F - WT Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+Loaded... : 9.3895 seconds.
+Analyzed... : 83.2499 seconds.
+Found 1356 files for 12 subject(s) matching user input:
+ - 2471941 - M - WT
+ - 2471942 - M - Het
+ - 2471943 - M - Het
+ - 2822461 - M - Het
+ - 2822462 - M - WT
+ - 2822463 - M - WT
+ - 2822464 - M - Het
+ - 3142561 - M - Het
+ - 3142562 - M - Het
+ - 3142563 - M - WT
+ - 3169041 - M - WT
+ - 3169042 - M - Het
+[Warning: Sub: 2471941 - M - WT Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230130 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471943 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822461 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822462 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822463 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822464 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+Loaded... : 9.5679 seconds.
+Analyzed... : 83.307 seconds.
+Fontconfig warning: "/usr/share/fontconfig/conf.avail/05-reset-dirs-sample.conf", line 6: unknown element "reset-dirs"
+Saved 1 files... etime: 3.1036 seconds.
+Saved 1 files... etime: 2.8024 seconds.
+Saved 1 files... etime: 2.3698 seconds.
+Saved 1 files... etime: 2.1949 seconds.
+Total time: 2.2675 seconds.
+Saved 1 files... etime: 2.2211 seconds.
+Saved 1 files... etime: 2.5499 seconds.
+Saved 1 files... etime: 2.5466 seconds.
+Saved 1 files... etime: 2.5932 seconds.
+Total time: 2.664 seconds.
+-------------------------------------
+Log Date: 2026-01-13 02:00:01
+-------------------------------------
+
+                            < M A T L A B (R) >
+                  Copyright 1984-2023 The MathWorks, Inc.
+             R2023b Update 9 (23.2.0.2668659) 64-bit (glnxa64)
+                               July 10, 2024
+
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Arduino/triggered-screen-blanker] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples/MPR121test] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/target/shared/devicedrivers] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/sensors/thirdparty] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio/apps/arduinoexplorer] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/realtime/targets/arduinoide] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/hwsdk] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/sharedarduino] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/ddux] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Solutions] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/HelperScripts] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1/geometry] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise6] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise7] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise4] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise5] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DCMotorCharacterization] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3/images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/HelperFunctions] 
+ 
+To get started, type doc.
+For product information, visit www.mathworks.com.
+ 
+Found 1274 files for 9 subject(s) matching user input:
+ - 2471951 - F - Het
+ - 2471952 - F - WT
+ - 2471953 - F - WT
+ - 2618912 - F - WT
+ - 2618913 - F - WT
+ - 2618914 - F - Het
+ - 3142551 - F - WT
+ - 3142552 - F - WT
+ - 3142553 - F - WT
+[Warning: Sub: 2618913 - F - WT Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+Loaded... : 9.3805 seconds.
+Analyzed... : 83.8084 seconds.
+Found 1356 files for 12 subject(s) matching user input:
+ - 2471941 - M - WT
+ - 2471942 - M - Het
+ - 2471943 - M - Het
+ - 2822461 - M - Het
+ - 2822462 - M - WT
+ - 2822463 - M - WT
+ - 2822464 - M - Het
+ - 3142561 - M - Het
+ - 3142562 - M - Het
+ - 3142563 - M - WT
+ - 3169041 - M - WT
+ - 3169042 - M - Het
+[Warning: Sub: 2471941 - M - WT Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230130 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471943 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822461 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822462 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822463 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822464 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+Loaded... : 9.6632 seconds.
+Analyzed... : 83.8704 seconds.
+Fontconfig warning: "/usr/share/fontconfig/conf.avail/05-reset-dirs-sample.conf", line 6: unknown element "reset-dirs"
+Saved 1 files... etime: 3.0519 seconds.
+Saved 1 files... etime: 2.8037 seconds.
+Saved 1 files... etime: 2.3885 seconds.
+Saved 1 files... etime: 2.2054 seconds.
+Total time: 2.2801 seconds.
+Saved 1 files... etime: 2.2067 seconds.
+Saved 1 files... etime: 2.535 seconds.
+Saved 1 files... etime: 2.6933 seconds.
+Saved 1 files... etime: 2.4853 seconds.
+Total time: 2.5544 seconds.
+-------------------------------------
+Log Date: 2026-01-14 02:00:01
+-------------------------------------
+
+                            < M A T L A B (R) >
+                  Copyright 1984-2023 The MathWorks, Inc.
+             R2023b Update 9 (23.2.0.2668659) 64-bit (glnxa64)
+                               July 10, 2024
+
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Arduino/triggered-screen-blanker] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples/MPR121test] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/target/shared/devicedrivers] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/sensors/thirdparty] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio/apps/arduinoexplorer] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/realtime/targets/arduinoide] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/hwsdk] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/sharedarduino] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/ddux] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Solutions] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/HelperScripts] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1/geometry] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise6] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise7] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise4] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise5] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DCMotorCharacterization] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3/images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/HelperFunctions] 
+ 
+To get started, type doc.
+For product information, visit www.mathworks.com.
+ 
+Found 1274 files for 9 subject(s) matching user input:
+ - 2471951 - F - Het
+ - 2471952 - F - WT
+ - 2471953 - F - WT
+ - 2618912 - F - WT
+ - 2618913 - F - WT
+ - 2618914 - F - Het
+ - 3142551 - F - WT
+ - 3142552 - F - WT
+ - 3142553 - F - WT
+[Warning: Sub: 2618913 - F - WT Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+Loaded... : 9.1385 seconds.
+Analyzed... : 82.6888 seconds.
+Found 1356 files for 12 subject(s) matching user input:
+ - 2471941 - M - WT
+ - 2471942 - M - Het
+ - 2471943 - M - Het
+ - 2822461 - M - Het
+ - 2822462 - M - WT
+ - 2822463 - M - WT
+ - 2822464 - M - Het
+ - 3142561 - M - Het
+ - 3142562 - M - Het
+ - 3142563 - M - WT
+ - 3169041 - M - WT
+ - 3169042 - M - Het
+[Warning: Sub: 2471941 - M - WT Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230130 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471943 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822461 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822462 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822463 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822464 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+Loaded... : 9.3706 seconds.
+Analyzed... : 82.8284 seconds.
+Fontconfig warning: "/usr/share/fontconfig/conf.avail/05-reset-dirs-sample.conf", line 6: unknown element "reset-dirs"
+Saved 1 files... etime: 2.9819 seconds.
+Saved 1 files... etime: 2.7554 seconds.
+Saved 1 files... etime: 2.3579 seconds.
+Saved 1 files... etime: 2.1676 seconds.
+Total time: 2.2392 seconds.
+Saved 1 files... etime: 2.1975 seconds.
+Saved 1 files... etime: 2.5323 seconds.
+Saved 1 files... etime: 2.622 seconds.
+Saved 1 files... etime: 2.455 seconds.
+Total time: 2.5237 seconds.
+-------------------------------------
+Log Date: 2026-01-15 02:00:01
+-------------------------------------
+
+                            < M A T L A B (R) >
+                  Copyright 1984-2023 The MathWorks, Inc.
+             R2023b Update 9 (23.2.0.2668659) 64-bit (glnxa64)
+                               July 10, 2024
+
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Arduino/triggered-screen-blanker] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples/MPR121test] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/target/shared/devicedrivers] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/sensors/thirdparty] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio/apps/arduinoexplorer] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/realtime/targets/arduinoide] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/hwsdk] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/sharedarduino] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/ddux] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Solutions] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/HelperScripts] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1/geometry] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise6] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise7] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise4] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise5] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DCMotorCharacterization] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3/images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/HelperFunctions] 
+ 
+To get started, type doc.
+For product information, visit www.mathworks.com.
+ 
+Found 1274 files for 9 subject(s) matching user input:
+ - 2471951 - F - Het
+ - 2471952 - F - WT
+ - 2471953 - F - WT
+ - 2618912 - F - WT
+ - 2618913 - F - WT
+ - 2618914 - F - Het
+ - 3142551 - F - WT
+ - 3142552 - F - WT
+ - 3142553 - F - WT
+[Warning: Sub: 2618913 - F - WT Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+Loaded... : 13.1899 seconds.
+Analyzed... : 107.9809 seconds.
+Found 1356 files for 12 subject(s) matching user input:
+ - 2471941 - M - WT
+ - 2471942 - M - Het
+ - 2471943 - M - Het
+ - 2822461 - M - Het
+ - 2822462 - M - WT
+ - 2822463 - M - WT
+ - 2822464 - M - Het
+ - 3142561 - M - Het
+ - 3142562 - M - Het
+ - 3142563 - M - WT
+ - 3169041 - M - WT
+ - 3169042 - M - Het
+[Warning: Sub: 2471941 - M - WT Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230130 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471943 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822461 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822462 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822463 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822464 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+Loaded... : 13.4777 seconds.
+Analyzed... : 108.5111 seconds.
+Fontconfig warning: "/usr/share/fontconfig/conf.avail/05-reset-dirs-sample.conf", line 6: unknown element "reset-dirs"
+Saved 1 files... etime: 3.922 seconds.
+Saved 1 files... etime: 3.802 seconds.
+Saved 1 files... etime: 3.1553 seconds.
+Saved 1 files... etime: 2.9336 seconds.
+Total time: 3.0247 seconds.
+Saved 1 files... etime: 2.6537 seconds.
+Saved 1 files... etime: 3.4046 seconds.
+Saved 1 files... etime: 3.3864 seconds.
+Saved 1 files... etime: 3.5368 seconds.
+Total time: 3.6186 seconds.
+-------------------------------------
+Log Date: 2026-01-16 02:00:01
+-------------------------------------
+
+                            < M A T L A B (R) >
+                  Copyright 1984-2023 The MathWorks, Inc.
+             R2023b Update 9 (23.2.0.2668659) 64-bit (glnxa64)
+                               July 10, 2024
+
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Arduino/triggered-screen-blanker] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples] 
+[Warning: Name is nonexistent or not a directory:
+/home/will/Desktop/BehaviorBox/Equipment/Adafruit_MPR121-master/examples/MPR121test] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/target/shared/devicedrivers] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/sensors/thirdparty] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/arduinoio/apps/arduinoexplorer] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/realtime/targets/arduinoide] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/hwsdk] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/supportpackages/sharedarduino] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/toolbox/matlab/hardware/shared/ddux] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Solutions] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/Images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/HelperScripts] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_2] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_1/geometry] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise6] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise7] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise4] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover/Exercise5] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/MobileRover] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DCMotorCharacterization] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/Motorcycle/exercise_6_3/images] 
+[Warning: Directory permission denied:
+/root/Documents/MATLAB/SupportPackages/R2023b/3P.instrset/aekrev2projectfiles.instrset/DrawingRobot/HelperFunctions] 
+ 
+To get started, type doc.
+For product information, visit www.mathworks.com.
+ 
+Found 1274 files for 9 subject(s) matching user input:
+ - 2471951 - F - Het
+ - 2471952 - F - WT
+ - 2471953 - F - WT
+ - 2618912 - F - WT
+ - 2618913 - F - WT
+ - 2618914 - F - Het
+ - 3142551 - F - WT
+ - 3142552 - F - WT
+ - 3142553 - F - WT
+[Warning: Sub: 2618913 - F - WT Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+[Warning: Sub: 2618914 - F - Het Day 241025 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 2)
+In run (line 99)] 
+Loaded... : 12.8889 seconds.
+Analyzed... : 111.6135 seconds.
+Found 1356 files for 12 subject(s) matching user input:
+ - 2471941 - M - WT
+ - 2471942 - M - Het
+ - 2471943 - M - Het
+ - 2822461 - M - Het
+ - 2822462 - M - WT
+ - 2822463 - M - WT
+ - 2822464 - M - Het
+ - 3142561 - M - Het
+ - 3142562 - M - Het
+ - 3142563 - M - WT
+ - 3169041 - M - WT
+ - 3169042 - M - Het
+[Warning: Sub: 2471941 - M - WT Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471942 - M - Het Day 230130 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2471943 - M - Het Day 230127 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822461 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822462 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822463 - M - WT Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+[Warning: Sub: 2822464 - M - Het Day 241023 - Rescued data found, settings info
+is missing] 
+[> In BehaviorBoxDataNew/CombineDays (line 446)
+In BehaviorBoxDataNew/loadFiles (line 297)
+In BehaviorBoxDataNew (line 82)
+In GroupAnalysis (line 3)
+In run (line 99)] 
+Loaded... : 13.4044 seconds.
+Analyzed... : 111.5531 seconds.
+Fontconfig warning: "/usr/share/fontconfig/conf.avail/05-reset-dirs-sample.conf", line 6: unknown element "reset-dirs"
+Saved 1 files... etime: 4.1024 seconds.
+Saved 1 files... etime: 4.112 seconds.
+Saved 1 files... etime: 3.3815 seconds.
+Saved 1 files... etime: 3.1505 seconds.
+Total time: 3.2482 seconds.
+Saved 1 files... etime: 2.8133 seconds.
+Saved 1 files... etime: 3.5982 seconds.
+Saved 1 files... etime: 3.9178 seconds.
+Saved 1 files... etime: 3.5125 seconds.
+Total time: 3.6029 seconds.
+-------------------------------------
+Log Date: 2026-01-18 02:00:01
+-------------------------------------
+Cannot locate or initialize class com/mathworks/jmi/OpaqueJavaInterface.
+java.lang.NoClassDefFoundError: com/mathworks/jmi/OpaqueJavaInterface
+Caused by: java.lang.ClassNotFoundException: com.mathworks.jmi.OpaqueJavaInterface
+	at java.net.URLClassLoader.findClass(URLClassLoader.java:382)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:424)
+	at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:349)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:357)
+
+
+-------------------------------------
+Log Date: 2026-01-19 02:00:01
+-------------------------------------
+Cannot locate or initialize class com/mathworks/jmi/OpaqueJavaInterface.
+java.lang.NoClassDefFoundError: com/mathworks/jmi/OpaqueJavaInterface
+Caused by: java.lang.ClassNotFoundException: com.mathworks.jmi.OpaqueJavaInterface
+	at java.net.URLClassLoader.findClass(URLClassLoader.java:382)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:424)
+	at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:349)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:357)
+
+
+-------------------------------------
+Log Date: 2026-01-20 02:00:01
+-------------------------------------
+Cannot locate or initialize class com/mathworks/jmi/OpaqueJavaInterface.
+java.lang.NoClassDefFoundError: com/mathworks/jmi/OpaqueJavaInterface
+Caused by: java.lang.ClassNotFoundException: com.mathworks.jmi.OpaqueJavaInterface
+	at java.net.URLClassLoader.findClass(URLClassLoader.java:382)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:424)
+	at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:349)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:357)
+
+
+-------------------------------------
+Log Date: 2026-01-21 02:00:01
+-------------------------------------
+Cannot locate or initialize class com/mathworks/jmi/OpaqueJavaInterface.
+java.lang.NoClassDefFoundError: com/mathworks/jmi/OpaqueJavaInterface
+Caused by: java.lang.ClassNotFoundException: com.mathworks.jmi.OpaqueJavaInterface
+	at java.net.URLClassLoader.findClass(URLClassLoader.java:382)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:424)
+	at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:349)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:357)
+
+
+-------------------------------------
+Log Date: 2026-01-22 02:00:01
+-------------------------------------
+Cannot locate or initialize class com/mathworks/jmi/OpaqueJavaInterface.
+java.lang.NoClassDefFoundError: com/mathworks/jmi/OpaqueJavaInterface
+Caused by: java.lang.ClassNotFoundException: com.mathworks.jmi.OpaqueJavaInterface
+	at java.net.URLClassLoader.findClass(URLClassLoader.java:382)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:424)
+	at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:349)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:357)
+
+
+-------------------------------------
+Log Date: 2026-01-23 02:00:01
+-------------------------------------
+Cannot locate or initialize class com/mathworks/jmi/OpaqueJavaInterface.
+java.lang.NoClassDefFoundError: com/mathworks/jmi/OpaqueJavaInterface
+Caused by: java.lang.ClassNotFoundException: com.mathworks.jmi.OpaqueJavaInterface
+	at java.net.URLClassLoader.findClass(URLClassLoader.java:382)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:424)
+	at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:349)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:357)
+
+
+-------------------------------------
+Log Date: 2026-01-25 02:00:01
+-------------------------------------
+Cannot locate or initialize class com/mathworks/jmi/OpaqueJavaInterface.
+java.lang.NoClassDefFoundError: com/mathworks/jmi/OpaqueJavaInterface
+Caused by: java.lang.ClassNotFoundException: com.mathworks.jmi.OpaqueJavaInterface
+	at java.net.URLClassLoader.findClass(URLClassLoader.java:382)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:424)
+	at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:349)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:357)
+
+
+-------------------------------------
+Log Date: 2026-01-26 02:00:01
+-------------------------------------
+Cannot locate or initialize class com/mathworks/jmi/OpaqueJavaInterface.
+java.lang.NoClassDefFoundError: com/mathworks/jmi/OpaqueJavaInterface
+Caused by: java.lang.ClassNotFoundException: com.mathworks.jmi.OpaqueJavaInterface
+	at java.net.URLClassLoader.findClass(URLClassLoader.java:382)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:424)
+	at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:349)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:357)
+
+
+-------------------------------------
+Log Date: 2026-01-27 02:00:01
+-------------------------------------
+Cannot locate or initialize class com/mathworks/jmi/OpaqueJavaInterface.
+java.lang.NoClassDefFoundError: com/mathworks/jmi/OpaqueJavaInterface
+Caused by: java.lang.ClassNotFoundException: com.mathworks.jmi.OpaqueJavaInterface
+	at java.net.URLClassLoader.findClass(URLClassLoader.java:382)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:424)
+	at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:349)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:357)
+
+
+-------------------------------------
+Log Date: 2026-01-28 02:00:01
+-------------------------------------
+
+                            < M A T L A B (R) >
+                  Copyright 1984-2025 The MathWorks, Inc.
+             R2025b Update 3 (25.2.0.3123386) 64-bit (glnxa64)
+                             December 29, 2025
+
+ 
+To get started, type doc.
+For product information, visit www.mathworks.com.
+ 
+{Error using run (line 74)
+GroupAnalysis.m not found.} 
+>> 

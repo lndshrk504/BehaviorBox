@@ -9,6 +9,10 @@ if [ "$EUID" -eq 0 ]; then
 fi
 
 # Install Arduino IDE, Git, etc.
+#sudo apt update
+#sudo ubuntu-drivers install 
+#sudo apt install -y git vim-nox neofetch arduino v4l-utils ffmpeg
+#sudo apt update && sudo apt upgrade && sudo apt autoremove -y
 sudo apt update
 #sudo ubuntu-drivers install 
 sudo apt install -y git vim-nox neofetch arduino v4l-utils ffmpeg
@@ -39,7 +43,7 @@ fi
 
 cd $CLONE_DIR
 mv ~/.bashrc ~/.bashrc.backup
-ln -s $PWD/.bashrc ~/.bashrc
+ln -s "$PWD/Linux-Scripts/.bashrc" ~/.bashrc
 
 # Display a message to inform the user to log out and back in
 echo "Installation complete. Please log out and log back in for group changes to take effect."
