@@ -77,6 +77,7 @@ fi
 if command -v brew >/dev/null 2>&1; then
   echo "Homebrew already installed; skipping."
 else
+  sudo apt install curl build-essential -y
   echo "Installing Homebrew..."
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 fi
