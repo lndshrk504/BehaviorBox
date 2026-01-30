@@ -149,7 +149,7 @@ classdef BehaviorBoxNose < handle
                     this.WaitForInputAndGiveReward();
                     this.AfterTrial();
                     this.app.TabGroup.SelectedTab = this.app.TabGroup.Children(5);
-                    pause(0.01);
+                    pause(0.1);
                     errorc = 0;
                     % Uncomment these when needing to time the trial
                     % profile viewer
@@ -544,7 +544,7 @@ classdef BehaviorBoxNose < handle
                 choice = [0 1];
                 isLeftTrial = choice(randperm(2,1));
             elseif all(this.StimulusStruct.side ~= [2 3]) && this.Setting_Struct.Repeat_wrong
-                if this.Data_Object.current_data_struct.Score(end) == 0
+                if isprop(this.Data_Object, 'current_data_struct') & this.Data_Object.current_data_struct.Score(end) == 0
                     return
                 else
                     choice = [0 1];
