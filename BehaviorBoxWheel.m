@@ -562,7 +562,7 @@ classdef BehaviorBoxWheel < handle
                 choice = [0 1];
                 isLeftTrial = choice(randperm(2,1));
             elseif this.Setting_Struct.Repeat_wrong
-                if isfield(this.Data_Object, 'current_data_struct') && this.Data_Object.current_data_struct.Score(end) == 0
+                if isprop(this.Data_Object, 'current_data_struct') & this.Data_Object.current_data_struct.Score(end) == 0
                     return
                 else
                     choice = [0 1];
