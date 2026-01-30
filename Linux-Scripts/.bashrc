@@ -89,14 +89,14 @@ fi
 
 # Uncomment this for MATLAB to override default opengl behavior, unnecessary as this issue has been resolved
 #
-export JAVA_TOOL_OPTIONS="-Djogl.disable.openglarbcontext=1"
+#export JAVA_TOOL_OPTIONS="-Djogl.disable.openglarbcontext=1"
 # some more ls aliases
 alias ll='ls -alF'
 alias la='ls -A'
 alias l='ls -CAF'
 alias :q='exit'
 alias bye='exit'
-alias Up='sudo apt update && sudo apt upgrade -y && sudo apt autoremove'
+alias Up='sudo apt update && sudo apt upgrade -y && sudo apt autoremove -y'
 alias BB='matlab -nosplash -nodesktop -r "BehaviorBox_App"'
 alias cam='matlab -nosplash -nodesktop -r "viewDualCameras"'
 alias FixSet='chmod guo+rw ComputerSettingsACM*.mat'
