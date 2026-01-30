@@ -89,7 +89,7 @@ fi
 
 # Uncomment this for MATLAB to override default opengl behavior, unnecessary as this issue has been resolved
 #
-export JAVA_TOOL_OPTIONS="-Djogl.disable.openglarbcontext=1"
+#export JAVA_TOOL_OPTIONS="-Djogl.disable.openglarbcontext=1"
 # some more ls aliases
 alias ll='ls -alF'
 alias la='ls -A'

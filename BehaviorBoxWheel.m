@@ -927,6 +927,8 @@ classdef BehaviorBoxWheel < handle
             this.DrinkTime = 0;
             % Optimized background and ready cue handling
             this.setVisibleChildren(this.fig.Children, true);
+            lines = findobj(this.fig.Children, 'Type', 'Line');
+            this.FlashNew(this.StimulusStruct, this.Box,  lines, "Correct_Confirmation")
             drawnow
             % Ignore input for a defined duration
             startTime = tic;
