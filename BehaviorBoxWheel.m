@@ -928,6 +928,8 @@ classdef BehaviorBoxWheel < handle
             this.DrinkTime = 0;
             % Optimized background and ready cue handling
             this.setVisibleChildren(this.fig.Children, true);
+            lines = findobj(this.fig.Children, 'Type', 'Line');
+            this.FlashNew(this.StimulusStruct, this.Box,  lines, "Correct_Confirmation")
             drawnow
             % Ignore input for a defined duration
             startTime = tic;
@@ -1079,6 +1081,9 @@ classdef BehaviorBoxWheel < handle
             delta = 0;
             this.wheelchoice = cell(1,1e6);
             timeout_value = this.Box.Timeout_after_time;
+            if isempty(timeout_value)
+                timeout_value = 0;
+            end
             threshold = this.Setting_Struct.TurnMag;
             o = this.fig.findobj('Type', 'Axes');
             C = o(contains({o.Tag}, 'Correct'));
