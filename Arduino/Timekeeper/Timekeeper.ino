@@ -44,7 +44,7 @@ void setup() {
   Serial.println("Timestamp on rise:");
   Serial.println("Pin 2 Stimulus");
   Serial.println("Pin 3 Frame");
-  Serial.println("Pin 4 Next File");
+  //Serial.println("Pin 4 Next File");
 }
 
 void loop() {
