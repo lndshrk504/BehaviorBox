@@ -136,7 +136,8 @@ classdef BehaviorBoxWheel < handle
                     this.WaitForInput();
                     this.WaitForInputAndGiveReward();
                     this.AfterTrial()
-                    pause(0.01); drawnow;
+                    this.app.TabGroup.SelectedTab = this.app.TabGroup.Children(5);
+                    pause(0.1); drawnow;
                     errorc = 0;
                 catch err
                     this.unwrapError(err)

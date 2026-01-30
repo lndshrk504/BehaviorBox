@@ -149,7 +149,7 @@ classdef BehaviorBoxNose < handle
                     this.WaitForInputAndGiveReward();
                     this.AfterTrial();
                     this.app.TabGroup.SelectedTab = this.app.TabGroup.Children(5);
-                    pause(0.01);
+                    pause(0.1);
                     errorc = 0;
                     % Uncomment these when needing to time the trial
                     % profile viewer
