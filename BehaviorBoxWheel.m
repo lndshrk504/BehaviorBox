@@ -562,7 +562,7 @@ classdef BehaviorBoxWheel < handle
                 choice = [0 1];
                 isLeftTrial = choice(randperm(2,1));
             elseif this.Setting_Struct.Repeat_wrong
-                if this.Data_Object.current_data_struct.Score(end) == 0
+                if isfield(this.Data_Object, 'current_data_struct') && this.Data_Object.current_data_struct.Score(end) == 0
                     return
                 else
                     choice = [0 1];
@@ -928,8 +928,8 @@ classdef BehaviorBoxWheel < handle
             this.DrinkTime = 0;
             % Optimized background and ready cue handling
             this.setVisibleChildren(this.fig.Children, true);
-            lines = findobj(this.fig.Children, 'Type', 'Line');
-            this.FlashNew(this.StimulusStruct, this.Box,  lines, "Correct_Confirmation")
+            Lines = [findobj('Tag', 'Contour') ; findobj('Tag', 'Distractor')];
+            this.FlashNew(this.StimulusStruct, this.Box,  Lines, 'NewStim')
             drawnow
             % Ignore input for a defined duration
             startTime = tic;
@@ -944,8 +944,10 @@ classdef BehaviorBoxWheel < handle
             if this.Setting_Struct.Input_ignored
                 set(this.message_handle, 'Text', sprintf('Input ignored for %s sec...', num2str(this.Setting_Struct.Pokes_ignored_time)));
                 pause(this.Setting_Struct.Pokes_ignored_time)
-                Lines = [findobj('Tag', 'Contour') ; findobj('Tag', 'Distractor')];
-                this.FlashNew(this.StimulusStruct, this.Box, Lines, 'NewStim')
+                
+                for rep = 1:this.Setting_Struct.Stimulus_RepFlashInitial
+                    this.FlashNew(this.StimulusStruct, this.Box, Lines, 'NewStim')
+                end
             end
             % Enhanced decision-making loop based on inputType
             set(this.message_handle, 'Text', sprintf('Waiting for %s choice...', this.current_side));
