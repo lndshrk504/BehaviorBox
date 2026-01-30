@@ -74,6 +74,13 @@ else
   echo "Skipping apt package installation (pass --install-packages to enable)."
 fi
 
+if command -v brew >/dev/null 2>&1; then
+  echo "Homebrew already installed; skipping."
+else
+  echo "Installing Homebrew..."
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+fi
+
 if ! command -v git >/dev/null 2>&1; then
   echo "Error: git is required but not installed. Re-run with --install-packages or install git first." >&2
   exit 1
@@ -85,7 +92,7 @@ git config --global user.email "wsnyder+${HOSTNAME}@rockefeller.edu"
 git config --global init.defaultBranch main
 git config --global core.editor "vim"
 # Example extra options you might want:
-# git config --global pull.rebase false
+git config --global pull.rebase false
 git config --global color.ui auto
 
 # Add the current user to the dialout group to access the Arduino without root privileges
