@@ -946,7 +946,7 @@ classdef BehaviorBoxWheel < handle
                 pause(this.Setting_Struct.Pokes_ignored_time)
             end
             for rep = 1:this.Setting_Struct.Stimulus_RepFlashInitial
-                this.FlashNew(this.StimulusStruct, this.Box, Lines, 'NewStim')
+                this.FlashNew(this.StimulusStruct, this.Box, Lines, 'Correct_Confirmation')
             end
             % Enhanced decision-making loop based on inputType
             set(this.message_handle, 'Text', sprintf('Waiting for %s choice...', this.current_side));
@@ -1081,6 +1081,7 @@ classdef BehaviorBoxWheel < handle
             event = -1;
             delta = 0;
             this.wheelchoice = cell(1,1e6);
+            this.wheelchoicetime = cell(1,1e6);
             timeout_value = this.Box.Timeout_after_time;
             if isempty(timeout_value)
                 timeout_value = 0;
@@ -1105,10 +1106,45 @@ classdef BehaviorBoxWheel < handle
             if this.app.Animate_MimicTrial.Value
                 this.SimulateTrial()
             end
-            I = 0;
             tic
-            while timeout_value == 0 | toc<=timeout_value && ~this.app.Animate_MimicTrial.Value% do NOT replace | with || or the expression is changed.
+            % ---------------- Stall / timers (IMPORTANT: no bare toc/tic) ----------------
+            t1 = tic;
+            tLoop  = tic;    % trial/response timer
+            tStall = tic;    % "no-change" timer
+
+            stallSec = 5;    % seconds without wheel change before flashing
+            stallTol = 0;    % pulses tolerance; keep 0 if Rotary.ino outputs stable integers
+
+            lastDist = NaN;
+            didStallFlash = false;
+
+            % Pre-cache handles once (avoid findobj inside tight loop)
+            Lines = [this.fig.findobj('Tag','Contour'); this.fig.findobj('Tag','Distractor')];
+
+            I = 0;
+            while (timeout_value == 0 | toc(tLoop)<=timeout_value) && ~this.app.Animate_MimicTrial.Value% do NOT replace | with || or the expression is changed.
                 dist = str2double(this.a.SerialRead);
+
+                tNow = toc(tLoop);
+
+                % --- Stall detection: reset stall timer on real movement
+                if isnan(lastDist) || abs(dist - lastDist) > stallTol
+                    lastDist = dist;
+                    tStall = tic;
+                    didStallFlash = false;
+                elseif toc(tStall) >= stallSec % && ~didStallFlash
+                    % Refresh Lines only when needed (in case graphics were recreated)
+                    if isempty(Lines) || any(~isgraphics(Lines))
+                        Lines = [this.fig.findobj('Tag','Contour'); this.fig.findobj('Tag','Distractor')];
+                    end
+                    for rep = 1:this.Setting_Struct.Stimulus_RepFlashInitial
+                        this.FlashNew(this.StimulusStruct, this.Box, Lines, 'Correct_Confirmation')
+                    end
+                    didStallFlash = true;
+                    % If you want repeated flashing every stallSec while stalled, uncomment:
+                    tStall = tic;
+                end
+
                 delta = (dist/threshold)*StimDistance;  % A full revolution is about 4000 pulses 4400/360 = 12.22 pulses/degree 90 deg is ~1000 pulses
                 if abs(delta)>thresh % Prevent stim from being pushed off screen
                     if sign(delta)>0
@@ -1124,7 +1160,7 @@ classdef BehaviorBoxWheel < handle
                 end
                 I = I+1;
                 this.wheelchoice{I} = delta;
-                this.wheelchoicetime{I} = toc;
+                this.wheelchoicetime{I} = toc(tLoop);
                 pos1 = pos1i + ([delta 0 0 0]);
                 axes(1).Position = pos1;
                 if numel(axes) > 1
@@ -1132,7 +1168,8 @@ classdef BehaviorBoxWheel < handle
                     axes(2).Position = pos2;
                 end
                 %disp("Dist is "+dist+"; delta is "+delta); disp("R pos1 is is "+pos1(1)+"; L pos2 is "+pos2(1))
-                drawnow  %limitrate nocallbacks % The frame rate is very low on the new Ubuntu mini PC head fixation rig.
+                drawnow  %limitrate nocallbacks
+                
                 if this.isLeftTrial & delta <= -thresh
                     event = 2;
                     break
@@ -1182,10 +1219,38 @@ classdef BehaviorBoxWheel < handle
                         WhatDecision = 'right wrong';
                     end
             end
-            if contains(WhatDecision, 'wrong')&& this.Setting_Struct.OnlyCorrect
+            if contains(WhatDecision, 'wrong') && this.Setting_Struct.OnlyCorrect
                 tic
+                Old_response_time = response_time;
+                delta = 0;
+                stallSec_OC = stallSec;
+                stallTol_OC = stallTol;
+
+                tLoopOC  = tic;   % timeout applies to this phase (matches original intent)
+                tStallOC = tic;
+
+                lastDistOC = NaN;
+                didStallFlashOC = false;
+
                 while timeout_value == 0 | toc<timeout_value % do NOT replace | with || or the expression is changed.
                     dist = str2double(this.a.SerialRead);
+                    tNowOC = toc(tLoopOC);
+
+                    % --- Stall detection in OC phase
+                    if isnan(lastDistOC) || abs(dist - lastDistOC) > stallTol_OC
+                        lastDistOC = dist;
+                        tStallOC = tic;
+                        didStallFlashOC = false;
+                    elseif toc(tStallOC) >= stallSec_OC % && ~didStallFlashOC
+                        if isempty(Lines) || any(~isgraphics(Lines))
+                            Lines = [findobj('Tag', 'Contour') ; findobj('Tag', 'Distractor')];
+                        end
+                        for rep = 1:this.Setting_Struct.Stimulus_RepFlashInitial
+                            this.FlashNew(this.StimulusStruct, this.Box, Lines, 'Correct_Confirmation')
+                        end
+                        tStallOC = tic;
+                        didStallFlashOC = true;
+                    end
                     delta = (dist/threshold)*StimDistance; % A full revolution is about 4000 pulses 4400/360 = 12.22 pulses/degree 90 deg is ~1000 pulses
                     if abs(delta)>thresh % Prevent stim from being pushed off screen
                         if sign(delta)>0
@@ -1194,11 +1259,6 @@ classdef BehaviorBoxWheel < handle
                             delta = -thresh;
                         end
                     end
-                    % if this.isLeftTrial & delta < -thresh
-                    %     delta = -thresh;
-                    % elseif ~this.isLeftTrial & delta > thresh
-                    %     delta = thresh;
-                    % end
                     I = I+1;
                     this.wheelchoice{I} = delta;
                     this.wheelchoicetime{I} = toc;
@@ -1236,9 +1296,7 @@ classdef BehaviorBoxWheel < handle
                         break
                     end
                 end
-                Old_response_time = response_time;
-                New_response_time = toc;
-                response_time = New_response_time + Old_response_time;
+                response_time = Old_response_time + toc(tLoopOC);
                 if event == -1 %If the mouse was close to picking a side, round up their choice:
                     if abs(delta) >= thresh
                         if sign(delta) > 0
