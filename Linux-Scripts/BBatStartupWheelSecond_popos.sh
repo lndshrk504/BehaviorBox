@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 # Override these via environment variables if needed.
 REPO_DIR="${REPO_DIR:-$SCRIPT_DIR}"
-MATLAB_ENTRYPOINT="${MATLAB_ENTRYPOINT:-BehaviorBox_App}"
+MATLAB_ENTRYPOINT="${MATLAB_ENTRYPOINT:-BehaviorBox_App Wheel}"
 STARTUP_DELAY_SECONDS="${STARTUP_DELAY_SECONDS:-0}"
 JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:--Djogl.disable.openglarbcontext=1}"
 MATLAB_BIN="${MATLAB_BIN:-matlab}"
@@ -19,6 +19,8 @@ java_q="$(printf %q "$JAVA_TOOL_OPTIONS")"
 entry_q="$(printf %q "$MATLAB_ENTRYPOINT")"
 matlab_q="$(printf %q "$MATLAB_BIN")"
 run_cmd="[[ -f ~/.bashrc ]] && source ~/.bashrc; cd $repo_q; export JAVA_TOOL_OPTIONS=$java_q; $matlab_q -nosplash -nodesktop -r $entry_q"
+
+sleep 20
 
 # Pop!_OS defaults to GNOME; prefer gnome-terminal, but fall back gracefully.
 if command -v gnome-terminal >/dev/null 2>&1; then

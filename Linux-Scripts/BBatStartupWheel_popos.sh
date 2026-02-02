@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 # Override these via environment variables if needed.
 REPO_DIR="${REPO_DIR:-$SCRIPT_DIR}"
-MATLAB_ENTRYPOINT="${MATLAB_ENTRYPOINT:-BehaviorBox_App}"
+MATLAB_ENTRYPOINT="${MATLAB_ENTRYPOINT:-BehaviorBox_App Wheel}"
 STARTUP_DELAY_SECONDS="${STARTUP_DELAY_SECONDS:-0}"
 JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:--Djogl.disable.openglarbcontext=1}"
 MATLAB_BIN="${MATLAB_BIN:-matlab}"
