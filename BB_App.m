@@ -1,4 +1,4 @@
-classdef BB_App < matlab.apps.AppBase
+classdef BehaviorBox_App < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
@@ -9,13 +9,8 @@ classdef BB_App < matlab.apps.AppBase
         Git                             matlab.ui.control.Button
         TabGroup                        matlab.ui.container.TabGroup
         SettingsTab                     matlab.ui.container.Tab
-        Level_EasyLvProb                matlab.ui.control.NumericEditField
-        EasyLvProbLabel                 matlab.ui.control.Label
-        Level_HardLvProb                matlab.ui.control.NumericEditField
-        HighLvProbEditFieldLabel        matlab.ui.control.Label
-        Level_HardLvList                matlab.ui.control.EditField
-        Level_EasyLvList                matlab.ui.control.EditField
         InputControlPanel               matlab.ui.container.Panel
+        SkipWaitForInput                matlab.ui.control.CheckBox
         ConfirmChoice                   matlab.ui.control.CheckBox
         Input_Delay_Respond             matlab.ui.control.NumericEditField
         Hold_Still_Thresh               matlab.ui.control.NumericEditField
@@ -31,6 +26,7 @@ classdef BB_App < matlab.apps.AppBase
         TurnMag                         matlab.ui.control.NumericEditField
         TurnMagEditFieldLabel           matlab.ui.control.Label
         StimulusvariablesPanel          matlab.ui.container.Panel
+        WinPos                          matlab.ui.control.StateButton
         Stimulus_SegThick               matlab.ui.control.NumericEditField
         SegmentthicknessEditFieldLabel  matlab.ui.control.Label
         ReadyCue_Size                   matlab.ui.control.NumericEditField
@@ -53,25 +49,21 @@ classdef BB_App < matlab.apps.AppBase
         SegmentSpacingEditFieldLabel    matlab.ui.control.Label
         Stimulus_SegLength              matlab.ui.control.NumericEditField
         SegmentlengthEditFieldLabel     matlab.ui.control.Label
-        BoxNum                          matlab.ui.control.NumericEditField
-        BoxEditFieldLabel               matlab.ui.control.Label
         Arduino_Com                     matlab.ui.control.EditField
-        text72                          matlab.ui.control.Label
         Stimulus_position_y             matlab.ui.control.EditField
         Stimulus_position_x             matlab.ui.control.EditField
         Stimulus_size_x                 matlab.ui.control.EditField
         Stimulus_size_y                 matlab.ui.control.EditField
         Panel_2                         matlab.ui.container.Panel
+        EditField                       matlab.ui.control.NumericEditField
         Stimulus_CorrectAngleAdj        matlab.ui.control.NumericEditField
         CorrectionoffsetEditFieldLabel  matlab.ui.control.Label
         Stimulus_ContTol                matlab.ui.control.NumericEditField
         ContangletolEditFieldLabel      matlab.ui.control.Label
         Stimulus_RepFlashAfterW         matlab.ui.control.EditField
         Stimulus_RepFlashAfterC         matlab.ui.control.EditField
-        Stimulus_FreqFlashAfter         matlab.ui.control.EditField
         Stimulus_RepFlashInitial        matlab.ui.control.EditField
         text122                         matlab.ui.control.Label
-        Stimulus_FreqFlashInitial       matlab.ui.control.EditField
         text121                         matlab.ui.control.Label
         Stimulus_FlashStim              matlab.ui.control.CheckBox
         Stimulus_type                   matlab.ui.control.DropDown
@@ -119,7 +111,13 @@ classdef BB_App < matlab.apps.AppBase
         Pokes_ignored_time              matlab.ui.control.EditField
         Input_ignored                   matlab.ui.control.CheckBox
         uipanel1                        matlab.ui.container.Panel
-        prob_list                       matlab.ui.control.TextArea
+        Side_delta                      matlab.ui.control.NumericEditField
+        Level_EasyLvProb                matlab.ui.control.NumericEditField
+        EasyLvProbLabel                 matlab.ui.control.Label
+        Level_HardLvProb                matlab.ui.control.NumericEditField
+        HighLvProbEditFieldLabel        matlab.ui.control.Label
+        Level_HardLvList                matlab.ui.control.EditField
+        Level_EasyLvList                matlab.ui.control.EditField
         EasyTrials                      matlab.ui.control.CheckBox
         Starting_opacity                matlab.ui.control.Spinner
         DistractorsSpinnerLabel         matlab.ui.control.Label
@@ -133,6 +131,17 @@ classdef BB_App < matlab.apps.AppBase
         text66                          matlab.ui.control.Label
         TemporaryTab                    matlab.ui.container.Tab
         AnimateStimulusPanel            matlab.ui.container.Panel
+        Timekeeper                      matlab.ui.control.DropDown
+        TimeDropDownLabel               matlab.ui.control.Label
+        Animate_LineAngle               matlab.ui.control.NumericEditField
+        LineAngleEditFieldLabel         matlab.ui.control.Label
+        WhichStimulusButtonGroup        matlab.ui.container.ButtonGroup
+        Animate_OnlyCorrectButton       matlab.ui.control.RadioButton
+        Animate_BothButton              matlab.ui.control.RadioButton
+        Animate_OnlyIncorrectButton     matlab.ui.control.RadioButton
+        Animate_AlternateSide           matlab.ui.control.CheckBox
+        Animate_CenteredStimulus        matlab.ui.control.CheckBox
+        Animate_Rec                     matlab.ui.control.StateButton
         Animate_Flash                   matlab.ui.control.StateButton
         Animate_YPosition               matlab.ui.control.Slider
         YPositionSliderLabel            matlab.ui.control.Label
@@ -155,15 +164,8 @@ classdef BB_App < matlab.apps.AppBase
         Auto_Freq                       matlab.ui.control.NumericEditField
         FrequencyEditFieldLabel         matlab.ui.control.Label
         Auto_Go                         matlab.ui.control.StateButton
-        uipanel4_2                      matlab.ui.container.Panel
-        Box_RightPulse_Temp             matlab.ui.control.NumericEditField
-        Box_Rrewardtime_Temp            matlab.ui.control.EditField
-        RightValveButton_Temp           matlab.ui.control.Button
-        Box_LeftPulse_Temp              matlab.ui.control.NumericEditField
-        Box_Lrewardtime_Temp            matlab.ui.control.EditField
-        LeftValveButton_Temp            matlab.ui.control.Button
         ExpireAfterButtonGroup          matlab.ui.container.ButtonGroup
-        TrialCount_Threshold            matlab.ui.control.NumericEditField
+        TrialCountThreshold_Temp        matlab.ui.control.NumericEditField
         TempOff_Temp                    matlab.ui.control.RadioButton
         TrialsRemainingLabel            matlab.ui.control.Label
         TrialCount_Temp                 matlab.ui.control.NumericEditField
@@ -200,10 +202,13 @@ classdef BB_App < matlab.apps.AppBase
         PerfGridLayout                  matlab.ui.container.GridLayout
         PerfPanel                       matlab.ui.container.Panel
         TimersTab                       matlab.ui.container.Tab
+        GridLayout9                     matlab.ui.container.GridLayout
+        TimersPanel                     matlab.ui.container.Panel
         AllTimeTab                      matlab.ui.container.Tab
         GridLayout5                     matlab.ui.container.GridLayout
         WeightWaterTab                  matlab.ui.container.Tab
         GridLayout6                     matlab.ui.container.GridLayout
+        HistoryPanel                    matlab.ui.container.Panel
         OtherUnusedTab                  matlab.ui.container.Tab
         ArduinosDropDown                matlab.ui.control.DropDown
         ArduinosDropDownLabel           matlab.ui.control.Label
@@ -218,36 +223,6 @@ classdef BB_App < matlab.apps.AppBase
         OpenR                           matlab.ui.control.StateButton
         OpenL                           matlab.ui.control.StateButton
         Ext_trigger                     matlab.ui.control.CheckBox
-        uipanel8                        matlab.ui.container.Panel
-        GridLayout3                     matlab.ui.container.GridLayout
-        Train                           matlab.ui.control.Button
-        Stimulus_TrainingFlashifWrong   matlab.ui.control.CheckBox
-        TrainingChoices                 matlab.ui.control.DropDown
-        Show_two_bars                   matlab.ui.control.CheckBox
-        uipanel12                       matlab.ui.container.Panel
-        GridLayout4                     matlab.ui.container.GridLayout
-        stdthreshold                    matlab.ui.control.EditField
-        text124                         matlab.ui.control.Label
-        sub_bin_size                    matlab.ui.control.EditField
-        text123                         matlab.ui.control.Label
-        RandomMin                       matlab.ui.control.EditField
-        text100                         matlab.ui.control.Label
-        RandomStep                      matlab.ui.control.EditField
-        text99                          matlab.ui.control.Label
-        RandomMax                       matlab.ui.control.EditField
-        text98                          matlab.ui.control.Label
-        StepUpAfter                     matlab.ui.control.EditField
-        text97                          matlab.ui.control.Label
-        text96                          matlab.ui.control.Label
-        LowerThres                      matlab.ui.control.EditField
-        text95                          matlab.ui.control.Label
-        RaiseThres                      matlab.ui.control.EditField
-        text94                          matlab.ui.control.Label
-        LowerDiffAfterBins              matlab.ui.control.EditField
-        Lower_bg_with_perf              matlab.ui.control.CheckBox
-        RaiseDiffAfterBins              matlab.ui.control.EditField
-        Raise_bg_with_perf              matlab.ui.control.CheckBox
-        DiffAdjustMethod                matlab.ui.control.DropDown
         uipanel11                       matlab.ui.container.Panel
         Stimulus_Orient                 matlab.ui.control.EditField
         Ori_Frequency                   matlab.ui.control.EditField
@@ -264,7 +239,20 @@ classdef BB_App < matlab.apps.AppBase
         text82                          matlab.ui.control.Label
         text81                          matlab.ui.control.Label
         text79                          matlab.ui.control.Label
-        AnalysisTab                     matlab.ui.container.Tab
+        DataViewerTab                   matlab.ui.container.Tab
+        GridLayout7                     matlab.ui.container.GridLayout
+        PerfHistPanel_Data              matlab.ui.container.Panel
+        ControlsPanel                   matlab.ui.container.Panel
+        GridLayout8                     matlab.ui.container.GridLayout
+        Plot_Data                       matlab.ui.control.StateButton
+        BigBin_Data                     matlab.ui.control.NumericEditField
+        LargeBinLabel                   matlab.ui.control.Label
+        SmallBin_Data                   matlab.ui.control.NumericEditField
+        SmallBinLabel                   matlab.ui.control.Label
+        Files_Data                      matlab.ui.control.DropDown
+        FileDropDownLabel               matlab.ui.control.Label
+        Next_Data                       matlab.ui.control.StateButton
+        Back_Data                       matlab.ui.control.StateButton
         text17                          matlab.ui.control.Label
         text19                          matlab.ui.control.Label
         Subject                         matlab.ui.control.EditField
@@ -284,36 +272,37 @@ classdef BB_App < matlab.apps.AppBase
         text20                          matlab.ui.control.Label
         text3                           matlab.ui.control.Label
         text2                           matlab.ui.control.Label
-        text30                          matlab.ui.control.Label
-        text25                          matlab.ui.control.Label
-        text29                          matlab.ui.control.Label
-        text21                          matlab.ui.control.Label
-        text26                          matlab.ui.control.Label
-        text28                          matlab.ui.control.Label
-        text23                          matlab.ui.control.Label
-        text24                          matlab.ui.control.Label
         text1                           matlab.ui.control.Label
     end
 
     properties (Access = public)
-        %Set = struct()
-        %a % Arduino
-        %BB % The BehaviorBox* Class, Nose or Wheel
+        ArduinoInfo = struct();
     end
 
     properties (Access = private)
         a % Handle to Arduino serial port object
         BB % Handle to BehaviorBox class
+        L_ValveOpen logical = false
+        R_ValveOpen logical = false
     end
 
     methods (Access = private)
 
-        function PreviewStimulus(app)
+        function previewStimulus(app)
             % Preview stimulus and display status or error messages.
             app.text1.Text = 'Previewing stimulus...';
+            ALL_LEVELS = false;
             try
-                app.BB.getGUI();
-                app.BB.TestStimulus();
+                if ALL_LEVELS
+                    for Level = 1:20
+                        app.Starting_opacity.Value = Level;
+                        app.BB.getGUI();
+                        app.BB.TestStimulus();
+                    end
+                else
+                    app.BB.getGUI();
+                    app.BB.TestStimulus();
+                end
             catch err
                 app.BB.unwrapError(err);  
                 app.BB.cleanUP();
@@ -321,55 +310,87 @@ classdef BB_App < matlab.apps.AppBase
             end
         end
 
-        function FindArduino(app, handles)
+        function previewAllStimulus(app)
+            % Preview stimulus and display status or error messages.
+            app.text1.Text = 'Previewing stimulus...';
+            try
+                app.BB.getGUI();
+                for Level = 1:20
+                    app.BB.Setting_Struct.Starting_opacity = Level;
+                    app.BB.TestStimulus();
+                end
+            catch err
+                app.BB.unwrapError(err);  
+                app.BB.cleanUP();
+                disp("Error during stimulus preview: " + getReport(err));
+            end
+        end
+
+        function [COM, ID] = FindArduino(app, handles)
             arguments
                 app
                 handles
             end
             if ~isempty(app.Arduino_Com.Value)
+                [devicesInfo, COM, ID] = arduinoServer('ArduinoInfo', app.ArduinoInfo, 'desiredIdentity', app.Arduino_Com.Value, 'FindExact', true);
+                app.ArduinoInfo = devicesInfo;
+                app.Arduino_Com.Value = ID;
                 return
-            end
-            sl = serialportlist("Available");
-            if isempty(sl)
-                sl = serialportlist("All");
-            end
-            sl(contains(sl, 'Bluetooth', IgnoreCase=true)) = [];
-            if ismac
-                sl = sl(contains(sl, '/dev/tty', IgnoreCase=true));
-                sl(contains(sl, 'debug-console', IgnoreCase=true)) = [];
-            elseif isunix
-                sl = sl(contains(sl, '/dev/ttyACM', IgnoreCase=true));
-            elseif ispc
-                sl(contains(sl, {'COM1', 'COM3'}, IgnoreCase=true)) = [];
-            end
-            if isempty(sl)
-                return
-            end
-            app.ArduinosDropDown.Items = sl;
-            COMSlist = sl;
-            if ~isempty(app.Arduino_Com.Value)
-                %Leave it
-            elseif ~isempty(COMSlist)
-                if ispc
-                    COMSnum = erase(COMSlist, "COM");
-                elseif ismac
-                    whichPort = erase(COMSlist{1}, '/dev/tty.usbmodem');
-                    COMSnum = whichPort;
-                elseif isunix
-                    whichPort = contains(sl, '/dev/tty');
-                    if sum(whichPort) == 1
-                        wc = split(sl(whichPort), '/dev/tty');
-                        COMSnum = wc(2);
-                    else
-                        wsl = sl(whichPort);
-                        wc = split(wsl(1), '/dev/tty');
-                        COMSnum = wc(2);
-                    end
-                end
-                app.Arduino_Com.Value = COMSnum; drawnow;
             else
-                app.text1.Text = 'No available COMs found, check USB connections or use Keyboard Input.' ;
+                switch app.Box_Input_type.Value
+                    case 'NosePoke' % Nose
+                        [devicesInfo, COM, ID] = arduinoServer('desiredIdentity', 'Nose', 'FindFirst', false, 'FindAll', true);
+                    case 'Wheel' % Wheel
+                        [devicesInfo, COM, ID] = arduinoServer('desiredIdentity', 'Wheel', 'FindFirst', false, 'FindAll', true);
+                    otherwise % Keyboard mode, no serial device connected
+                end
+                app.ArduinoInfo = devicesInfo;
+                app.Arduino_Com.Value = ID;
+                return
             end
+            % sl = serialportlist("Available");
+            % if isempty(sl)
+            %     sl = serialportlist("All");
+            % end
+            % sl(contains(sl, 'Bluetooth', IgnoreCase=true)) = [];
+            % if ismac
+            %     sl = sl(contains(sl, '/dev/tty', IgnoreCase=true));
+            %     sl(contains(sl, 'debug-console', IgnoreCase=true)) = [];
+            %     sl(contains(sl, 'Beats', IgnoreCase=true)) = [];
+            %     sl(contains(sl, 'Beoplay', IgnoreCase=true)) = [];
+            % elseif isunix
+            %     sl = sl(contains(sl, '/dev/ttyACM', IgnoreCase=true));
+            % elseif ispc
+            %     sl(contains(sl, {'COM1', 'COM3'}, IgnoreCase=true)) = [];
+            % end
+            % if isempty(sl)
+            %     return
+            % end
+            % app.ArduinosDropDown.Items = sl;
+            % COMSlist = sl;
+            % if ~isempty(app.Arduino_Com.Value)
+            %     %Leave it
+            % elseif ~isempty(COMSlist)
+            %     if ispc
+            %         COMSnum = erase(COMSlist, "COM");
+            %     elseif ismac
+            %         whichPort = erase(COMSlist{1}, '/dev/tty.usbmodem');
+            %         COMSnum = whichPort;
+            %     elseif isunix
+            %         whichPort = contains(sl, '/dev/tty');
+            %         if sum(whichPort) == 1
+            %             wc = split(sl(whichPort), '/dev/tty');
+            %             COMSnum = wc(2);
+            %         else
+            %             wsl = sl(whichPort);
+            %             wc = split(wsl(1), '/dev/tty');
+            %             COMSnum = wc(2);
+            %         end
+            %     end
+            %     app.Arduino_Com.Value = COMSnum; drawnow;
+            % else
+            %     app.text1.Text = 'No available COMs found, check USB connections or use Keyboard Input.' ;
+            % end
         end
 
         function loadGuiInputAsStruct(app, handles, ~)
@@ -391,7 +412,8 @@ classdef BB_App < matlab.apps.AppBase
                     filename = BBData.fds.Files{end};
                     tree = split(filename, filesep);
                 end
-                Set = BBData.loadedData{end,3}.Settings;
+                %Set = BBData.loadedData{end,3}.Settings;
+                Set = BBData.loadedData{end,8}; % Now settings structure is column 8
                 Set = Set(1);
                 handles.Strain.String = Set.Strain;
                 BBData.Str = Set.Strain;
@@ -440,17 +462,33 @@ classdef BB_App < matlab.apps.AppBase
                     end
                 end
             catch err
-                disp(err.message)
+                % disp(err.message)
             end
             drawnow; pause(0.1);% Update GUI
             BB.getGUI();
             BB.Data_Object = BBData;
+% Populate dropdown list with filenames of data files
+            List = BBData.fds.Files;
+            LSp = split(List, filesep);
+            if ispc
+                IDX = 9;
+            elseif isunix % mac and linux should be same
+                IDX = 11;
+            end
+            if numel(List) > 1
+                app.Files_Data.Items = LSp(:,IDX);
+            else
+                app.Files_Data.Items = LSp(end);
+            end
+% Make blank graphs for DatazViewer
+            graphFig = app.PerfHistPanel_Data;
+            BBData.Axes = BBData.CreateDailyGraphs(graphFig);
             try
                 BBData.AnalyzeAllData();
                 tic
                 % f = parfeval(backgroundPool, @(x) BBData.plotLvByDayOneAxis(LevDay=0, Sc=1, Training=1), 1) % Plot in packground, doesnt work
                 Ax = BBData.plotLvByDayOneAxis(LevDay=0, Sc=1, Training=1);
-                Ax.PickableParts = "none";
+                %Ax.PickableParts = "none";
                 clo(app.AllTimeTab.Children)
                 copyobj(Ax, app.AllTimeTab.Children)
                 close(Ax.Parent.Parent)
@@ -459,14 +497,22 @@ classdef BB_App < matlab.apps.AppBase
             catch
             end
             try
-                t = BBData.PlotWeightAndWater();
-                t.PickableParts = "none";
-                clo(app.WeightWaterTab.Children)
-                copyobj(t, app.WeightWaterTab.Children)
-                close(t.Parent)
-            catch
+                Weights = cellfun(@(x) x.Weight, BBData.loadedData(:,8), 'UniformOutput', false);
+                if ~all(cellfun('isempty', Weights))
+                    t = BBData.PlotWeightAndWater();
+                    %t.PickableParts = "none";
+                    clo(app.WeightWaterTab.Children.Children)
+                    copyobj(t, app.WeightWaterTab.Children.Children)
+                    close(t.Parent)
+                end
+            catch err
+                unwrapErr(err)
             end
             app.WeightgEditField.Value = '';
+            %app.TrialNumber_Temp.Value = true;
+            app.TempOff_Temp.Value = true;
+            app.TrialCount_Temp.Value = 10;
+            app.TrialCountThreshold_Temp.Value = 90;
             drawnow; pause(0.1); % Update GUI
             text = "Settings synced.";
             fprintf('%s\n',text)
@@ -475,7 +521,59 @@ classdef BB_App < matlab.apps.AppBase
             assignin("base", "BB", BB)
             assignin("base", "BBData", BBData)
         end
-        
+
+        function PlotDataViewer(app, options)
+            arguments
+                app
+                options.Type char = 'Normal'
+            end
+            app.text1.Text = 'Getting data...';
+            drawnow;
+% Reset buttons
+            app.Next_Data.Value = false;
+            app.Back_Data.Value = false;
+            app.Plot_Data.Value = false;
+            W = find(contains(app.BB.Data_Object.loadedData(:,1), app.Files_Data.Value));
+            switch options.Type
+                case "Next_Data"
+                % Advance the selection in the dropdown
+                    W = W+1;
+                % Rollover if the end is hitapp.ShowStim
+                    if W > numel(app.Files_Data.Items)
+                        W = 1;
+                    end
+                    app.Files_Data.Value = app.Files_Data.Items{W};
+                case "Back_Data"
+                    W = W-1;
+                    if W == 0 % Rollover if the end is hit
+                        W = numel(app.Files_Data.Items);
+                    end
+                    app.Files_Data.Value = app.Files_Data.Items{W};
+            end
+            % Plot the performance graphs for the data file selected by the
+            % dropbox
+            Old_Dat = app.BB.Data_Object.loadedData{W,3};
+            New = app.BB.Data_Object.current_data_struct;
+            New = copytoStruct(New, Old_Dat);
+            app.BB.Data_Object.current_data_struct = New;
+            if size(New.TimeStamp,2) == 0
+                app.text1.Text = 'No trials to plot in this data file';
+                return
+            end
+            app.text1.Text = 'Plotting data...';
+            drawnow;
+            app.BB.Data_Object.current_data_struct = app.BB.Data_Object.CleanData();
+            app.BB.Data_Object.PlotNewData("Type","DataViewer")
+
+            DateIn = app.Files_Data.Items{W}(1:13);
+
+            % Convert to datetime
+            dt = string(datetime(DateIn, 'InputFormat', 'yyMMdd_HHmmss'));
+            % Rest = strrep(app.Files_Data.Items{W}(15:end), '_', ' ');
+
+            app.PerfHistPanel_Data.Title = dt;
+        end
+
         function NewLoadGui(app, handles, ~)
             BB = app.BB;
 
@@ -554,7 +652,9 @@ classdef BB_App < matlab.apps.AppBase
         function SaveComputerSpecifics(app)
             %Settings will be specific to the COM number
             props = properties(app);
-            names = cellfun(@(x)app.(x).Tag, properties(app), 'UniformOutput', false);
+            SKIP = {'WinPos', 'ArduinoInfo'};
+            props(contains(props, SKIP)) = [];
+            names = cellfun(@(x)app.(x).Tag, props, 'UniformOutput', false, 'ErrorHandler', @errorFuncNaN);
             boxstuff = props(contains(names, 'box_','IgnoreCase',true));
             stimstuff = props(contains(names, 'stimulus_','IgnoreCase',true));
             allstuff = [boxstuff' stimstuff'];
@@ -642,7 +742,12 @@ classdef BB_App < matlab.apps.AppBase
         function setupDiaryFile(app, fileName)
             % Ensure the log file is clean and start logging
             app.MsgBox.Value = '';
-            drawnow;
+            drawnow; 
+% WBS - PROBLEM: On 7/8/2025 the above line caused matlab to hang
+% indefinitely, repeatedly. Debugging never showed an error, until running
+% `clear all hidden classes` and continuing line by line an error appeared
+% in the console that a graphics timeout happened due to "graphics
+% handshaking." Etiology of the error remains unidentified. 
             diary off;
             if exist(fileName, 'file') == 2
                 delete(fileName);
@@ -652,14 +757,16 @@ classdef BB_App < matlab.apps.AppBase
 
         function isValid = isValidComPort(app, comPort)
             % Validate Arduino COM port
-            isValid = ~isempty(comPort) && contains(comPort, 'ACM', 'IgnoreCase', true) && isnumeric(comPort);
+            isValid = ~isempty(comPort) && contains(comPort, {'ACM', 'COM', 'arduino'}, 'IgnoreCase', true); % && isnumeric(comPort);
         end
 
         function configureBehaviorBox(app, handles)
             % Configure the behavior box based on input type
             app.text1.Text = 'Setting up...';
             fprintf('Setting up...\n');
-            app.MsgBox.Value = fileread('BBAppoutput.txt');
+            try
+                app.MsgBox.Value = fileread('BBAppOutput.txt');
+            end
             drawnow;
 
             if app.Box_Input_type.Value == "Wheel"
@@ -668,11 +775,7 @@ classdef BB_App < matlab.apps.AppBase
                 BB = BehaviorBoxNose(handles, app);
             end
 
-            if app.ResetAll.Value
-                BB.ConfigureBox("Rebuild", false);
-            else
-                BB.ConfigureBox();
-            end
+            BB.ConfigureBox();
 
             % Assign the behavior box object to the base workspace and app
             assignin("base", "BB", BB);
@@ -683,7 +786,7 @@ classdef BB_App < matlab.apps.AppBase
             % Finalize the GUI setup and update the state to "Ready"
             app.text1.Text = 'Ready';
             fprintf('Ready\n');
-            app.MsgBox.Value = fileread('BBAppoutput.txt');
+            app.MsgBox.Value = fileread('BBAppOutput.txt');
             drawnow;
             diary off;
 
@@ -697,15 +800,20 @@ classdef BB_App < matlab.apps.AppBase
     methods (Access = private)
 
         % Code that executes after component creation
-        function BehaviorBox_OpeningFcn(app)
+        function BehaviorBox_OpeningFcn(app, Input)
+            arguments
+                app
+                Input char = 'Nose'
+            end
 
             % Initialize properties
-            app.BB.a = [];
-            app.a = [];
-            if ~ismac && isunix
-                evalin('base', 'clear all hidden classes; clc; !reset');
-            else
-                evalin('base', 'clear all hidden classes; clc;');
+            try
+                app.BB.a = [];
+                app.ArduinoInfo = [];
+                app.BB.Time = [];
+                app.a = [];
+                evalin('base', 'clc; clear  BB')
+            catch
             end
 
             % Create GUIDE-style callback arguments
@@ -723,24 +831,44 @@ classdef BB_App < matlab.apps.AppBase
             % Update handles structure
             guidata(hObject, handles);
 
+            % Set input method, if given
+            switch true
+                case Input == "Nose"
+                    app.Box_Input_type.Value = "NosePoke";
+                case Input == "Wheel"
+                    app.Box_Input_type.Value = "Wheel";
+                otherwise
+                    sprintf("Unrecognized Input method. Please specify either Nose or Wheel. Starting up as Nose...")
+                    app.Box_Input_type.Value = "NosePoke";
+            end
+            % Change to app's folder on Desktop
+            if ismac
+                cd '/Users/willsnyder/Desktop/BehaviorBox/'
+            elseif isunix
+                USER = getenv('USER');
+                pathStr = fullfile('/home', USER, 'Desktop', 'BehaviorBox');
+                cd(pathStr);
+            elseif ispc
+            end
+            addpath("fcns/");
+            % Configure application path
+
+            % Setup log file
+            %setupDiaryFile(app, "BBAppOutput "+string(datetime("now"))+".txt");
+            setupDiaryFile(app, "BBAppOutput.txt"); %Overwrite every time
+
             % Print welcome message
             printWelcomeMsg(app);
 
-            % Configure application path
-            addpath("fcns/");
-            cd(GetFilePath("Computer")); % Change to app's folder on Desktop
-
-            % Setup log file
-            setupDiaryFile(app, 'BBAppoutput.txt');
-
-            % Initialize Arduino communication
-            if ~isValidComPort(app, app.Arduino_Com.Value)
-                app.Arduino_Com.Value = '';
-            end
+            % % Initialize Arduino communication
+            % if ~isValidComPort(app, app.Arduino_Com.Value)
+            %     app.Arduino_Com.Value = '';
+            % end
 
             % Try finding Arduino and load specifics
             try
-                app.FindArduino(handles);
+                disp('- - - Checking all connected Arduinos - - -')
+                [COM, ID] = app.FindArduino(handles);
                 LoadComputerSpecifics(app);
             end
 
@@ -770,6 +898,7 @@ classdef BB_App < matlab.apps.AppBase
             %run regular trials
             %START BUTTON
             try
+                SaveComputerSpecifics(app);
                 evalin('base','clc')
                 trialObject = app.BB;
                 trialObject.RunTrials();
@@ -781,7 +910,7 @@ classdef BB_App < matlab.apps.AppBase
             end
         end
 
-        % Button pushed function: Train
+        % Callback function
         function Train_Callback(app, event)
             % Create GUIDE-style callback args - Added by Migration Tool
             [hObject, eventdata, handles] = convertToGUIDECallbackArguments(app, event); %#ok<ASGLU>
@@ -815,9 +944,16 @@ classdef BB_App < matlab.apps.AppBase
 
         % Button pushed function: ShowStim
         function ShowStim_Callback(app, event)
-           app.ShowStim.Enable = 0; %Disable this when debugging...
-            app.PreviewStimulus();
+            % Create GUIDE-style callback args - Added by Migration Tool
+            [hObject, eventdata, handles] = convertToGUIDECallbackArguments(app, event);
+            % show PREVIEW STIMULUS BUTTON
+            % hObject    handle to pushbutton10 (see GCBO)
+            % eventdata  reserved - to be defined in a future version of MATLAB
+            % handles    structure with handles and user data (see GUIDATA)
+            app.ShowStim.Enable = 0; %Disable this when debugging...
+            previewStimulus(app);
             app.ShowStim.Enable = 1; %Disable this when debugging...
+            SaveComputerSpecifics(app);
         end
 
         % Button pushed function: LoadButton
@@ -884,6 +1020,12 @@ classdef BB_App < matlab.apps.AppBase
         % Close request function: figure1
         function figure1CloseRequest(app, event)
             delete(app)
+            try
+                app.BB.a = [];
+            end
+            try
+                app.BB.Time = [];
+            end
             evalin('base', 'clear a BB ');
             delete(findobj("Type", "figure", "Name", "Stimulus"))
         end
@@ -905,18 +1047,63 @@ classdef BB_App < matlab.apps.AppBase
         % Button pushed function: ResetButton
         function ResetButtonPushed(app, event)
             %RESET BUTTON
-            evalin('base', 'clear all hidden classes; clc; !reset')
             BehaviorBox_OpeningFcn(app)
         end
 
         % Value changed function: OpenL
         function OpenLValueChanged(app, event)
             app.BB.a.GiveReward("Side","l");
+            app.L_ValveOpen = ~app.L_ValveOpen;
+            % Create a timer object
+            t = timer;            
+            % Set the timer properties
+            t.StartDelay = 10; % Delay in seconds before the timer executes
+            t.TimerFcn = @(~,~)closeValve(); % Function to call when the timer fires
+            
+            % Start the timer
+            start(t);
+            
+            % Function to close the valve
+            function closeValve()
+                % Assuming app.L_ValveOpen is a property that controls the valve state
+                if app.L_ValveOpen == true % Close the valve
+                    app.BB.a.GiveReward("Side","l")
+                    app.L_ValveOpen = false;
+                    disp('BBApp: Left valve closed after 10 seconds.');
+                    event.Source.Value = false;
+                end
+                % Stop and delete the timer
+                stop(t);
+                delete(t);
+            end
         end
 
         % Value changed function: OpenR
         function OpenRValueChanged(app, event)
             app.BB.a.GiveReward("Side","r");
+            app.R_ValveOpen = ~app.R_ValveOpen;
+            % Create a timer object
+            t = timer;            
+            % Set the timer properties
+            t.StartDelay = 10; % Delay in seconds before the timer executes
+            t.TimerFcn = @(~,~)closeValve(); % Function to call when the timer fires
+            
+            % Start the timer
+            start(t);
+            
+            % Function to close the valve
+            function closeValve()
+                % Assuming app.L_ValveOpen is a property that controls the valve state
+                if app.R_ValveOpen == true % Close the valve
+                    app.BB.a.GiveReward("Side","r")
+                    app.R_ValveOpen = false;
+                    disp('BBApp: Right valve closed after 10 seconds.');
+                    event.Source.Value = false;
+                end
+                % Stop and delete the timer
+                stop(t);
+                delete(t);
+            end
         end
 
         % Value changed function: OpenBoth
@@ -928,7 +1115,7 @@ classdef BB_App < matlab.apps.AppBase
         % Value changed function: ResetAll
         function RESETALLButtonPushed(app, event)
             app.ResetAll.Text = 'Resetting...';
-            evalin('base', 'clear all hidden classes; clc; !reset');
+            evalin('base', 'clear all hidden classes;!reset');
             BehaviorBox_OpeningFcn(app)
             app.ResetAll.Value = 0;
             app.ResetAll.Text = 'Reset ALL!';
@@ -986,7 +1173,7 @@ classdef BB_App < matlab.apps.AppBase
         % Button pushed function: GraphPopOut
         function GraphPopOutButtonPushed(app, event)
             try
-                oldFig = app.AllTimeTab.Children;
+                oldFig = app.AllTimeTab.Children.Children;
                 if isempty(oldFig)
                     return
                 end
@@ -1000,12 +1187,13 @@ classdef BB_App < matlab.apps.AppBase
         % Button pushed function: GraphPopOut_2
         function GraphPopOut_2ButtonPushed(app, event)
             try
-                oldFig = app.PerformanceTab.Children;
+                oldFig = app.PerformanceTab.Children.Children.Children;
                 if isempty(oldFig)
                     return
                 end
                 newFig = MakeAxis();
                 H = copyobj(oldFig,newFig.Parent);
+                H.Title.String = join([app.BB.Data_Object.Sub, app.BB.Data_Object.Inp, string(datetime("now"))]);
                 assignin("base", "H", H)
             catch
             end
@@ -1048,25 +1236,20 @@ classdef BB_App < matlab.apps.AppBase
             end
         end
 
-        % Value changed function: Animate_Go, Animate_Style
+        % Value changed function: Animate_Go, Animate_Rec
         function Animate_GoValueChanged(app, event)
             app.Animate_Go.Enable = false;
+            app.Animate_Rec.Enable = false;
             app.Animate_Show.Enable = false;
             app.Animate_End.Enable = true;
             app.Animate_End.Value = false;
             drawnow limitrate;
-            MODE = "Show";
-            try
-                switch event.Source.Text
-                    case "Go"
-                        MODE = "Go";
-                end
-            end
             try
                 app.BB.getGUI();
-                app.BB.AnimateStimulus("Mode", MODE);
+                app.BB.AnimateStimulus("Mode", event.Source.Text);
             catch err
-                err
+                unwrapErr(err)
+                app.BB.cleanUP()
             end
             app.Animate_Show.Enable = true;
             app.Animate_Show.Value = false;
@@ -1076,6 +1259,9 @@ classdef BB_App < matlab.apps.AppBase
             app.Animate_End.Enable = false;
             app.Animate_Flash.Value = false;
             app.Animate_Flash.Enable = true;
+            app.Animate_Rec.Enable = true;
+            app.Animate_Rec.Value = false;
+            app.Stop.Value = false;
             drawnow limitrate;
         end
 
@@ -1100,8 +1286,68 @@ classdef BB_App < matlab.apps.AppBase
             app.BB.AnimateStimulus("Mode", "Flash");
 
             %Clean up
+            app.Animate_Show.Value = false;
+            app.Animate_Show.Enable = true;
             app.Animate_Flash.Value = false;
             app.Animate_Flash.Enable = true;
+            app.Animate_Rec.Enable = true;
+            app.Animate_Rec.Value = false;
+        end
+
+        % Value changed function: Back_Data, Next_Data, Plot_Data
+        function Plot_DataValueChanged(app, event)
+            value = app.Plot_Data.Value;
+            app.PlotDataViewer("Type", event.Source.Tag)
+        end
+
+        % Value changed function: Animate_Show
+        function Animate_ShowValueChanged(app, event)
+            value = app.Animate_Show.Value;
+            value = app.Animate_Flash.Value;
+            app.Animate_Flash.Enable = false;
+            app.Animate_Show.Enable = false;
+            app.BB.getGUI();
+            app.BB.AnimateStimulus("Mode", "Show");
+
+            %Clean up
+            app.Animate_Show.Value = false;
+            app.Animate_Show.Enable = true;
+            app.Animate_Flash.Value = false;
+            app.Animate_Flash.Enable = true;
+        end
+
+        % Callback function
+        function Animate_RecValueChanged(app, event)
+            value = app.Animate_Rec.Value;
+            
+        end
+
+        % Value changed function: Box_Input_type
+        function Box_Input_typeValueChanged(app, event)
+            value = app.Box_Input_type.Value;
+            app.Arduino_Com.Value = '';
+        end
+
+        % Value changed function: WinPos
+        function WinPosValueChanged(app, event)
+            value = app.WinPos.Value;
+            app.WinPos.Enable = false;
+
+            Fig = findobj('Name','Stimulus');
+            P = Fig.Position;
+            app.Stimulus_position_x.Value = num2str(P(1));
+            app.Stimulus_position_y.Value = num2str(P(2));
+            app.Stimulus_size_x.Value = num2str(P(3));
+            app.Stimulus_size_y.Value = num2str(P(4));
+
+            app.WinPos.Value = false;
+            app.WinPos.Enable = true;
+        end
+
+        % Value changed function: BigBin_Data
+        function BigBin_DataValueChanged(app, event)
+            value = app.BigBin_Data.Value;
+            
         end
     end
 
@@ -1133,85 +1379,13 @@ classdef BB_App < matlab.apps.AppBase
             app.text1.Position = [1 416 893 19];
             app.text1.Text = 'idle';
 
-            % Create text24
-            app.text24 = uilabel(app.figure1);
-            app.text24.Tag = 'text24';
-            app.text24.HorizontalAlignment = 'center';
-            app.text24.VerticalAlignment = 'top';
-            app.text24.FontSize = 11;
-            app.text24.Position = [10 393 38 15];
-            app.text24.Text = 'Left';
-
-            % Create text23
-            app.text23 = uilabel(app.figure1);
-            app.text23.Tag = 'text23';
-            app.text23.HorizontalAlignment = 'center';
-            app.text23.VerticalAlignment = 'top';
-            app.text23.FontSize = 11;
-            app.text23.Position = [64 393 31 15];
-            app.text23.Text = 'Right ';
-
-            % Create text28
-            app.text28 = uilabel(app.figure1);
-            app.text28.Tag = 'text28';
-            app.text28.HorizontalAlignment = 'center';
-            app.text28.VerticalAlignment = 'top';
-            app.text28.FontSize = 11;
-            app.text28.Position = [35 393 27 15];
-            app.text28.Text = '-';
-
-            % Create text26
-            app.text26 = uilabel(app.figure1);
-            app.text26.Tag = 'text26';
-            app.text26.HorizontalAlignment = 'center';
-            app.text26.VerticalAlignment = 'top';
-            app.text26.FontSize = 11;
-            app.text26.Position = [89 393 27 15];
-            app.text26.Text = '-';
-
-            % Create text21
-            app.text21 = uilabel(app.figure1);
-            app.text21.Tag = 'text21';
-            app.text21.HorizontalAlignment = 'center';
-            app.text21.VerticalAlignment = 'top';
-            app.text21.FontSize = 11;
-            app.text21.Position = [117 393 49 15];
-            app.text21.Text = 'Rewards';
-
-            % Create text29
-            app.text29 = uilabel(app.figure1);
-            app.text29.Tag = 'text29';
-            app.text29.HorizontalAlignment = 'center';
-            app.text29.VerticalAlignment = 'top';
-            app.text29.FontSize = 11;
-            app.text29.Position = [200 395 64 14];
-            app.text29.Text = 'total correct:';
-
-            % Create text25
-            app.text25 = uilabel(app.figure1);
-            app.text25.Tag = 'text25';
-            app.text25.HorizontalAlignment = 'center';
-            app.text25.VerticalAlignment = 'top';
-            app.text25.FontSize = 11;
-            app.text25.Position = [167 395 33 14];
-            app.text25.Text = '0';
-
-            % Create text30
-            app.text30 = uilabel(app.figure1);
-            app.text30.Tag = 'text30';
-            app.text30.HorizontalAlignment = 'center';
-            app.text30.VerticalAlignment = 'top';
-            app.text30.FontSize = 11;
-            app.text30.Position = [260 395 40 15];
-            app.text30.Text = '--';
-
             % Create text2
             app.text2 = uilabel(app.figure1);
             app.text2.Tag = 'text2';
             app.text2.HorizontalAlignment = 'center';
             app.text2.VerticalAlignment = 'top';
             app.text2.FontSize = 11;
-            app.text2.Position = [284 393 87 17];
+            app.text2.Position = [4 393 87 17];
             app.text2.Text = 'Time(min):';
 
             % Create text3
@@ -1220,7 +1394,7 @@ classdef BB_App < matlab.apps.AppBase
             app.text3.HorizontalAlignment = 'right';
             app.text3.VerticalAlignment = 'top';
             app.text3.FontSize = 14;
-            app.text3.Position = [342 392 110 18];
+            app.text3.Position = [91 392 110 18];
             app.text3.Text = '-';
 
             % Create text20
@@ -1346,7 +1520,7 @@ classdef BB_App < matlab.apps.AppBase
             % Create LoadButton
             app.LoadButton = uibutton(app.figure1, 'push');
             app.LoadButton.ButtonPushedFcn = createCallbackFcn(app, @LoadButton_Callback, true);
-            app.LoadButton.Tag = 'Subject';
+            app.LoadButton.Tag = 'LoadButton';
             app.LoadButton.BackgroundColor = [0.8 0.8 0.8];
             app.LoadButton.FontSize = 10;
             app.LoadButton.Tooltip = {'Open mouse''s folder'};
@@ -1410,6 +1584,7 @@ classdef BB_App < matlab.apps.AppBase
             % Create Box_Input_type
             app.Box_Input_type = uidropdown(app.uipanel1);
             app.Box_Input_type.Items = {'One Lever', 'Two Levers', 'NosePoke', 'Rotating Ball', 'Lick Sensor', 'Wheel', 'Lick Go/No-Go', 'Keyboard', 'ArduinoWheel', 'ArduinoNosePoke'};
+            app.Box_Input_type.ValueChangedFcn = createCallbackFcn(app, @Box_Input_typeValueChanged, true);
             app.Box_Input_type.Tag = 'Box_Input_type';
             app.Box_Input_type.Tooltip = 'choose input';
             app.Box_Input_type.FontSize = 9;
@@ -1426,11 +1601,11 @@ classdef BB_App < matlab.apps.AppBase
 
             % Create Stimulus_side
             app.Stimulus_side = uidropdown(app.uipanel1);
-            app.Stimulus_side.Items = {'Random', 'Left only', 'Right only', 'Alternate repeat', 'Alternate random', 'Side-Bias Correction', 'Pseudo-Random', 'Keyboard'};
+            app.Stimulus_side.Items = {'Random', 'Left Only', 'Right Only', 'Keyboard', 'Repeat Wrong'};
             app.Stimulus_side.Tag = 'Stimulus_side';
             app.Stimulus_side.Tooltip = 'choose stimulus';
             app.Stimulus_side.FontSize = 9;
-            app.Stimulus_side.Position = [47 112 115 18];
+            app.Stimulus_side.Position = [47 112 79 18];
             app.Stimulus_side.Value = 'Random';
 
             % Create text117
@@ -1471,7 +1646,7 @@ classdef BB_App < matlab.apps.AppBase
             % Create DistractorsSpinnerLabel
             app.DistractorsSpinnerLabel = uilabel(app.uipanel1);
             app.DistractorsSpinnerLabel.FontSize = 10;
-            app.DistractorsSpinnerLabel.Position = [7 53 29 17];
+            app.DistractorsSpinnerLabel.Position = [8 73 29 17];
             app.DistractorsSpinnerLabel.Text = 'Level';
 
             % Create Starting_opacity
@@ -1479,7 +1654,7 @@ classdef BB_App < matlab.apps.AppBase
             app.Starting_opacity.Limits = [1 20];
             app.Starting_opacity.Tag = 'Starting_opacity';
             app.Starting_opacity.FontSize = 10;
-            app.Starting_opacity.Position = [35 53 49 17];
+            app.Starting_opacity.Position = [36 73 49 17];
             app.Starting_opacity.Value = 1;
 
             % Create EasyTrials
@@ -1488,12 +1663,60 @@ classdef BB_App < matlab.apps.AppBase
             app.EasyTrials.Tooltip = 'Defines if easier trials should be shown or not';
             app.EasyTrials.Text = 'Easy %';
             app.EasyTrials.FontSize = 9;
-            app.EasyTrials.Position = [102 50 53 22];
+            app.EasyTrials.Position = [103 70 53 22];
 
-            % Create prob_list
-            app.prob_list = uitextarea(app.uipanel1);
-            app.prob_list.Tag = 'prob_list';
-            app.prob_list.Position = [7 6 155 42];
+            % Create Level_EasyLvList
+            app.Level_EasyLvList = uieditfield(app.uipanel1, 'text');
+            app.Level_EasyLvList.Tag = 'Level_EasyLvList';
+            app.Level_EasyLvList.FontSize = 10;
+            app.Level_EasyLvList.Position = [120 38 42 22];
+            app.Level_EasyLvList.Value = '1';
+
+            % Create Level_HardLvList
+            app.Level_HardLvList = uieditfield(app.uipanel1, 'text');
+            app.Level_HardLvList.Tag = 'Level_HardLvList';
+            app.Level_HardLvList.FontSize = 10;
+            app.Level_HardLvList.Position = [120 12 42 22];
+            app.Level_HardLvList.Value = '2:6';
+
+            % Create HighLvProbEditFieldLabel
+            app.HighLvProbEditFieldLabel = uilabel(app.uipanel1);
+            app.HighLvProbEditFieldLabel.HorizontalAlignment = 'right';
+            app.HighLvProbEditFieldLabel.FontSize = 10;
+            app.HighLvProbEditFieldLabel.Position = [16 12 65 22];
+            app.HighLvProbEditFieldLabel.Text = 'High Lv. Prob';
+
+            % Create Level_HardLvProb
+            app.Level_HardLvProb = uieditfield(app.uipanel1, 'numeric');
+            app.Level_HardLvProb.Limits = [0 1];
+            app.Level_HardLvProb.ValueChangedFcn = createCallbackFcn(app, @Level_HardLvProbValueChanged, true);
+            app.Level_HardLvProb.Tag = 'Level_HardLvProb';
+            app.Level_HardLvProb.FontSize = 10;
+            app.Level_HardLvProb.Position = [86 12 30 22];
+            app.Level_HardLvProb.Value = 0.8;
+
+            % Create EasyLvProbLabel
+            app.EasyLvProbLabel = uilabel(app.uipanel1);
+            app.EasyLvProbLabel.HorizontalAlignment = 'right';
+            app.EasyLvProbLabel.FontSize = 10;
+            app.EasyLvProbLabel.Position = [16 38 67 22];
+            app.EasyLvProbLabel.Text = 'Easy Lv. Prob';
+
+            % Create Level_EasyLvProb
+            app.Level_EasyLvProb = uieditfield(app.uipanel1, 'numeric');
+            app.Level_EasyLvProb.Limits = [0 1];
+            app.Level_EasyLvProb.ValueChangedFcn = createCallbackFcn(app, @Level_EasyLvProbValueChanged, true);
+            app.Level_EasyLvProb.Tag = 'Level_EasyLvProb';
+            app.Level_EasyLvProb.FontSize = 10;
+            app.Level_EasyLvProb.Position = [87 38 30 22];
+            app.Level_EasyLvProb.Value = 0.2;
+
+            % Create Side_delta
+            app.Side_delta = uieditfield(app.uipanel1, 'numeric');
+            app.Side_delta.Tag = 'Side_delta';
+            app.Side_delta.FontSize = 10;
+            app.Side_delta.Position = [132 113 26 16];
+            app.Side_delta.Value = 0.2;
 
             % Create uipanel3
             app.uipanel3 = uipanel(app.SettingsTab);
@@ -1693,7 +1916,7 @@ classdef BB_App < matlab.apps.AppBase
             app.uipanel4.Title = 'Reward / Penalty';
             app.uipanel4.Tag = 'uipanel4';
             app.uipanel4.FontSize = 11;
-            app.uipanel4.Position = [355 223 154 99];
+            app.uipanel4.Position = [355 245 154 77];
 
             % Create LeftValveButton
             app.LeftValveButton = uibutton(app.uipanel4, 'push');
@@ -1704,7 +1927,7 @@ classdef BB_App < matlab.apps.AppBase
             app.LeftValveButton.FontWeight = 'bold';
             app.LeftValveButton.FontColor = [1 1 1];
             app.LeftValveButton.Tooltip = {'Press to test Left water reward size'};
-            app.LeftValveButton.Position = [4 60 18 17];
+            app.LeftValveButton.Position = [4 38 18 17];
             app.LeftValveButton.Text = 'L';
 
             % Create Box_Lrewardtime
@@ -1714,7 +1937,7 @@ classdef BB_App < matlab.apps.AppBase
             app.Box_Lrewardtime.HorizontalAlignment = 'center';
             app.Box_Lrewardtime.FontSize = 11;
             app.Box_Lrewardtime.Tooltip = 'How long the vale is open in seconds';
-            app.Box_Lrewardtime.Position = [26 61 38 14];
+            app.Box_Lrewardtime.Position = [26 39 38 14];
             app.Box_Lrewardtime.Value = '0.04';
 
             % Create Box_LeftPulse
@@ -1724,7 +1947,7 @@ classdef BB_App < matlab.apps.AppBase
             app.Box_LeftPulse.HorizontalAlignment = 'center';
             app.Box_LeftPulse.FontSize = 10;
             app.Box_LeftPulse.Tooltip = {'How many pulses from the left water valve'};
-            app.Box_LeftPulse.Position = [68 61 25 14];
+            app.Box_LeftPulse.Position = [68 39 25 14];
             app.Box_LeftPulse.Value = 1;
 
             % Create RightValveButton
@@ -1737,7 +1960,7 @@ classdef BB_App < matlab.apps.AppBase
             app.RightValveButton.FontWeight = 'bold';
             app.RightValveButton.FontColor = [1 1 1];
             app.RightValveButton.Tooltip = {'Press to test Right water reward size'};
-            app.RightValveButton.Position = [4 42 19 17];
+            app.RightValveButton.Position = [4 20 19 17];
             app.RightValveButton.Text = 'R';
 
             % Create Box_Rrewardtime
@@ -1747,7 +1970,7 @@ classdef BB_App < matlab.apps.AppBase
             app.Box_Rrewardtime.HorizontalAlignment = 'center';
             app.Box_Rrewardtime.FontSize = 11;
             app.Box_Rrewardtime.Tooltip = 'How long the vale is open in seconds';
-            app.Box_Rrewardtime.Position = [26 43 38 14];
+            app.Box_Rrewardtime.Position = [26 21 38 14];
             app.Box_Rrewardtime.Value = '0.04';
 
             % Create Box_RightPulse
@@ -1757,20 +1980,20 @@ classdef BB_App < matlab.apps.AppBase
             app.Box_RightPulse.HorizontalAlignment = 'center';
             app.Box_RightPulse.FontSize = 10;
             app.Box_RightPulse.Tooltip = {'How many pulses from the rightwater valve'};
-            app.Box_RightPulse.Position = [68 43 25 14];
+            app.Box_RightPulse.Position = [68 21 25 14];
             app.Box_RightPulse.Value = 1;
 
             % Create secbwPulsesEditFieldLabel
             app.secbwPulsesEditFieldLabel = uilabel(app.uipanel4);
             app.secbwPulsesEditFieldLabel.FontSize = 10;
-            app.secbwPulsesEditFieldLabel.Position = [6 7 72 10];
+            app.secbwPulsesEditFieldLabel.Position = [6 6 72 10];
             app.secbwPulsesEditFieldLabel.Text = 'sec b/w Pulses';
 
             % Create Box_SecBwPulse
             app.Box_SecBwPulse = uieditfield(app.uipanel4, 'numeric');
             app.Box_SecBwPulse.Tag = 'Box_SecBwPulse';
             app.Box_SecBwPulse.FontSize = 10;
-            app.Box_SecBwPulse.Position = [80 4 26 15];
+            app.Box_SecBwPulse.Position = [80 3 26 15];
             app.Box_SecBwPulse.Value = 0.2;
 
             % Create text86
@@ -1778,8 +2001,8 @@ classdef BB_App < matlab.apps.AppBase
             app.text86.Tag = 'text86';
             app.text86.HorizontalAlignment = 'center';
             app.text86.FontSize = 8;
-            app.text86.Position = [519 1 169 22];
-            app.text86.Text = 'WBS Feb. 2024';
+            app.text86.Position = [12 7 169 22];
+            app.text86.Text = 'WBS Jan. 2025';
 
             % Create SubjectPanel
             app.SubjectPanel = uipanel(app.SettingsTab);
@@ -1847,7 +2070,7 @@ classdef BB_App < matlab.apps.AppBase
             app.Panel_2 = uipanel(app.SettingsTab);
             app.Panel_2.AutoResizeChildren = 'off';
             app.Panel_2.Title = 'Panel';
-            app.Panel_2.Position = [355 28 333 81];
+            app.Panel_2.Position = [355 7 333 102];
 
             % Create text65
             app.text65 = uilabel(app.Panel_2);
@@ -1855,7 +2078,7 @@ classdef BB_App < matlab.apps.AppBase
             app.text65.HorizontalAlignment = 'right';
             app.text65.VerticalAlignment = 'top';
             app.text65.FontSize = 11;
-            app.text65.Position = [1 43 49 16];
+            app.text65.Position = [1 64 49 16];
             app.text65.Text = 'Stimulus:';
 
             % Create Stimulus_type
@@ -1864,7 +2087,7 @@ classdef BB_App < matlab.apps.AppBase
             app.Stimulus_type.Tag = 'Stimulus_type';
             app.Stimulus_type.Tooltip = 'choose stimulus';
             app.Stimulus_type.FontSize = 9;
-            app.Stimulus_type.Position = [55 42 115 18];
+            app.Stimulus_type.Position = [55 63 115 18];
             app.Stimulus_type.Value = 'Contour Density';
 
             % Create Stimulus_FlashStim
@@ -1872,7 +2095,7 @@ classdef BB_App < matlab.apps.AppBase
             app.Stimulus_FlashStim.Tag = 'Stimulus_FlashStim';
             app.Stimulus_FlashStim.Text = 'flash';
             app.Stimulus_FlashStim.FontSize = 11;
-            app.Stimulus_FlashStim.Position = [5 22 58 18];
+            app.Stimulus_FlashStim.Position = [5 43 58 18];
             app.Stimulus_FlashStim.Value = true;
 
             % Create text121
@@ -1881,17 +2104,8 @@ classdef BB_App < matlab.apps.AppBase
             app.text121.HorizontalAlignment = 'center';
             app.text121.VerticalAlignment = 'top';
             app.text121.FontSize = 11;
-            app.text121.Position = [50 23 28 17];
+            app.text121.Position = [50 44 28 17];
             app.text121.Text = 'freq';
-
-            % Create Stimulus_FreqFlashInitial
-            app.Stimulus_FreqFlashInitial = uieditfield(app.Panel_2, 'text');
-            app.Stimulus_FreqFlashInitial.Tag = 'Stimulus_FreqFlashInitial';
-            app.Stimulus_FreqFlashInitial.HorizontalAlignment = 'center';
-            app.Stimulus_FreqFlashInitial.FontSize = 11;
-            app.Stimulus_FreqFlashInitial.Tooltip = 'Frequency of flashing stimulus';
-            app.Stimulus_FreqFlashInitial.Position = [78 22 22 18];
-            app.Stimulus_FreqFlashInitial.Value = '10';
 
             % Create text122
             app.text122 = uilabel(app.Panel_2);
@@ -1899,50 +2113,38 @@ classdef BB_App < matlab.apps.AppBase
             app.text122.HorizontalAlignment = 'center';
             app.text122.VerticalAlignment = 'top';
             app.text122.FontSize = 11;
-            app.text122.Position = [96 23 36 17];
+            app.text122.Position = [116 44 36 17];
             app.text122.Text = 'reps';
 
             % Create Stimulus_RepFlashInitial
             app.Stimulus_RepFlashInitial = uieditfield(app.Panel_2, 'text');
             app.Stimulus_RepFlashInitial.Tag = 'Stimulus_RepFlashInitial';
-            app.Stimulus_RepFlashInitial.HorizontalAlignment = 'center';
             app.Stimulus_RepFlashInitial.FontSize = 11;
             app.Stimulus_RepFlashInitial.Tooltip = 'Number of times (repetitions) that stimulus is flashed';
-            app.Stimulus_RepFlashInitial.Position = [127 22 22 18];
-            app.Stimulus_RepFlashInitial.Value = '0';
-
-            % Create Stimulus_FreqFlashAfter
-            app.Stimulus_FreqFlashAfter = uieditfield(app.Panel_2, 'text');
-            app.Stimulus_FreqFlashAfter.Tag = 'Stimulus_FreqFlashAfter';
-            app.Stimulus_FreqFlashAfter.HorizontalAlignment = 'center';
-            app.Stimulus_FreqFlashAfter.FontSize = 11;
-            app.Stimulus_FreqFlashAfter.Tooltip = 'Frequency of flashing stimulus';
-            app.Stimulus_FreqFlashAfter.Position = [78 3 22 18];
-            app.Stimulus_FreqFlashAfter.Value = '20';
+            app.Stimulus_RepFlashInitial.Position = [147 43 22 18];
+            app.Stimulus_RepFlashInitial.Value = '1';
 
             % Create Stimulus_RepFlashAfterC
             app.Stimulus_RepFlashAfterC = uieditfield(app.Panel_2, 'text');
             app.Stimulus_RepFlashAfterC.Tag = 'Stimulus_RepFlashAfterC';
-            app.Stimulus_RepFlashAfterC.HorizontalAlignment = 'center';
             app.Stimulus_RepFlashAfterC.FontSize = 11;
             app.Stimulus_RepFlashAfterC.Tooltip = 'Number of times (repetitions) that stimulus is flashed';
-            app.Stimulus_RepFlashAfterC.Position = [127 3 22 18];
-            app.Stimulus_RepFlashAfterC.Value = '0';
+            app.Stimulus_RepFlashAfterC.Position = [147 24 22 18];
+            app.Stimulus_RepFlashAfterC.Value = '1';
 
             % Create Stimulus_RepFlashAfterW
             app.Stimulus_RepFlashAfterW = uieditfield(app.Panel_2, 'text');
             app.Stimulus_RepFlashAfterW.Tag = 'Stimulus_RepFlashAfterW';
-            app.Stimulus_RepFlashAfterW.HorizontalAlignment = 'center';
             app.Stimulus_RepFlashAfterW.FontSize = 11;
             app.Stimulus_RepFlashAfterW.Tooltip = 'Number of times (repetitions) that stimulus is flashed';
-            app.Stimulus_RepFlashAfterW.Position = [156 3 22 18];
-            app.Stimulus_RepFlashAfterW.Value = '0';
+            app.Stimulus_RepFlashAfterW.Position = [176 24 22 18];
+            app.Stimulus_RepFlashAfterW.Value = '1';
 
             % Create ContangletolEditFieldLabel
             app.ContangletolEditFieldLabel = uilabel(app.Panel_2);
             app.ContangletolEditFieldLabel.HorizontalAlignment = 'right';
             app.ContangletolEditFieldLabel.FontSize = 10;
-            app.ContangletolEditFieldLabel.Position = [199 35 72 22];
+            app.ContangletolEditFieldLabel.Position = [199 56 72 22];
             app.ContangletolEditFieldLabel.Text = 'Cont. angle tol.';
 
             % Create Stimulus_ContTol
@@ -1950,14 +2152,14 @@ classdef BB_App < matlab.apps.AppBase
             app.Stimulus_ContTol.Tag = 'Stimulus_ContTol';
             app.Stimulus_ContTol.FontSize = 10;
             app.Stimulus_ContTol.Tooltip = {'Stimuli are checked for accidental continuation and any angles below this threshold are adjusted'};
-            app.Stimulus_ContTol.Position = [274 35 26 22];
+            app.Stimulus_ContTol.Position = [274 56 26 22];
             app.Stimulus_ContTol.Value = 10;
 
             % Create CorrectionoffsetEditFieldLabel
             app.CorrectionoffsetEditFieldLabel = uilabel(app.Panel_2);
             app.CorrectionoffsetEditFieldLabel.HorizontalAlignment = 'right';
             app.CorrectionoffsetEditFieldLabel.FontSize = 10;
-            app.CorrectionoffsetEditFieldLabel.Position = [193 10 78 22];
+            app.CorrectionoffsetEditFieldLabel.Position = [193 31 78 22];
             app.CorrectionoffsetEditFieldLabel.Text = 'Correction offset';
 
             % Create Stimulus_CorrectAngleAdj
@@ -1965,8 +2167,16 @@ classdef BB_App < matlab.apps.AppBase
             app.Stimulus_CorrectAngleAdj.Tag = 'Stimulus_CorrectAngleAdj';
             app.Stimulus_CorrectAngleAdj.FontSize = 10;
             app.Stimulus_CorrectAngleAdj.Tooltip = {'When correcting the randomly oriented segments, lines are offset by a random angle between this and the tolerance.'};
-            app.Stimulus_CorrectAngleAdj.Position = [274 10 26 22];
+            app.Stimulus_CorrectAngleAdj.Position = [274 31 26 22];
             app.Stimulus_CorrectAngleAdj.Value = 45;
+
+            % Create EditField
+            app.EditField = uieditfield(app.Panel_2, 'numeric');
+            app.EditField.Tag = 'Stimulus_FreqAnimation';
+            app.EditField.HorizontalAlignment = 'left';
+            app.EditField.FontSize = 10;
+            app.EditField.Position = [78 37 36 22];
+            app.EditField.Value = 50;
 
             % Create StimulusvariablesPanel
             app.StimulusvariablesPanel = uipanel(app.SettingsTab);
@@ -2010,32 +2220,12 @@ classdef BB_App < matlab.apps.AppBase
             app.Stimulus_position_y.Position = [133 36 35 13];
             app.Stimulus_position_y.Value = '1';
 
-            % Create text72
-            app.text72 = uilabel(app.StimulusvariablesPanel);
-            app.text72.Tag = 'text72';
-            app.text72.HorizontalAlignment = 'center';
-            app.text72.Position = [20 9 32 22];
-            app.text72.Text = 'com:';
-
             % Create Arduino_Com
             app.Arduino_Com = uieditfield(app.StimulusvariablesPanel, 'text');
             app.Arduino_Com.Tag = 'Arduino_Com';
             app.Arduino_Com.HorizontalAlignment = 'center';
             app.Arduino_Com.Tooltip = 'com port to use for arduino';
-            app.Arduino_Com.Position = [60 9 20 22];
-
-            % Create BoxEditFieldLabel
-            app.BoxEditFieldLabel = uilabel(app.StimulusvariablesPanel);
-            app.BoxEditFieldLabel.HorizontalAlignment = 'right';
-            app.BoxEditFieldLabel.Position = [88 9 40 22];
-            app.BoxEditFieldLabel.Text = 'Box #:';
-
-            % Create BoxNum
-            app.BoxNum = uieditfield(app.StimulusvariablesPanel, 'numeric');
-            app.BoxNum.Tag = 'BoxNum';
-            app.BoxNum.HorizontalAlignment = 'center';
-            app.BoxNum.Tooltip = {'Put the Box/Monitor number in this spot. Each mouse should always use the same box.'};
-            app.BoxNum.Position = [136 9 20 22];
+            app.Arduino_Com.Position = [23 7 59 22];
 
             % Create SegmentlengthEditFieldLabel
             app.SegmentlengthEditFieldLabel = uilabel(app.StimulusvariablesPanel);
@@ -2204,6 +2394,17 @@ classdef BB_App < matlab.apps.AppBase
             app.Stimulus_SegThick.Position = [119 262 44 22];
             app.Stimulus_SegThick.Value = 13;
 
+            % Create WinPos
+            app.WinPos = uibutton(app.StimulusvariablesPanel, 'state');
+            app.WinPos.ValueChangedFcn = createCallbackFcn(app, @WinPosValueChanged, true);
+            app.WinPos.Tag = 'WinPos';
+            app.WinPos.Text = 'Get Size';
+            app.WinPos.BackgroundColor = [0 0 0];
+            app.WinPos.FontSize = 10;
+            app.WinPos.FontWeight = 'bold';
+            app.WinPos.FontColor = [1 1 1];
+            app.WinPos.Position = [102 9 51 18];
+
             % Create InputControlPanel
             app.InputControlPanel = uipanel(app.SettingsTab);
             app.InputControlPanel.AutoResizeChildren = 'off';
@@ -2214,14 +2415,14 @@ classdef BB_App < matlab.apps.AppBase
             app.TurnMagEditFieldLabel = uilabel(app.InputControlPanel);
             app.TurnMagEditFieldLabel.HorizontalAlignment = 'right';
             app.TurnMagEditFieldLabel.FontSize = 9;
-            app.TurnMagEditFieldLabel.Position = [6 163 46 22];
+            app.TurnMagEditFieldLabel.Position = [6 165 46 22];
             app.TurnMagEditFieldLabel.Text = 'Turn Mag.';
 
             % Create TurnMag
             app.TurnMag = uieditfield(app.InputControlPanel, 'numeric');
             app.TurnMag.Tag = 'TurnMag';
             app.TurnMag.FontSize = 9;
-            app.TurnMag.Position = [53 163 107 22];
+            app.TurnMag.Position = [53 165 107 22];
             app.TurnMag.Value = 1000;
 
             % Create RoundUp
@@ -2230,13 +2431,13 @@ classdef BB_App < matlab.apps.AppBase
             app.RoundUp.Tooltip = {'Choose to accept the mouse''s choice at timeout if they turn the wheel *almost* to the choice.'};
             app.RoundUp.Text = 'Round up choice';
             app.RoundUp.FontSize = 10;
-            app.RoundUp.Position = [5 145 97 22];
+            app.RoundUp.Position = [5 148 97 22];
 
             % Create RoundUpEditFieldLabel
             app.RoundUpEditFieldLabel = uilabel(app.InputControlPanel);
             app.RoundUpEditFieldLabel.HorizontalAlignment = 'right';
             app.RoundUpEditFieldLabel.FontSize = 10;
-            app.RoundUpEditFieldLabel.Position = [26 131 69 22];
+            app.RoundUpEditFieldLabel.Position = [26 134 69 22];
             app.RoundUpEditFieldLabel.Text = 'Round Up (%)';
 
             % Create RoundUpVal
@@ -2245,7 +2446,7 @@ classdef BB_App < matlab.apps.AppBase
             app.RoundUpVal.Tag = 'RoundUpVal';
             app.RoundUpVal.FontSize = 10;
             app.RoundUpVal.Tooltip = {'Choose the percentage threshold to accept the mouse''s choice if they do not turn the wheel fully.'};
-            app.RoundUpVal.Position = [102 131 54 22];
+            app.RoundUpVal.Position = [102 134 54 22];
             app.RoundUpVal.Value = 95;
 
             % Create Stimulus_FinishLine
@@ -2254,7 +2455,7 @@ classdef BB_App < matlab.apps.AppBase
             app.Stimulus_FinishLine.Tooltip = {'DIsplay a marker that will indicate how far the mouse has to turn the wheel to input a choice. Based on stimulus variables.'};
             app.Stimulus_FinishLine.Text = 'Finish line?';
             app.Stimulus_FinishLine.FontSize = 10;
-            app.Stimulus_FinishLine.Position = [5 118 70 15];
+            app.Stimulus_FinishLine.Position = [5 124 70 15];
 
             % Create IntertrialMalCancel
             app.IntertrialMalCancel = uicheckbox(app.InputControlPanel);
@@ -2262,7 +2463,7 @@ classdef BB_App < matlab.apps.AppBase
             app.IntertrialMalCancel.Tooltip = {'Check this box to end the current trial if the mouse pokes left or right when the ready cue is up. Only a center poke will start the next trial.'};
             app.IntertrialMalCancel.Text = 'Intertrial Mal';
             app.IntertrialMalCancel.FontSize = 10;
-            app.IntertrialMalCancel.Position = [24 96 73 22];
+            app.IntertrialMalCancel.Position = [24 104 73 22];
             app.IntertrialMalCancel.Value = true;
 
             % Create IntertrialMalSec
@@ -2270,30 +2471,30 @@ classdef BB_App < matlab.apps.AppBase
             app.IntertrialMalSec.Tag = 'IntertrialMalSec';
             app.IntertrialMalSec.FontSize = 10;
             app.IntertrialMalSec.Tooltip = {'If the box is checked, a new trial will not begin until this many seconds after the mouse last poked Left or Right during the intertrial period. Once a new trial does begin, it will cancel if the mouse pokes anything but the center.'};
-            app.IntertrialMalSec.Position = [109 96 44 22];
+            app.IntertrialMalSec.Position = [109 104 44 22];
             app.IntertrialMalSec.Value = 1;
 
             % Create DuringTrialEditFieldLabel
             app.DuringTrialEditFieldLabel = uilabel(app.InputControlPanel);
             app.DuringTrialEditFieldLabel.HorizontalAlignment = 'right';
             app.DuringTrialEditFieldLabel.FontSize = 10;
-            app.DuringTrialEditFieldLabel.Position = [8 32 54 22];
+            app.DuringTrialEditFieldLabel.Position = [8 25 54 22];
             app.DuringTrialEditFieldLabel.Text = 'Input delay';
 
             % Create Input_Delay_Start
             app.Input_Delay_Start = uieditfield(app.InputControlPanel, 'numeric');
-            app.Input_Delay_Start.Limits = [0 2];
+            app.Input_Delay_Start.Limits = [0 200];
             app.Input_Delay_Start.Tag = 'Input_Delay_Start';
             app.Input_Delay_Start.FontSize = 10;
             app.Input_Delay_Start.Tooltip = {'Start a trial response delay. Mouse must hold their choice for this time before it is accepted.'};
-            app.Input_Delay_Start.Position = [65 32 44 22];
+            app.Input_Delay_Start.Position = [65 25 44 22];
             app.Input_Delay_Start.Value = 2;
 
             % Create EditField_6Label
             app.EditField_6Label = uilabel(app.InputControlPanel);
             app.EditField_6Label.HorizontalAlignment = 'right';
             app.EditField_6Label.FontSize = 10;
-            app.EditField_6Label.Position = [6 9 78 22];
+            app.EditField_6Label.Position = [6 2 78 22];
             app.EditField_6Label.Text = 'Hold Still Thresh';
 
             % Create Hold_Still_Thresh
@@ -2302,16 +2503,16 @@ classdef BB_App < matlab.apps.AppBase
             app.Hold_Still_Thresh.Tag = 'Hold_Still_Thresh';
             app.Hold_Still_Thresh.FontSize = 10;
             app.Hold_Still_Thresh.Tooltip = {'Speed mouse must keep wheel under during "Hold Still" interval before trial.'};
-            app.Hold_Still_Thresh.Position = [106 9 44 22];
+            app.Hold_Still_Thresh.Position = [106 2 44 22];
             app.Hold_Still_Thresh.Value = 10;
 
             % Create Input_Delay_Respond
             app.Input_Delay_Respond = uieditfield(app.InputControlPanel, 'numeric');
-            app.Input_Delay_Respond.Limits = [0 2];
+            app.Input_Delay_Respond.Limits = [0 200];
             app.Input_Delay_Respond.Tag = 'Input_Delay_Respond';
             app.Input_Delay_Respond.FontSize = 10;
             app.Input_Delay_Respond.Tooltip = {'Trial response delay. Mouse must hold their choice for this time before it is accepted.'};
-            app.Input_Delay_Respond.Position = [116 32 44 22];
+            app.Input_Delay_Respond.Position = [116 25 44 22];
             app.Input_Delay_Respond.Value = 2;
 
             % Create ConfirmChoice
@@ -2320,54 +2521,16 @@ classdef BB_App < matlab.apps.AppBase
             app.ConfirmChoice.Tooltip = {'If the mouse stands in front of the correct choice during the Input Ignored interval, the 5-dashed line contour will blink to show the impatient mouse they are indeed going to be rewarded.'};
             app.ConfirmChoice.Text = 'Confirm choice';
             app.ConfirmChoice.FontSize = 10;
-            app.ConfirmChoice.Position = [15 62 89 22];
+            app.ConfirmChoice.Position = [15 44 89 22];
             app.ConfirmChoice.Value = true;
 
-            % Create Level_EasyLvList
-            app.Level_EasyLvList = uieditfield(app.SettingsTab, 'text');
-            app.Level_EasyLvList.Tag = 'Level_EasyLvList';
-            app.Level_EasyLvList.FontSize = 10;
-            app.Level_EasyLvList.Position = [470 167 42 22];
-            app.Level_EasyLvList.Value = '1';
-
-            % Create Level_HardLvList
-            app.Level_HardLvList = uieditfield(app.SettingsTab, 'text');
-            app.Level_HardLvList.Tag = 'Level_HardLvList';
-            app.Level_HardLvList.FontSize = 10;
-            app.Level_HardLvList.Position = [470 141 42 22];
-            app.Level_HardLvList.Value = '2:6';
-
-            % Create HighLvProbEditFieldLabel
-            app.HighLvProbEditFieldLabel = uilabel(app.SettingsTab);
-            app.HighLvProbEditFieldLabel.HorizontalAlignment = 'right';
-            app.HighLvProbEditFieldLabel.FontSize = 10;
-            app.HighLvProbEditFieldLabel.Position = [366 141 65 22];
-            app.HighLvProbEditFieldLabel.Text = 'High Lv. Prob';
-
-            % Create Level_HardLvProb
-            app.Level_HardLvProb = uieditfield(app.SettingsTab, 'numeric');
-            app.Level_HardLvProb.Limits = [0 1];
-            app.Level_HardLvProb.ValueChangedFcn = createCallbackFcn(app, @Level_HardLvProbValueChanged, true);
-            app.Level_HardLvProb.Tag = 'Level_HardLvProb';
-            app.Level_HardLvProb.FontSize = 10;
-            app.Level_HardLvProb.Position = [436 141 30 22];
-            app.Level_HardLvProb.Value = 0.8;
-
-            % Create EasyLvProbLabel
-            app.EasyLvProbLabel = uilabel(app.SettingsTab);
-            app.EasyLvProbLabel.HorizontalAlignment = 'right';
-            app.EasyLvProbLabel.FontSize = 10;
-            app.EasyLvProbLabel.Position = [366 167 67 22];
-            app.EasyLvProbLabel.Text = 'Easy Lv. Prob';
-
-            % Create Level_EasyLvProb
-            app.Level_EasyLvProb = uieditfield(app.SettingsTab, 'numeric');
-            app.Level_EasyLvProb.Limits = [0 1];
-            app.Level_EasyLvProb.ValueChangedFcn = createCallbackFcn(app, @Level_EasyLvProbValueChanged, true);
-            app.Level_EasyLvProb.Tag = 'Level_EasyLvProb';
-            app.Level_EasyLvProb.FontSize = 10;
-            app.Level_EasyLvProb.Position = [437 167 30 22];
-            app.Level_EasyLvProb.Value = 0.2;
+            % Create SkipWaitForInput
+            app.SkipWaitForInput = uicheckbox(app.InputControlPanel);
+            app.SkipWaitForInput.Tag = 'SkipWaitForInput';
+            app.SkipWaitForInput.Tooltip = {'Trials will begin without holding the middle choice'};
+            app.SkipWaitForInput.Text = 'Skip WaitForInput';
+            app.SkipWaitForInput.FontSize = 10;
+            app.SkipWaitForInput.Position = [14 76 101 22];
 
             % Create TemporaryTab
             app.TemporaryTab = uitab(app.TabGroup);
@@ -2512,7 +2675,7 @@ classdef BB_App < matlab.apps.AppBase
             app.InputControlPanel_2 = uipanel(app.TemporaryTab);
             app.InputControlPanel_2.AutoResizeChildren = 'off';
             app.InputControlPanel_2.Title = 'Input Control';
-            app.InputControlPanel_2.Position = [519 113 169 209];
+            app.InputControlPanel_2.Position = [349 217 169 105];
 
             % Create IntertrialMalCancel_Temp
             app.IntertrialMalCancel_Temp = uicheckbox(app.InputControlPanel_2);
@@ -2520,7 +2683,7 @@ classdef BB_App < matlab.apps.AppBase
             app.IntertrialMalCancel_Temp.Tooltip = {'Check this box to end the current trial if the mouse pokes left or right when the ready cue is up. Only a center poke will start the next trial.'};
             app.IntertrialMalCancel_Temp.Text = 'Intertrial Mal';
             app.IntertrialMalCancel_Temp.FontSize = 10;
-            app.IntertrialMalCancel_Temp.Position = [19 66 73 22];
+            app.IntertrialMalCancel_Temp.Position = [23 24 73 22];
             app.IntertrialMalCancel_Temp.Value = true;
 
             % Create IntertrialMalSec_Temp
@@ -2528,14 +2691,14 @@ classdef BB_App < matlab.apps.AppBase
             app.IntertrialMalSec_Temp.Tag = 'IntertrialMalSec_Temp';
             app.IntertrialMalSec_Temp.FontSize = 10;
             app.IntertrialMalSec_Temp.Tooltip = {'If the box is checked, a new trial will not begin until this many seconds after the mouse last poked Left or Right during the intertrial period. Once a new trial does begin, it will cancel if the mouse pokes anything but the center.'};
-            app.IntertrialMalSec_Temp.Position = [104 66 44 22];
+            app.IntertrialMalSec_Temp.Position = [102 24 44 22];
             app.IntertrialMalSec_Temp.Value = 1;
 
             % Create EditField_6Label_2
             app.EditField_6Label_2 = uilabel(app.InputControlPanel_2);
             app.EditField_6Label_2.HorizontalAlignment = 'right';
             app.EditField_6Label_2.FontSize = 10;
-            app.EditField_6Label_2.Position = [6 9 78 22];
+            app.EditField_6Label_2.Position = [22 55 78 22];
             app.EditField_6Label_2.Text = 'Hold Still Thresh';
 
             % Create Hold_Still_Thresh_Temp
@@ -2544,7 +2707,7 @@ classdef BB_App < matlab.apps.AppBase
             app.Hold_Still_Thresh_Temp.Tag = 'Hold_Still_Thresh_Temp';
             app.Hold_Still_Thresh_Temp.FontSize = 10;
             app.Hold_Still_Thresh_Temp.Tooltip = {'Speed mouse must keep wheel under during "Hold Still" interval before trial.'};
-            app.Hold_Still_Thresh_Temp.Position = [106 9 44 22];
+            app.Hold_Still_Thresh_Temp.Position = [107 55 44 22];
             app.Hold_Still_Thresh_Temp.Value = 10;
 
             % Create ExpireAfterButtonGroup
@@ -2579,7 +2742,7 @@ classdef BB_App < matlab.apps.AppBase
             app.TrialCount_Temp.Tag = 'TrialCount_Temp';
             app.TrialCount_Temp.FontSize = 10;
             app.TrialCount_Temp.Position = [95 35 38 22];
-            app.TrialCount_Temp.Value = 21;
+            app.TrialCount_Temp.Value = 10;
 
             % Create TrialsRemainingLabel
             app.TrialsRemainingLabel = uilabel(app.ExpireAfterButtonGroup);
@@ -2595,82 +2758,13 @@ classdef BB_App < matlab.apps.AppBase
             app.TempOff_Temp.Position = [11 80 35 22];
             app.TempOff_Temp.Value = true;
 
-            % Create TrialCount_Threshold
-            app.TrialCount_Threshold = uieditfield(app.ExpireAfterButtonGroup, 'numeric');
-            app.TrialCount_Threshold.Tag = 'Threshold_Temp';
-            app.TrialCount_Threshold.FontSize = 10;
-            app.TrialCount_Threshold.Tooltip = {'After so many correct responses the accuracy must be above this percentage threshold for Temporary settings to end'};
-            app.TrialCount_Threshold.Position = [138 35 38 22];
-            app.TrialCount_Threshold.Value = 90;
-
-            % Create uipanel4_2
-            app.uipanel4_2 = uipanel(app.TemporaryTab);
-            app.uipanel4_2.AutoResizeChildren = 'off';
-            app.uipanel4_2.Title = 'Reward / Penalty';
-            app.uipanel4_2.Tag = 'uipanel4';
-            app.uipanel4_2.FontSize = 11;
-            app.uipanel4_2.Position = [355 223 154 99];
-
-            % Create LeftValveButton_Temp
-            app.LeftValveButton_Temp = uibutton(app.uipanel4_2, 'push');
-            app.LeftValveButton_Temp.Tag = 'LeftValveButton_Temp';
-            app.LeftValveButton_Temp.BackgroundColor = [0 0 1];
-            app.LeftValveButton_Temp.FontSize = 11;
-            app.LeftValveButton_Temp.FontWeight = 'bold';
-            app.LeftValveButton_Temp.FontColor = [1 1 1];
-            app.LeftValveButton_Temp.Tooltip = {'Press to test Left water reward size'};
-            app.LeftValveButton_Temp.Position = [4 60 18 17];
-            app.LeftValveButton_Temp.Text = 'L';
-
-            % Create Box_Lrewardtime_Temp
-            app.Box_Lrewardtime_Temp = uieditfield(app.uipanel4_2, 'text');
-            app.Box_Lrewardtime_Temp.Tag = 'Box_Lrewardtime_Temp';
-            app.Box_Lrewardtime_Temp.HorizontalAlignment = 'center';
-            app.Box_Lrewardtime_Temp.FontSize = 11;
-            app.Box_Lrewardtime_Temp.Tooltip = 'How long the vale is open in seconds';
-            app.Box_Lrewardtime_Temp.Position = [26 61 38 14];
-            app.Box_Lrewardtime_Temp.Value = '0.04';
-
-            % Create Box_LeftPulse_Temp
-            app.Box_LeftPulse_Temp = uieditfield(app.uipanel4_2, 'numeric');
-            app.Box_LeftPulse_Temp.Limits = [1 10];
-            app.Box_LeftPulse_Temp.Tag = 'Box_LeftPulse_Temp';
-            app.Box_LeftPulse_Temp.HorizontalAlignment = 'center';
-            app.Box_LeftPulse_Temp.FontSize = 10;
-            app.Box_LeftPulse_Temp.Tooltip = {'How many pulses from the left water valve'};
-            app.Box_LeftPulse_Temp.Position = [68 61 25 14];
-            app.Box_LeftPulse_Temp.Value = 1;
-
-            % Create RightValveButton_Temp
-            app.RightValveButton_Temp = uibutton(app.uipanel4_2, 'push');
-            app.RightValveButton_Temp.Tag = 'RightValveButton_Temp';
-            app.RightValveButton_Temp.VerticalAlignment = 'top';
-            app.RightValveButton_Temp.BackgroundColor = [0 0 1];
-            app.RightValveButton_Temp.FontSize = 11;
-            app.RightValveButton_Temp.FontWeight = 'bold';
-            app.RightValveButton_Temp.FontColor = [1 1 1];
-            app.RightValveButton_Temp.Tooltip = {'Press to test Right water reward size'};
-            app.RightValveButton_Temp.Position = [4 42 19 17];
-            app.RightValveButton_Temp.Text = 'R';
-
-            % Create Box_Rrewardtime_Temp
-            app.Box_Rrewardtime_Temp = uieditfield(app.uipanel4_2, 'text');
-            app.Box_Rrewardtime_Temp.Tag = 'Box_Rrewardtime_Temp';
-            app.Box_Rrewardtime_Temp.HorizontalAlignment = 'center';
-            app.Box_Rrewardtime_Temp.FontSize = 11;
-            app.Box_Rrewardtime_Temp.Tooltip = 'How long the vale is open in seconds';
-            app.Box_Rrewardtime_Temp.Position = [26 43 38 14];
-            app.Box_Rrewardtime_Temp.Value = '0.04';
-
-            % Create Box_RightPulse_Temp
-            app.Box_RightPulse_Temp = uieditfield(app.uipanel4_2, 'numeric');
-            app.Box_RightPulse_Temp.Limits = [1 10];
-            app.Box_RightPulse_Temp.Tag = 'Box_RightPulse_Temp';
-            app.Box_RightPulse_Temp.HorizontalAlignment = 'center';
-            app.Box_RightPulse_Temp.FontSize = 10;
-            app.Box_RightPulse_Temp.Tooltip = {'How many pulses from the rightwater valve'};
-            app.Box_RightPulse_Temp.Position = [68 43 25 14];
-            app.Box_RightPulse_Temp.Value = 1;
+            % Create TrialCountThreshold_Temp
+            app.TrialCountThreshold_Temp = uieditfield(app.ExpireAfterButtonGroup, 'numeric');
+            app.TrialCountThreshold_Temp.Tag = 'TrialCountThreshold_Temp';
+            app.TrialCountThreshold_Temp.FontSize = 10;
+            app.TrialCountThreshold_Temp.Tooltip = {'After so many correct responses the accuracy must be above this percentage threshold for Temporary settings to end'};
+            app.TrialCountThreshold_Temp.Position = [138 35 38 22];
+            app.TrialCountThreshold_Temp.Value = 90;
 
             % Create AutomaticDropWheelPanel
             app.AutomaticDropWheelPanel = uipanel(app.TemporaryTab);
@@ -2725,7 +2819,7 @@ classdef BB_App < matlab.apps.AppBase
             % Create AnimateStimulusPanel
             app.AnimateStimulusPanel = uipanel(app.TemporaryTab);
             app.AnimateStimulusPanel.Title = 'Animate Stimulus';
-            app.AnimateStimulusPanel.Position = [695 7 179 314];
+            app.AnimateStimulusPanel.Position = [531 7 343 314];
 
             % Create SideDropDownLabel
             app.SideDropDownLabel = uilabel(app.AnimateStimulusPanel);
@@ -2768,6 +2862,7 @@ classdef BB_App < matlab.apps.AppBase
             app.Animate_Speed = uieditfield(app.AnimateStimulusPanel, 'numeric');
             app.Animate_Speed.Tag = 'Animate_Speed';
             app.Animate_Speed.Position = [53 159 35 22];
+            app.Animate_Speed.Value = 0.01;
 
             % Create Animate_MimicTrial
             app.Animate_MimicTrial = uicheckbox(app.AnimateStimulusPanel);
@@ -2792,6 +2887,7 @@ classdef BB_App < matlab.apps.AppBase
 
             % Create Animate_Show
             app.Animate_Show = uibutton(app.AnimateStimulusPanel, 'state');
+            app.Animate_Show.ValueChangedFcn = createCallbackFcn(app, @Animate_ShowValueChanged, true);
             app.Animate_Show.Tag = 'Animate_Show';
             app.Animate_Show.Text = 'Show';
             app.Animate_Show.Position = [44 193 39 23];
@@ -2805,7 +2901,6 @@ classdef BB_App < matlab.apps.AppBase
             % Create Animate_Style
             app.Animate_Style = uidropdown(app.AnimateStimulusPanel);
             app.Animate_Style.Items = {'Y-Line', 'X-Line', 'Bar', 'Stimulus', 'Dot'};
-            app.Animate_Style.ValueChangedFcn = createCallbackFcn(app, @Animate_GoValueChanged, true);
             app.Animate_Style.Tag = 'Animate_Style';
             app.Animate_Style.Position = [79 259 72 22];
             app.Animate_Style.Value = 'Bar';
@@ -2831,6 +2926,74 @@ classdef BB_App < matlab.apps.AppBase
             app.Animate_Flash.Tag = 'Animate_Flash';
             app.Animate_Flash.Text = 'Flash';
             app.Animate_Flash.Position = [93 193 37 23];
+
+            % Create Animate_Rec
+            app.Animate_Rec = uibutton(app.AnimateStimulusPanel, 'state');
+            app.Animate_Rec.ValueChangedFcn = createCallbackFcn(app, @Animate_GoValueChanged, true);
+            app.Animate_Rec.Tag = 'Animate_Rec';
+            app.Animate_Rec.Text = 'Rec';
+            app.Animate_Rec.BackgroundColor = [0 1 0];
+            app.Animate_Rec.FontWeight = 'bold';
+            app.Animate_Rec.FontColor = [1 1 1];
+            app.Animate_Rec.Position = [117 157 39 23];
+
+            % Create Animate_CenteredStimulus
+            app.Animate_CenteredStimulus = uicheckbox(app.AnimateStimulusPanel);
+            app.Animate_CenteredStimulus.Tag = 'Animate_CenteredStimulus';
+            app.Animate_CenteredStimulus.Text = 'Centered Stimulus';
+            app.Animate_CenteredStimulus.Position = [177 259 121 22];
+
+            % Create Animate_AlternateSide
+            app.Animate_AlternateSide = uicheckbox(app.AnimateStimulusPanel);
+            app.Animate_AlternateSide.Tag = 'Animate_AlternateSide';
+            app.Animate_AlternateSide.Text = 'Alternate Side';
+            app.Animate_AlternateSide.Position = [177 224 98 22];
+
+            % Create WhichStimulusButtonGroup
+            app.WhichStimulusButtonGroup = uibuttongroup(app.AnimateStimulusPanel);
+            app.WhichStimulusButtonGroup.Title = 'Which Stimulus';
+            app.WhichStimulusButtonGroup.Position = [207 11 123 106];
+
+            % Create Animate_OnlyIncorrectButton
+            app.Animate_OnlyIncorrectButton = uiradiobutton(app.WhichStimulusButtonGroup);
+            app.Animate_OnlyIncorrectButton.Tag = 'Animate_OnlyIncorrectButton';
+            app.Animate_OnlyIncorrectButton.Text = 'Only Incorrect';
+            app.Animate_OnlyIncorrectButton.Position = [11 60 97 22];
+            app.Animate_OnlyIncorrectButton.Value = true;
+
+            % Create Animate_BothButton
+            app.Animate_BothButton = uiradiobutton(app.WhichStimulusButtonGroup);
+            app.Animate_BothButton.Tag = 'Animate_BothButton';
+            app.Animate_BothButton.Text = 'Both';
+            app.Animate_BothButton.Position = [11 38 48 22];
+
+            % Create Animate_OnlyCorrectButton
+            app.Animate_OnlyCorrectButton = uiradiobutton(app.WhichStimulusButtonGroup);
+            app.Animate_OnlyCorrectButton.Tag = 'Animate_OnlyCorrectButton';
+            app.Animate_OnlyCorrectButton.Text = 'Only Correct';
+            app.Animate_OnlyCorrectButton.Position = [11 16 90 22];
+
+            % Create LineAngleEditFieldLabel
+            app.LineAngleEditFieldLabel = uilabel(app.AnimateStimulusPanel);
+            app.LineAngleEditFieldLabel.HorizontalAlignment = 'right';
+            app.LineAngleEditFieldLabel.Position = [209 124 61 22];
+            app.LineAngleEditFieldLabel.Text = 'Line Angle';
+
+            % Create Animate_LineAngle
+            app.Animate_LineAngle = uieditfield(app.AnimateStimulusPanel, 'numeric');
+            app.Animate_LineAngle.Tag = 'Animate_LineAngle';
+            app.Animate_LineAngle.Position = [279 124 44 22];
+
+            % Create TimeDropDownLabel
+            app.TimeDropDownLabel = uilabel(app.AnimateStimulusPanel);
+            app.TimeDropDownLabel.HorizontalAlignment = 'right';
+            app.TimeDropDownLabel.Position = [184 157 31 22];
+            app.TimeDropDownLabel.Text = 'Time';
+
+            % Create Timekeeper
+            app.Timekeeper = uidropdown(app.AnimateStimulusPanel);
+            app.Timekeeper.Tag = 'Timekeeper';
+            app.Timekeeper.Position = [230 157 100 22];
 
             % Create NotesTab
             app.NotesTab = uitab(app.TabGroup);
@@ -2878,6 +3041,20 @@ classdef BB_App < matlab.apps.AppBase
             app.TimersTab.AutoResizeChildren = 'off';
             app.TimersTab.Title = 'Timers';
 
+            % Create GridLayout9
+            app.GridLayout9 = uigridlayout(app.TimersTab);
+            app.GridLayout9.ColumnWidth = {'1x'};
+            app.GridLayout9.RowHeight = {'1x'};
+            app.GridLayout9.Padding = [0 0 0 0];
+            app.GridLayout9.Tag = 'TimeGridLayout';
+
+            % Create TimersPanel
+            app.TimersPanel = uipanel(app.GridLayout9);
+            app.TimersPanel.Title = 'Timers';
+            app.TimersPanel.Tag = 'TimePanel';
+            app.TimersPanel.Layout.Row = 1;
+            app.TimersPanel.Layout.Column = 1;
+
             % Create AllTimeTab
             app.AllTimeTab = uitab(app.TabGroup);
             app.AllTimeTab.AutoResizeChildren = 'off';
@@ -2899,6 +3076,12 @@ classdef BB_App < matlab.apps.AppBase
             app.GridLayout6.ColumnWidth = {'1x'};
             app.GridLayout6.RowHeight = {'1x'};
             app.GridLayout6.Padding = [0 0 0 0];
+
+            % Create HistoryPanel
+            app.HistoryPanel = uipanel(app.GridLayout6);
+            app.HistoryPanel.Title = 'History';
+            app.HistoryPanel.Layout.Row = 1;
+            app.HistoryPanel.Layout.Column = 1;
 
             % Create OtherUnusedTab
             app.OtherUnusedTab = uitab(app.TabGroup);
@@ -3047,290 +3230,6 @@ classdef BB_App < matlab.apps.AppBase
             app.Stimulus_Orient.Position = [376 5 25 18];
             app.Stimulus_Orient.Value = '0';
 
-            % Create uipanel12
-            app.uipanel12 = uipanel(app.OtherUnusedTab);
-            app.uipanel12.AutoResizeChildren = 'off';
-            app.uipanel12.Title = 'Difficulty Adjust';
-            app.uipanel12.Tag = 'uipanel12';
-            app.uipanel12.FontSize = 11;
-            app.uipanel12.Position = [7 34 510 115];
-
-            % Create GridLayout4
-            app.GridLayout4 = uigridlayout(app.uipanel12);
-            app.GridLayout4.ColumnWidth = {95, 20, 51, '1.22x', 59, 28, '1x', 65, 28, 27, '1.22x'};
-            app.GridLayout4.RowHeight = {18, 18, 18};
-            app.GridLayout4.ColumnSpacing = 4.66666666666667;
-            app.GridLayout4.Padding = [4.66666666666667 10 4.66666666666667 10];
-
-            % Create DiffAdjustMethod
-            app.DiffAdjustMethod = uidropdown(app.GridLayout4);
-            app.DiffAdjustMethod.Items = {'Inc/dec after trials', 'Step up after trials', 'Random diff in range'};
-            app.DiffAdjustMethod.Tag = 'DiffAdjustMethod';
-            app.DiffAdjustMethod.FontSize = 11;
-            app.DiffAdjustMethod.Layout.Row = 1;
-            app.DiffAdjustMethod.Layout.Column = [6 8];
-            app.DiffAdjustMethod.Value = 'Inc/dec after trials';
-
-            % Create Raise_bg_with_perf
-            app.Raise_bg_with_perf = uicheckbox(app.GridLayout4);
-            app.Raise_bg_with_perf.Tag = 'Raise_bg_with_perf';
-            app.Raise_bg_with_perf.Text = 'inc diff after trials:';
-            app.Raise_bg_with_perf.FontSize = 11;
-            app.Raise_bg_with_perf.Layout.Row = 1;
-            app.Raise_bg_with_perf.Layout.Column = [1 2];
-
-            % Create RaiseDiffAfterBins
-            app.RaiseDiffAfterBins = uieditfield(app.GridLayout4, 'text');
-            app.RaiseDiffAfterBins.Tag = 'RaiseDiffAfterBins';
-            app.RaiseDiffAfterBins.HorizontalAlignment = 'center';
-            app.RaiseDiffAfterBins.FontSize = 11;
-            app.RaiseDiffAfterBins.Tooltip = 'adjust background after how many correct/wrong trials';
-            app.RaiseDiffAfterBins.Layout.Row = 1;
-            app.RaiseDiffAfterBins.Layout.Column = 2;
-            app.RaiseDiffAfterBins.Value = '10';
-
-            % Create Lower_bg_with_perf
-            app.Lower_bg_with_perf = uicheckbox(app.GridLayout4);
-            app.Lower_bg_with_perf.Tag = 'Lower_bg_with_perf';
-            app.Lower_bg_with_perf.Text = 'dec diff after trials:';
-            app.Lower_bg_with_perf.FontSize = 11;
-            app.Lower_bg_with_perf.Layout.Row = 2;
-            app.Lower_bg_with_perf.Layout.Column = [1 2];
-
-            % Create LowerDiffAfterBins
-            app.LowerDiffAfterBins = uieditfield(app.GridLayout4, 'text');
-            app.LowerDiffAfterBins.Tag = 'LowerDiffAfterBins';
-            app.LowerDiffAfterBins.HorizontalAlignment = 'center';
-            app.LowerDiffAfterBins.FontSize = 11;
-            app.LowerDiffAfterBins.Tooltip = 'adjust background after how many correct/wrong trials';
-            app.LowerDiffAfterBins.Layout.Row = 2;
-            app.LowerDiffAfterBins.Layout.Column = 2;
-            app.LowerDiffAfterBins.Value = '10';
-
-            % Create text94
-            app.text94 = uilabel(app.GridLayout4);
-            app.text94.Tag = 'text94';
-            app.text94.HorizontalAlignment = 'center';
-            app.text94.VerticalAlignment = 'top';
-            app.text94.FontSize = 11;
-            app.text94.Layout.Row = 1;
-            app.text94.Layout.Column = 3;
-            app.text94.Text = 'inc thres:';
-
-            % Create RaiseThres
-            app.RaiseThres = uieditfield(app.GridLayout4, 'text');
-            app.RaiseThres.Tag = 'RaiseThres';
-            app.RaiseThres.HorizontalAlignment = 'center';
-            app.RaiseThres.FontSize = 11;
-            app.RaiseThres.Tooltip = 'adjust background after how many correct/wrong trials';
-            app.RaiseThres.Layout.Row = 1;
-            app.RaiseThres.Layout.Column = 4;
-            app.RaiseThres.Value = '0.65';
-
-            % Create text95
-            app.text95 = uilabel(app.GridLayout4);
-            app.text95.Tag = 'text95';
-            app.text95.HorizontalAlignment = 'center';
-            app.text95.VerticalAlignment = 'top';
-            app.text95.FontSize = 11;
-            app.text95.Layout.Row = 2;
-            app.text95.Layout.Column = 3;
-            app.text95.Text = 'dec thres:';
-
-            % Create LowerThres
-            app.LowerThres = uieditfield(app.GridLayout4, 'text');
-            app.LowerThres.Tag = 'LowerThres';
-            app.LowerThres.HorizontalAlignment = 'center';
-            app.LowerThres.FontSize = 11;
-            app.LowerThres.Tooltip = 'adjust background after how many correct/wrong trials';
-            app.LowerThres.Layout.Row = 2;
-            app.LowerThres.Layout.Column = 4;
-            app.LowerThres.Value = '0.5';
-
-            % Create text96
-            app.text96 = uilabel(app.GridLayout4);
-            app.text96.Tag = 'text96';
-            app.text96.HorizontalAlignment = 'center';
-            app.text96.VerticalAlignment = 'top';
-            app.text96.FontSize = 11;
-            app.text96.Layout.Row = 1;
-            app.text96.Layout.Column = 5;
-            app.text96.Text = 'Adj Method:';
-
-            % Create text97
-            app.text97 = uilabel(app.GridLayout4);
-            app.text97.Tag = 'text97';
-            app.text97.HorizontalAlignment = 'center';
-            app.text97.VerticalAlignment = 'top';
-            app.text97.FontSize = 11;
-            app.text97.Layout.Row = 2;
-            app.text97.Layout.Column = [5 6];
-            app.text97.Text = 'step up after trials:';
-
-            % Create StepUpAfter
-            app.StepUpAfter = uieditfield(app.GridLayout4, 'text');
-            app.StepUpAfter.Tag = 'StepUpAfter';
-            app.StepUpAfter.HorizontalAlignment = 'center';
-            app.StepUpAfter.FontSize = 11;
-            app.StepUpAfter.Tooltip = 'adjust background after how many correct/wrong trials';
-            app.StepUpAfter.Layout.Row = 2;
-            app.StepUpAfter.Layout.Column = 7;
-            app.StepUpAfter.Value = '20';
-
-            % Create text98
-            app.text98 = uilabel(app.GridLayout4);
-            app.text98.Tag = 'text98';
-            app.text98.HorizontalAlignment = 'center';
-            app.text98.VerticalAlignment = 'top';
-            app.text98.FontSize = 11;
-            app.text98.Layout.Row = 2;
-            app.text98.Layout.Column = 10;
-            app.text98.Text = 'step:';
-
-            % Create RandomMax
-            app.RandomMax = uieditfield(app.GridLayout4, 'text');
-            app.RandomMax.Tag = 'RandomMax';
-            app.RandomMax.HorizontalAlignment = 'center';
-            app.RandomMax.FontSize = 11;
-            app.RandomMax.Tooltip = 'adjust background after how many correct/wrong trials';
-            app.RandomMax.Layout.Row = 1;
-            app.RandomMax.Layout.Column = 11;
-            app.RandomMax.Value = '1';
-
-            % Create text99
-            app.text99 = uilabel(app.GridLayout4);
-            app.text99.Tag = 'text99';
-            app.text99.HorizontalAlignment = 'center';
-            app.text99.VerticalAlignment = 'top';
-            app.text99.FontSize = 11;
-            app.text99.Layout.Row = 1;
-            app.text99.Layout.Column = [9 10];
-            app.text99.Text = 'random max:';
-
-            % Create RandomStep
-            app.RandomStep = uieditfield(app.GridLayout4, 'text');
-            app.RandomStep.Tag = 'RandomStep';
-            app.RandomStep.HorizontalAlignment = 'center';
-            app.RandomStep.FontSize = 11;
-            app.RandomStep.Tooltip = 'adjust background after how many correct/wrong trials';
-            app.RandomStep.Layout.Row = 2;
-            app.RandomStep.Layout.Column = 11;
-            app.RandomStep.Value = '0.1';
-
-            % Create text100
-            app.text100 = uilabel(app.GridLayout4);
-            app.text100.Tag = 'text100';
-            app.text100.HorizontalAlignment = 'center';
-            app.text100.VerticalAlignment = 'top';
-            app.text100.FontSize = 11;
-            app.text100.Layout.Row = 2;
-            app.text100.Layout.Column = 8;
-            app.text100.Text = 'random min:';
-
-            % Create RandomMin
-            app.RandomMin = uieditfield(app.GridLayout4, 'text');
-            app.RandomMin.Tag = 'RandomMin';
-            app.RandomMin.HorizontalAlignment = 'center';
-            app.RandomMin.FontSize = 11;
-            app.RandomMin.Tooltip = 'adjust background after how many correct/wrong trials';
-            app.RandomMin.Layout.Row = 2;
-            app.RandomMin.Layout.Column = 9;
-            app.RandomMin.Value = '0.4';
-
-            % Create text123
-            app.text123 = uilabel(app.GridLayout4);
-            app.text123.Tag = 'text123';
-            app.text123.HorizontalAlignment = 'center';
-            app.text123.VerticalAlignment = 'top';
-            app.text123.FontSize = 11;
-            app.text123.Layout.Row = 3;
-            app.text123.Layout.Column = 1;
-            app.text123.Text = 'sub bin size:';
-
-            % Create sub_bin_size
-            app.sub_bin_size = uieditfield(app.GridLayout4, 'text');
-            app.sub_bin_size.Tag = 'sub_bin_size';
-            app.sub_bin_size.HorizontalAlignment = 'center';
-            app.sub_bin_size.FontSize = 11;
-            app.sub_bin_size.Tooltip = 'size of sub bin (to measure std threshold)';
-            app.sub_bin_size.Layout.Row = 3;
-            app.sub_bin_size.Layout.Column = 2;
-            app.sub_bin_size.Value = '5';
-
-            % Create text124
-            app.text124 = uilabel(app.GridLayout4);
-            app.text124.Tag = 'text124';
-            app.text124.HorizontalAlignment = 'center';
-            app.text124.VerticalAlignment = 'top';
-            app.text124.FontSize = 11;
-            app.text124.Layout.Row = 3;
-            app.text124.Layout.Column = 3;
-            app.text124.Text = 'std thres:';
-
-            % Create stdthreshold
-            app.stdthreshold = uieditfield(app.GridLayout4, 'text');
-            app.stdthreshold.Tag = 'stdthreshold';
-            app.stdthreshold.HorizontalAlignment = 'center';
-            app.stdthreshold.FontSize = 11;
-            app.stdthreshold.Tooltip = 'standard deviation threshold to change difficulty';
-            app.stdthreshold.Layout.Row = 3;
-            app.stdthreshold.Layout.Column = 4;
-            app.stdthreshold.Value = '0.5';
-
-            % Create uipanel8
-            app.uipanel8 = uipanel(app.OtherUnusedTab);
-            app.uipanel8.AutoResizeChildren = 'off';
-            app.uipanel8.Title = 'Input training';
-            app.uipanel8.Tag = 'uipanel8';
-            app.uipanel8.FontSize = 11;
-            app.uipanel8.Position = [3 158 297 80];
-
-            % Create GridLayout3
-            app.GridLayout3 = uigridlayout(app.uipanel8);
-            app.GridLayout3.ColumnWidth = {106, 97, '1x'};
-            app.GridLayout3.RowHeight = {23, 23};
-            app.GridLayout3.RowSpacing = 6;
-            app.GridLayout3.Padding = [10 6 10 6];
-
-            % Create Show_two_bars
-            app.Show_two_bars = uicheckbox(app.GridLayout3);
-            app.Show_two_bars.Tag = 'Show_two_bars';
-            app.Show_two_bars.Tooltip = 'Show two bars for input training only';
-            app.Show_two_bars.Text = 'show two training bars';
-            app.Show_two_bars.FontSize = 11;
-            app.Show_two_bars.Layout.Row = 1;
-            app.Show_two_bars.Layout.Column = 1;
-            app.Show_two_bars.Value = true;
-
-            % Create TrainingChoices
-            app.TrainingChoices = uidropdown(app.GridLayout3);
-            app.TrainingChoices.Items = {'Unlimited Rewards', 'Only Correct or Timeout', 'None', 'Go/No-Go Practice', 'Wheel Practice Early', 'Wheel Practice Late', 'Wheel Practice - No wrong choice', 'NosePoke Training 1', 'NosePoke Training 2', 'NosePoke Training 3', 'NosePoke Training 4', 'NosePoke Training 5'};
-            app.TrainingChoices.Tag = 'TrainingChoices';
-            app.TrainingChoices.Tooltip = {'Choose Special Rules for training new mice.'};
-            app.TrainingChoices.FontSize = 9;
-            app.TrainingChoices.Layout.Row = 1;
-            app.TrainingChoices.Layout.Column = [2 3];
-            app.TrainingChoices.Value = 'None';
-
-            % Create Stimulus_TrainingFlashifWrong
-            app.Stimulus_TrainingFlashifWrong = uicheckbox(app.GridLayout3);
-            app.Stimulus_TrainingFlashifWrong.Tag = 'Stimulus_TrainingFlashifWrong';
-            app.Stimulus_TrainingFlashifWrong.Text = 'Flash if wrong?';
-            app.Stimulus_TrainingFlashifWrong.WordWrap = 'on';
-            app.Stimulus_TrainingFlashifWrong.FontSize = 11;
-            app.Stimulus_TrainingFlashifWrong.Layout.Row = 2;
-            app.Stimulus_TrainingFlashifWrong.Layout.Column = 2;
-
-            % Create Train
-            app.Train = uibutton(app.GridLayout3, 'push');
-            app.Train.ButtonPushedFcn = createCallbackFcn(app, @Train_Callback, true);
-            app.Train.Tag = 'Train';
-            app.Train.FontSize = 11;
-            app.Train.Tooltip = 'Start input training (either choice will get reward)';
-            app.Train.Layout.Row = 2;
-            app.Train.Layout.Column = 1;
-            app.Train.Text = 'Training Mode';
-
             % Create Ext_trigger
             app.Ext_trigger = uicheckbox(app.OtherUnusedTab);
             app.Ext_trigger.Tag = 'Ext_trigger';
@@ -3427,10 +3326,103 @@ classdef BB_App < matlab.apps.AppBase
             app.ArduinosDropDown.Tag = 'ArduinosDropDown';
             app.ArduinosDropDown.Position = [583 193 100 22];
 
-            % Create AnalysisTab
-            app.AnalysisTab = uitab(app.TabGroup);
-            app.AnalysisTab.Title = 'Analysis';
-            app.AnalysisTab.Tag = 'Analysis';
+            % Create DataViewerTab
+            app.DataViewerTab = uitab(app.TabGroup);
+            app.DataViewerTab.Title = 'Data Viewer';
+            app.DataViewerTab.Tag = 'Data';
+
+            % Create GridLayout7
+            app.GridLayout7 = uigridlayout(app.DataViewerTab);
+            app.GridLayout7.ColumnWidth = {'1x'};
+            app.GridLayout7.RowHeight = {55, '6x'};
+            app.GridLayout7.ColumnSpacing = 0;
+
+            % Create ControlsPanel
+            app.ControlsPanel = uipanel(app.GridLayout7);
+            app.ControlsPanel.Title = 'Controls';
+            app.ControlsPanel.Layout.Row = 1;
+            app.ControlsPanel.Layout.Column = 1;
+
+            % Create GridLayout8
+            app.GridLayout8 = uigridlayout(app.ControlsPanel);
+            app.GridLayout8.ColumnWidth = {'fit', 'fit', 'fit', 250, 37, 'fit', 30, 'fit', 30};
+            app.GridLayout8.RowHeight = {23};
+            app.GridLayout8.Padding = [10 5 10 5];
+
+            % Create Back_Data
+            app.Back_Data = uibutton(app.GridLayout8, 'state');
+            app.Back_Data.ValueChangedFcn = createCallbackFcn(app, @Plot_DataValueChanged, true);
+            app.Back_Data.Tag = 'Back_Data';
+            app.Back_Data.Text = 'Back';
+            app.Back_Data.Layout.Row = 1;
+            app.Back_Data.Layout.Column = 1;
+
+            % Create Next_Data
+            app.Next_Data = uibutton(app.GridLayout8, 'state');
+            app.Next_Data.ValueChangedFcn = createCallbackFcn(app, @Plot_DataValueChanged, true);
+            app.Next_Data.Tag = 'Next_Data';
+            app.Next_Data.Text = 'Next';
+            app.Next_Data.Layout.Row = 1;
+            app.Next_Data.Layout.Column = 2;
+
+            % Create FileDropDownLabel
+            app.FileDropDownLabel = uilabel(app.GridLayout8);
+            app.FileDropDownLabel.Tag = 'FileText';
+            app.FileDropDownLabel.HorizontalAlignment = 'right';
+            app.FileDropDownLabel.Layout.Row = 1;
+            app.FileDropDownLabel.Layout.Column = 3;
+            app.FileDropDownLabel.Text = 'File';
+
+            % Create Files_Data
+            app.Files_Data = uidropdown(app.GridLayout8);
+            app.Files_Data.Tag = 'Files_Data';
+            app.Files_Data.Layout.Row = 1;
+            app.Files_Data.Layout.Column = 4;
+
+            % Create SmallBinLabel
+            app.SmallBinLabel = uilabel(app.GridLayout8);
+            app.SmallBinLabel.Tag = 'SmallBinText';
+            app.SmallBinLabel.Layout.Row = 1;
+            app.SmallBinLabel.Layout.Column = 6;
+            app.SmallBinLabel.Text = 'Small Bin';
+
+            % Create SmallBin_Data
+            app.SmallBin_Data = uieditfield(app.GridLayout8, 'numeric');
+            app.SmallBin_Data.Tag = 'SmallBin_Data';
+            app.SmallBin_Data.Layout.Row = 1;
+            app.SmallBin_Data.Layout.Column = 7;
+
+            % Create LargeBinLabel
+            app.LargeBinLabel = uilabel(app.GridLayout8);
+            app.LargeBinLabel.Tag = 'LargeBinText';
+            app.LargeBinLabel.Layout.Row = 1;
+            app.LargeBinLabel.Layout.Column = 8;
+            app.LargeBinLabel.Text = 'Large Bin';
+
+            % Create BigBin_Data
+            app.BigBin_Data = uieditfield(app.GridLayout8, 'numeric');
+            app.BigBin_Data.ValueChangedFcn = createCallbackFcn(app, @BigBin_DataValueChanged, true);
+            app.BigBin_Data.Tag = 'BigBin_Data';
+            app.BigBin_Data.Layout.Row = 1;
+            app.BigBin_Data.Layout.Column = 9;
+
+            % Create Plot_Data
+            app.Plot_Data = uibutton(app.GridLayout8, 'state');
+            app.Plot_Data.ValueChangedFcn = createCallbackFcn(app, @Plot_DataValueChanged, true);
+            app.Plot_Data.Tag = 'Plot_Data';
+            app.Plot_Data.IconAlignment = 'center';
+            app.Plot_Data.Text = 'Plot';
+            app.Plot_Data.BackgroundColor = [0.4941 0.1843 0.5569];
+            app.Plot_Data.FontColor = [1 1 1];
+            app.Plot_Data.Layout.Row = 1;
+            app.Plot_Data.Layout.Column = 5;
+
+            % Create PerfHistPanel_Data
+            app.PerfHistPanel_Data = uipanel(app.GridLayout7);
+            app.PerfHistPanel_Data.Title = 'Performance - History';
+            app.PerfHistPanel_Data.Tag = 'PerfHistPanel_Data';
+            app.PerfHistPanel_Data.Layout.Row = 2;
+            app.PerfHistPanel_Data.Layout.Column = 1;
 
             % Create Git
             app.Git = uibutton(app.figure1, 'push');
@@ -3479,7 +3471,7 @@ classdef BB_App < matlab.apps.AppBase
     methods (Access = public)
 
         % Construct app
-        function app = BB_App
+        function app = BehaviorBox_App(varargin)
 
             % Create UIFigure and components
             createComponents(app)
@@ -3488,7 +3480,7 @@ classdef BB_App < matlab.apps.AppBase
             registerApp(app, app.figure1)
 
             % Execute the startup function
-            runStartupFcn(app, @BehaviorBox_OpeningFcn)
+            runStartupFcn(app, @(app)BehaviorBox_OpeningFcn(app, varargin{:}))
 
             if nargout == 0
                 clear app
