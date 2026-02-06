@@ -699,7 +699,7 @@ classdef BehaviorBoxWheel < handle
                 set(this.message_handle, 'Text', "Clearing timestamp log ...");
                 this.Time.Reset();
                 pause(0.1)
-                this.Time.Log(end+1,1) = "Trial "+this.i;
+                this.Time.Log(end+1,1) = "Trial "+this.i+this.current_side;
                 this.Time.Log(end+1,1) = "Hold still";
             catch
             end
