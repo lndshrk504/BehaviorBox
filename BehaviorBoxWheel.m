@@ -409,6 +409,8 @@ classdef BehaviorBoxWheel < handle
                 pause(0.1)
                 set(this.message_handle, 'Text', "Starting acquisition (ScanImage)...");
                 this.a.Acquisition('Start');
+                pause(2)
+                this.message_handle.Text = 'Starting recording, Pausing 2 sec...';
             catch
             end
         end
@@ -1137,9 +1139,11 @@ classdef BehaviorBoxWheel < handle
                     if isempty(Lines) || any(~isgraphics(Lines))
                         Lines = [this.fig.findobj('Tag','Contour'); this.fig.findobj('Tag','Distractor')];
                     end
+                    this.Time.Log(end+1,1) = "Stall flash...";
                     for rep = 1:this.Setting_Struct.Stimulus_RepFlashInitial
                         this.FlashNew(this.StimulusStruct, this.Box, Lines, 'Correct_Confirmation')
                     end
+                    this.Time.Log(end+1,1) = "Stall flash over";
                     didStallFlash = true;
                     % If you want repeated flashing every stallSec while stalled, uncomment:
                     tStall = tic;
