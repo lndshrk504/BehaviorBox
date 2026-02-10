@@ -1,6 +1,6 @@
 # viewMultiCameras variants (Linux)
 
-This archive contains **two C++ implementations** of the same behavior:
+This archive contains **three C++ implementations** of the same behavior:
 
 - Up to **4** USB (V4L2) cameras
 - **One window per camera**
@@ -22,8 +22,8 @@ Folder: `viewMultiCameras_opencv_sdl/`
 ### Option 2: GStreamer + GL sink (lower CPU, manageable complexity)
 Folder: `viewMultiCameras_gst_gl/`
 
-- Uses `v4l2src ! glupload ! glcolorconvert ! glimagesink`
-- Renders into **SDL2-created X11 windows** via `GstVideoOverlay`
+- Disabled in this repo on this machine due session-reset instability.
+- Kept only as a stub that exits with a message.
 
 ### Option 3: V4L2 + DMABUF export + EGL/OpenGL ES (max performance, zero-copy *if possible*)
 Folder: `viewMultiCameras_v4l2_dmabuf_egl/`

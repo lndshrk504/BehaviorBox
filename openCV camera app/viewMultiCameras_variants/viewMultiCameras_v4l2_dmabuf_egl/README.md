@@ -19,6 +19,7 @@ cmake --build . -j
 
 ## Notes / caveats
 - **X11-only** reference implementation (Xlib windows + EGLWindowSurface).
-- Zero-copy path is implemented for **NV12** cameras. If your cameras only support YUYV/MJPEG,
-  you'll need to add a packed-format path or use a decode/convert pipeline.
+- Zero-copy path is implemented for **NV12** cameras.
+- **YUYV** cameras now fall back to CPU color-conversion + GL texture upload (functional, but not zero-copy).
+- **MJPEG** cameras still need a decode/convert path.
 - Uses `glFinish()` before re-queueing a buffer for correctness. For maximum throughput replace with explicit fencing.

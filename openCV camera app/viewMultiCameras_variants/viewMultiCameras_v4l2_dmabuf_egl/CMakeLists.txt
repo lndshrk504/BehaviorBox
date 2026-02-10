@@ -4,6 +4,8 @@ project(viewMultiCameras_v4l2_dmabuf_egl LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+
 find_package(PkgConfig REQUIRED)
 find_package(X11 REQUIRED)
 
