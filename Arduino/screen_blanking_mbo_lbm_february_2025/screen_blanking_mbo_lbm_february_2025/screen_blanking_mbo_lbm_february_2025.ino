@@ -4,7 +4,7 @@ const byte pulse_pin = 13;
 
 // Only use the falling edge from the resonant mirror signal
 // (You can leave the falling edge pin as before)
-// Red wire from BNC goes into pin 3
+// Red wire from BNC goes into DIGITAL pin 3
 const byte interrupt_pin_falling = 3;
 // Black wire from BNC goes into ground
 
