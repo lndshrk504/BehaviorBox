@@ -1,5 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-cd ~/Desktop/BehaviorBox
-
-xfce4-terminal -e "bash -c 'matlab -nosplash -nodesktop -r "viewDualCameras"'; exec bash"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+exec "$SCRIPT_DIR/BBatCamatStartup.sh" camera "$@"
