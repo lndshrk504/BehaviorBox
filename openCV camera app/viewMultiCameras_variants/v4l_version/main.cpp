@@ -694,6 +694,18 @@ static void x11_apply_window_geometry(Display* dpy, Window w, const Rect& r) {
                     static_cast<unsigned>(std::max(1, r.h)));
 }
 
+static bool clamp_rect_to_screen(Rect& r, int screenW, int screenH) {
+  if (screenW <= 0 || screenH <= 0) return false;
+
+  const Rect before = r;
+  r.w = std::max(1, std::min(r.w, screenW));
+  r.h = std::max(1, std::min(r.h, screenH));
+  r.x = std::max(0, std::min(r.x, screenW - r.w));
+  r.y = std::max(0, std::min(r.y, screenH - r.h));
+
+  return r.x != before.x || r.y != before.y || r.w != before.w || r.h != before.h;
+}
+
 // ---- GL helpers ----
 static const char* kVS = R"(
 attribute vec2 aPos;
@@ -1276,6 +1288,8 @@ int main(int argc, char** argv) {
   vcams.reserve(static_cast<size_t>(targetWindowCount));
 
   int screen = DefaultScreen(dpy);
+  const int screenW = DisplayWidth(dpy, screen);
+  const int screenH = DisplayHeight(dpy, screen);
   Window root = RootWindow(dpy, screen);
 
   std::unordered_set<std::string> openedStableIds;
@@ -1308,17 +1322,21 @@ int main(int argc, char** argv) {
     auto it = saved.find(c.stableId);
     const bool haveSavedPos = (it != saved.end());
     if (haveSavedPos) r = it->second;
-    if (chooseEachResolution || chooseAllResolution) {
-      r.w = desired.w;
-      r.h = desired.h;
+    const Rect requestedRect = r;
+    const bool wasClamped = clamp_rect_to_screen(r, screenW, screenH);
+    if (wasClamped) {
+      std::cerr << "Adjusted startup window to fit screen: " << c.devPath
+                << " requested=(" << requestedRect.x << "," << requestedRect.y
+                << " " << requestedRect.w << "x" << requestedRect.h << ")"
+                << " clamped=(" << r.x << "," << r.y << " " << r.w << "x" << r.h << ")"
+                << " screen=(" << screenW << "x" << screenH << ")\n";
     }
     std::cerr << "Startup restore: " << c.devPath
               << " (group=" << c.stableId << ")"
               << " pos=(" << r.x << "," << r.y << ")"
               << (haveSavedPos ? " [saved-pos]" : " [default-pos]")
               << " window=" << r.w << "x" << r.h
-              << ((chooseEachResolution || chooseAllResolution) ? " [selection-size]" :
-                  (haveSavedPos ? " [saved-size]" : " [default-size]"))
+              << (haveSavedPos ? " [saved-size]" : " [default-size]")
               << " capture-request=" << desired.w << "x" << desired.h
               << " [" << desiredSource << "]\n";
 
@@ -1366,6 +1384,31 @@ int main(int argc, char** argv) {
       eglDestroySurface(edpy, surf);
       XDestroyWindow(dpy, w);
       continue;
+    }
+    if (chooseEachResolution || chooseAllResolution) {
+      Rect displayRect = r;
+      displayRect.w = cam.width;
+      displayRect.h = cam.height;
+
+      const Rect beforeDisplayClamp = displayRect;
+      const bool clampedDisplay = clamp_rect_to_screen(displayRect, screenW, screenH);
+      if (clampedDisplay) {
+        std::cerr << "Adjusted capture-sized window to fit screen: " << c.devPath
+                  << " requested=(" << beforeDisplayClamp.x << "," << beforeDisplayClamp.y
+                  << " " << beforeDisplayClamp.w << "x" << beforeDisplayClamp.h << ")"
+                  << " clamped=(" << displayRect.x << "," << displayRect.y
+                  << " " << displayRect.w << "x" << displayRect.h << ")"
+                  << " screen=(" << screenW << "x" << screenH << ")\n";
+      }
+
+      x11_apply_window_geometry(dpy, w, displayRect);
+      XSync(dpy, False);
+
+      r = displayRect;
+
+      std::cerr << "Display window size synced to capture: " << c.devPath
+                << " window=" << r.w << "x" << r.h
+                << " capture=" << cam.width << "x" << cam.height << "\n";
     }
 
     if (cam.nv12) {
