@@ -14,6 +14,9 @@ APT_PKGS=(
   libegl1-mesa-dev
   libgles2-mesa-dev
   libdrm-dev
+  libturbojpeg0-dev
+  libavcodec-dev
+  libavutil-dev
 )
 
 SUDO=""

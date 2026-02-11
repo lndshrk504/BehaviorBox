@@ -1,5 +1,6 @@
 # Ignore all txt
 *.txt
+!USB camera Apps/v4l_version/CMakeLists.txt
 *.pdf
 *.htmx
 *.html
@@ -55,3 +56,4 @@ build.ninja
 # Local CMake target binaries (no extension on Linux)
 openCV camera app/viewMultiCameras_variants/viewMultiCameras_opencv_sdl/usbcams
 openCV camera app/viewMultiCameras_variants/viewMultiCameras_v4l2_dmabuf_egl/usbcamv4l
+USB camera Apps/v4l_version/usbcamv4l

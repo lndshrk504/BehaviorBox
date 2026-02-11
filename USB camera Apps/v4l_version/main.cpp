@@ -8,6 +8,15 @@
 #include <GLES2/gl2ext.h>
 
 #include <drm/drm_fourcc.h>
+#include <turbojpeg.h>
+
+extern "C" {
+#include <libavcodec/avcodec.h>
+#include <libavutil/avutil.h>
+#include <libavutil/error.h>
+#include <libavutil/hwcontext.h>
+#include <libavutil/pixdesc.h>
+}
 
 #include <linux/videodev2.h>
 #include <sys/ioctl.h>
@@ -18,9 +27,11 @@
 #include <errno.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cctype>
 #include <cstdint>
 #include <cstring>
+#include <cstdio>
 #include <cstdlib>
 #include <csignal>
 #include <filesystem>
@@ -45,6 +56,14 @@ static constexpr int DEFAULT_WINDOW_W = 320;
 static constexpr int DEFAULT_WINDOW_H = 240;
 static constexpr int DEFAULT_FRAME_W = 640;
 static constexpr int DEFAULT_FRAME_H = 480;
+
+enum class CapturePreference {
+  Auto,     // Try NV12 then YUYV (existing behavior).
+  MJPEG,    // Prefer MJPEG, then fall back to NV12/YUYV.
+};
+
+static bool g_activeRendererIsNvidia = false;
+static bool g_activeRendererIsIntel = false;
 
 static volatile std::sig_atomic_t g_stopRequested = 0;
 
@@ -95,6 +114,13 @@ static std::string trim(const std::string& s) {
   return s.substr(a, b - a + 1);
 }
 
+static std::string to_lower_copy(std::string s) {
+  std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
+    return static_cast<char>(std::tolower(c));
+  });
+  return s;
+}
+
 static bool gl_extension_supported(const char* extList, const char* ext) {
   if (!extList || !ext || !*ext) return false;
   const std::string all(extList);
@@ -118,6 +144,71 @@ static std::string fourcc_to_string(uint32_t f) {
   out[2] = static_cast<char>((f >> 16) & 0xFF);
   out[3] = static_cast<char>((f >> 24) & 0xFF);
   return out;
+}
+
+static std::string av_error_to_string(int err) {
+  char buf[AV_ERROR_MAX_STRING_SIZE] = {};
+  if (av_strerror(err, buf, sizeof(buf)) == 0) return std::string(buf);
+  return "unknown ffmpeg error";
+}
+
+static bool ffmpeg_planar_yuv_info(AVPixelFormat fmt, int width, int height,
+                                   bool& isNV12, bool& hasChroma, int& chromaW, int& chromaH) {
+  isNV12 = false;
+  hasChroma = true;
+  chromaW = 0;
+  chromaH = 0;
+  switch (fmt) {
+    case AV_PIX_FMT_NV12:
+      isNV12 = true;
+      chromaW = (width + 1) / 2;
+      chromaH = (height + 1) / 2;
+      return true;
+    case AV_PIX_FMT_YUV420P:
+    case AV_PIX_FMT_YUVJ420P:
+      chromaW = (width + 1) / 2;
+      chromaH = (height + 1) / 2;
+      return true;
+    case AV_PIX_FMT_YUV422P:
+    case AV_PIX_FMT_YUVJ422P:
+      chromaW = (width + 1) / 2;
+      chromaH = height;
+      return true;
+    case AV_PIX_FMT_YUV444P:
+    case AV_PIX_FMT_YUVJ444P:
+      chromaW = width;
+      chromaH = height;
+      return true;
+    case AV_PIX_FMT_GRAY8:
+      hasChroma = false;
+      chromaW = 0;
+      chromaH = 0;
+      return true;
+    default:
+      return false;
+  }
+}
+
+static bool is_mjpeg_fourcc(uint32_t fmt) {
+  return fmt == V4L2_PIX_FMT_MJPEG || fmt == V4L2_PIX_FMT_JPEG;
+}
+
+static bool pixfmt_matches_request(uint32_t requested, uint32_t actual) {
+  if (requested == V4L2_PIX_FMT_MJPEG) return is_mjpeg_fourcc(actual);
+  return requested == actual;
+}
+
+static bool try_set_capture_format(int fd, int reqW, int reqH,
+                                   uint32_t requestedPixFmt,
+                                   v4l2_format& outFmt) {
+  std::memset(&outFmt, 0, sizeof(outFmt));
+  outFmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  outFmt.fmt.pix.width = reqW;
+  outFmt.fmt.pix.height = reqH;
+  outFmt.fmt.pix.pixelformat = requestedPixFmt;
+  outFmt.fmt.pix.field = V4L2_FIELD_NONE;
+  if (ioctl(fd, VIDIOC_S_FMT, &outFmt) != 0) return false;
+  return pixfmt_matches_request(requestedPixFmt, outFmt.fmt.pix.pixelformat);
 }
 
 static std::string sanitize_stable_id(std::string id) {
@@ -436,9 +527,9 @@ static std::optional<V4L2NodeInfo> query_v4l2(const std::string& devPath, int* f
   return out;
 }
 
-static bool probe_capture_stream(const std::string& devPath) {
+static int probe_capture_stream_rank(const std::string& devPath, CapturePreference capturePref) {
   int fd = ::open(devPath.c_str(), O_RDWR | O_NONBLOCK);
-  if (fd < 0) return false;
+  if (fd < 0) return -1;
 
   auto close_fd = [&]() {
     if (fd >= 0) {
@@ -450,7 +541,7 @@ static bool probe_capture_stream(const std::string& devPath) {
   v4l2_capability cap{};
   if (ioctl(fd, VIDIOC_QUERYCAP, &cap) != 0) {
     close_fd();
-    return false;
+    return -1;
   }
   const uint32_t effectiveCaps =
       (cap.capabilities & V4L2_CAP_DEVICE_CAPS) ? cap.device_caps : cap.capabilities;
@@ -459,34 +550,28 @@ static bool probe_capture_stream(const std::string& devPath) {
       (effectiveCaps & V4L2_CAP_VIDEO_CAPTURE_MPLANE);
   if (!hasCapture) {
     close_fd();
-    return false;
+    return -1;
   }
 
   v4l2_format fmt{};
-  fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-  fmt.fmt.pix.width = DEFAULT_FRAME_W;
-  fmt.fmt.pix.height = DEFAULT_FRAME_H;
-  fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_NV12;
-  fmt.fmt.pix.field = V4L2_FIELD_NONE;
-  if (ioctl(fd, VIDIOC_S_FMT, &fmt) == 0 && fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_NV12) {
+  if (capturePref == CapturePreference::MJPEG &&
+      try_set_capture_format(fd, DEFAULT_FRAME_W, DEFAULT_FRAME_H, V4L2_PIX_FMT_MJPEG, fmt)) {
     close_fd();
-    return true;
+    return 3;
   }
 
-  std::memset(&fmt, 0, sizeof(fmt));
-  fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-  fmt.fmt.pix.width = DEFAULT_FRAME_W;
-  fmt.fmt.pix.height = DEFAULT_FRAME_H;
-  fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
-  fmt.fmt.pix.field = V4L2_FIELD_NONE;
-  const bool ok = (ioctl(fd, VIDIOC_S_FMT, &fmt) == 0 &&
-                   fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_YUYV &&
+  if (try_set_capture_format(fd, DEFAULT_FRAME_W, DEFAULT_FRAME_H, V4L2_PIX_FMT_NV12, fmt)) {
+    close_fd();
+    return 2;
+  }
+
+  const bool ok = (try_set_capture_format(fd, DEFAULT_FRAME_W, DEFAULT_FRAME_H, V4L2_PIX_FMT_YUYV, fmt) &&
                    (fmt.fmt.pix.width % 2) == 0);
   close_fd();
-  return ok;
+  return ok ? 1 : -1;
 }
 
-static CameraScanResult enumerate_cameras() {
+static CameraScanResult enumerate_cameras(CapturePreference capturePref) {
   CameraScanResult scan;
   std::vector<std::string> videoNodes;
   std::error_code ec;
@@ -547,12 +632,15 @@ static CameraScanResult enumerate_cameras() {
               });
 
     int preferredIdx = -1;
+    int bestRank = -1;
     for (size_t i = 0; i < cands.size(); ++i) {
-      if (!probe_capture_stream(cands[i].cam.devPath)) continue;
-      preferredIdx = static_cast<int>(i);
-      cands[i].preferred = true;
-      break;
+      const int rank = probe_capture_stream_rank(cands[i].cam.devPath, capturePref);
+      if (rank > bestRank) {
+        bestRank = rank;
+        preferredIdx = static_cast<int>(i);
+      }
     }
+    if (preferredIdx >= 0) cands[static_cast<size_t>(preferredIdx)].preferred = true;
     if (preferredIdx >= 0) selected.push_back(cands[preferredIdx]);
     for (size_t i = 0; i < cands.size(); ++i) {
       if (static_cast<int>(i) == preferredIdx) continue;
@@ -760,6 +848,172 @@ void main() {
 }
 )";
 
+static const char* kFS_YUV_PLANAR = R"(
+precision mediump float;
+varying vec2 vUV;
+uniform sampler2D texPlanarY;
+uniform sampler2D texPlanarU;
+uniform sampler2D texPlanarV;
+void main() {
+  float y = texture2D(texPlanarY, vUV).r;
+  float u = texture2D(texPlanarU, vUV).r - 0.5;
+  float v = texture2D(texPlanarV, vUV).r - 0.5;
+
+  float r = y + 1.402 * v;
+  float g = y - 0.344136 * u - 0.714136 * v;
+  float b = y + 1.772 * u;
+  gl_FragColor = vec4(r, g, b, 1.0);
+}
+)";
+
+static const char* kFS_RGBA = R"(
+precision mediump float;
+varying vec2 vUV;
+uniform sampler2D texRGBA;
+void main() {
+  gl_FragColor = texture2D(texRGBA, vUV);
+}
+)";
+
+static constexpr int kOverlayScale = 2;
+static constexpr int kOverlayGlyphW = 5;
+static constexpr int kOverlayGlyphH = 7;
+static constexpr int kOverlayAdvance = (kOverlayGlyphW + 1) * kOverlayScale;
+static constexpr int kOverlayMargin = 6;
+
+static void glyph_5x7(char c, uint8_t rows[7]) {
+  std::memset(rows, 0, 7);
+  switch (c) {
+    case '0': { const uint8_t g[7] = {0x0E, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0E}; std::memcpy(rows, g, 7); break; }
+    case '1': { const uint8_t g[7] = {0x04, 0x0C, 0x04, 0x04, 0x04, 0x04, 0x0E}; std::memcpy(rows, g, 7); break; }
+    case '2': { const uint8_t g[7] = {0x0E, 0x11, 0x01, 0x02, 0x04, 0x08, 0x1F}; std::memcpy(rows, g, 7); break; }
+    case '3': { const uint8_t g[7] = {0x1E, 0x01, 0x01, 0x0E, 0x01, 0x01, 0x1E}; std::memcpy(rows, g, 7); break; }
+    case '4': { const uint8_t g[7] = {0x02, 0x06, 0x0A, 0x12, 0x1F, 0x02, 0x02}; std::memcpy(rows, g, 7); break; }
+    case '5': { const uint8_t g[7] = {0x1F, 0x10, 0x10, 0x1E, 0x01, 0x01, 0x1E}; std::memcpy(rows, g, 7); break; }
+    case '6': { const uint8_t g[7] = {0x0E, 0x10, 0x10, 0x1E, 0x11, 0x11, 0x0E}; std::memcpy(rows, g, 7); break; }
+    case '7': { const uint8_t g[7] = {0x1F, 0x01, 0x02, 0x04, 0x08, 0x08, 0x08}; std::memcpy(rows, g, 7); break; }
+    case '8': { const uint8_t g[7] = {0x0E, 0x11, 0x11, 0x0E, 0x11, 0x11, 0x0E}; std::memcpy(rows, g, 7); break; }
+    case '9': { const uint8_t g[7] = {0x0E, 0x11, 0x11, 0x0F, 0x01, 0x01, 0x0E}; std::memcpy(rows, g, 7); break; }
+    case 'F': { const uint8_t g[7] = {0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x10}; std::memcpy(rows, g, 7); break; }
+    case 'P': { const uint8_t g[7] = {0x1E, 0x11, 0x11, 0x1E, 0x10, 0x10, 0x10}; std::memcpy(rows, g, 7); break; }
+    case 'S': { const uint8_t g[7] = {0x0F, 0x10, 0x10, 0x0E, 0x01, 0x01, 0x1E}; std::memcpy(rows, g, 7); break; }
+    case 'X':
+    case 'x': { const uint8_t g[7] = {0x11, 0x11, 0x0A, 0x04, 0x0A, 0x11, 0x11}; std::memcpy(rows, g, 7); break; }
+    case '.': { const uint8_t g[7] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x06}; std::memcpy(rows, g, 7); break; }
+    case ' ': { break; }
+    default:  { const uint8_t g[7] = {0x1E, 0x01, 0x02, 0x04, 0x08, 0x00, 0x08}; std::memcpy(rows, g, 7); break; }
+  }
+}
+
+static inline void overlay_put_pixel(std::vector<uint8_t>& rgba, int w, int h, int x, int y,
+                                     uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+  if (x < 0 || y < 0 || x >= w || y >= h) return;
+  const size_t idx = (static_cast<size_t>(y) * static_cast<size_t>(w) + static_cast<size_t>(x)) * 4u;
+  rgba[idx + 0] = r;
+  rgba[idx + 1] = g;
+  rgba[idx + 2] = b;
+  rgba[idx + 3] = a;
+}
+
+static void render_overlay_text_rgba(std::vector<uint8_t>& rgba, int w, int h, const std::string& text) {
+  if (w <= 0 || h <= 0) return;
+  rgba.assign(static_cast<size_t>(w) * static_cast<size_t>(h) * 4u, 0);
+
+  // Semi-transparent background block for readability on bright scenes.
+  for (int y = 0; y < h; ++y) {
+    for (int x = 0; x < w; ++x) {
+      overlay_put_pixel(rgba, w, h, x, y, 0, 0, 0, 132);
+    }
+  }
+
+  const int baseX = kOverlayMargin;
+  const int baseY = kOverlayMargin;
+
+  int penX = baseX;
+  for (char ch : text) {
+    uint8_t glyph[7];
+    glyph_5x7(ch, glyph);
+    for (int gy = 0; gy < kOverlayGlyphH; ++gy) {
+      const uint8_t bits = glyph[gy];
+      for (int gx = 0; gx < kOverlayGlyphW; ++gx) {
+        if ((bits & (1u << (kOverlayGlyphW - 1 - gx))) == 0) continue;
+        for (int sy = 0; sy < kOverlayScale; ++sy) {
+          for (int sx = 0; sx < kOverlayScale; ++sx) {
+            overlay_put_pixel(rgba, w, h,
+                              penX + gx * kOverlayScale + sx,
+                              baseY + gy * kOverlayScale + sy,
+                              255, 255, 255, 255);
+          }
+        }
+      }
+    }
+    penX += kOverlayAdvance;
+    if (penX + kOverlayAdvance >= w) break;
+  }
+}
+
+static void overlay_dimensions_for_text(const std::string& text, int& outW, int& outH) {
+  const int chars = std::max(1, static_cast<int>(text.size()));
+  outW = kOverlayMargin + chars * kOverlayAdvance + kOverlayMargin;
+  outH = kOverlayMargin + kOverlayGlyphH * kOverlayScale + kOverlayMargin;
+  outW = std::clamp(outW, 96, 512);
+  outH = std::clamp(outH, 24, 64);
+}
+
+static void make_overlay_quad(int viewportW, int viewportH,
+                              int px, int py, int w, int h,
+                              GLfloat out[16]) {
+  const float invW = 1.0f / std::max(1, viewportW);
+  const float invH = 1.0f / std::max(1, viewportH);
+  const float x0 = -1.0f + 2.0f * static_cast<float>(px) * invW;
+  const float x1 = -1.0f + 2.0f * static_cast<float>(px + w) * invW;
+  const float y0 = -1.0f + 2.0f * static_cast<float>(py) * invH;
+  const float y1 = -1.0f + 2.0f * static_cast<float>(py + h) * invH;
+  const GLfloat quad[] = {
+      x0, y0, 0.0f, 1.0f,
+      x1, y0, 1.0f, 1.0f,
+      x0, y1, 0.0f, 0.0f,
+      x1, y1, 1.0f, 0.0f,
+  };
+  std::memcpy(out, quad, sizeof(quad));
+}
+
+static bool mjpeg_chroma_dimensions(int subsamp, int width, int height,
+                                    bool& hasChroma, int& chromaW, int& chromaH) {
+  hasChroma = true;
+  chromaW = 0;
+  chromaH = 0;
+  switch (subsamp) {
+    case TJSAMP_444:
+      chromaW = width;
+      chromaH = height;
+      return true;
+    case TJSAMP_422:
+      chromaW = (width + 1) / 2;
+      chromaH = height;
+      return true;
+    case TJSAMP_420:
+      chromaW = (width + 1) / 2;
+      chromaH = (height + 1) / 2;
+      return true;
+    case TJSAMP_GRAY:
+      hasChroma = false;
+      chromaW = 0;
+      chromaH = 0;
+      return true;
+    case TJSAMP_440:
+      chromaW = width;
+      chromaH = (height + 1) / 2;
+      return true;
+    case TJSAMP_411:
+      chromaW = (width + 3) / 4;
+      chromaH = height;
+      return true;
+    default:
+      return false;
+  }
+}
+
 static GLuint compile_shader(GLenum type, const char* src) {
   GLuint s = glCreateShader(type);
   glShaderSource(s, 1, &src, nullptr);
@@ -804,6 +1058,29 @@ static void init_plane_texture(GLuint& tex, GLenum format, int width, int height
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
   glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, nullptr);
+}
+
+static void ensure_plane_texture(GLuint& tex, int& allocW, int& allocH,
+                                 GLenum format, int width, int height, GLint filter) {
+  if (tex != 0 && (allocW != width || allocH != height)) {
+    glDeleteTextures(1, &tex);
+    tex = 0;
+  }
+  init_plane_texture(tex, format, width, height, filter);
+  allocW = width;
+  allocH = height;
+}
+
+static void init_neutral_luma_texture(GLuint& tex) {
+  if (tex != 0) return;
+  const uint8_t neutral = 128;
+  glGenTextures(1, &tex);
+  glBindTexture(GL_TEXTURE_2D, tex);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, 1, 1, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, &neutral);
 }
 
 static bool upload_plane_texture(GLuint tex, GLenum format,
@@ -869,6 +1146,18 @@ static bool probe_renderer_context(EGLDisplay edpy, EGLConfig cfg, EGLContext ct
   std::cerr << "EGL vendor: " << (eglVendor ? eglVendor : "(null)") << "\n";
   std::cerr << "GL vendor: " << (glVendor ? glVendor : "(null)") << "\n";
   std::cerr << "GL renderer: " << (glRenderer ? glRenderer : "(null)") << "\n";
+  g_activeRendererIsNvidia = false;
+  g_activeRendererIsIntel = false;
+  if (glVendor) {
+    const std::string vendorLower = to_lower_copy(glVendor);
+    g_activeRendererIsNvidia = vendorLower.find("nvidia") != std::string::npos;
+    g_activeRendererIsIntel = vendorLower.find("intel") != std::string::npos;
+  }
+  if (glRenderer) {
+    const std::string rendererLower = to_lower_copy(glRenderer);
+    if (rendererLower.find("nvidia") != std::string::npos) g_activeRendererIsNvidia = true;
+    if (rendererLower.find("intel") != std::string::npos) g_activeRendererIsIntel = true;
+  }
   if (!glVendor || !glRenderer) {
     std::cerr << "Failed to query active GL renderer.\n";
   }
@@ -877,22 +1166,339 @@ static bool probe_renderer_context(EGLDisplay edpy, EGLConfig cfg, EGLContext ct
   return glVendor && glRenderer;
 }
 
+struct MjpegHwDecoder {
+  bool enabled{false};
+  std::string backendName;
+  AVCodecContext* codecCtx{nullptr};
+  AVPacket* packet{nullptr};
+  AVFrame* frame{nullptr};
+  AVFrame* transferFrame{nullptr};
+  AVFrame* outputFrame{nullptr};
+  AVBufferRef* hwDeviceCtx{nullptr};
+  AVPixelFormat expectedHwPixFmt{AV_PIX_FMT_NONE};
+  bool enforceHwPixFmt{false};
+  bool warnedDecode{false};
+  bool warnedFormat{false};
+
+  static enum AVPixelFormat pick_hw_format(AVCodecContext* ctx, const enum AVPixelFormat* pixFmts) {
+    if (!ctx || !pixFmts) return AV_PIX_FMT_NONE;
+    auto* self = reinterpret_cast<MjpegHwDecoder*>(ctx->opaque);
+    if (!self || !self->enforceHwPixFmt || self->expectedHwPixFmt == AV_PIX_FMT_NONE) {
+      return pixFmts[0];
+    }
+    for (const enum AVPixelFormat* p = pixFmts; *p != AV_PIX_FMT_NONE; ++p) {
+      if (*p == self->expectedHwPixFmt) return *p;
+    }
+    return AV_PIX_FMT_NONE;
+  }
+
+  void reset() {
+    enabled = false;
+    backendName.clear();
+    warnedDecode = false;
+    warnedFormat = false;
+    enforceHwPixFmt = false;
+    expectedHwPixFmt = AV_PIX_FMT_NONE;
+    if (packet) {
+      av_packet_free(&packet);
+      packet = nullptr;
+    }
+    if (frame) {
+      av_frame_free(&frame);
+      frame = nullptr;
+    }
+    if (transferFrame) {
+      av_frame_free(&transferFrame);
+      transferFrame = nullptr;
+    }
+    if (outputFrame) {
+      av_frame_free(&outputFrame);
+      outputFrame = nullptr;
+    }
+    if (codecCtx) {
+      avcodec_free_context(&codecCtx);
+      codecCtx = nullptr;
+    }
+    if (hwDeviceCtx) {
+      av_buffer_unref(&hwDeviceCtx);
+      hwDeviceCtx = nullptr;
+    }
+  }
+
+  bool init(const std::string& devPath, bool allowCudaCuvid, bool allowVaapi) {
+    reset();
+
+    struct Candidate {
+      const char* label;
+      const char* decoderName;
+      AVHWDeviceType hwType;
+      AVPixelFormat hwPixFmt;
+      bool requireHwFormat;
+    };
+    std::vector<Candidate> candidates;
+    if (allowCudaCuvid) {
+      candidates.push_back({"CUDA/CUVID", "mjpeg_cuvid", AV_HWDEVICE_TYPE_CUDA, AV_PIX_FMT_CUDA, false});
+    }
+    candidates.push_back({"Intel QSV", "mjpeg_qsv", AV_HWDEVICE_TYPE_QSV, AV_PIX_FMT_QSV, false});
+    if (allowVaapi) {
+      candidates.push_back({"VAAPI", "mjpeg", AV_HWDEVICE_TYPE_VAAPI, AV_PIX_FMT_VAAPI, true});
+    }
+
+    static bool cudaUnavailable = false;
+    static bool qsvUnavailable = false;
+    static bool vaapiUnavailable = false;
+
+    for (const auto& candidate : candidates) {
+      if (candidate.hwType == AV_HWDEVICE_TYPE_CUDA && cudaUnavailable) continue;
+      if (candidate.hwType == AV_HWDEVICE_TYPE_QSV && qsvUnavailable) continue;
+      if (candidate.hwType == AV_HWDEVICE_TYPE_VAAPI && vaapiUnavailable) continue;
+
+      const AVCodec* codec = avcodec_find_decoder_by_name(candidate.decoderName);
+      if (!codec) continue;
+
+      AVCodecContext* tryCtx = avcodec_alloc_context3(codec);
+      if (!tryCtx) continue;
+
+      AVBufferRef* tryDevice = nullptr;
+      if (candidate.hwType != AV_HWDEVICE_TYPE_NONE) {
+        const int devRc = av_hwdevice_ctx_create(&tryDevice, candidate.hwType, nullptr, nullptr, 0);
+        if (devRc < 0) {
+          if (candidate.hwType == AV_HWDEVICE_TYPE_CUDA) cudaUnavailable = true;
+          if (candidate.hwType == AV_HWDEVICE_TYPE_QSV) qsvUnavailable = true;
+          if (candidate.hwType == AV_HWDEVICE_TYPE_VAAPI) vaapiUnavailable = true;
+          avcodec_free_context(&tryCtx);
+          continue;
+        }
+        tryCtx->hw_device_ctx = av_buffer_ref(tryDevice);
+        if (!tryCtx->hw_device_ctx) {
+          av_buffer_unref(&tryDevice);
+          avcodec_free_context(&tryCtx);
+          continue;
+        }
+      }
+
+      expectedHwPixFmt = candidate.hwPixFmt;
+      enforceHwPixFmt = candidate.requireHwFormat;
+      if (candidate.requireHwFormat) {
+        tryCtx->opaque = this;
+        tryCtx->get_format = &MjpegHwDecoder::pick_hw_format;
+      }
+
+      tryCtx->thread_count = 1;
+      tryCtx->flags |= AV_CODEC_FLAG_LOW_DELAY;
+      tryCtx->flags2 |= AV_CODEC_FLAG2_FAST;
+      tryCtx->pkt_timebase = AVRational{1, 1000000};
+      const int openRc = avcodec_open2(tryCtx, codec, nullptr);
+      if (openRc != 0) {
+        if (tryDevice) av_buffer_unref(&tryDevice);
+        avcodec_free_context(&tryCtx);
+        continue;
+      }
+
+      packet = av_packet_alloc();
+      frame = av_frame_alloc();
+      transferFrame = av_frame_alloc();
+      outputFrame = av_frame_alloc();
+      if (!packet || !frame || !transferFrame || !outputFrame) {
+        if (tryDevice) av_buffer_unref(&tryDevice);
+        avcodec_free_context(&tryCtx);
+        reset();
+        continue;
+      }
+
+      codecCtx = tryCtx;
+      hwDeviceCtx = tryDevice;
+      enabled = true;
+      backendName = candidate.label;
+      warnedDecode = false;
+      warnedFormat = false;
+      std::cerr << "Enabled MJPEG hardware decode for " << devPath
+                << " via " << backendName << ".\n";
+      return true;
+    }
+
+    reset();
+    return false;
+  }
+
+  bool decode_frame(const uint8_t* bitstream, size_t bytesUsed, AVFrame*& outFrame) {
+    outFrame = nullptr;
+    if (!enabled || !codecCtx || !packet || !frame || !transferFrame || !outputFrame ||
+        !bitstream || bytesUsed == 0) {
+      return false;
+    }
+    if (bytesUsed > static_cast<size_t>(std::numeric_limits<int>::max())) return false;
+
+    av_packet_unref(packet);
+    packet->data = const_cast<uint8_t*>(bitstream);
+    packet->size = static_cast<int>(bytesUsed);
+
+    int rc = avcodec_send_packet(codecCtx, packet);
+    if (rc == AVERROR(EAGAIN)) {
+      while (true) {
+        av_frame_unref(frame);
+        const int drainRc = avcodec_receive_frame(codecCtx, frame);
+        if (drainRc == AVERROR(EAGAIN) || drainRc == AVERROR_EOF) break;
+        if (drainRc < 0) break;
+      }
+      rc = avcodec_send_packet(codecCtx, packet);
+    }
+    if (rc < 0) {
+      if (!warnedDecode) {
+        std::cerr << "MJPEG hardware decode send_packet failed (" << backendName
+                  << "): " << av_error_to_string(rc) << "\n";
+        warnedDecode = true;
+      }
+      return false;
+    }
+
+    av_frame_unref(outputFrame);
+    bool haveOutput = false;
+    while (true) {
+      av_frame_unref(frame);
+      av_frame_unref(transferFrame);
+
+      rc = avcodec_receive_frame(codecCtx, frame);
+      if (rc == AVERROR(EAGAIN) || rc == AVERROR_EOF) break;
+      if (rc < 0) {
+        if (!warnedDecode) {
+          std::cerr << "MJPEG hardware decode receive_frame failed (" << backendName
+                    << "): " << av_error_to_string(rc) << "\n";
+          warnedDecode = true;
+        }
+        return false;
+      }
+
+      AVFrame* candidate = frame;
+      const AVPixFmtDescriptor* pixDesc =
+          av_pix_fmt_desc_get(static_cast<AVPixelFormat>(frame->format));
+      if (pixDesc && (pixDesc->flags & AV_PIX_FMT_FLAG_HWACCEL)) {
+        rc = av_hwframe_transfer_data(transferFrame, frame, 0);
+        if (rc < 0) {
+          std::cerr << "MJPEG hardware frame transfer failed (" << backendName
+                    << "): " << av_error_to_string(rc)
+                    << ". Disabling this backend.\n";
+          reset();
+          return false;
+        }
+        candidate = transferFrame;
+      }
+
+      bool isNV12 = false;
+      bool hasChroma = false;
+      int chromaW = 0;
+      int chromaH = 0;
+      const AVPixelFormat pixFmt = static_cast<AVPixelFormat>(candidate->format);
+      if (!ffmpeg_planar_yuv_info(pixFmt, candidate->width, candidate->height,
+                                  isNV12, hasChroma, chromaW, chromaH)) {
+        if (!warnedFormat) {
+          std::cerr << "MJPEG hardware decode output format is "
+                    << av_get_pix_fmt_name(pixFmt)
+                    << " (unsupported). Disabling this backend.\n";
+          warnedFormat = true;
+        }
+        reset();
+        return false;
+      }
+      if (candidate->width <= 0 || candidate->height <= 0 || !candidate->data[0]) {
+        continue;
+      }
+      if (hasChroma) {
+        if (!candidate->data[1]) continue;
+        if (!isNV12 && !candidate->data[2]) continue;
+      }
+      if (candidate->linesize[0] <= 0) {
+        continue;
+      }
+      if (hasChroma && candidate->linesize[1] <= 0) {
+        continue;
+      }
+      if (hasChroma && !isNV12 && candidate->linesize[2] <= 0) {
+        continue;
+      }
+
+      av_frame_unref(outputFrame);
+      if (av_frame_ref(outputFrame, candidate) != 0) {
+        continue;
+      }
+      haveOutput = true;
+    }
+
+    if (haveOutput) {
+      warnedDecode = false;
+      outFrame = outputFrame;
+      return true;
+    }
+    return false;
+  }
+};
+
 // ---- V4L2 + DMABUF ----
 struct V4L2DmabufCam {
   CamInfo cam;
   int requestedW{DEFAULT_FRAME_W};
   int requestedH{DEFAULT_FRAME_H};
+  bool lowLatency{true};
+  bool allowFullHwMjpeg{false};
+  bool allowVaapiHwMjpeg{false};
   int fd{-1};
   int width{0}, height{0};
   int strideY{0}, strideUV{0};
   bool nv12{false};
   bool yuyv{false};
+  bool mjpeg{false};
   GLuint uploadYTex{0};
+  int uploadYTexW{0};
+  int uploadYTexH{0};
   GLuint uploadUVTex{0};
+  int uploadUVTexW{0};
+  int uploadUVTexH{0};
   GLuint yuyvTex{0};
+  int yuyvTexW{0};
+  int yuyvTexH{0};
+  GLuint mjpegYTex{0};
+  int mjpegYTexW{0};
+  int mjpegYTexH{0};
+  GLuint mjpegUTex{0};
+  int mjpegUTexW{0};
+  int mjpegUTexH{0};
+  GLuint mjpegVTex{0};
+  int mjpegVTexW{0};
+  int mjpegVTexH{0};
+  GLuint neutralChromaTex{0};
+  GLuint overlayTex{0};
+  int overlayTexW{0};
+  int overlayTexH{0};
   std::vector<uint8_t> scratchY;
   std::vector<uint8_t> scratchUV;
   std::vector<uint8_t> scratchYuyv;
+  std::vector<uint8_t> scratchMjpegY;
+  std::vector<uint8_t> scratchMjpegU;
+  std::vector<uint8_t> scratchMjpegV;
+  std::vector<uint8_t> overlayRgba;
+  std::string overlayText;
+  double fpsValue{0.0};
+  int fpsFrameCount{0};
+  std::chrono::steady_clock::time_point fpsWindowStart{};
+  bool fpsStarted{false};
+
+  MjpegHwDecoder mjpegHw;
+
+  tjhandle tjDecoder{nullptr};
+  int mjpegSubsamp{-1};
+  bool mjpegHasChroma{false};
+  int mjpegPlaneW[3]{0, 0, 0};
+  int mjpegPlaneH[3]{0, 0, 0};
+  int mjpegPlaneStride[3]{0, 0, 0};
+  std::vector<uint8_t> mjpegPlaneY;
+  std::vector<uint8_t> mjpegPlaneU;
+  std::vector<uint8_t> mjpegPlaneV;
+
+  bool warnedMjpegHeader{false};
+  bool warnedMjpegDecode{false};
+  bool warnedMjpegSizeMismatch{false};
+  bool warnedMjpegUnsupportedSubsamp{false};
+  bool warnedMjpegHwSizeMismatch{false};
 
   struct Buf {
     void* ptr{nullptr};
@@ -905,12 +1511,86 @@ struct V4L2DmabufCam {
   };
   std::vector<Buf> bufs;
 
-  bool open_and_configure() {
+  bool reconfigure_mjpeg_planes(int subsamp, int frameW, int frameH) {
+    bool hasChroma = false;
+    int chromaW = 0;
+    int chromaH = 0;
+    if (!mjpeg_chroma_dimensions(subsamp, frameW, frameH, hasChroma, chromaW, chromaH)) {
+      return false;
+    }
+
+    const bool sameLayout =
+        (mjpegSubsamp == subsamp) &&
+        (mjpegHasChroma == hasChroma) &&
+        (mjpegPlaneW[0] == frameW) &&
+        (mjpegPlaneH[0] == frameH) &&
+        (!hasChroma || ((mjpegPlaneW[1] == chromaW) && (mjpegPlaneH[1] == chromaH)));
+    if (sameLayout) return true;
+
+    mjpegSubsamp = subsamp;
+    mjpegHasChroma = hasChroma;
+
+    mjpegPlaneW[0] = frameW;
+    mjpegPlaneH[0] = frameH;
+    mjpegPlaneStride[0] = frameW;
+    mjpegPlaneY.resize(static_cast<size_t>(mjpegPlaneStride[0]) * static_cast<size_t>(mjpegPlaneH[0]));
+
+    if (mjpegHasChroma) {
+      mjpegPlaneW[1] = chromaW;
+      mjpegPlaneH[1] = chromaH;
+      mjpegPlaneStride[1] = chromaW;
+      mjpegPlaneW[2] = chromaW;
+      mjpegPlaneH[2] = chromaH;
+      mjpegPlaneStride[2] = chromaW;
+      mjpegPlaneU.resize(static_cast<size_t>(mjpegPlaneStride[1]) * static_cast<size_t>(mjpegPlaneH[1]));
+      mjpegPlaneV.resize(static_cast<size_t>(mjpegPlaneStride[2]) * static_cast<size_t>(mjpegPlaneH[2]));
+    } else {
+      mjpegPlaneW[1] = 0;
+      mjpegPlaneH[1] = 0;
+      mjpegPlaneStride[1] = 0;
+      mjpegPlaneW[2] = 0;
+      mjpegPlaneH[2] = 0;
+      mjpegPlaneStride[2] = 0;
+      mjpegPlaneU.clear();
+      mjpegPlaneV.clear();
+    }
+
+    if (mjpegYTex) glDeleteTextures(1, &mjpegYTex);
+    if (mjpegUTex) glDeleteTextures(1, &mjpegUTex);
+    if (mjpegVTex) glDeleteTextures(1, &mjpegVTex);
+    mjpegYTex = 0;
+    mjpegYTexW = 0;
+    mjpegYTexH = 0;
+    mjpegUTex = 0;
+    mjpegUTexW = 0;
+    mjpegUTexH = 0;
+    mjpegVTex = 0;
+    mjpegVTexW = 0;
+    mjpegVTexH = 0;
+    scratchMjpegY.clear();
+    scratchMjpegU.clear();
+    scratchMjpegV.clear();
+    return true;
+  }
+
+  bool open_and_configure(CapturePreference capturePref) {
     fd = ::open(cam.devPath.c_str(), O_RDWR | O_NONBLOCK);
     if (fd < 0) { std::cerr << "open failed: " << cam.devPath << "\n"; return false; }
 
     nv12 = false;
     yuyv = false;
+    mjpeg = false;
+    warnedMjpegHeader = false;
+    warnedMjpegDecode = false;
+    warnedMjpegSizeMismatch = false;
+    warnedMjpegUnsupportedSubsamp = false;
+    warnedMjpegHwSizeMismatch = false;
+    overlayText.clear();
+    overlayRgba.clear();
+    fpsValue = 0.0;
+    fpsFrameCount = 0;
+    fpsStarted = false;
+    mjpegHw.reset();
 
     auto fail = [&]() -> bool {
       for (auto& b : bufs) {
@@ -919,6 +1599,19 @@ struct V4L2DmabufCam {
         b = Buf{};
       }
       bufs.clear();
+      mjpegHw.reset();
+      if (tjDecoder) {
+        tjDestroy(tjDecoder);
+        tjDecoder = nullptr;
+      }
+      mjpegPlaneY.clear();
+      mjpegPlaneU.clear();
+      mjpegPlaneV.clear();
+      mjpegSubsamp = -1;
+      mjpegHasChroma = false;
+      mjpegPlaneW[0] = mjpegPlaneW[1] = mjpegPlaneW[2] = 0;
+      mjpegPlaneH[0] = mjpegPlaneH[1] = mjpegPlaneH[2] = 0;
+      mjpegPlaneStride[0] = mjpegPlaneStride[1] = mjpegPlaneStride[2] = 0;
       if (fd >= 0) {
         close(fd);
         fd = -1;
@@ -927,38 +1620,29 @@ struct V4L2DmabufCam {
     };
 
     v4l2_format fmt{};
-    fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    fmt.fmt.pix.width = requestedW;
-    fmt.fmt.pix.height = requestedH;
-    fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_NV12;
-    fmt.fmt.pix.field = V4L2_FIELD_NONE;
-
-    if (ioctl(fd, VIDIOC_S_FMT, &fmt) == 0 && fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_NV12) {
+    bool configured = false;
+    if (capturePref == CapturePreference::MJPEG &&
+        try_set_capture_format(fd, requestedW, requestedH, V4L2_PIX_FMT_MJPEG, fmt)) {
+      mjpeg = true;
+      configured = true;
+    }
+    if (!configured && try_set_capture_format(fd, requestedW, requestedH, V4L2_PIX_FMT_NV12, fmt)) {
       nv12 = true;
-      yuyv = false;
-    } else {
-      // Packed YUYV fallback; conversion remains on GPU via fragment shader.
-      std::memset(&fmt, 0, sizeof(fmt));
-      fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-      fmt.fmt.pix.width = requestedW;
-      fmt.fmt.pix.height = requestedH;
-      fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
-      fmt.fmt.pix.field = V4L2_FIELD_NONE;
-      if (ioctl(fd, VIDIOC_S_FMT, &fmt) != 0) {
+      configured = true;
+    }
+    if (!configured && try_set_capture_format(fd, requestedW, requestedH, V4L2_PIX_FMT_YUYV, fmt)) {
+      yuyv = true;
+      configured = true;
+    }
+    if (!configured) {
+      if (capturePref == CapturePreference::MJPEG) {
+        std::cerr << "VIDIOC_S_FMT failed for MJPEG, NV12, and YUYV: " << cam.devPath
+                  << " (requested " << requestedW << "x" << requestedH << ")\n";
+      } else {
         std::cerr << "VIDIOC_S_FMT failed for NV12 and YUYV: " << cam.devPath
                   << " (requested " << requestedW << "x" << requestedH << ")\n";
-        return fail();
       }
-      if (fmt.fmt.pix.pixelformat != V4L2_PIX_FMT_YUYV) {
-        std::cerr << "Unsupported fallback format from " << cam.devPath
-                  << ": '" << fourcc_to_string(fmt.fmt.pix.pixelformat)
-                  << "' (need NV12 or YUYV).\n";
-        return fail();
-      }
-      nv12 = false;
-      yuyv = true;
-      std::cerr << "Warning: " << cam.devPath
-                << " is YUYV; using GPU shader conversion path.\n";
+      return fail();
     }
 
     width = (int)fmt.fmt.pix.width;
@@ -969,14 +1653,44 @@ struct V4L2DmabufCam {
       return fail();
     }
     strideY = (int)fmt.fmt.pix.bytesperline;
-    if (strideY <= 0) strideY = nv12 ? width : width * 2;
+    if (strideY <= 0) {
+      if (nv12) strideY = width;
+      else if (yuyv) strideY = width * 2;
+      else strideY = 0;
+    }
     strideUV = nv12 ? strideY : 0;
+
+    if (mjpeg) {
+      tjDecoder = tjInitDecompress();
+      if (!tjDecoder) {
+        std::cerr << "tjInitDecompress failed for " << cam.devPath
+                  << ": " << tjGetErrorStr() << "\n";
+        return fail();
+      }
+      if (!mjpegHw.init(cam.devPath, allowFullHwMjpeg, allowVaapiHwMjpeg)) {
+        std::cerr << "MJPEG hardware decode unavailable for " << cam.devPath
+                  << "; using turbojpeg CPU decode fallback.\n";
+      }
+      std::cerr << "MJPEG enabled for " << cam.devPath
+                << "; hardware decode is preferred, with turbojpeg fallback."
+                << " Color conversion/scaling remain on GPU.\n";
+    } else if (capturePref == CapturePreference::MJPEG) {
+      std::cerr << "Warning: " << cam.devPath
+                << " did not accept MJPEG; using " << fourcc_to_string(fmt.fmt.pix.pixelformat)
+                << " instead.\n";
+    }
+
+    if (yuyv) {
+      std::cerr << "Warning: " << cam.devPath
+                << " is YUYV; using GPU shader conversion path.\n";
+    }
+
     std::cerr << "Configured " << cam.devPath << ": "
               << width << "x" << height << " " << fourcc_to_string(fmt.fmt.pix.pixelformat)
               << " (stride=" << strideY << ")\n";
 
     v4l2_requestbuffers req{};
-    req.count = 4;
+    req.count = lowLatency ? 3 : 4;
     req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     req.memory = V4L2_MEMORY_MMAP;
     if (ioctl(fd, VIDIOC_REQBUFS, &req) != 0 || req.count < 2) {
@@ -1004,15 +1718,19 @@ struct V4L2DmabufCam {
         return fail();
       }
 
-      v4l2_exportbuffer eb{};
-      eb.type = req.type;
-      eb.index = i;
-      eb.flags = O_CLOEXEC;
-      if (ioctl(fd, VIDIOC_EXPBUF, &eb) != 0) {
-        std::cerr << "VIDIOC_EXPBUF failed: " << strerror(errno) << "\n";
-        bufs[i].dmabuf = -1;
+      if (nv12) {
+        v4l2_exportbuffer eb{};
+        eb.type = req.type;
+        eb.index = i;
+        eb.flags = O_CLOEXEC;
+        if (ioctl(fd, VIDIOC_EXPBUF, &eb) != 0) {
+          std::cerr << "VIDIOC_EXPBUF failed: " << strerror(errno) << "\n";
+          bufs[i].dmabuf = -1;
+        } else {
+          bufs[i].dmabuf = eb.fd;
+        }
       } else {
-        bufs[i].dmabuf = eb.fd;
+        bufs[i].dmabuf = -1;
       }
 
       if (ioctl(fd, VIDIOC_QBUF, &b) != 0) {
@@ -1047,12 +1765,57 @@ struct V4L2DmabufCam {
     if (uploadYTex) glDeleteTextures(1, &uploadYTex);
     if (uploadUVTex) glDeleteTextures(1, &uploadUVTex);
     if (yuyvTex) glDeleteTextures(1, &yuyvTex);
+    if (mjpegYTex) glDeleteTextures(1, &mjpegYTex);
+    if (mjpegUTex) glDeleteTextures(1, &mjpegUTex);
+    if (mjpegVTex) glDeleteTextures(1, &mjpegVTex);
+    if (neutralChromaTex) glDeleteTextures(1, &neutralChromaTex);
+    if (overlayTex) glDeleteTextures(1, &overlayTex);
     uploadYTex = 0;
+    uploadYTexW = 0;
+    uploadYTexH = 0;
     uploadUVTex = 0;
+    uploadUVTexW = 0;
+    uploadUVTexH = 0;
     yuyvTex = 0;
+    yuyvTexW = 0;
+    yuyvTexH = 0;
+    mjpegYTex = 0;
+    mjpegYTexW = 0;
+    mjpegYTexH = 0;
+    mjpegUTex = 0;
+    mjpegUTexW = 0;
+    mjpegUTexH = 0;
+    mjpegVTex = 0;
+    mjpegVTexW = 0;
+    mjpegVTexH = 0;
+    neutralChromaTex = 0;
+    overlayTex = 0;
+    overlayTexW = 0;
+    overlayTexH = 0;
     scratchY.clear();
     scratchUV.clear();
     scratchYuyv.clear();
+    scratchMjpegY.clear();
+    scratchMjpegU.clear();
+    scratchMjpegV.clear();
+    overlayRgba.clear();
+    overlayText.clear();
+    fpsValue = 0.0;
+    fpsFrameCount = 0;
+    fpsStarted = false;
+    mjpegHw.reset();
+    mjpegPlaneY.clear();
+    mjpegPlaneU.clear();
+    mjpegPlaneV.clear();
+    mjpegSubsamp = -1;
+    mjpegHasChroma = false;
+    mjpegPlaneW[0] = mjpegPlaneW[1] = mjpegPlaneW[2] = 0;
+    mjpegPlaneH[0] = mjpegPlaneH[1] = mjpegPlaneH[2] = 0;
+    mjpegPlaneStride[0] = mjpegPlaneStride[1] = mjpegPlaneStride[2] = 0;
+    if (tjDecoder) {
+      tjDestroy(tjDecoder);
+      tjDecoder = nullptr;
+    }
     if (fd >= 0) { close(fd); fd = -1; }
   }
 };
@@ -1071,6 +1834,9 @@ int main(int argc, char** argv) {
   bool resetWindowPositions = false;
   bool chooseEachResolution = false;
   bool chooseAllResolution = false;
+  bool preferMjpeg = false;
+  bool allowFullMjpegHw = false;
+  bool strictGpuSync = false;
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
     if (arg == "-reset" || arg == "--reset") {
@@ -1088,11 +1854,28 @@ int main(int argc, char** argv) {
       chooseAllResolution = true;
       continue;
     }
+    if (arg == "-mjpeg" || arg == "--mjpeg") {
+      preferMjpeg = true;
+      continue;
+    }
+    if (arg == "-mjpeg-hw" || arg == "--mjpeg-hw") {
+      preferMjpeg = true;
+      allowFullMjpegHw = true;
+      continue;
+    }
+    if (arg == "-strict-sync" || arg == "--strict-sync") {
+      strictGpuSync = true;
+      continue;
+    }
     if (arg == "-h" || arg == "--help") {
-      std::cout << "Usage: " << argv[0] << " [-reset] [-res-each] [-res]\n";
+      std::cout << "Usage: " << argv[0]
+                << " [-reset] [-res-each] [-res] [-mjpeg] [-mjpeg-hw] [-strict-sync]\n";
       std::cout << "  -reset   Delete saved window position/resolution settings and start with defaults.\n";
       std::cout << "  -res-each   Choose resolution separately for each camera.\n";
       std::cout << "  -res        Choose one common pixel height for all cameras.\n";
+      std::cout << "  -mjpeg     Prefer MJPEG capture (falls back to NV12/YUYV if unavailable).\n";
+      std::cout << "  -mjpeg-hw  Allow full hardware MJPEG decode including CUDA/CUVID.\n";
+      std::cout << "  -strict-sync  Use glFinish() for conservative buffer safety (higher latency).\n";
       return 0;
     }
     std::cerr << "Warning: unknown argument '" << arg << "' (ignored)\n";
@@ -1102,6 +1885,19 @@ int main(int argc, char** argv) {
     std::cerr << "Choose only one resolution mode: -res-each or -res\n";
     return 1;
   }
+
+  const CapturePreference capturePref =
+      preferMjpeg ? CapturePreference::MJPEG : CapturePreference::Auto;
+  std::cerr << "Capture format preference: "
+            << (preferMjpeg ? "MJPEG -> NV12 -> YUYV" : "NV12 -> YUYV")
+            << "\n";
+  std::cerr << "MJPEG decode mode: "
+            << (allowFullMjpegHw ? "full hardware decode allowed"
+                                 : "low-latency (skip CUDA/CUVID, prefer QSV, Intel-only VAAPI fallback, then turbojpeg)")
+            << "\n";
+  std::cerr << "GPU sync mode: "
+            << (strictGpuSync ? "strict (glFinish)" : "low-latency (glFlush)")
+            << "\n";
 
   const std::string positionsCsv = positions_file();
   const std::string resolutionsCsv = resolutions_file();
@@ -1137,7 +1933,7 @@ int main(int argc, char** argv) {
               << " saved resolution entries from " << resolutionsCsv << "\n";
   }
 
-  auto scan = enumerate_cameras();
+  auto scan = enumerate_cameras(capturePref);
   auto cams = scan.cams;
   if (cams.empty()) {
     if (scan.videoNodes == 0) {
@@ -1378,7 +2174,10 @@ int main(int argc, char** argv) {
     cam.cam = c;
     cam.requestedW = desired.w;
     cam.requestedH = desired.h;
-    if (!cam.open_and_configure()) {
+    cam.lowLatency = true;
+    cam.allowFullHwMjpeg = allowFullMjpegHw;
+    cam.allowVaapiHwMjpeg = allowFullMjpegHw || g_activeRendererIsIntel;
+    if (!cam.open_and_configure(capturePref)) {
       std::cerr << "Failed camera candidate " << c.devPath
                 << " (group=" << c.stableId << "), trying next candidate.\n";
       eglDestroySurface(edpy, surf);
@@ -1500,15 +2299,27 @@ int main(int argc, char** argv) {
   }
   GLuint progNV12 = make_program(kFS_NV12);
   GLuint progYUYV = make_program(kFS_YUYV);
+  GLuint progYUVPlanar = make_program(kFS_YUV_PLANAR);
+  GLuint progRGBA = make_program(kFS_RGBA);
   GLint locY = glGetUniformLocation(progNV12, "texY");
   GLint locUV = glGetUniformLocation(progNV12, "texUV");
   GLint locYuyv = glGetUniformLocation(progYUYV, "texYUYV");
   GLint locYuyvWidth = glGetUniformLocation(progYUYV, "frameWidth");
+  GLint locPlanarY = glGetUniformLocation(progYUVPlanar, "texPlanarY");
+  GLint locPlanarU = glGetUniformLocation(progYUVPlanar, "texPlanarU");
+  GLint locPlanarV = glGetUniformLocation(progYUVPlanar, "texPlanarV");
+  GLint locRGBA = glGetUniformLocation(progRGBA, "texRGBA");
   glUseProgram(progNV12);
   glUniform1i(locY, 0);
   glUniform1i(locUV, 1);
   glUseProgram(progYUYV);
   glUniform1i(locYuyv, 0);
+  glUseProgram(progYUVPlanar);
+  glUniform1i(locPlanarY, 0);
+  glUniform1i(locPlanarU, 1);
+  glUniform1i(locPlanarV, 2);
+  glUseProgram(progRGBA);
+  glUniform1i(locRGBA, 0);
 
   const char* glExt = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
   const bool canUseUnpackRowLength = gl_extension_supported(glExt, "GL_EXT_unpack_subimage");
@@ -1592,14 +2403,30 @@ int main(int argc, char** argv) {
       auto& cam = vcams[i];
 
       v4l2_buffer b{};
-      b.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-      b.memory = V4L2_MEMORY_MMAP;
-
-      if (ioctl(cam.fd, VIDIOC_DQBUF, &b) != 0) {
-        if (errno == EAGAIN) continue;
-        std::cerr << "VIDIOC_DQBUF failed (" << cam.cam.devPath << "): " << strerror(errno) << "\n";
-        continue;
+      bool haveFrame = false;
+      bool dqFailed = false;
+      while (true) {
+        v4l2_buffer dq{};
+        dq.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        dq.memory = V4L2_MEMORY_MMAP;
+        if (ioctl(cam.fd, VIDIOC_DQBUF, &dq) != 0) {
+          if (errno == EAGAIN) break;
+          std::cerr << "VIDIOC_DQBUF failed (" << cam.cam.devPath << "): " << strerror(errno) << "\n";
+          dqFailed = true;
+          break;
+        }
+        if (dq.index >= cam.bufs.size()) {
+          ioctl(cam.fd, VIDIOC_QBUF, &dq);
+          continue;
+        }
+        if (haveFrame && cam.lowLatency) {
+          ioctl(cam.fd, VIDIOC_QBUF, &b);
+        }
+        b = dq;
+        haveFrame = true;
+        if (!cam.lowLatency) break;
       }
+      if (dqFailed || !haveFrame) continue;
 
       if (!eglMakeCurrent(edpy, wins[i].surf, wins[i].surf, ctx)) {
         std::cerr << "eglMakeCurrent failed\n";
@@ -1609,11 +2436,6 @@ int main(int argc, char** argv) {
         glViewport(0, 0, std::max(1, wins[i].geom.w), std::max(1, wins[i].geom.h));
         glClearColor(0, 0, 0, 1);
         glClear(GL_COLOR_BUFFER_BIT);
-
-        if (b.index >= cam.bufs.size()) {
-          ioctl(cam.fd, VIDIOC_QBUF, &b);
-          continue;
-        }
 
         bool rendered = false;
         if (cam.nv12 && cam.bufs[b.index].yTex && cam.bufs[b.index].uvTex) {
@@ -1630,8 +2452,10 @@ int main(int argc, char** argv) {
             if (cam.nv12) {
               const uint8_t* srcY = base;
               const uint8_t* srcUV = base + static_cast<size_t>(cam.strideY) * static_cast<size_t>(cam.height);
-              init_plane_texture(cam.uploadYTex, GL_LUMINANCE, cam.width, cam.height, GL_LINEAR);
-              init_plane_texture(cam.uploadUVTex, GL_LUMINANCE_ALPHA, cam.width / 2, cam.height / 2, GL_LINEAR);
+              ensure_plane_texture(cam.uploadYTex, cam.uploadYTexW, cam.uploadYTexH,
+                                   GL_LUMINANCE, cam.width, cam.height, GL_LINEAR);
+              ensure_plane_texture(cam.uploadUVTex, cam.uploadUVTexW, cam.uploadUVTexH,
+                                   GL_LUMINANCE_ALPHA, cam.width / 2, cam.height / 2, GL_LINEAR);
               const bool upY = upload_plane_texture(cam.uploadYTex, GL_LUMINANCE,
                                                     cam.width, cam.height, 1,
                                                     srcY, cam.strideY, canUseUnpackRowLength,
@@ -1649,8 +2473,196 @@ int main(int argc, char** argv) {
                 draw_quad(quad);
                 rendered = true;
               }
+            } else if (cam.mjpeg) {
+              const size_t bytesUsed =
+                  std::min(static_cast<size_t>(b.bytesused), cam.bufs[b.index].len);
+              if (bytesUsed > 0) {
+                if (cam.mjpegHw.enabled) {
+                  AVFrame* hwFrame = nullptr;
+                  if (cam.mjpegHw.decode_frame(base, bytesUsed, hwFrame) && hwFrame) {
+                    const int hwW = hwFrame->width;
+                    const int hwH = hwFrame->height;
+                    bool hwIsNV12 = false;
+                    bool hwHasChroma = false;
+                    int hwChromaW = 0;
+                    int hwChromaH = 0;
+                    const AVPixelFormat hwFmt = static_cast<AVPixelFormat>(hwFrame->format);
+                    if (hwW > 0 && hwH > 0 &&
+                        ffmpeg_planar_yuv_info(hwFmt, hwW, hwH, hwIsNV12, hwHasChroma, hwChromaW, hwChromaH)) {
+                      if ((hwW != cam.width || hwH != cam.height) && !cam.warnedMjpegHwSizeMismatch) {
+                        std::cerr << "MJPEG hardware decode size differs from capture config ("
+                                  << cam.cam.devPath << "): decoded=" << hwW << "x" << hwH
+                                  << ", configured=" << cam.width << "x" << cam.height << "\n";
+                        cam.warnedMjpegHwSizeMismatch = true;
+                      }
+
+                      if (hwIsNV12) {
+                        ensure_plane_texture(cam.uploadYTex, cam.uploadYTexW, cam.uploadYTexH,
+                                             GL_LUMINANCE, hwW, hwH, GL_LINEAR);
+                        ensure_plane_texture(cam.uploadUVTex, cam.uploadUVTexW, cam.uploadUVTexH,
+                                             GL_LUMINANCE_ALPHA, hwChromaW, hwChromaH, GL_LINEAR);
+                        const bool upY = upload_plane_texture(cam.uploadYTex, GL_LUMINANCE,
+                                                              hwW, hwH, 1,
+                                                              hwFrame->data[0], hwFrame->linesize[0],
+                                                              canUseUnpackRowLength, cam.scratchY);
+                        const bool upUV = upload_plane_texture(cam.uploadUVTex, GL_LUMINANCE_ALPHA,
+                                                               hwChromaW, hwChromaH, 2,
+                                                               hwFrame->data[1], hwFrame->linesize[1],
+                                                               canUseUnpackRowLength, cam.scratchUV);
+                        if (upY && upUV) {
+                          glUseProgram(progNV12);
+                          glActiveTexture(GL_TEXTURE0);
+                          glBindTexture(GL_TEXTURE_2D, cam.uploadYTex);
+                          glActiveTexture(GL_TEXTURE1);
+                          glBindTexture(GL_TEXTURE_2D, cam.uploadUVTex);
+                          draw_quad(quad);
+                          rendered = true;
+                        }
+                      } else {
+                        ensure_plane_texture(cam.mjpegYTex, cam.mjpegYTexW, cam.mjpegYTexH,
+                                             GL_LUMINANCE, hwW, hwH, GL_LINEAR);
+                        const bool upY = upload_plane_texture(cam.mjpegYTex, GL_LUMINANCE,
+                                                              hwW, hwH, 1,
+                                                              hwFrame->data[0], hwFrame->linesize[0],
+                                                              canUseUnpackRowLength, cam.scratchMjpegY);
+
+                        bool upU = true;
+                        bool upV = true;
+                        GLuint texU = 0;
+                        GLuint texV = 0;
+                        if (hwHasChroma) {
+                          ensure_plane_texture(cam.mjpegUTex, cam.mjpegUTexW, cam.mjpegUTexH,
+                                               GL_LUMINANCE, hwChromaW, hwChromaH, GL_LINEAR);
+                          ensure_plane_texture(cam.mjpegVTex, cam.mjpegVTexW, cam.mjpegVTexH,
+                                               GL_LUMINANCE, hwChromaW, hwChromaH, GL_LINEAR);
+                          upU = upload_plane_texture(cam.mjpegUTex, GL_LUMINANCE,
+                                                     hwChromaW, hwChromaH, 1,
+                                                     hwFrame->data[1], hwFrame->linesize[1],
+                                                     canUseUnpackRowLength, cam.scratchMjpegU);
+                          upV = upload_plane_texture(cam.mjpegVTex, GL_LUMINANCE,
+                                                     hwChromaW, hwChromaH, 1,
+                                                     hwFrame->data[2], hwFrame->linesize[2],
+                                                     canUseUnpackRowLength, cam.scratchMjpegV);
+                          texU = cam.mjpegUTex;
+                          texV = cam.mjpegVTex;
+                        } else {
+                          init_neutral_luma_texture(cam.neutralChromaTex);
+                          texU = cam.neutralChromaTex;
+                          texV = cam.neutralChromaTex;
+                        }
+                        if (upY && upU && upV && texU && texV) {
+                          glUseProgram(progYUVPlanar);
+                          glActiveTexture(GL_TEXTURE0);
+                          glBindTexture(GL_TEXTURE_2D, cam.mjpegYTex);
+                          glActiveTexture(GL_TEXTURE1);
+                          glBindTexture(GL_TEXTURE_2D, texU);
+                          glActiveTexture(GL_TEXTURE2);
+                          glBindTexture(GL_TEXTURE_2D, texV);
+                          draw_quad(quad);
+                          rendered = true;
+                        }
+                      }
+                      if (rendered) {
+                        cam.warnedMjpegHwSizeMismatch = false;
+                      }
+                    }
+                  }
+                }
+
+                if (!rendered && cam.tjDecoder) {
+                  int jpegW = 0;
+                  int jpegH = 0;
+                  int jpegSubsamp = -1;
+                  int jpegColorspace = -1;
+                  if (tjDecompressHeader3(cam.tjDecoder, base, static_cast<unsigned long>(bytesUsed),
+                                          &jpegW, &jpegH, &jpegSubsamp, &jpegColorspace) == 0) {
+                    (void)jpegColorspace;
+                    if (jpegW == cam.width && jpegH == cam.height) {
+                      if (cam.reconfigure_mjpeg_planes(jpegSubsamp, jpegW, jpegH)) {
+                        unsigned char* planes[3] = {
+                            cam.mjpegPlaneY.data(),
+                            cam.mjpegHasChroma ? cam.mjpegPlaneU.data() : nullptr,
+                            cam.mjpegHasChroma ? cam.mjpegPlaneV.data() : nullptr,
+                        };
+                        int strides[3] = {
+                            cam.mjpegPlaneStride[0],
+                            cam.mjpegPlaneStride[1],
+                            cam.mjpegPlaneStride[2],
+                        };
+                        if (tjDecompressToYUVPlanes(cam.tjDecoder, base, static_cast<unsigned long>(bytesUsed),
+                                                    planes, jpegW, strides, jpegH,
+                                                    TJFLAG_FASTDCT | TJFLAG_FASTUPSAMPLE) == 0) {
+                          ensure_plane_texture(cam.mjpegYTex, cam.mjpegYTexW, cam.mjpegYTexH,
+                                               GL_LUMINANCE, cam.mjpegPlaneW[0], cam.mjpegPlaneH[0], GL_LINEAR);
+                          const bool upY = upload_plane_texture(cam.mjpegYTex, GL_LUMINANCE,
+                                                                cam.mjpegPlaneW[0], cam.mjpegPlaneH[0], 1,
+                                                                cam.mjpegPlaneY.data(), cam.mjpegPlaneStride[0],
+                                                                canUseUnpackRowLength, cam.scratchMjpegY);
+
+                          bool upU = true;
+                          bool upV = true;
+                          GLuint texU = 0;
+                          GLuint texV = 0;
+                          if (cam.mjpegHasChroma) {
+                            ensure_plane_texture(cam.mjpegUTex, cam.mjpegUTexW, cam.mjpegUTexH,
+                                                 GL_LUMINANCE, cam.mjpegPlaneW[1], cam.mjpegPlaneH[1], GL_LINEAR);
+                            ensure_plane_texture(cam.mjpegVTex, cam.mjpegVTexW, cam.mjpegVTexH,
+                                                 GL_LUMINANCE, cam.mjpegPlaneW[2], cam.mjpegPlaneH[2], GL_LINEAR);
+                            upU = upload_plane_texture(cam.mjpegUTex, GL_LUMINANCE,
+                                                       cam.mjpegPlaneW[1], cam.mjpegPlaneH[1], 1,
+                                                       cam.mjpegPlaneU.data(), cam.mjpegPlaneStride[1],
+                                                       canUseUnpackRowLength, cam.scratchMjpegU);
+                            upV = upload_plane_texture(cam.mjpegVTex, GL_LUMINANCE,
+                                                       cam.mjpegPlaneW[2], cam.mjpegPlaneH[2], 1,
+                                                       cam.mjpegPlaneV.data(), cam.mjpegPlaneStride[2],
+                                                       canUseUnpackRowLength, cam.scratchMjpegV);
+                            texU = cam.mjpegUTex;
+                            texV = cam.mjpegVTex;
+                          } else {
+                            init_neutral_luma_texture(cam.neutralChromaTex);
+                            texU = cam.neutralChromaTex;
+                            texV = cam.neutralChromaTex;
+                          }
+
+                          if (upY && upU && upV && texU && texV) {
+                            glUseProgram(progYUVPlanar);
+                            glActiveTexture(GL_TEXTURE0);
+                            glBindTexture(GL_TEXTURE_2D, cam.mjpegYTex);
+                            glActiveTexture(GL_TEXTURE1);
+                            glBindTexture(GL_TEXTURE_2D, texU);
+                            glActiveTexture(GL_TEXTURE2);
+                            glBindTexture(GL_TEXTURE_2D, texV);
+                            draw_quad(quad);
+                            rendered = true;
+                            cam.warnedMjpegHeader = false;
+                            cam.warnedMjpegDecode = false;
+                          }
+                        } else if (!cam.warnedMjpegDecode) {
+                          std::cerr << "MJPEG decode failed (" << cam.cam.devPath
+                                    << "): " << tjGetErrorStr() << "\n";
+                          cam.warnedMjpegDecode = true;
+                        }
+                      } else if (!cam.warnedMjpegUnsupportedSubsamp) {
+                        std::cerr << "Unsupported MJPEG subsampling from " << cam.cam.devPath
+                                  << " (subsamp=" << jpegSubsamp << ").\n";
+                        cam.warnedMjpegUnsupportedSubsamp = true;
+                      }
+                    } else if (!cam.warnedMjpegSizeMismatch) {
+                      std::cerr << "MJPEG frame size mismatch from " << cam.cam.devPath
+                                << ": header=" << jpegW << "x" << jpegH
+                                << ", configured=" << cam.width << "x" << cam.height << "\n";
+                      cam.warnedMjpegSizeMismatch = true;
+                    }
+                  } else if (!cam.warnedMjpegHeader) {
+                    std::cerr << "MJPEG header parse failed (" << cam.cam.devPath
+                              << "): " << tjGetErrorStr() << "\n";
+                    cam.warnedMjpegHeader = true;
+                  }
+                }
+              }
             } else if (cam.yuyv) {
-              init_plane_texture(cam.yuyvTex, GL_RGBA, cam.width / 2, cam.height, GL_NEAREST);
+              ensure_plane_texture(cam.yuyvTex, cam.yuyvTexW, cam.yuyvTexH,
+                                   GL_RGBA, cam.width / 2, cam.height, GL_NEAREST);
               const bool up = upload_plane_texture(cam.yuyvTex, GL_RGBA,
                                                    cam.width / 2, cam.height, 4,
                                                    base, cam.strideY, canUseUnpackRowLength,
@@ -1672,7 +2684,62 @@ int main(int argc, char** argv) {
           glClear(GL_COLOR_BUFFER_BIT);
         }
 
-        glFinish();
+        const auto now = std::chrono::steady_clock::now();
+        if (!cam.fpsStarted) {
+          cam.fpsStarted = true;
+          cam.fpsWindowStart = now;
+          cam.fpsFrameCount = 0;
+          cam.fpsValue = 0.0;
+        }
+        if (rendered) ++cam.fpsFrameCount;
+        const double fpsElapsed =
+            std::chrono::duration_cast<std::chrono::duration<double>>(now - cam.fpsWindowStart).count();
+        if (fpsElapsed >= 0.4) {
+          cam.fpsValue = (fpsElapsed > 0.0) ? (static_cast<double>(cam.fpsFrameCount) / fpsElapsed) : 0.0;
+          cam.fpsFrameCount = 0;
+          cam.fpsWindowStart = now;
+        }
+
+        char overlayBuf[96];
+        std::snprintf(overlayBuf, sizeof(overlayBuf), "%dx%d %5.1f FPS", cam.width, cam.height, cam.fpsValue);
+        const std::string nextOverlayText(overlayBuf);
+        if (nextOverlayText != cam.overlayText || cam.overlayTex == 0) {
+          cam.overlayText = nextOverlayText;
+          int overlayW = 0;
+          int overlayH = 0;
+          overlay_dimensions_for_text(cam.overlayText, overlayW, overlayH);
+          render_overlay_text_rgba(cam.overlayRgba, overlayW, overlayH, cam.overlayText);
+          ensure_plane_texture(cam.overlayTex, cam.overlayTexW, cam.overlayTexH,
+                               GL_RGBA, overlayW, overlayH, GL_LINEAR);
+          if (!cam.overlayRgba.empty()) {
+            glBindTexture(GL_TEXTURE_2D, cam.overlayTex);
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, overlayW, overlayH,
+                            GL_RGBA, GL_UNSIGNED_BYTE, cam.overlayRgba.data());
+          }
+        }
+        if (cam.overlayTex && cam.overlayTexW > 0 && cam.overlayTexH > 0) {
+          const int viewW = std::max(1, wins[i].geom.w);
+          const int viewH = std::max(1, wins[i].geom.h);
+          int overlayW = std::min(cam.overlayTexW, viewW);
+          int overlayH = std::min(cam.overlayTexH, viewH);
+          int overlayX = 8;
+          int overlayY = 8;  // Bottom-left origin in make_overlay_quad.
+          if (overlayX + overlayW > viewW) overlayX = 0;
+          if (overlayY + overlayH > viewH) overlayY = 0;
+          GLfloat overlayQuad[16];
+          make_overlay_quad(viewW, viewH, overlayX, overlayY, overlayW, overlayH, overlayQuad);
+          glEnable(GL_BLEND);
+          glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+          glUseProgram(progRGBA);
+          glActiveTexture(GL_TEXTURE0);
+          glBindTexture(GL_TEXTURE_2D, cam.overlayTex);
+          draw_quad(overlayQuad);
+          glDisable(GL_BLEND);
+        }
+
+        if (strictGpuSync) glFinish();
+        else glFlush();
         eglSwapBuffers(edpy, wins[i].surf);
       }
 
@@ -1711,6 +2778,8 @@ int main(int argc, char** argv) {
   if (haveCurrent) {
     if (progNV12) glDeleteProgram(progNV12);
     if (progYUYV) glDeleteProgram(progYUYV);
+    if (progYUVPlanar) glDeleteProgram(progYUVPlanar);
+    if (progRGBA) glDeleteProgram(progRGBA);
   }
   if (eglMakeCurrent(edpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT)) {}
   eglDestroyContext(edpy, ctx);
