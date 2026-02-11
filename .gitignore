@@ -15,3 +15,44 @@
 *.tiff
 # Folders
 *.idea/
+
+# C/C++ compiled artifacts
+*.o
+*.obj
+*.lo
+*.la
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.out
+
+# C/C++ debug and coverage outputs
+*.d
+*.gcno
+*.gcda
+*.gcov
+*.profraw
+*.profdata
+*.pdb
+
+# CMake/Ninja generated files and build directories
+**/build/
+**/build-*/
+**/CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+install_manifest.txt
+CTestTestfile.cmake
+compile_commands.json
+build.ninja
+.ninja_deps
+.ninja_log
+
+# Local CMake target binaries (no extension on Linux)
+openCV camera app/viewMultiCameras_variants/viewMultiCameras_opencv_sdl/usbcams
+openCV camera app/viewMultiCameras_variants/viewMultiCameras_v4l2_dmabuf_egl/usbcamv4l
+openCV camera app/viewMultiCameras_variants/viewMultiCameras_v4l2_dmabuf_egl/viewMultiCameras_v4l2_dmabuf_egl

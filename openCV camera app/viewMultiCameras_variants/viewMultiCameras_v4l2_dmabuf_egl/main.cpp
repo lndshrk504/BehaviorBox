@@ -17,6 +17,7 @@
 #include <errno.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cstdint>
 #include <cstring>
 #include <cstdlib>
@@ -32,6 +33,10 @@
 #include <vector>
 
 namespace fs = std::filesystem;
+
+#ifndef GL_UNPACK_ROW_LENGTH_EXT
+#define GL_UNPACK_ROW_LENGTH_EXT 0x0CF2
+#endif
 
 static constexpr int MAX_CAMERAS = 4;
 static constexpr int DEFAULT_WINDOW_W = 320;
@@ -80,6 +85,41 @@ static std::string trim(const std::string& s) {
   size_t b = s.find_last_not_of(" \t\r\n");
   if (a == std::string::npos) return "";
   return s.substr(a, b - a + 1);
+}
+
+static std::string to_lower_ascii(std::string s) {
+  for (char& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+  return s;
+}
+
+static bool str_contains_case_insensitive(const std::string& haystack, const std::string& needle) {
+  if (needle.empty()) return true;
+  return to_lower_ascii(haystack).find(to_lower_ascii(needle)) != std::string::npos;
+}
+
+static bool gl_extension_supported(const char* extList, const char* ext) {
+  if (!extList || !ext || !*ext) return false;
+  const std::string all(extList);
+  const std::string needle(ext);
+  size_t pos = 0;
+  while (true) {
+    pos = all.find(needle, pos);
+    if (pos == std::string::npos) return false;
+    const bool startOk = (pos == 0) || std::isspace(static_cast<unsigned char>(all[pos - 1]));
+    const size_t endPos = pos + needle.size();
+    const bool endOk = (endPos == all.size()) || std::isspace(static_cast<unsigned char>(all[endPos]));
+    if (startOk && endOk) return true;
+    pos = endPos;
+  }
+}
+
+static std::string fourcc_to_string(uint32_t f) {
+  std::string out(4, ' ');
+  out[0] = static_cast<char>(f & 0xFF);
+  out[1] = static_cast<char>((f >> 8) & 0xFF);
+  out[2] = static_cast<char>((f >> 16) & 0xFF);
+  out[3] = static_cast<char>((f >> 24) & 0xFF);
+  return out;
 }
 
 static std::string sanitize_stable_id(std::string id) {
@@ -430,7 +470,7 @@ static bool probe_capture_stream(const std::string& devPath) {
   fmt.fmt.pix.height = DEFAULT_FRAME_H;
   fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_NV12;
   fmt.fmt.pix.field = V4L2_FIELD_NONE;
-  if (ioctl(fd, VIDIOC_S_FMT, &fmt) == 0) {
+  if (ioctl(fd, VIDIOC_S_FMT, &fmt) == 0 && fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_NV12) {
     close_fd();
     return true;
   }
@@ -441,7 +481,9 @@ static bool probe_capture_stream(const std::string& devPath) {
   fmt.fmt.pix.height = DEFAULT_FRAME_H;
   fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
   fmt.fmt.pix.field = V4L2_FIELD_NONE;
-  const bool ok = (ioctl(fd, VIDIOC_S_FMT, &fmt) == 0);
+  const bool ok = (ioctl(fd, VIDIOC_S_FMT, &fmt) == 0 &&
+                   fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_YUYV &&
+                   (fmt.fmt.pix.width % 2) == 0);
   close_fd();
   return ok;
 }
@@ -668,12 +710,27 @@ void main() {
 }
 )";
 
-static const char* kFS_RGB = R"(
+static const char* kFS_YUYV = R"(
 precision mediump float;
 varying vec2 vUV;
-uniform sampler2D texRGB;
+uniform sampler2D texYUYV;
+uniform float frameWidth;
 void main() {
-  gl_FragColor = texture2D(texRGB, vUV);
+  float pixelX = floor(vUV.x * frameWidth);
+  float pairX = floor(pixelX * 0.5);
+  float pairWidth = frameWidth * 0.5;
+
+  vec2 packedUV = vec2((pairX + 0.5) / pairWidth, vUV.y);
+  vec4 yuyv = texture2D(texYUYV, packedUV);
+
+  float y = (mod(pixelX, 2.0) < 0.5) ? yuyv.r : yuyv.b;
+  float u = yuyv.g - 0.5;
+  float v = yuyv.a - 0.5;
+
+  float r = y + 1.402 * v;
+  float g = y - 0.344136 * u - 0.714136 * v;
+  float b = y + 1.772 * u;
+  gl_FragColor = vec4(r, g, b, 1.0);
 }
 )";
 
@@ -712,86 +769,51 @@ static GLuint make_program(const char* fsSrc) {
   return p;
 }
 
-static inline uint8_t clamp_u8(int v) {
-  if (v < 0) return 0;
-  if (v > 255) return 255;
-  return static_cast<uint8_t>(v);
-}
-
-static void yuyv_to_rgb(const uint8_t* src,
-                        int width, int height, int stride,
-                        std::vector<uint8_t>& dst) {
-  dst.resize(static_cast<size_t>(width) * static_cast<size_t>(height) * 3U);
-  for (int y = 0; y < height; ++y) {
-    const uint8_t* row = src + y * stride;
-    uint8_t* out = dst.data() + static_cast<size_t>(y) * static_cast<size_t>(width) * 3U;
-    for (int x = 0; x < width; x += 2) {
-      const int y0 = row[0];
-      const int u = row[1];
-      const int y1 = row[2];
-      const int v = row[3];
-      row += 4;
-
-      auto convert = [&](int yy, uint8_t* pix) {
-        const int c = yy - 16;
-        const int d = u - 128;
-        const int e = v - 128;
-        const int r = (298 * c + 409 * e + 128) >> 8;
-        const int g = (298 * c - 100 * d - 208 * e + 128) >> 8;
-        const int b = (298 * c + 516 * d + 128) >> 8;
-        pix[0] = clamp_u8(r);
-        pix[1] = clamp_u8(g);
-        pix[2] = clamp_u8(b);
-      };
-
-      convert(y0, out + 0);
-      convert(y1, out + 3);
-      out += 6;
-    }
-  }
-}
-
-static void nv12_to_rgb(const uint8_t* srcY, const uint8_t* srcUV,
-                        int width, int height, int strideY, int strideUV,
-                        std::vector<uint8_t>& dst) {
-  dst.resize(static_cast<size_t>(width) * static_cast<size_t>(height) * 3U);
-  for (int y = 0; y < height; ++y) {
-    const uint8_t* yRow = srcY + y * strideY;
-    const uint8_t* uvRow = srcUV + (y / 2) * strideUV;
-    uint8_t* out = dst.data() + static_cast<size_t>(y) * static_cast<size_t>(width) * 3U;
-    for (int x = 0; x < width; ++x) {
-      const int yy = yRow[x];
-      const int uvIdx = (x / 2) * 2;
-      const int u = uvRow[uvIdx + 0];
-      const int v = uvRow[uvIdx + 1];
-      const int c = yy - 16;
-      const int d = u - 128;
-      const int e = v - 128;
-      const int r = (298 * c + 409 * e + 128) >> 8;
-      const int g = (298 * c - 100 * d - 208 * e + 128) >> 8;
-      const int b = (298 * c + 516 * d + 128) >> 8;
-      out[0] = clamp_u8(r);
-      out[1] = clamp_u8(g);
-      out[2] = clamp_u8(b);
-      out += 3;
-    }
-  }
-}
-
-static void init_rgb_texture(GLuint& tex, int width, int height) {
+static void init_plane_texture(GLuint& tex, GLenum format, int width, int height, GLint filter) {
   if (tex != 0) return;
   glGenTextures(1, &tex);
   glBindTexture(GL_TEXTURE_2D, tex);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+  glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, nullptr);
 }
 
-static void upload_rgb_texture(GLuint tex, int width, int height, const uint8_t* rgbData) {
+static bool upload_plane_texture(GLuint tex, GLenum format,
+                                 int width, int height, int bytesPerPixel,
+                                 const uint8_t* src, int srcStrideBytes,
+                                 bool canUseUnpackRowLength,
+                                 std::vector<uint8_t>& scratch) {
+  if (!src || width <= 0 || height <= 0 || bytesPerPixel <= 0) return false;
+  const int tightStride = width * bytesPerPixel;
+  if (srcStrideBytes <= 0) srcStrideBytes = tightStride;
+  if (srcStrideBytes < tightStride) return false;
+
+  const uint8_t* uploadPtr = src;
+  bool usedRowLength = false;
+
+  if (srcStrideBytes != tightStride) {
+    if (canUseUnpackRowLength && (srcStrideBytes % bytesPerPixel) == 0) {
+      glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, srcStrideBytes / bytesPerPixel);
+      usedRowLength = true;
+    } else {
+      const size_t tightStrideSize = static_cast<size_t>(tightStride);
+      scratch.resize(tightStrideSize * static_cast<size_t>(height));
+      for (int y = 0; y < height; ++y) {
+        std::memcpy(scratch.data() + static_cast<size_t>(y) * tightStrideSize,
+                    src + static_cast<size_t>(y) * static_cast<size_t>(srcStrideBytes),
+                    tightStrideSize);
+      }
+      uploadPtr = scratch.data();
+    }
+  }
+
   glBindTexture(GL_TEXTURE_2D, tex);
-  glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, rgbData);
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, format, GL_UNSIGNED_BYTE, uploadPtr);
+  if (usedRowLength) glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, 0);
+  return true;
 }
 
 static void draw_quad(const GLfloat* quad) {
@@ -800,6 +822,49 @@ static void draw_quad(const GLfloat* quad) {
   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), quad + 2);
   glEnableVertexAttribArray(1);
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
+static void configure_nvidia_offload_env() {
+  // Respect user-provided values if they already exist.
+  setenv("__NV_PRIME_RENDER_OFFLOAD", "1", 0);
+  setenv("__GLX_VENDOR_LIBRARY_NAME", "nvidia", 0);
+  setenv("__VK_LAYER_NV_optimus", "NVIDIA_only", 0);
+}
+
+static bool ensure_nvidia_context(EGLDisplay edpy, EGLConfig cfg, EGLContext ctx) {
+  EGLint pbAttrs[] = {EGL_WIDTH, 1, EGL_HEIGHT, 1, EGL_NONE};
+  EGLSurface probe = eglCreatePbufferSurface(edpy, cfg, pbAttrs);
+  if (probe == EGL_NO_SURFACE) {
+    std::cerr << "Failed to create EGL probe surface for renderer verification.\n";
+    return false;
+  }
+  if (!eglMakeCurrent(edpy, probe, probe, ctx)) {
+    std::cerr << "eglMakeCurrent failed during renderer verification.\n";
+    eglDestroySurface(edpy, probe);
+    return false;
+  }
+
+  const char* eglVendor = eglQueryString(edpy, EGL_VENDOR);
+  const char* glVendor = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
+  const char* glRenderer = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
+  std::cerr << "EGL vendor: " << (eglVendor ? eglVendor : "(null)") << "\n";
+  std::cerr << "GL vendor: " << (glVendor ? glVendor : "(null)") << "\n";
+  std::cerr << "GL renderer: " << (glRenderer ? glRenderer : "(null)") << "\n";
+
+  bool isNvidia = false;
+  if (eglVendor && str_contains_case_insensitive(eglVendor, "nvidia")) isNvidia = true;
+  if (glVendor && str_contains_case_insensitive(glVendor, "nvidia")) isNvidia = true;
+  if (glRenderer && str_contains_case_insensitive(glRenderer, "nvidia")) isNvidia = true;
+
+  eglMakeCurrent(edpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+  eglDestroySurface(edpy, probe);
+
+  if (!isNvidia) {
+    std::cerr << "ERROR: active renderer is not NVIDIA. Aborting to keep processing off CPU/non-NVIDIA GPUs.\n";
+    std::cerr << "Tip: run with NVIDIA PRIME offload enabled.\n";
+    return false;
+  }
+  return true;
 }
 
 // ---- V4L2 + DMABUF ----
@@ -812,8 +877,12 @@ struct V4L2DmabufCam {
   int strideY{0}, strideUV{0};
   bool nv12{false};
   bool yuyv{false};
-  GLuint rgbTex{0};
-  std::vector<uint8_t> rgbFrame;
+  GLuint uploadYTex{0};
+  GLuint uploadUVTex{0};
+  GLuint yuyvTex{0};
+  std::vector<uint8_t> scratchY;
+  std::vector<uint8_t> scratchUV;
+  std::vector<uint8_t> scratchYuyv;
 
   struct Buf {
     void* ptr{nullptr};
@@ -858,7 +927,7 @@ struct V4L2DmabufCam {
       nv12 = true;
       yuyv = false;
     } else {
-      // packed fallback
+      // Packed YUYV fallback; conversion remains on GPU via fragment shader.
       std::memset(&fmt, 0, sizeof(fmt));
       fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
       fmt.fmt.pix.width = requestedW;
@@ -870,16 +939,31 @@ struct V4L2DmabufCam {
                   << " (requested " << requestedW << "x" << requestedH << ")\n";
         return fail();
       }
+      if (fmt.fmt.pix.pixelformat != V4L2_PIX_FMT_YUYV) {
+        std::cerr << "Unsupported fallback format from " << cam.devPath
+                  << ": '" << fourcc_to_string(fmt.fmt.pix.pixelformat)
+                  << "' (need NV12 or YUYV).\n";
+        return fail();
+      }
       nv12 = false;
       yuyv = true;
-      std::cerr << "Warning: " << cam.devPath << " not NV12; using CPU upload fallback for YUYV.\n";
+      std::cerr << "Warning: " << cam.devPath
+                << " is YUYV; using GPU shader conversion path.\n";
     }
 
     width = (int)fmt.fmt.pix.width;
     height = (int)fmt.fmt.pix.height;
+    if (yuyv && (width % 2) != 0) {
+      std::cerr << "Unsupported odd-width YUYV frame from " << cam.devPath
+                << ": " << width << "x" << height << "\n";
+      return fail();
+    }
     strideY = (int)fmt.fmt.pix.bytesperline;
     if (strideY <= 0) strideY = nv12 ? width : width * 2;
-    strideUV = strideY;
+    strideUV = nv12 ? strideY : 0;
+    std::cerr << "Configured " << cam.devPath << ": "
+              << width << "x" << height << " " << fourcc_to_string(fmt.fmt.pix.pixelformat)
+              << " (stride=" << strideY << ")\n";
 
     v4l2_requestbuffers req{};
     req.count = 4;
@@ -950,11 +1034,15 @@ struct V4L2DmabufCam {
       b = Buf{};
     }
     bufs.clear();
-    if (rgbTex) {
-      glDeleteTextures(1, &rgbTex);
-      rgbTex = 0;
-    }
-    rgbFrame.clear();
+    if (uploadYTex) glDeleteTextures(1, &uploadYTex);
+    if (uploadUVTex) glDeleteTextures(1, &uploadUVTex);
+    if (yuyvTex) glDeleteTextures(1, &yuyvTex);
+    uploadYTex = 0;
+    uploadUVTex = 0;
+    yuyvTex = 0;
+    scratchY.clear();
+    scratchUV.clear();
+    scratchYuyv.clear();
     if (fd >= 0) { close(fd); fd = -1; }
   }
 };
@@ -966,11 +1054,53 @@ struct XWin {
 };
 
 int main(int argc, char** argv) {
-  (void)argc;
-  (void)argv;
+  bool resetWindowPositions = false;
+  bool chooseEachResolution = false;
+  bool chooseAllResolution = false;
+  for (int i = 1; i < argc; ++i) {
+    const std::string arg = argv[i];
+    if (arg == "-reset" || arg == "--reset") {
+      resetWindowPositions = true;
+      continue;
+    }
+    if (arg == "-choose-each-res" || arg == "--choose-each-resolution" ||
+        arg == "-choose-res" || arg == "--choose-resolution") {
+      chooseEachResolution = true;
+      continue;
+    }
+    if (arg == "-choose-all-res" || arg == "--choose-all-resolution") {
+      chooseAllResolution = true;
+      continue;
+    }
+    if (arg == "-h" || arg == "--help") {
+      std::cout << "Usage: " << argv[0] << " [-reset] [-choose-each-res] [-choose-all-res]\n";
+      std::cout << "  -reset   Ignore saved window positions and start with defaults.\n";
+      std::cout << "  -choose-each-res   Choose resolution separately for each camera.\n";
+      std::cout << "  -choose-all-res    Choose one common pixel height for all cameras.\n";
+      std::cout << "  Requires active NVIDIA EGL/GL renderer; exits otherwise.\n";
+      return 0;
+    }
+    std::cerr << "Warning: unknown argument '" << arg << "' (ignored)\n";
+  }
 
-  const std::string csv = positions_file();
-  auto saved = load_positions_csv(csv);
+  if (chooseEachResolution && chooseAllResolution) {
+    std::cerr << "Choose only one resolution mode: -choose-each-res or -choose-all-res\n";
+    return 1;
+  }
+
+  configure_nvidia_offload_env();
+
+  const std::string positionsCsv = positions_file();
+  const std::string resolutionsCsv = resolutions_file();
+
+  std::unordered_map<std::string, Rect> saved;
+  if (!resetWindowPositions) {
+    saved = load_positions_csv(positionsCsv);
+  } else {
+    std::cerr << "Ignoring saved window positions due to -reset.\n";
+  }
+  auto savedResolutions = load_resolutions_csv(resolutionsCsv);
+
   auto scan = enumerate_cameras();
   auto cams = scan.cams;
   if (cams.empty()) {
@@ -983,6 +1113,74 @@ int main(int argc, char** argv) {
       std::cerr << "No capture-capable V4L2 cameras found.\n";
     }
     return 1;
+  }
+
+  std::unordered_set<std::string> discoveredStableIds;
+  for (const auto& cam : cams) discoveredStableIds.insert(cam.stableId);
+  const int targetWindowCount =
+      std::min<int>(MAX_CAMERAS, static_cast<int>(discoveredStableIds.size()));
+
+  std::vector<CamInfo> orderedUniqueCams;
+  orderedUniqueCams.reserve(static_cast<size_t>(targetWindowCount));
+  {
+    std::unordered_set<std::string> seen;
+    for (const auto& cam : cams) {
+      if (seen.insert(cam.stableId).second) {
+        orderedUniqueCams.push_back(cam);
+        if (static_cast<int>(orderedUniqueCams.size()) >= targetWindowCount) break;
+      }
+    }
+  }
+
+  std::unordered_map<std::string, Resolution> chosenResolutionByStableId;
+  if (chooseAllResolution) {
+    std::unordered_map<std::string, std::vector<Resolution>> availableByStableId;
+    availableByStableId.reserve(orderedUniqueCams.size());
+
+    for (const auto& cam : orderedUniqueCams) {
+      int enumErr = 0;
+      auto available = enumerate_supported_resolutions(cam.devPath, &enumErr);
+      if (available.empty()) {
+        std::cerr << "Failed to enumerate resolutions for " << cam.devPath
+                  << ", using default fallback resolution.\n";
+        available.push_back(Resolution{DEFAULT_FRAME_W, DEFAULT_FRAME_H});
+      }
+      availableByStableId.emplace(cam.stableId, std::move(available));
+    }
+
+    std::unordered_map<int, int> heightCount;
+    for (const auto& cam : orderedUniqueCams) {
+      auto it = availableByStableId.find(cam.stableId);
+      if (it == availableByStableId.end()) continue;
+      std::unordered_set<int> uniqueHeightsForCam;
+      for (const auto& r : it->second) uniqueHeightsForCam.insert(r.h);
+      for (int h : uniqueHeightsForCam) ++heightCount[h];
+    }
+
+    std::vector<int> commonHeights;
+    for (const auto& kv : heightCount) {
+      if (kv.second == static_cast<int>(orderedUniqueCams.size())) commonHeights.push_back(kv.first);
+    }
+    std::sort(commonHeights.begin(), commonHeights.end());
+
+    if (commonHeights.empty()) {
+      std::cerr << "No common pixel height exists across all selected cameras.\n";
+      std::cerr << "Use -choose-each-res to set per-camera resolutions instead.\n";
+      return 1;
+    }
+
+    const int chosenHeight = choose_common_height_interactively(
+        commonHeights, orderedUniqueCams, availableByStableId, DEFAULT_FRAME_H);
+    for (const auto& cam : orderedUniqueCams) {
+      auto it = availableByStableId.find(cam.stableId);
+      if (it == availableByStableId.end()) continue;
+
+      auto selected = best_resolution_for_height(it->second, chosenHeight);
+      if (!selected.has_value()) selected = Resolution{DEFAULT_FRAME_W, DEFAULT_FRAME_H};
+      chosenResolutionByStableId[cam.stableId] = *selected;
+      std::cerr << "Chosen all-camera resolution for " << cam.devPath
+                << ": " << selected->w << "x" << selected->h << "\n";
+    }
   }
 
   Display* dpy = XOpenDisplay(nullptr);
@@ -1027,6 +1225,12 @@ int main(int argc, char** argv) {
     XCloseDisplay(dpy);
     return 1;
   }
+  if (!ensure_nvidia_context(edpy, cfg, ctx)) {
+    eglDestroyContext(edpy, ctx);
+    eglTerminate(edpy);
+    XCloseDisplay(dpy);
+    return 1;
+  }
 
   auto eglCreateImageKHR =
       (PFNEGLCREATEIMAGEKHRPROC)eglGetProcAddress("eglCreateImageKHR");
@@ -1044,16 +1248,39 @@ int main(int argc, char** argv) {
 
   std::vector<XWin> wins;
   std::vector<V4L2DmabufCam> vcams;
-  wins.reserve(cams.size());
-  vcams.reserve(cams.size());
+  wins.reserve(static_cast<size_t>(targetWindowCount));
+  vcams.reserve(static_cast<size_t>(targetWindowCount));
 
   int screen = DefaultScreen(dpy);
   Window root = RootWindow(dpy, screen);
 
+  std::unordered_set<std::string> openedStableIds;
   for (const auto& c : cams) {
-    Rect r{0, 0, 320, 240};
+    if (static_cast<int>(wins.size()) >= targetWindowCount) break;
+    if (openedStableIds.find(c.stableId) != openedStableIds.end()) continue;
+
+    Resolution desired;
+    auto desiredIt = chosenResolutionByStableId.find(c.stableId);
+    if (desiredIt != chosenResolutionByStableId.end()) {
+      desired = desiredIt->second;
+    } else {
+      if (chooseEachResolution) {
+        const auto available = enumerate_supported_resolutions(c.devPath);
+        desired = choose_resolution_interactively(c, available, desired);
+      } else {
+        auto savedResIt = savedResolutions.find(c.stableId);
+        if (savedResIt != savedResolutions.end()) desired = savedResIt->second;
+      }
+      chosenResolutionByStableId[c.stableId] = desired;
+    }
+
+    Rect r{};
     auto it = saved.find(c.stableId);
     if (it != saved.end()) r = it->second;
+    if (chooseEachResolution || chooseAllResolution) {
+      r.w = desired.w;
+      r.h = desired.h;
+    }
 
     Window w = XCreateSimpleWindow(dpy, root, r.x, r.y, (unsigned)r.w, (unsigned)r.h,
                                    0, BlackPixel(dpy, screen), BlackPixel(dpy, screen));
@@ -1078,7 +1305,11 @@ int main(int argc, char** argv) {
 
     V4L2DmabufCam cam;
     cam.cam = c;
+    cam.requestedW = desired.w;
+    cam.requestedH = desired.h;
     if (!cam.open_and_configure()) {
+      std::cerr << "Failed camera candidate " << c.devPath
+                << " (group=" << c.stableId << "), trying next candidate.\n";
       eglDestroySurface(edpy, surf);
       XDestroyWindow(dpy, w);
       continue;
@@ -1115,7 +1346,7 @@ int main(int argc, char** argv) {
         b.uvImg = eglCreateImageKHR(edpy, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, nullptr, uvAttrs);
 
         if (b.yImg == EGL_NO_IMAGE_KHR || b.uvImg == EGL_NO_IMAGE_KHR) {
-          std::cerr << "EGLImage creation failed; NV12 zero-copy path may not work on this stack.\n";
+          std::cerr << "EGLImage import failed; falling back to GPU NV12 upload path.\n";
           if (b.yImg != EGL_NO_IMAGE_KHR) {
             eglDestroyImageKHR(edpy, b.yImg);
             b.yImg = EGL_NO_IMAGE_KHR;
@@ -1143,6 +1374,12 @@ int main(int argc, char** argv) {
 
     wins.push_back({w, surf, r});
     vcams.push_back(std::move(cam));
+    openedStableIds.insert(c.stableId);
+
+    savedResolutions[c.stableId] = Resolution{vcams.back().width, vcams.back().height};
+    (void)save_resolutions_csv(resolutionsCsv, savedResolutions);
+    std::cerr << "Started camera window: " << c.devPath
+              << " @ " << vcams.back().width << "x" << vcams.back().height << "\n";
   }
 
   if (wins.empty()) {
@@ -1166,15 +1403,22 @@ int main(int argc, char** argv) {
     return 1;
   }
   GLuint progNV12 = make_program(kFS_NV12);
-  GLuint progRGB = make_program(kFS_RGB);
+  GLuint progYUYV = make_program(kFS_YUYV);
   GLint locY = glGetUniformLocation(progNV12, "texY");
   GLint locUV = glGetUniformLocation(progNV12, "texUV");
-  GLint locRGB = glGetUniformLocation(progRGB, "texRGB");
+  GLint locYuyv = glGetUniformLocation(progYUYV, "texYUYV");
+  GLint locYuyvWidth = glGetUniformLocation(progYUYV, "frameWidth");
   glUseProgram(progNV12);
   glUniform1i(locY, 0);
   glUniform1i(locUV, 1);
-  glUseProgram(progRGB);
-  glUniform1i(locRGB, 0);
+  glUseProgram(progYUYV);
+  glUniform1i(locYuyv, 0);
+
+  const char* glExt = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
+  const bool canUseUnpackRowLength = gl_extension_supported(glExt, "GL_EXT_unpack_subimage");
+  if (!canUseUnpackRowLength) {
+    std::cerr << "GL_EXT_unpack_subimage not found; strided uploads will use CPU row repack.\n";
+  }
 
   const GLfloat quad[] = {
     -1.f, -1.f, 0.f, 1.f,
@@ -1200,13 +1444,15 @@ int main(int argc, char** argv) {
       if (ev.type == ClientMessage && (Atom)ev.xclient.data.l[0] == WM_DELETE_WINDOW) {
         for (size_t i = 0; i < wins.size(); ++i) {
           if (wins[i].win == (Window)ev.xclient.window) {
-            int rx=0, ry=0;
+            int rx = 0, ry = 0;
             x11_get_window_root_xy(dpy, wins[i].win, rx, ry);
             XWindowAttributes wa{};
             XGetWindowAttributes(dpy, wins[i].win, &wa);
             wins[i].geom = {rx, ry, wa.width, wa.height};
             saved[vcams[i].cam.stableId] = wins[i].geom;
-            save_positions_csv(csv, saved);
+            save_positions_csv(positionsCsv, saved);
+            savedResolutions[vcams[i].cam.stableId] = {vcams[i].width, vcams[i].height};
+            save_resolutions_csv(resolutionsCsv, savedResolutions);
 
             if (wins[i].surf != EGL_NO_SURFACE) {
               if (eglMakeCurrent(edpy, wins[i].surf, wins[i].surf, ctx)) {}
@@ -1223,7 +1469,7 @@ int main(int argc, char** argv) {
       } else if (ev.type == ConfigureNotify) {
         for (auto& w : wins) {
           if (w.win == ev.xconfigure.window) {
-            int rx=0, ry=0;
+            int rx = 0, ry = 0;
             x11_get_window_root_xy(dpy, w.win, rx, ry);
             w.geom = {rx, ry, ev.xconfigure.width, ev.xconfigure.height};
             break;
@@ -1275,19 +1521,39 @@ int main(int argc, char** argv) {
             if (cam.nv12) {
               const uint8_t* srcY = base;
               const uint8_t* srcUV = base + static_cast<size_t>(cam.strideY) * static_cast<size_t>(cam.height);
-              nv12_to_rgb(srcY, srcUV, cam.width, cam.height, cam.strideY, cam.strideUV, cam.rgbFrame);
+              init_plane_texture(cam.uploadYTex, GL_LUMINANCE, cam.width, cam.height, GL_LINEAR);
+              init_plane_texture(cam.uploadUVTex, GL_LUMINANCE_ALPHA, cam.width / 2, cam.height / 2, GL_LINEAR);
+              const bool upY = upload_plane_texture(cam.uploadYTex, GL_LUMINANCE,
+                                                    cam.width, cam.height, 1,
+                                                    srcY, cam.strideY, canUseUnpackRowLength,
+                                                    cam.scratchY);
+              const bool upUV = upload_plane_texture(cam.uploadUVTex, GL_LUMINANCE_ALPHA,
+                                                     cam.width / 2, cam.height / 2, 2,
+                                                     srcUV, cam.strideUV, canUseUnpackRowLength,
+                                                     cam.scratchUV);
+              if (upY && upUV) {
+                glUseProgram(progNV12);
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, cam.uploadYTex);
+                glActiveTexture(GL_TEXTURE1);
+                glBindTexture(GL_TEXTURE_2D, cam.uploadUVTex);
+                draw_quad(quad);
+                rendered = true;
+              }
             } else if (cam.yuyv) {
-              yuyv_to_rgb(base, cam.width, cam.height, cam.strideY, cam.rgbFrame);
-            }
-
-            if (!cam.rgbFrame.empty()) {
-              init_rgb_texture(cam.rgbTex, cam.width, cam.height);
-              upload_rgb_texture(cam.rgbTex, cam.width, cam.height, cam.rgbFrame.data());
-              glUseProgram(progRGB);
-              glActiveTexture(GL_TEXTURE0);
-              glBindTexture(GL_TEXTURE_2D, cam.rgbTex);
-              draw_quad(quad);
-              rendered = true;
+              init_plane_texture(cam.yuyvTex, GL_RGBA, cam.width / 2, cam.height, GL_NEAREST);
+              const bool up = upload_plane_texture(cam.yuyvTex, GL_RGBA,
+                                                   cam.width / 2, cam.height, 4,
+                                                   base, cam.strideY, canUseUnpackRowLength,
+                                                   cam.scratchYuyv);
+              if (up) {
+                glUseProgram(progYUYV);
+                glUniform1f(locYuyvWidth, static_cast<float>(cam.width));
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, cam.yuyvTex);
+                draw_quad(quad);
+                rendered = true;
+              }
             }
           }
         }
@@ -1297,7 +1563,6 @@ int main(int argc, char** argv) {
           glClear(GL_COLOR_BUFFER_BIT);
         }
 
-        // Conservative sync before re-queue for correctness
         glFinish();
         eglSwapBuffers(edpy, wins[i].surf);
       }
@@ -1306,18 +1571,18 @@ int main(int argc, char** argv) {
     }
   }
 
-  // Final save
   for (size_t i = 0; i < wins.size(); ++i) {
     if (!wins[i].win) continue;
-    int rx=0, ry=0;
+    int rx = 0, ry = 0;
     x11_get_window_root_xy(dpy, wins[i].win, rx, ry);
     XWindowAttributes wa{};
     XGetWindowAttributes(dpy, wins[i].win, &wa);
     saved[vcams[i].cam.stableId] = {rx, ry, wa.width, wa.height};
+    savedResolutions[vcams[i].cam.stableId] = {vcams[i].width, vcams[i].height};
   }
-  save_positions_csv(csv, saved);
+  save_positions_csv(positionsCsv, saved);
+  save_resolutions_csv(resolutionsCsv, savedResolutions);
 
-  // Cleanup
   bool haveCurrent = false;
   if (!wins.empty() && wins[0].surf != EGL_NO_SURFACE) {
     haveCurrent = eglMakeCurrent(edpy, wins[0].surf, wins[0].surf, ctx) == EGL_TRUE;
@@ -1331,7 +1596,7 @@ int main(int argc, char** argv) {
 
   if (haveCurrent) {
     if (progNV12) glDeleteProgram(progNV12);
-    if (progRGB) glDeleteProgram(progRGB);
+    if (progYUYV) glDeleteProgram(progYUYV);
   }
   if (eglMakeCurrent(edpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT)) {}
   eglDestroyContext(edpy, ctx);

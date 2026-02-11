@@ -7,4 +7,4 @@ mkdir -p "${BUILD_DIR}"
 cmake -S "${ROOT_DIR}" -B "${BUILD_DIR}"
 cmake --build "${BUILD_DIR}" -j
 
-echo "Built: ${ROOT_DIR}/viewMultiCameras_v4l2_dmabuf_egl"
+echo "Built: ${ROOT_DIR}/usbcamv4l"
