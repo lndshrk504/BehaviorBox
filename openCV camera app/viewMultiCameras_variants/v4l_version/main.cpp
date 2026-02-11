@@ -1078,7 +1078,7 @@ int main(int argc, char** argv) {
     }
     if (arg == "-h" || arg == "--help") {
       std::cout << "Usage: " << argv[0] << " [-reset] [-res-each] [-res]\n";
-      std::cout << "  -reset   Ignore saved window positions and start with defaults.\n";
+      std::cout << "  -reset   Delete saved window position/resolution settings and start with defaults.\n";
       std::cout << "  -res-each   Choose resolution separately for each camera.\n";
       std::cout << "  -res        Choose one common pixel height for all cameras.\n";
       return 0;
@@ -1095,16 +1095,35 @@ int main(int argc, char** argv) {
   const std::string resolutionsCsv = resolutions_file();
 
   std::unordered_map<std::string, Rect> saved;
-  if (!resetWindowPositions) {
+  std::unordered_map<std::string, Resolution> savedResolutions;
+  if (resetWindowPositions) {
+    std::error_code ecPos;
+    const bool removedPos = fs::remove(positionsCsv, ecPos);
+    if (ecPos) {
+      std::cerr << "Warning: failed to remove " << positionsCsv
+                << ": " << ecPos.message() << "\n";
+    } else {
+      std::cerr << (removedPos ? "Removed saved positions: " : "No saved positions file: ")
+                << positionsCsv << "\n";
+    }
+
+    std::error_code ecRes;
+    const bool removedRes = fs::remove(resolutionsCsv, ecRes);
+    if (ecRes) {
+      std::cerr << "Warning: failed to remove " << resolutionsCsv
+                << ": " << ecRes.message() << "\n";
+    } else {
+      std::cerr << (removedRes ? "Removed saved resolutions: " : "No saved resolutions file: ")
+                << resolutionsCsv << "\n";
+    }
+  } else {
     saved = load_positions_csv(positionsCsv);
     std::cerr << "Loaded " << saved.size()
               << " saved window position entries from " << positionsCsv << "\n";
-  } else {
-    std::cerr << "Ignoring saved window positions due to -reset.\n";
+    savedResolutions = load_resolutions_csv(resolutionsCsv);
+    std::cerr << "Loaded " << savedResolutions.size()
+              << " saved resolution entries from " << resolutionsCsv << "\n";
   }
-  auto savedResolutions = load_resolutions_csv(resolutionsCsv);
-  std::cerr << "Loaded " << savedResolutions.size()
-            << " saved resolution entries from " << resolutionsCsv << "\n";
 
   auto scan = enumerate_cameras();
   auto cams = scan.cams;
