@@ -55,4 +55,3 @@ build.ninja
 # Local CMake target binaries (no extension on Linux)
 openCV camera app/viewMultiCameras_variants/viewMultiCameras_opencv_sdl/usbcams
 openCV camera app/viewMultiCameras_variants/viewMultiCameras_v4l2_dmabuf_egl/usbcamv4l
-openCV camera app/viewMultiCameras_variants/viewMultiCameras_v4l2_dmabuf_egl/viewMultiCameras_v4l2_dmabuf_egl
