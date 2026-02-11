@@ -724,19 +724,20 @@ void main() {
 )";
 
 static const char* kFS_YUYV = R"(
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
 precision mediump float;
+#endif
 varying vec2 vUV;
 uniform sampler2D texYUYV;
 uniform float frameWidth;
 void main() {
-  float pixelX = floor(vUV.x * frameWidth);
-  float pairX = floor(pixelX * 0.5);
-  float pairWidth = frameWidth * 0.5;
-
-  vec2 packedUV = vec2((pairX + 0.5) / pairWidth, vUV.y);
+  highp float srcX = floor(clamp(vUV.x, 0.0, 0.999999) * frameWidth);
+  highp vec2 packedUV = vec2(clamp(vUV.x, 0.0, 1.0), clamp(vUV.y, 0.0, 1.0));
   vec4 yuyv = texture2D(texYUYV, packedUV);
 
-  float y = (mod(pixelX, 2.0) < 0.5) ? yuyv.r : yuyv.b;
+  float y = (mod(srcX, 2.0) < 0.5) ? yuyv.r : yuyv.b;
   float u = yuyv.g - 0.5;
   float v = yuyv.a - 0.5;
 
