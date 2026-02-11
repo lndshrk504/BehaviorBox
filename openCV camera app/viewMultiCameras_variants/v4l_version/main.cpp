@@ -1,5 +1,6 @@
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
+#include <X11/Xutil.h>
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -21,6 +22,7 @@
 #include <cstdint>
 #include <cstring>
 #include <cstdlib>
+#include <csignal>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -43,6 +45,12 @@ static constexpr int DEFAULT_WINDOW_W = 320;
 static constexpr int DEFAULT_WINDOW_H = 240;
 static constexpr int DEFAULT_FRAME_W = 640;
 static constexpr int DEFAULT_FRAME_H = 480;
+
+static volatile std::sig_atomic_t g_stopRequested = 0;
+
+static void handle_stop_signal(int) {
+  g_stopRequested = 1;
+}
 
 struct Rect { int x{0}; int y{0}; int w{DEFAULT_WINDOW_W}; int h{DEFAULT_WINDOW_H}; };
 
@@ -85,16 +93,6 @@ static std::string trim(const std::string& s) {
   size_t b = s.find_last_not_of(" \t\r\n");
   if (a == std::string::npos) return "";
   return s.substr(a, b - a + 1);
-}
-
-static std::string to_lower_ascii(std::string s) {
-  for (char& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-  return s;
-}
-
-static bool str_contains_case_insensitive(const std::string& haystack, const std::string& needle) {
-  if (needle.empty()) return true;
-  return to_lower_ascii(haystack).find(to_lower_ascii(needle)) != std::string::npos;
 }
 
 static bool gl_extension_supported(const char* extList, const char* ext) {
@@ -681,6 +679,21 @@ static bool x11_get_window_root_xy(Display* dpy, Window w, int& rx, int& ry) {
   return true;
 }
 
+static void x11_apply_window_geometry(Display* dpy, Window w, const Rect& r) {
+  XSizeHints hints{};
+  hints.flags = USPosition | USSize | PPosition | PSize;
+  hints.x = r.x;
+  hints.y = r.y;
+  hints.width = std::max(1, r.w);
+  hints.height = std::max(1, r.h);
+  XSetWMNormalHints(dpy, w, &hints);
+
+  XMoveResizeWindow(dpy, w,
+                    r.x, r.y,
+                    static_cast<unsigned>(std::max(1, r.w)),
+                    static_cast<unsigned>(std::max(1, r.h)));
+}
+
 // ---- GL helpers ----
 static const char* kVS = R"(
 attribute vec2 aPos;
@@ -824,22 +837,15 @@ static void draw_quad(const GLfloat* quad) {
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
-static void configure_nvidia_offload_env() {
-  // Respect user-provided values if they already exist.
-  setenv("__NV_PRIME_RENDER_OFFLOAD", "1", 0);
-  setenv("__GLX_VENDOR_LIBRARY_NAME", "nvidia", 0);
-  setenv("__VK_LAYER_NV_optimus", "NVIDIA_only", 0);
-}
-
-static bool ensure_nvidia_context(EGLDisplay edpy, EGLConfig cfg, EGLContext ctx) {
+static bool probe_renderer_context(EGLDisplay edpy, EGLConfig cfg, EGLContext ctx) {
   EGLint pbAttrs[] = {EGL_WIDTH, 1, EGL_HEIGHT, 1, EGL_NONE};
   EGLSurface probe = eglCreatePbufferSurface(edpy, cfg, pbAttrs);
   if (probe == EGL_NO_SURFACE) {
-    std::cerr << "Failed to create EGL probe surface for renderer verification.\n";
+    std::cerr << "Failed to create EGL probe surface for renderer query.\n";
     return false;
   }
   if (!eglMakeCurrent(edpy, probe, probe, ctx)) {
-    std::cerr << "eglMakeCurrent failed during renderer verification.\n";
+    std::cerr << "eglMakeCurrent failed during renderer query.\n";
     eglDestroySurface(edpy, probe);
     return false;
   }
@@ -850,21 +856,12 @@ static bool ensure_nvidia_context(EGLDisplay edpy, EGLConfig cfg, EGLContext ctx
   std::cerr << "EGL vendor: " << (eglVendor ? eglVendor : "(null)") << "\n";
   std::cerr << "GL vendor: " << (glVendor ? glVendor : "(null)") << "\n";
   std::cerr << "GL renderer: " << (glRenderer ? glRenderer : "(null)") << "\n";
-
-  bool isNvidia = false;
-  if (eglVendor && str_contains_case_insensitive(eglVendor, "nvidia")) isNvidia = true;
-  if (glVendor && str_contains_case_insensitive(glVendor, "nvidia")) isNvidia = true;
-  if (glRenderer && str_contains_case_insensitive(glRenderer, "nvidia")) isNvidia = true;
-
+  if (!glVendor || !glRenderer) {
+    std::cerr << "Failed to query active GL renderer.\n";
+  }
   eglMakeCurrent(edpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
   eglDestroySurface(edpy, probe);
-
-  if (!isNvidia) {
-    std::cerr << "ERROR: active renderer is not NVIDIA. Aborting to keep processing off CPU/non-NVIDIA GPUs.\n";
-    std::cerr << "Tip: run with NVIDIA PRIME offload enabled.\n";
-    return false;
-  }
-  return true;
+  return glVendor && glRenderer;
 }
 
 // ---- V4L2 + DMABUF ----
@@ -1054,6 +1051,10 @@ struct XWin {
 };
 
 int main(int argc, char** argv) {
+  std::signal(SIGINT, handle_stop_signal);
+  std::signal(SIGTERM, handle_stop_signal);
+  std::signal(SIGHUP, handle_stop_signal);
+
   bool resetWindowPositions = false;
   bool chooseEachResolution = false;
   bool chooseAllResolution = false;
@@ -1063,32 +1064,31 @@ int main(int argc, char** argv) {
       resetWindowPositions = true;
       continue;
     }
-    if (arg == "-choose-each-res" || arg == "--choose-each-resolution" ||
+    if (arg == "-res-each" || arg == "--res-each" ||
+        arg == "-choose-each-res" || arg == "--choose-each-resolution" ||
         arg == "-choose-res" || arg == "--choose-resolution") {
       chooseEachResolution = true;
       continue;
     }
-    if (arg == "-choose-all-res" || arg == "--choose-all-resolution") {
+    if (arg == "-res" || arg == "--res" ||
+        arg == "-choose-all-res" || arg == "--choose-all-resolution") {
       chooseAllResolution = true;
       continue;
     }
     if (arg == "-h" || arg == "--help") {
-      std::cout << "Usage: " << argv[0] << " [-reset] [-choose-each-res] [-choose-all-res]\n";
+      std::cout << "Usage: " << argv[0] << " [-reset] [-res-each] [-res]\n";
       std::cout << "  -reset   Ignore saved window positions and start with defaults.\n";
-      std::cout << "  -choose-each-res   Choose resolution separately for each camera.\n";
-      std::cout << "  -choose-all-res    Choose one common pixel height for all cameras.\n";
-      std::cout << "  Requires active NVIDIA EGL/GL renderer; exits otherwise.\n";
+      std::cout << "  -res-each   Choose resolution separately for each camera.\n";
+      std::cout << "  -res        Choose one common pixel height for all cameras.\n";
       return 0;
     }
     std::cerr << "Warning: unknown argument '" << arg << "' (ignored)\n";
   }
 
   if (chooseEachResolution && chooseAllResolution) {
-    std::cerr << "Choose only one resolution mode: -choose-each-res or -choose-all-res\n";
+    std::cerr << "Choose only one resolution mode: -res-each or -res\n";
     return 1;
   }
-
-  configure_nvidia_offload_env();
 
   const std::string positionsCsv = positions_file();
   const std::string resolutionsCsv = resolutions_file();
@@ -1096,10 +1096,14 @@ int main(int argc, char** argv) {
   std::unordered_map<std::string, Rect> saved;
   if (!resetWindowPositions) {
     saved = load_positions_csv(positionsCsv);
+    std::cerr << "Loaded " << saved.size()
+              << " saved window position entries from " << positionsCsv << "\n";
   } else {
     std::cerr << "Ignoring saved window positions due to -reset.\n";
   }
   auto savedResolutions = load_resolutions_csv(resolutionsCsv);
+  std::cerr << "Loaded " << savedResolutions.size()
+            << " saved resolution entries from " << resolutionsCsv << "\n";
 
   auto scan = enumerate_cameras();
   auto cams = scan.cams;
@@ -1165,7 +1169,7 @@ int main(int argc, char** argv) {
 
     if (commonHeights.empty()) {
       std::cerr << "No common pixel height exists across all selected cameras.\n";
-      std::cerr << "Use -choose-each-res to set per-camera resolutions instead.\n";
+      std::cerr << "Use -res-each to set per-camera resolutions instead.\n";
       return 1;
     }
 
@@ -1225,7 +1229,7 @@ int main(int argc, char** argv) {
     XCloseDisplay(dpy);
     return 1;
   }
-  if (!ensure_nvidia_context(edpy, cfg, ctx)) {
+  if (!probe_renderer_context(edpy, cfg, ctx)) {
     eglDestroyContext(edpy, ctx);
     eglTerminate(edpy);
     XCloseDisplay(dpy);
@@ -1260,34 +1264,63 @@ int main(int argc, char** argv) {
     if (openedStableIds.find(c.stableId) != openedStableIds.end()) continue;
 
     Resolution desired;
+    const char* desiredSource = "default";
     auto desiredIt = chosenResolutionByStableId.find(c.stableId);
     if (desiredIt != chosenResolutionByStableId.end()) {
       desired = desiredIt->second;
+      desiredSource = "preselected";
     } else {
       if (chooseEachResolution) {
         const auto available = enumerate_supported_resolutions(c.devPath);
         desired = choose_resolution_interactively(c, available, desired);
+        desiredSource = "interactive";
       } else {
         auto savedResIt = savedResolutions.find(c.stableId);
-        if (savedResIt != savedResolutions.end()) desired = savedResIt->second;
+        if (savedResIt != savedResolutions.end()) {
+          desired = savedResIt->second;
+          desiredSource = "saved";
+        }
       }
       chosenResolutionByStableId[c.stableId] = desired;
     }
 
     Rect r{};
     auto it = saved.find(c.stableId);
-    if (it != saved.end()) r = it->second;
+    const bool haveSavedPos = (it != saved.end());
+    if (haveSavedPos) r = it->second;
     if (chooseEachResolution || chooseAllResolution) {
       r.w = desired.w;
       r.h = desired.h;
     }
+    std::cerr << "Startup restore: " << c.devPath
+              << " (group=" << c.stableId << ")"
+              << " pos=(" << r.x << "," << r.y << ")"
+              << (haveSavedPos ? " [saved-pos]" : " [default-pos]")
+              << " window=" << r.w << "x" << r.h
+              << ((chooseEachResolution || chooseAllResolution) ? " [selection-size]" :
+                  (haveSavedPos ? " [saved-size]" : " [default-size]"))
+              << " capture-request=" << desired.w << "x" << desired.h
+              << " [" << desiredSource << "]\n";
 
     Window w = XCreateSimpleWindow(dpy, root, r.x, r.y, (unsigned)r.w, (unsigned)r.h,
                                    0, BlackPixel(dpy, screen), BlackPixel(dpy, screen));
     XStoreName(dpy, w, (c.card + " [" + c.devPath + "]").c_str());
+    x11_apply_window_geometry(dpy, w, r);
     XSelectInput(dpy, w, StructureNotifyMask | ExposureMask);
     XSetWMProtocols(dpy, w, &WM_DELETE_WINDOW, 1);
     XMapWindow(dpy, w);
+    x11_apply_window_geometry(dpy, w, r);
+    XSync(dpy, False);
+
+    {
+      int ax = 0, ay = 0;
+      XWindowAttributes awa{};
+      if (x11_get_window_root_xy(dpy, w, ax, ay) && XGetWindowAttributes(dpy, w, &awa)) {
+        std::cerr << "Applied geometry: " << c.devPath
+                  << " requested=(" << r.x << "," << r.y << " " << r.w << "x" << r.h << ")"
+                  << " actual=(" << ax << "," << ay << " " << awa.width << "x" << awa.height << ")\n";
+      }
+    }
 
     EGLSurface surf = eglCreateWindowSurface(edpy, cfg, (EGLNativeWindowType)w, nullptr);
     if (surf == EGL_NO_SURFACE) {
@@ -1432,11 +1465,19 @@ int main(int argc, char** argv) {
   pfds.reserve(1 + vcams.size());
 
   bool quit = false;
+  bool positionsDirty = false;
   while (!quit) {
+    if (g_stopRequested) {
+      std::cerr << "Stop requested, saving camera window state and exiting.\n";
+      quit = true;
+      break;
+    }
+
     pfds.clear();
     pfds.push_back({xfd, POLLIN, 0});
     for (auto& c : vcams) if (c.fd >= 0) pfds.push_back({c.fd, POLLIN, 0});
-    poll(pfds.data(), pfds.size(), 10);
+    const int pollRc = poll(pfds.data(), pfds.size(), 10);
+    if (pollRc < 0 && errno == EINTR) continue;
 
     while (XPending(dpy)) {
       XEvent ev;
@@ -1467,11 +1508,16 @@ int main(int argc, char** argv) {
         }
         if (wins.empty()) { quit = true; break; }
       } else if (ev.type == ConfigureNotify) {
-        for (auto& w : wins) {
+        for (size_t i = 0; i < wins.size(); ++i) {
+          auto& w = wins[i];
           if (w.win == ev.xconfigure.window) {
             int rx = 0, ry = 0;
             x11_get_window_root_xy(dpy, w.win, rx, ry);
             w.geom = {rx, ry, ev.xconfigure.width, ev.xconfigure.height};
+            if (i < vcams.size()) {
+              saved[vcams[i].cam.stableId] = w.geom;
+              positionsDirty = true;
+            }
             break;
           }
         }
@@ -1568,6 +1614,11 @@ int main(int argc, char** argv) {
       }
 
       ioctl(cam.fd, VIDIOC_QBUF, &b);
+    }
+
+    if (positionsDirty) {
+      save_positions_csv(positionsCsv, saved);
+      positionsDirty = false;
     }
   }
 

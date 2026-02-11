@@ -1,6 +1,6 @@
 # viewMultiCameras_v4l2_dmabuf_egl
 
-Option 3: **GPU-first processing on NVIDIA** (V4L2 + DMABUF + EGL/GLES).
+Option 3: **GPU-first processing with EGL/GLES** (V4L2 + DMABUF + EGL/GLES).
 
 Executable name: `usbcamv4l`
 
@@ -10,7 +10,12 @@ sudo apt-get update
 sudo apt-get install -y build-essential cmake pkg-config libx11-dev libegl1-mesa-dev libgles2-mesa-dev libdrm-dev
 ```
 
-NVIDIA driver stack must be installed and active (`nvidia-smi` should work).
+Or use the helper script:
+```bash
+./install_deps.sh
+```
+
+Requires a working EGL/GLES stack (Intel, NVIDIA, etc.).
 
 ## Build & run
 ```bash
@@ -21,14 +26,14 @@ cmake --build . -j
 ./usbcamv4l
 ```
 
-If this is a hybrid graphics system, run with PRIME offload:
+If this is a hybrid graphics system and you specifically want NVIDIA offload, run with PRIME:
 ```bash
 __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia ./usbcamv4l
 ```
 
 ## Notes / caveats
 - **X11-only** reference implementation (Xlib windows + EGLWindowSurface).
-- The app verifies EGL/GL renderer vendor and exits unless NVIDIA is active.
+- The app logs active EGL/GL vendor+renderer at startup.
 - Zero-copy path is implemented for **NV12** cameras via DMABUF import.
 - If NV12 import fails, it falls back to **GPU texture upload + GPU shader conversion**.
 - **YUYV** cameras use **GPU texture upload + GPU shader conversion**.
