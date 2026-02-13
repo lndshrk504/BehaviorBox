@@ -21,6 +21,7 @@ extern "C" {
 #include <linux/videodev2.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/wait.h>
 #include <poll.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -33,6 +34,7 @@ extern "C" {
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
+#include <ctime>
 #include <csignal>
 #include <filesystem>
 #include <fstream>
@@ -589,6 +591,173 @@ static std::string positions_file() {
 static std::string resolutions_file() {
   return config_dir() + "/camera_resolutions.csv";
 }
+
+static std::string recordings_dir() {
+  const char* home = std::getenv("HOME");
+  std::string baseDir;
+  if (home && std::strlen(home) > 0) {
+    baseDir = std::string(home) + "/Desktop";
+  } else {
+    baseDir = ".";
+  }
+  const std::string dir = baseDir + "/USB-Recordings";
+  std::error_code ec;
+  fs::create_directories(dir, ec);
+  return dir;
+}
+
+static std::string sanitize_filename_component(std::string s) {
+  s = sanitize_stable_id(s);
+  for (char& c : s) {
+    const bool ok = std::isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '_' || c == '.';
+    if (!ok) c = '_';
+  }
+  if (s.empty()) s = "camera";
+  return s;
+}
+
+static std::string compact_local_timestamp() {
+  const auto now = std::chrono::system_clock::now();
+  const std::time_t t = std::chrono::system_clock::to_time_t(now);
+  std::tm tm{};
+#if defined(_POSIX_VERSION)
+  localtime_r(&t, &tm);
+#else
+  tm = *std::localtime(&t);
+#endif
+  char buf[32] = {};
+  if (std::strftime(buf, sizeof(buf), "%Y%m%d_%H%M%S", &tm) == 0) {
+    return "time";
+  }
+  return std::string(buf);
+}
+
+struct RawVideoRecorder {
+  bool enabled{false};
+  bool started{false};
+  pid_t pid{-1};
+  int writeFd{-1};
+  int width{0};
+  int height{0};
+  int segment{0};
+  std::string baseName;
+  std::string outputPath;
+
+  bool write_all(const uint8_t* data, size_t bytes) {
+    if (!started || writeFd < 0 || !data) return false;
+    size_t off = 0;
+    while (off < bytes) {
+      const ssize_t n = ::write(writeFd, data + off, bytes - off);
+      if (n > 0) {
+        off += static_cast<size_t>(n);
+        continue;
+      }
+      if (n < 0 && errno == EINTR) continue;
+      return false;
+    }
+    return true;
+  }
+
+  void stop() {
+    if (writeFd >= 0) {
+      ::close(writeFd);
+      writeFd = -1;
+    }
+    if (pid > 0) {
+      int status = 0;
+      (void)waitpid(pid, &status, 0);
+      pid = -1;
+    }
+    started = false;
+    width = 0;
+    height = 0;
+  }
+
+  bool start_process(int w, int h) {
+    if (!enabled || w <= 0 || h <= 0) return false;
+    stop();
+    width = w;
+    height = h;
+
+    const std::string ts = compact_local_timestamp();
+    const std::string safeBase = sanitize_filename_component(baseName);
+    const std::string part = (segment > 0) ? ("_part" + std::to_string(segment)) : "";
+    outputPath = recordings_dir() + "/" + safeBase + "_" + ts +
+                 "_" + std::to_string(width) + "x" + std::to_string(height) +
+                 part + ".mp4";
+    const std::string sizeArg = std::to_string(width) + "x" + std::to_string(height);
+
+    int pipeFds[2] = {-1, -1};
+    if (pipe(pipeFds) != 0) {
+      std::cerr << "Failed to create recording pipe for " << safeBase
+                << ": " << strerror(errno) << "\n";
+      return false;
+    }
+
+    const pid_t child = fork();
+    if (child < 0) {
+      std::cerr << "Failed to start recorder process for " << safeBase
+                << ": " << strerror(errno) << "\n";
+      ::close(pipeFds[0]);
+      ::close(pipeFds[1]);
+      return false;
+    }
+
+    if (child == 0) {
+      ::close(pipeFds[1]);
+      if (dup2(pipeFds[0], STDIN_FILENO) < 0) _exit(127);
+      ::close(pipeFds[0]);
+      const char* argv[] = {
+          "ffmpeg",
+          "-hide_banner",
+          "-loglevel", "error",
+          "-y",
+          "-f", "rawvideo",
+          "-pix_fmt", "rgba",
+          "-video_size", sizeArg.c_str(),
+          "-framerate", "30",
+          "-i", "-",
+          "-vf", "vflip,format=yuv420p",
+          "-an",
+          "-c:v", "libx264",
+          "-preset", "veryfast",
+          "-crf", "23",
+          outputPath.c_str(),
+          nullptr};
+      execvp("ffmpeg", const_cast<char* const*>(argv));
+      _exit(127);
+    }
+
+    ::close(pipeFds[0]);
+    writeFd = pipeFds[1];
+    pid = child;
+    started = true;
+    std::cerr << "Recording started: " << outputPath << "\n";
+    return true;
+  }
+
+  bool ensure_started(const std::string& name, int w, int h) {
+    if (!enabled) return false;
+    if (baseName.empty()) baseName = name;
+    if (!started) return start_process(w, h);
+    if (w == width && h == height) return true;
+
+    ++segment;
+    std::cerr << "Recording resolution changed for " << baseName
+              << " to " << w << "x" << h << "; starting new file segment.\n";
+    return start_process(w, h);
+  }
+
+  bool write_frame(const uint8_t* rgba, size_t bytes) {
+    if (!started || writeFd < 0) return false;
+    if (write_all(rgba, bytes)) return true;
+
+    std::cerr << "Recording pipeline write failed for " << baseName
+              << "; stopping recorder.\n";
+    stop();
+    return false;
+  }
+};
 
 static std::optional<V4L2NodeInfo> query_v4l2(const std::string& devPath, int* failErrno = nullptr) {
   if (failErrno) *failErrno = 0;
@@ -1683,6 +1852,7 @@ struct V4L2DmabufCam {
   bool preferVaapiHwMjpeg{false};
   bool preferCpuYuyv{false};
   bool yuyvCpuConvert{false};
+  bool record{false};
   int fd{-1};
   int width{0}, height{0};
   int strideY{0}, strideUV{0};
@@ -1719,6 +1889,7 @@ struct V4L2DmabufCam {
   std::vector<uint8_t> scratchMjpegU;
   std::vector<uint8_t> scratchMjpegV;
   std::vector<uint8_t> overlayRgba;
+  std::vector<uint8_t> recordRgba;
   std::string overlayText;
   double fpsValue{0.0};
   int fpsFrameCount{0};
@@ -1742,6 +1913,8 @@ struct V4L2DmabufCam {
   bool warnedMjpegSizeMismatch{false};
   bool warnedMjpegUnsupportedSubsamp{false};
   bool warnedMjpegHwSizeMismatch{false};
+
+  RawVideoRecorder recorder;
 
   struct Buf {
     void* ptr{nullptr};
@@ -1843,6 +2016,7 @@ struct V4L2DmabufCam {
         b = Buf{};
       }
       bufs.clear();
+      recorder.stop();
       mjpegHw.reset();
       if (tjDecoder) {
         tjDestroy(tjDecoder);
@@ -1852,6 +2026,7 @@ struct V4L2DmabufCam {
       mjpegPlaneU.clear();
       mjpegPlaneV.clear();
       yuyvRgba.clear();
+      recordRgba.clear();
       mjpegSubsamp = -1;
       mjpegHasChroma = false;
       mjpegPlaneW[0] = mjpegPlaneW[1] = mjpegPlaneW[2] = 0;
@@ -2014,6 +2189,7 @@ struct V4L2DmabufCam {
       b = Buf{};
     }
     bufs.clear();
+    recorder.stop();
     if (uploadYTex) glDeleteTextures(1, &uploadYTex);
     if (uploadUVTex) glDeleteTextures(1, &uploadUVTex);
     if (yuyvTex) glDeleteTextures(1, &yuyvTex);
@@ -2052,6 +2228,7 @@ struct V4L2DmabufCam {
     scratchMjpegU.clear();
     scratchMjpegV.clear();
     overlayRgba.clear();
+    recordRgba.clear();
     overlayText.clear();
     fpsValue = 0.0;
     fpsFrameCount = 0;
@@ -2090,6 +2267,7 @@ int main(int argc, char** argv) {
   bool preferMjpeg = false;
   bool allowFullMjpegHw = false;
   bool strictGpuSync = false;
+  bool enableRecording = false;
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
     if (arg == "-reset" || arg == "--reset") {
@@ -2120,15 +2298,20 @@ int main(int argc, char** argv) {
       strictGpuSync = true;
       continue;
     }
+    if (arg == "-rec" || arg == "--rec") {
+      enableRecording = true;
+      continue;
+    }
     if (arg == "-h" || arg == "--help") {
       std::cout << "Usage: " << argv[0]
-                << " [-reset] [-res-each] [-res] [-mjpeg] [-mjpeg-hw] [-strict-sync]\n";
+                << " [-reset] [-res-each] [-res] [-mjpeg] [-mjpeg-hw] [-strict-sync] [-rec]\n";
       std::cout << "  -reset   Delete saved window position/resolution settings and start with defaults.\n";
       std::cout << "  -res-each   Choose resolution separately for each camera.\n";
       std::cout << "  -res        Choose one common pixel height for all cameras.\n";
       std::cout << "  -mjpeg     Prefer MJPEG capture (falls back to NV12/YUYV if unavailable).\n";
       std::cout << "  -mjpeg-hw  Allow full hardware MJPEG decode including CUDA/CUVID.\n";
       std::cout << "  -strict-sync  Use glFinish() for conservative buffer safety (higher latency).\n";
+      std::cout << "  -rec      Record each camera window to MP4 in ~/Desktop/USB-Recordings.\n";
       return 0;
     }
     std::cerr << "Warning: unknown argument '" << arg << "' (ignored)\n";
@@ -2150,6 +2333,9 @@ int main(int argc, char** argv) {
             << "\n";
   std::cerr << "GPU sync mode: "
             << (strictGpuSync ? "strict (glFinish)" : "low-latency (glFlush)")
+            << "\n";
+  std::cerr << "Recording mode: "
+            << (enableRecording ? ("enabled -> " + recordings_dir()) : "disabled")
             << "\n";
 
   maybe_enable_amd_zink_workaround();
@@ -2434,6 +2620,8 @@ int main(int argc, char** argv) {
     cam.allowQsvHwMjpeg = g_activeRendererIsIntel;
     cam.preferVaapiHwMjpeg = g_activeRendererIsAmd;
     cam.preferCpuYuyv = g_activeRendererIsAmd;
+    cam.record = enableRecording;
+    cam.recorder.enabled = enableRecording;
     if (!cam.open_and_configure(capturePref)) {
       std::cerr << "Failed camera candidate " << c.devPath
                 << " (group=" << c.stableId << "), trying next candidate.\n";
@@ -3065,6 +3253,29 @@ int main(int argc, char** argv) {
           glBindTexture(GL_TEXTURE_2D, cam.overlayTex);
           draw_quad(overlayQuad);
           glDisable(GL_BLEND);
+        }
+
+        if (cam.record && cam.recorder.enabled) {
+          const int recW = std::max(1, wins[i].geom.w);
+          const int recH = std::max(1, wins[i].geom.h);
+          const std::string recName =
+              cam.cam.stableId.empty() ? cam.cam.devPath : cam.cam.stableId;
+          if (cam.recorder.ensure_started(recName, recW, recH)) {
+            const size_t recBytes =
+                static_cast<size_t>(recW) * static_cast<size_t>(recH) * 4u;
+            cam.recordRgba.resize(recBytes);
+            glPixelStorei(GL_PACK_ALIGNMENT, 1);
+            glReadPixels(0, 0, recW, recH, GL_RGBA, GL_UNSIGNED_BYTE, cam.recordRgba.data());
+            if (!cam.recorder.write_frame(cam.recordRgba.data(), recBytes)) {
+              cam.record = false;
+              std::cerr << "Recording disabled for " << cam.cam.devPath
+                        << " due to recorder pipeline failure.\n";
+            }
+          } else {
+            cam.record = false;
+            std::cerr << "Recording disabled for " << cam.cam.devPath
+                      << " because recorder startup failed.\n";
+          }
         }
 
         if (strictGpuSync) glFinish();
