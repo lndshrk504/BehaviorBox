@@ -15,7 +15,7 @@ Or use the helper script:
 ./install_deps.sh
 ```
 
-Requires a working EGL/GLES stack (Intel, NVIDIA, etc.).
+Requires a working EGL/GLES stack (Intel, NVIDIA, AMD, etc.).
 
 ## Build & run
 ```bash
@@ -48,7 +48,11 @@ __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia ./usbcamv4l
 - If NV12 import fails, it falls back to **GPU texture upload + GPU shader conversion**.
 - **YUYV** cameras use **GPU texture upload + GPU shader conversion**.
 - `-mjpeg` mode prefers **MJPEG** capture, with fallback to NV12/YUYV.
-- `-mjpeg` defaults to low-latency decode policy (skip CUDA/CUVID, prefer **Intel QSV**, use **VAAPI** fallback on Intel renderers, then **libturbojpeg** fallback).
-- `-mjpeg-hw` enables full hardware backend list including **CUDA/CUVID**.
+- `-mjpeg` defaults to low-latency decode policy (skip CUDA/CUVID, prefer **Intel QSV** on Intel renderers and **VAAPI** on AMD renderers, then **libturbojpeg** fallback).
+- `-mjpeg-hw` enables full hardware backend list; on AMD systems it prioritizes **VAAPI** (and skips CUDA/QSV probes when those devices are not active).
+- If EGLImage/DMABUF import extensions are unavailable, the app falls back to GPU texture upload paths instead of exiting.
+- On AMD renderers, YUYV capture uses a stable fallback path (**CPU YUYV unpack + GPU RGBA render**) to avoid known `gfx11xx` LLVM shader backend issues.
+- On AMD systems, the app requests Mesa **Zink** automatically (`MESA_LOADER_DRIVER_OVERRIDE=zink`) unless you set `USBCAMV4L_DISABLE_ZINK_WORKAROUND=1`.
+- For VAAPI debugging/selection, set `USBCAMV4L_VAAPI_DEVICE=/dev/dri/renderD128` (or your desired render node).
 - YUV->RGB conversion/scaling remains on the GPU.
 - Low-latency path drops stale queued frames and uses `glFlush()` by default. Use `-strict-sync` to force conservative `glFinish()`.
