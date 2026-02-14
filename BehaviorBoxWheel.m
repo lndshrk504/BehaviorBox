@@ -1,7 +1,7 @@
 classdef BehaviorBoxWheel < handle
     %BehaviorBox Super class
     % WBS 10 . 10 . 2024
-    %====================================================================
+    %=================================================0===================
     %Super Class for BehaviorBox Ver 1.4
     %This Class is called by the GUI BehaviorBox via RunTraining()and runs the Training
     %loop, reads levers, gives rewards, plots data, etc. It stores data in the BehaviorBoxData.
@@ -405,8 +405,6 @@ classdef BehaviorBoxWheel < handle
             end
             % Send Start Acquisition signal to ScanImage
             try
-                this.Time.Reset();
-                pause(0.1)
                 set(this.message_handle, 'Text', "Starting acquisition (ScanImage)...");
                 this.a.Acquisition('Start');
                 pause(2)
@@ -693,13 +691,12 @@ classdef BehaviorBoxWheel < handle
             this.t1 = datetime("now"); t2 = this.t1; %In case of crash
             this.a.DispOutput = false;
             this.a.Reset();
-            pause(0.2); % The nextfile acquisition signal has a builtin 200 ms delay
             % Display stimulus
             try % Clear timestamp log
                 set(this.message_handle, 'Text', "Clearing timestamp log ...");
                 this.Time.Reset();
                 pause(0.1)
-                this.Time.Log(end+1,1) = "Trial "+" "+this.i+this.current_side;
+                this.Time.Log(end+1,1) = "Trial "+this.i+" "+this.current_side;
                 this.Time.Log(end+1,1) = "Hold still";
             catch
             end
@@ -708,6 +705,7 @@ classdef BehaviorBoxWheel < handle
                 this.a.Acquisition('Next');
             catch
             end
+            pause(0.2); % The nextfile acquisition signal has a builtin 200 ms delay
             switch true
                 case ~isempty(this.a) && this.Box.Input_type==6 %Wheel 2.0, wait for the mouse to hold the wheel still for the interval to start a new trial
                     if this.i ~=1
@@ -1713,11 +1711,8 @@ classdef BehaviorBoxWheel < handle
             %Update data & Plot, update GUI numbers
             this.UpdateData();
             this.updateMessageText(decision, interval, interval_time);
-            if get(this.stop_handle, 'Value')
-                return
-            end
-            this.ReadyCue(true)
             this.Time.Log(end+1,1) = "Stim off";
+            this.ReadyCue(true)
             %Wait for interval
             this.UpdatePause(interval_time)
             this.updateMessageBox();
@@ -1726,6 +1721,9 @@ classdef BehaviorBoxWheel < handle
             end
             this.a.Acquisition('End')
             this.timestamps_record{(this.i+1)} = this.Time.Log; % +1 Offset to account for the frames that are recorded before trial 1 begins (setup period)
+            if get(this.stop_handle, 'Value')
+                return
+            end
         end
         function updateMessageBox(this)
             try

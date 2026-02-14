@@ -41,6 +41,16 @@ To record each camera window to MP4 files:
 ./usbcamv4l -rec
 ```
 
+To prioritize recording FPS (default recording profile):
+```bash
+./usbcamv4l -rec-fast
+```
+
+To prioritize recording quality:
+```bash
+./usbcamv4l -rec-quality
+```
+
 If this is a hybrid graphics system and you specifically want NVIDIA offload, run with PRIME:
 ```bash
 __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia ./usbcamv4l
@@ -60,5 +70,8 @@ __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia ./usbcamv4l
 - On AMD systems, the app requests Mesa **Zink** automatically (`MESA_LOADER_DRIVER_OVERRIDE=zink`) unless you set `USBCAMV4L_DISABLE_ZINK_WORKAROUND=1`.
 - For VAAPI debugging/selection, set `USBCAMV4L_VAAPI_DEVICE=/dev/dri/renderD128` (or your desired render node).
 - `-rec` writes per-camera MP4 files under `~/Desktop/USB-Recordings/`.
+- `-rec-fast` (or `-rec`) prioritizes throughput and may use `h264_vaapi` (with software fallback) when available.
+- `-rec-quality` uses slower `libx264` settings for better visual quality at lower throughput.
+- When possible, frames are recorded from CPU-side RGBA buffers to avoid `glReadPixels`.
 - YUV->RGB conversion/scaling remains on the GPU.
 - Low-latency path drops stale queued frames and uses `glFlush()` by default. Use `-strict-sync` to force conservative `glFinish()`.
