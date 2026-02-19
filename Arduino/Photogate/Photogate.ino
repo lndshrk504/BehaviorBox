@@ -1,12 +1,16 @@
-// WBS 8-6-2025
+// Photogate_Revised.ino
+// REVISED for BehaviorBox latency/robustness:
+//   - In normal READING mode, emit ONLY single-character tokens: L/M/R/-
+//   - Remove verbose Serial.println() spam during reward/setup commands.
+//   - Prefix any human-readable messages with '#' so MATLAB can ignore.
 
 #include <Arduino.h>
 
-#define PIN_4 4
-#define PIN_5 5
-#define PIN_6 6
-#define PIN_7 7
-#define PIN_8 8
+#define PIN_L 4
+#define PIN_M 5
+#define PIN_R 6
+#define PIN_VALVE_L 7
+#define PIN_VALVE_R 8
 
 enum State {
   READING,
@@ -21,130 +25,130 @@ enum State {
 };
 
 State currentState = READING;
-char str;
-float rightdur = 0.04; // Default duration
-float leftdur = 0.04;  // Default duration
+char cmd;
+
+float rightdur = 0.04f; // Default duration
+float leftdur  = 0.04f;  // Default duration
+
 bool hasPrintedFlags[4] = {false, false, false, false};
 bool RightOpen = false;
-bool LeftOpen = false;
+bool LeftOpen  = false;
 
 void displayID() {
   Serial.print("Box ID: ");Serial.println("Nose3");
+
   resetFlags();
 }
 
-void customDelay(float duration) {
-  if (duration < 0.001) {
-    delayMicroseconds(duration * 1e6); // Convert seconds to microseconds
+static inline void customDelay(float durationSec) {
+  if (durationSec < 0.001f) {
+    delayMicroseconds((uint32_t)(durationSec * 1e6f));
   } else {
-    delay(duration * 1000); // Convert seconds to milliseconds
+    delay((uint32_t)(durationSec * 1000.0f));
   }
 }
 
-void toggleReward(int pin, float duration) {
-  digitalWrite(pin, HIGH);   // Open valve
-  customDelay(duration);     // Custom delay
-  digitalWrite(pin, LOW);    // Close valve
+static inline void setNoneFlag() {
   resetFlags();
-  currentState = READING; // Return to initial state
+  hasPrintedFlags[3] = true;
 }
 
-void toggleValve(int pin, bool &valveStatus) {
-  if (!valveStatus) {
-    digitalWrite(pin, HIGH); // Open valve
-  } else {
-    digitalWrite(pin, LOW);  // Close valve
-  }
-  valveStatus = !valveStatus;
+static inline void toggleReward(int pin, float durationSec) {
+  digitalWrite(pin, HIGH);
+  customDelay(durationSec);
+  digitalWrite(pin, LOW);
   resetFlags();
-  currentState = READING; // Return to initial state
+  // currentState = READING; // Return to initial state
 }
 
-float getDurationFromSerial(const char* prompt) {
+static inline void toggleValve(int pin, bool &state) {
+  digitalWrite(pin, state ? LOW : HIGH);
+  state = !state;
+  resetFlags();
+  // currentState = READING; // Return to initial state
+}
+
+static float getDurationFromSerial(const char* prompt) {
   Serial.println(prompt);
   float DURinp = Serial.parseFloat(); // Read a number until terminating character
   Serial.print("Setting duration to: "); Serial.println(DURinp, 4);
   return DURinp;
 }
 
-void displayWelcomeMessage() {
+static inline void displayWelcomeMessage() {
   Serial.println("NosePoke");
-  Serial.print("Right reward duration set to: "); Serial.println(rightdur);
-  Serial.print("Left reward duration set to: "); Serial.println(leftdur);
+  Serial.print("Right dur="); Serial.println(rightdur, 4);
+  Serial.print("Left dur="); Serial.println(leftdur, 4);
 }
 
-void checkAndPrintPhotogateState() {
-  if (!hasPrintedFlags[0] && digitalRead(PIN_4) == LOW) {
+static inline void checkAndPrintPhotogateState() {
+  if (!hasPrintedFlags[0] && digitalRead(PIN_L) == LOW) {
     Serial.println('L');
-    //setFlags(0);
     hasPrintedFlags[0] = true;
     hasPrintedFlags[3] = false;
-  } else if (!hasPrintedFlags[1] && digitalRead(PIN_5) == LOW) {
+  } else if (!hasPrintedFlags[1] && digitalRead(PIN_M) == LOW) {
     Serial.println('M');
-    //setFlags(1);
     hasPrintedFlags[1] = true;
     hasPrintedFlags[3] = false;
-  } else if (!hasPrintedFlags[2] && digitalRead(PIN_6) == LOW) {
+  } else if (!hasPrintedFlags[2] && digitalRead(PIN_R) == LOW) {
     Serial.println('R');
-    //setFlags(2);
     hasPrintedFlags[2] = true;
     hasPrintedFlags[3] = false;
-  } else if (!hasPrintedFlags[3] && digitalRead(PIN_4) == HIGH && digitalRead(PIN_5) == HIGH && digitalRead(PIN_6) == HIGH) {
+  } else if (!hasPrintedFlags[3] &&
+             digitalRead(PIN_L) == HIGH &&
+             digitalRead(PIN_M) == HIGH &&
+             digitalRead(PIN_R) == HIGH) {
     Serial.println('-');
     resetFlags(); // Uncomment to only reset flags when None are selected (Multiple mice in one box)
-    setFlags(3);
-  } else if (hasPrintedFlags[0] && digitalRead(PIN_4) == HIGH) {
+    hasPrintedFlags[3] = true;
+  } else if (hasPrintedFlags[0] && digitalRead(PIN_L) == HIGH) {
     hasPrintedFlags[0] = false;
-  } else if (hasPrintedFlags[1] && digitalRead(PIN_5) == HIGH) {
+  } else if (hasPrintedFlags[1] && digitalRead(PIN_M) == HIGH) {
     hasPrintedFlags[1] = false;
-  } else if (hasPrintedFlags[2] && digitalRead(PIN_6) == HIGH) {
+  } else if (hasPrintedFlags[2] && digitalRead(PIN_R) == HIGH) {
     hasPrintedFlags[2] = false;
   }
 }
 
-void resetFlags() {
-  for (int i = 0; i < 4; i++) {
-    hasPrintedFlags[i] = false;
-  }
+static inline void resetFlags() {
+  for (int i = 0; i < 4; i++) hasPrintedFlags[i] = false;
 }
-
-void setFlags(int index) {
-  resetFlags(); // Uncomment to reset flags every time a new port is selected (One mouse per box)
-  hasPrintedFlags[index] = true;
-}
-
-void handleStateChange() {
+static inline void handleStateChange() {
   switch (currentState) {
     case READING:
       checkAndPrintPhotogateState();
       break;
     case RIGHT_REWARDING:
-      toggleReward(PIN_8, rightdur);
-      Serial.println("Right reward dispensed");
+      toggleReward(PIN_VALVE_R, rightdur);
+      //Serial.println("Right reward dispensed");
+      currentState = READING;
       break;
     case LEFT_REWARDING:
-      toggleReward(PIN_7, leftdur);
-      Serial.println("Left reward dispensed");
+      toggleReward(PIN_VALVE_L, leftdur);
+      //Serial.println("Left reward dispensed");
+      currentState = READING;
       break;
     case RIGHT_OPEN:
-      toggleValve(PIN_8, RightOpen);
+      toggleValve(PIN_VALVE_R, RightOpen);
       Serial.print("Right Valve: ");
       Serial.println(RightOpen ? "Open" : "Closed");
+      currentState = READING;
       break;
     case LEFT_OPEN:
-      toggleValve(PIN_7, LeftOpen);
+      toggleValve(PIN_VALVE_L, LeftOpen);
       Serial.print("Left Valve: ");
       Serial.println(LeftOpen ? "Open" : "Closed");
+      currentState = READING;
       break;
     case LEFT_SETUP:
       leftdur = getDurationFromSerial("Enter new duration for left reward:");
-      Serial.print("Left reward duration set to: "); Serial.println(leftdur);
+      Serial.print("Left dur="); Serial.println(leftdur);
       currentState = READING;
       resetFlags();
       break;
     case RIGHT_SETUP:
       rightdur = getDurationFromSerial("Enter new duration for right reward:");
-      Serial.print("Right reward duration set to: "); Serial.println(rightdur);
+      Serial.print("Right dur="); Serial.println(rightdur);
       currentState = READING;
       resetFlags();
       break;
@@ -163,11 +167,11 @@ void handleStateChange() {
 void setup() {
   Serial.begin(115200);
   while (!Serial) { } // wait for serial port to connect. Needed for native USB port only
-  pinMode(PIN_4, INPUT_PULLUP);
-  pinMode(PIN_5, INPUT_PULLUP);
-  pinMode(PIN_6, INPUT_PULLUP);
-  pinMode(PIN_7, OUTPUT);
-  pinMode(PIN_8, OUTPUT);
+  pinMode(PIN_L, INPUT_PULLUP);
+  pinMode(PIN_M, INPUT_PULLUP);
+  pinMode(PIN_R, INPUT_PULLUP);
+  pinMode(PIN_VALVE_L, OUTPUT);
+  pinMode(PIN_VALVE_R, OUTPUT);
   displayID();
   Serial.println("Readout begins below...");
 }
@@ -175,8 +179,8 @@ void setup() {
 void loop() {
   handleStateChange();
   if (Serial.available() > 0) {
-    str = Serial.read();
-    switch (str) {
+    cmd = Serial.read();
+    switch (cmd) {
       case 'R': currentState = RIGHT_REWARDING; break;
       case 'L': currentState = LEFT_REWARDING; break;
       case 'r': currentState = RIGHT_OPEN; break;
