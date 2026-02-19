@@ -21,6 +21,7 @@ extern "C" {
 #include <linux/videodev2.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/wait.h>
 #include <poll.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -33,6 +34,7 @@ extern "C" {
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
+#include <ctime>
 #include <csignal>
 #include <filesystem>
 #include <fstream>
@@ -64,6 +66,7 @@ enum class CapturePreference {
 
 static bool g_activeRendererIsNvidia = false;
 static bool g_activeRendererIsIntel = false;
+static bool g_activeRendererIsAmd = false;
 
 static volatile std::sig_atomic_t g_stopRequested = 0;
 
@@ -119,6 +122,61 @@ static std::string to_lower_copy(std::string s) {
     return static_cast<char>(std::tolower(c));
   });
   return s;
+}
+
+static bool env_is_truthy(const char* name) {
+  const char* v = std::getenv(name);
+  if (!v || !*v) return false;
+  const std::string lower = to_lower_copy(trim(v));
+  return !(lower == "0" || lower == "false" || lower == "no" || lower == "off");
+}
+
+static bool has_amd_drm_device() {
+  std::error_code ec;
+  const fs::path drmRoot("/sys/class/drm");
+  if (!fs::exists(drmRoot, ec) || ec) return false;
+
+  for (const auto& entry : fs::directory_iterator(drmRoot, ec)) {
+    if (ec) break;
+    const std::string name = entry.path().filename().string();
+    if (name.rfind("card", 0) != 0) continue;
+    if (name.find('-') != std::string::npos) continue;
+    if (name.size() <= 4) continue;
+    bool digitsOnly = true;
+    for (size_t i = 4; i < name.size(); ++i) {
+      if (!std::isdigit(static_cast<unsigned char>(name[i]))) {
+        digitsOnly = false;
+        break;
+      }
+    }
+    if (!digitsOnly) continue;
+
+    const fs::path vendorPath = entry.path() / "device" / "vendor";
+    std::ifstream in(vendorPath);
+    if (!in.is_open()) continue;
+    std::string vendor;
+    if (!std::getline(in, vendor)) continue;
+    vendor = to_lower_copy(trim(vendor));
+    if (vendor == "0x1002") return true; // AMD PCI vendor ID
+  }
+  return false;
+}
+
+static void maybe_enable_amd_zink_workaround() {
+  if (env_is_truthy("USBCAMV4L_DISABLE_ZINK_WORKAROUND")) return;
+
+  const bool forceZink = env_is_truthy("USBCAMV4L_FORCE_ZINK");
+  if (!forceZink && !has_amd_drm_device()) return;
+
+  if (std::getenv("MESA_LOADER_DRIVER_OVERRIDE") || std::getenv("GALLIUM_DRIVER")) {
+    std::cerr << "Mesa driver override detected in environment; skipping internal Zink override.\n";
+    return;
+  }
+
+  (void)setenv("MESA_LOADER_DRIVER_OVERRIDE", "zink", 0);
+  (void)setenv("GALLIUM_DRIVER", "zink", 0);
+  (void)setenv("LIBGL_KOPPER_DRI2", "1", 0);
+  std::cerr << "Applying AMD Mesa workaround: requesting Zink OpenGL backend.\n";
 }
 
 static bool gl_extension_supported(const char* extList, const char* ext) {
@@ -191,6 +249,44 @@ static bool ffmpeg_planar_yuv_info(AVPixelFormat fmt, int width, int height,
 
 static bool is_mjpeg_fourcc(uint32_t fmt) {
   return fmt == V4L2_PIX_FMT_MJPEG || fmt == V4L2_PIX_FMT_JPEG;
+}
+
+static std::vector<std::string> enumerate_drm_render_nodes() {
+  std::vector<std::pair<int, std::string>> numbered;
+  std::error_code ec;
+  const fs::path drmRoot("/dev/dri");
+  if (!fs::exists(drmRoot, ec) || ec) return {};
+
+  for (const auto& entry : fs::directory_iterator(drmRoot, ec)) {
+    if (ec) break;
+    const std::string name = entry.path().filename().string();
+    const std::string prefix = "renderD";
+    if (name.rfind(prefix, 0) != 0) continue;
+    const std::string tail = name.substr(prefix.size());
+    if (tail.empty()) continue;
+    bool digitsOnly = true;
+    for (char c : tail) {
+      if (!std::isdigit(static_cast<unsigned char>(c))) {
+        digitsOnly = false;
+        break;
+      }
+    }
+    if (!digitsOnly) continue;
+    int n = -1;
+    try {
+      n = std::stoi(tail);
+    } catch (...) {
+      continue;
+    }
+    numbered.push_back({n, entry.path().string()});
+  }
+
+  std::sort(numbered.begin(), numbered.end(),
+            [](const auto& a, const auto& b) { return a.first < b.first; });
+  std::vector<std::string> out;
+  out.reserve(numbered.size());
+  for (const auto& item : numbered) out.push_back(item.second);
+  return out;
 }
 
 static bool pixfmt_matches_request(uint32_t requested, uint32_t actual) {
@@ -495,6 +591,272 @@ static std::string positions_file() {
 static std::string resolutions_file() {
   return config_dir() + "/camera_resolutions.csv";
 }
+
+static std::string recordings_dir() {
+  const char* home = std::getenv("HOME");
+  std::string baseDir;
+  if (home && std::strlen(home) > 0) {
+    baseDir = std::string(home) + "/Desktop";
+  } else {
+    baseDir = ".";
+  }
+  const std::string dir = baseDir + "/USB-Recordings";
+  std::error_code ec;
+  fs::create_directories(dir, ec);
+  return dir;
+}
+
+static std::string sanitize_filename_component(std::string s) {
+  s = sanitize_stable_id(s);
+  for (char& c : s) {
+    const bool ok = std::isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '_' || c == '.';
+    if (!ok) c = '_';
+  }
+  if (s.empty()) s = "camera";
+  return s;
+}
+
+static std::string compact_local_timestamp() {
+  const auto now = std::chrono::system_clock::now();
+  const std::time_t t = std::chrono::system_clock::to_time_t(now);
+  std::tm tm{};
+#if defined(_POSIX_VERSION)
+  localtime_r(&t, &tm);
+#else
+  tm = *std::localtime(&t);
+#endif
+  char buf[32] = {};
+  if (std::strftime(buf, sizeof(buf), "%Y%m%d_%H%M%S", &tm) == 0) {
+    return "time";
+  }
+  return std::string(buf);
+}
+
+struct RawVideoRecorder {
+  enum class Profile {
+    Fast,
+    Quality,
+  };
+  enum class Backend {
+    SoftwareX264,
+    VaapiH264,
+  };
+
+  bool enabled{false};
+  Profile profile{Profile::Fast};
+  bool started{false};
+  pid_t pid{-1};
+  int writeFd{-1};
+  int width{0};
+  int height{0};
+  int segment{0};
+  bool softwareFallbackUsed{false};
+  Backend backend{Backend::SoftwareX264};
+  std::string vaapiDevice;
+  std::string baseName;
+  std::string outputPath;
+
+  bool write_all(const uint8_t* data, size_t bytes) {
+    if (!started || writeFd < 0 || !data) return false;
+    size_t off = 0;
+    while (off < bytes) {
+      const ssize_t n = ::write(writeFd, data + off, bytes - off);
+      if (n > 0) {
+        off += static_cast<size_t>(n);
+        continue;
+      }
+      if (n < 0 && errno == EINTR) continue;
+      return false;
+    }
+    return true;
+  }
+
+  void stop() {
+    if (writeFd >= 0) {
+      ::close(writeFd);
+      writeFd = -1;
+    }
+    if (pid > 0) {
+      int status = 0;
+      (void)waitpid(pid, &status, 0);
+      pid = -1;
+    }
+    started = false;
+    width = 0;
+    height = 0;
+    backend = Backend::SoftwareX264;
+    vaapiDevice.clear();
+  }
+
+  bool start_process(int w, int h, bool forceSoftware = false) {
+    if (!enabled || w <= 0 || h <= 0) return false;
+    stop();
+    width = w;
+    height = h;
+    if (!forceSoftware) softwareFallbackUsed = false;
+
+    const std::string ts = compact_local_timestamp();
+    const std::string safeBase = sanitize_filename_component(baseName);
+    const std::string part = (segment > 0) ? ("_part" + std::to_string(segment)) : "";
+    outputPath = recordings_dir() + "/" + safeBase + "_" + ts +
+                 "_" + std::to_string(width) + "x" + std::to_string(height) +
+                 part + ".mp4";
+    const std::string sizeArg = std::to_string(width) + "x" + std::to_string(height);
+
+    bool useVaapiFastPath =
+        !forceSoftware &&
+        profile == Profile::Fast &&
+        !env_is_truthy("USBCAMV4L_REC_SOFTWARE_ONLY");
+    vaapiDevice.clear();
+    if (useVaapiFastPath) {
+      const char* forced = std::getenv("USBCAMV4L_VAAPI_DEVICE");
+      if (forced && *forced) {
+        vaapiDevice = forced;
+      } else {
+        const auto renderNodes = enumerate_drm_render_nodes();
+        if (!renderNodes.empty()) vaapiDevice = renderNodes.front();
+      }
+      if (vaapiDevice.empty()) useVaapiFastPath = false;
+    }
+    backend = useVaapiFastPath ? Backend::VaapiH264 : Backend::SoftwareX264;
+
+    int pipeFds[2] = {-1, -1};
+    if (pipe(pipeFds) != 0) {
+      std::cerr << "Failed to create recording pipe for " << safeBase
+                << ": " << strerror(errno) << "\n";
+      return false;
+    }
+
+    const pid_t child = fork();
+    if (child < 0) {
+      std::cerr << "Failed to start recorder process for " << safeBase
+                << ": " << strerror(errno) << "\n";
+      ::close(pipeFds[0]);
+      ::close(pipeFds[1]);
+      return false;
+    }
+
+    if (child == 0) {
+      ::close(pipeFds[1]);
+      if (dup2(pipeFds[0], STDIN_FILENO) < 0) _exit(127);
+      ::close(pipeFds[0]);
+
+      if (useVaapiFastPath) {
+        const char* mesaOverride = std::getenv("MESA_LOADER_DRIVER_OVERRIDE");
+        if (mesaOverride && to_lower_copy(trim(mesaOverride)) == "zink") {
+          (void)unsetenv("MESA_LOADER_DRIVER_OVERRIDE");
+          (void)unsetenv("GALLIUM_DRIVER");
+          (void)unsetenv("LIBGL_KOPPER_DRI2");
+        }
+        const char* argvVaapi[] = {
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel", "error",
+            "-y",
+            "-vaapi_device", vaapiDevice.c_str(),
+            "-f", "rawvideo",
+            "-pix_fmt", "rgba",
+            "-video_size", sizeArg.c_str(),
+            "-framerate", "30",
+            "-i", "-",
+            "-vf", "vflip,format=nv12,hwupload",
+            "-an",
+            "-c:v", "h264_vaapi",
+            "-qp", "28",
+            outputPath.c_str(),
+            nullptr};
+        execvp("ffmpeg", const_cast<char* const*>(argvVaapi));
+      } else if (profile == Profile::Quality) {
+        const char* argvQuality[] = {
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel", "error",
+            "-y",
+            "-f", "rawvideo",
+            "-pix_fmt", "rgba",
+            "-video_size", sizeArg.c_str(),
+            "-framerate", "30",
+            "-i", "-",
+            "-vf", "vflip,format=yuv420p",
+            "-an",
+            "-c:v", "libx264",
+            "-preset", "medium",
+            "-crf", "20",
+            outputPath.c_str(),
+            nullptr};
+        execvp("ffmpeg", const_cast<char* const*>(argvQuality));
+      } else {
+        const char* argvFast[] = {
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel", "error",
+            "-y",
+            "-f", "rawvideo",
+            "-pix_fmt", "rgba",
+            "-video_size", sizeArg.c_str(),
+            "-framerate", "30",
+            "-i", "-",
+            "-vf", "vflip,format=yuv420p",
+            "-an",
+            "-c:v", "libx264",
+            "-preset", "ultrafast",
+            "-tune", "zerolatency",
+            "-crf", "30",
+            outputPath.c_str(),
+            nullptr};
+        execvp("ffmpeg", const_cast<char* const*>(argvFast));
+      }
+      _exit(127);
+    }
+
+    ::close(pipeFds[0]);
+    writeFd = pipeFds[1];
+    pid = child;
+    started = true;
+    const char* backendLabel = (backend == Backend::VaapiH264)
+                                   ? "h264_vaapi"
+                                   : (profile == Profile::Quality ? "libx264 medium" : "libx264 ultrafast");
+    std::cerr << "Recording started: " << outputPath << "\n";
+    std::cerr << "Recording encoder: " << backendLabel << "\n";
+    return true;
+  }
+
+  bool ensure_started(const std::string& name, int w, int h) {
+    if (!enabled) return false;
+    if (baseName.empty()) baseName = name;
+    if (!started) return start_process(w, h);
+    if (w == width && h == height) return true;
+
+    ++segment;
+    std::cerr << "Recording resolution changed for " << baseName
+              << " to " << w << "x" << h << "; starting new file segment.\n";
+    return start_process(w, h);
+  }
+
+  bool write_frame(const uint8_t* rgba, size_t bytes) {
+    if (!started || writeFd < 0) return false;
+    if (write_all(rgba, bytes)) return true;
+
+    if (profile == Profile::Fast &&
+        backend == Backend::VaapiH264 &&
+        !softwareFallbackUsed) {
+      const int w = width;
+      const int h = height;
+      softwareFallbackUsed = true;
+      ++segment;
+      std::cerr << "VAAPI recorder write failed for " << baseName
+                << "; retrying with software x264.\n";
+      if (start_process(w, h, true) && write_all(rgba, bytes)) {
+        return true;
+      }
+    }
+
+    std::cerr << "Recording pipeline write failed for " << baseName
+              << "; stopping recorder.\n";
+    stop();
+    return false;
+  }
+};
 
 static std::optional<V4L2NodeInfo> query_v4l2(const std::string& devPath, int* failErrno = nullptr) {
   if (failErrno) *failErrno = 0;
@@ -1119,6 +1481,55 @@ static bool upload_plane_texture(GLuint tex, GLenum format,
   return true;
 }
 
+static inline uint8_t clamp_u8(int v) {
+  if (v < 0) return 0;
+  if (v > 255) return 255;
+  return static_cast<uint8_t>(v);
+}
+
+// Conservative fallback path for drivers that struggle with the YUYV shader path.
+static bool convert_yuyv_to_rgba(const uint8_t* src,
+                                 int width, int height,
+                                 int srcStrideBytes,
+                                 std::vector<uint8_t>& outRgba) {
+  if (!src || width <= 0 || height <= 0) return false;
+  const int minStride = width * 2;
+  if (srcStrideBytes <= 0) srcStrideBytes = minStride;
+  if (srcStrideBytes < minStride) return false;
+  if ((width % 2) != 0) return false;
+
+  outRgba.resize(static_cast<size_t>(width) * static_cast<size_t>(height) * 4u);
+  for (int y = 0; y < height; ++y) {
+    const uint8_t* row = src + static_cast<size_t>(y) * static_cast<size_t>(srcStrideBytes);
+    uint8_t* dst = outRgba.data() + static_cast<size_t>(y) * static_cast<size_t>(width) * 4u;
+
+    for (int x = 0; x < width; x += 2) {
+      const int y0 = row[0];
+      const int u = row[1] - 128;
+      const int y1 = row[2];
+      const int v = row[3] - 128;
+
+      const int rAdd = (91881 * v) >> 16;
+      const int gSub = ((22554 * u) + (46802 * v)) >> 16;
+      const int bAdd = (116130 * u) >> 16;
+
+      dst[0] = clamp_u8(y0 + rAdd);
+      dst[1] = clamp_u8(y0 - gSub);
+      dst[2] = clamp_u8(y0 + bAdd);
+      dst[3] = 255;
+
+      dst[4] = clamp_u8(y1 + rAdd);
+      dst[5] = clamp_u8(y1 - gSub);
+      dst[6] = clamp_u8(y1 + bAdd);
+      dst[7] = 255;
+
+      row += 4;
+      dst += 8;
+    }
+  }
+  return true;
+}
+
 static void draw_quad(const GLfloat* quad) {
   glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), quad + 0);
   glEnableVertexAttribArray(0);
@@ -1148,18 +1559,23 @@ static bool probe_renderer_context(EGLDisplay edpy, EGLConfig cfg, EGLContext ct
   std::cerr << "GL renderer: " << (glRenderer ? glRenderer : "(null)") << "\n";
   g_activeRendererIsNvidia = false;
   g_activeRendererIsIntel = false;
-  if (glVendor) {
-    const std::string vendorLower = to_lower_copy(glVendor);
-    g_activeRendererIsNvidia = vendorLower.find("nvidia") != std::string::npos;
-    g_activeRendererIsIntel = vendorLower.find("intel") != std::string::npos;
-  }
-  if (glRenderer) {
-    const std::string rendererLower = to_lower_copy(glRenderer);
-    if (rendererLower.find("nvidia") != std::string::npos) g_activeRendererIsNvidia = true;
-    if (rendererLower.find("intel") != std::string::npos) g_activeRendererIsIntel = true;
-  }
+  g_activeRendererIsAmd = false;
+  auto classify_renderer = [&](const std::string& text) {
+    const std::string lower = to_lower_copy(text);
+    if (lower.find("nvidia") != std::string::npos) g_activeRendererIsNvidia = true;
+    if (lower.find("intel") != std::string::npos) g_activeRendererIsIntel = true;
+    if (lower.find("amd") != std::string::npos ||
+        lower.find("radeon") != std::string::npos ||
+        lower.find("ati") != std::string::npos) {
+      g_activeRendererIsAmd = true;
+    }
+  };
+  if (glVendor) classify_renderer(glVendor);
+  if (glRenderer) classify_renderer(glRenderer);
   if (!glVendor || !glRenderer) {
     std::cerr << "Failed to query active GL renderer.\n";
+  } else if (g_activeRendererIsAmd) {
+    std::cerr << "Detected AMD renderer; enabling VAAPI MJPEG hardware decode probing.\n";
   }
   eglMakeCurrent(edpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
   eglDestroySurface(edpy, probe);
@@ -1225,7 +1641,8 @@ struct MjpegHwDecoder {
     }
   }
 
-  bool init(const std::string& devPath, bool allowCudaCuvid, bool allowVaapi) {
+  bool init(const std::string& devPath, bool allowCudaCuvid, bool allowVaapi,
+            bool allowQsv, bool preferVaapi) {
     reset();
 
     struct Candidate {
@@ -1239,9 +1656,22 @@ struct MjpegHwDecoder {
     if (allowCudaCuvid) {
       candidates.push_back({"CUDA/CUVID", "mjpeg_cuvid", AV_HWDEVICE_TYPE_CUDA, AV_PIX_FMT_CUDA, false});
     }
-    candidates.push_back({"Intel QSV", "mjpeg_qsv", AV_HWDEVICE_TYPE_QSV, AV_PIX_FMT_QSV, false});
-    if (allowVaapi) {
-      candidates.push_back({"VAAPI", "mjpeg", AV_HWDEVICE_TYPE_VAAPI, AV_PIX_FMT_VAAPI, true});
+    auto add_qsv = [&]() {
+      if (allowQsv) {
+        candidates.push_back({"Intel QSV", "mjpeg_qsv", AV_HWDEVICE_TYPE_QSV, AV_PIX_FMT_QSV, false});
+      }
+    };
+    auto add_vaapi = [&]() {
+      if (allowVaapi) {
+        candidates.push_back({"VAAPI", "mjpeg", AV_HWDEVICE_TYPE_VAAPI, AV_PIX_FMT_VAAPI, true});
+      }
+    };
+    if (preferVaapi) {
+      add_vaapi();
+      add_qsv();
+    } else {
+      add_qsv();
+      add_vaapi();
     }
 
     static bool cudaUnavailable = false;
@@ -1261,13 +1691,82 @@ struct MjpegHwDecoder {
 
       AVBufferRef* tryDevice = nullptr;
       if (candidate.hwType != AV_HWDEVICE_TYPE_NONE) {
-        const int devRc = av_hwdevice_ctx_create(&tryDevice, candidate.hwType, nullptr, nullptr, 0);
+        int devRc = AVERROR(ENODEV);
+        std::string selectedHwDevice;
+        std::vector<std::string> deviceCandidates;
+        if (candidate.hwType == AV_HWDEVICE_TYPE_VAAPI) {
+          const char* forcedVaapi = std::getenv("USBCAMV4L_VAAPI_DEVICE");
+          if (forcedVaapi && *forcedVaapi) {
+            deviceCandidates.emplace_back(forcedVaapi);
+          }
+          for (const auto& node : enumerate_drm_render_nodes()) {
+            if (std::find(deviceCandidates.begin(), deviceCandidates.end(), node) == deviceCandidates.end()) {
+              deviceCandidates.push_back(node);
+            }
+          }
+          // Fallback to libavutil default device selection if explicit nodes failed.
+          deviceCandidates.emplace_back();
+        } else {
+          deviceCandidates.emplace_back();
+        }
+
+        bool temporarilyDisabledZinkForVaapi = false;
+        std::string savedMesaOverride;
+        std::string savedGalliumDriver;
+        std::string savedKopperDri2;
+        const bool hadMesaOverride = std::getenv("MESA_LOADER_DRIVER_OVERRIDE") != nullptr;
+        const bool hadGalliumDriver = std::getenv("GALLIUM_DRIVER") != nullptr;
+        const bool hadKopperDri2 = std::getenv("LIBGL_KOPPER_DRI2") != nullptr;
+        if (candidate.hwType == AV_HWDEVICE_TYPE_VAAPI &&
+            !env_is_truthy("USBCAMV4L_KEEP_ZINK_FOR_VAAPI")) {
+          const char* mesaOverride = std::getenv("MESA_LOADER_DRIVER_OVERRIDE");
+          if (mesaOverride && to_lower_copy(trim(mesaOverride)) == "zink") {
+            if (mesaOverride) savedMesaOverride = mesaOverride;
+            if (const char* g = std::getenv("GALLIUM_DRIVER")) savedGalliumDriver = g;
+            if (const char* k = std::getenv("LIBGL_KOPPER_DRI2")) savedKopperDri2 = k;
+            (void)unsetenv("MESA_LOADER_DRIVER_OVERRIDE");
+            (void)unsetenv("GALLIUM_DRIVER");
+            (void)unsetenv("LIBGL_KOPPER_DRI2");
+            temporarilyDisabledZinkForVaapi = true;
+            std::cerr << "Temporarily disabling Zink override for VAAPI device probing.\n";
+          }
+        }
+
+        for (const auto& dev : deviceCandidates) {
+          const char* devArg = dev.empty() ? nullptr : dev.c_str();
+          devRc = av_hwdevice_ctx_create(&tryDevice, candidate.hwType, devArg, nullptr, 0);
+          if (devRc >= 0) {
+            selectedHwDevice = dev;
+            break;
+          }
+          if (candidate.hwType == AV_HWDEVICE_TYPE_VAAPI && !dev.empty()) {
+            std::cerr << "VAAPI device probe failed for " << dev
+                      << ": " << av_error_to_string(devRc) << "\n";
+          }
+        }
+
+        if (temporarilyDisabledZinkForVaapi) {
+          if (hadMesaOverride) (void)setenv("MESA_LOADER_DRIVER_OVERRIDE", savedMesaOverride.c_str(), 1);
+          else (void)unsetenv("MESA_LOADER_DRIVER_OVERRIDE");
+          if (hadGalliumDriver) (void)setenv("GALLIUM_DRIVER", savedGalliumDriver.c_str(), 1);
+          else (void)unsetenv("GALLIUM_DRIVER");
+          if (hadKopperDri2) (void)setenv("LIBGL_KOPPER_DRI2", savedKopperDri2.c_str(), 1);
+          else (void)unsetenv("LIBGL_KOPPER_DRI2");
+        }
+
         if (devRc < 0) {
           if (candidate.hwType == AV_HWDEVICE_TYPE_CUDA) cudaUnavailable = true;
           if (candidate.hwType == AV_HWDEVICE_TYPE_QSV) qsvUnavailable = true;
           if (candidate.hwType == AV_HWDEVICE_TYPE_VAAPI) vaapiUnavailable = true;
           avcodec_free_context(&tryCtx);
           continue;
+        }
+        if (candidate.hwType == AV_HWDEVICE_TYPE_VAAPI) {
+          if (!selectedHwDevice.empty()) {
+            std::cerr << "Using VAAPI device " << selectedHwDevice << " for " << devPath << ".\n";
+          } else {
+            std::cerr << "Using default VAAPI device selection for " << devPath << ".\n";
+          }
         }
         tryCtx->hw_device_ctx = av_buffer_ref(tryDevice);
         if (!tryCtx->hw_device_ctx) {
@@ -1389,7 +1888,9 @@ struct MjpegHwDecoder {
       int chromaW = 0;
       int chromaH = 0;
       const AVPixelFormat pixFmt = static_cast<AVPixelFormat>(candidate->format);
-      if (!ffmpeg_planar_yuv_info(pixFmt, candidate->width, candidate->height,
+      const bool isPackedYuyv = (pixFmt == AV_PIX_FMT_YUYV422);
+      if (!isPackedYuyv &&
+          !ffmpeg_planar_yuv_info(pixFmt, candidate->width, candidate->height,
                                   isNV12, hasChroma, chromaW, chromaH)) {
         if (!warnedFormat) {
           std::cerr << "MJPEG hardware decode output format is "
@@ -1403,18 +1904,22 @@ struct MjpegHwDecoder {
       if (candidate->width <= 0 || candidate->height <= 0 || !candidate->data[0]) {
         continue;
       }
-      if (hasChroma) {
-        if (!candidate->data[1]) continue;
-        if (!isNV12 && !candidate->data[2]) continue;
-      }
       if (candidate->linesize[0] <= 0) {
         continue;
       }
-      if (hasChroma && candidate->linesize[1] <= 0) {
-        continue;
-      }
-      if (hasChroma && !isNV12 && candidate->linesize[2] <= 0) {
-        continue;
+      if (isPackedYuyv) {
+        if (candidate->linesize[0] < candidate->width * 2) continue;
+      } else {
+        if (hasChroma) {
+          if (!candidate->data[1]) continue;
+          if (!isNV12 && !candidate->data[2]) continue;
+        }
+        if (hasChroma && candidate->linesize[1] <= 0) {
+          continue;
+        }
+        if (hasChroma && !isNV12 && candidate->linesize[2] <= 0) {
+          continue;
+        }
       }
 
       av_frame_unref(outputFrame);
@@ -1439,8 +1944,14 @@ struct V4L2DmabufCam {
   int requestedW{DEFAULT_FRAME_W};
   int requestedH{DEFAULT_FRAME_H};
   bool lowLatency{true};
+  bool allowCudaHwMjpeg{false};
   bool allowFullHwMjpeg{false};
   bool allowVaapiHwMjpeg{false};
+  bool allowQsvHwMjpeg{false};
+  bool preferVaapiHwMjpeg{false};
+  bool preferCpuYuyv{false};
+  bool yuyvCpuConvert{false};
+  bool record{false};
   int fd{-1};
   int width{0}, height{0};
   int strideY{0}, strideUV{0};
@@ -1472,10 +1983,12 @@ struct V4L2DmabufCam {
   std::vector<uint8_t> scratchY;
   std::vector<uint8_t> scratchUV;
   std::vector<uint8_t> scratchYuyv;
+  std::vector<uint8_t> yuyvRgba;
   std::vector<uint8_t> scratchMjpegY;
   std::vector<uint8_t> scratchMjpegU;
   std::vector<uint8_t> scratchMjpegV;
   std::vector<uint8_t> overlayRgba;
+  std::vector<uint8_t> recordRgba;
   std::string overlayText;
   double fpsValue{0.0};
   int fpsFrameCount{0};
@@ -1499,6 +2012,8 @@ struct V4L2DmabufCam {
   bool warnedMjpegSizeMismatch{false};
   bool warnedMjpegUnsupportedSubsamp{false};
   bool warnedMjpegHwSizeMismatch{false};
+
+  RawVideoRecorder recorder;
 
   struct Buf {
     void* ptr{nullptr};
@@ -1580,6 +2095,7 @@ struct V4L2DmabufCam {
     nv12 = false;
     yuyv = false;
     mjpeg = false;
+    yuyvCpuConvert = false;
     warnedMjpegHeader = false;
     warnedMjpegDecode = false;
     warnedMjpegSizeMismatch = false;
@@ -1599,6 +2115,7 @@ struct V4L2DmabufCam {
         b = Buf{};
       }
       bufs.clear();
+      recorder.stop();
       mjpegHw.reset();
       if (tjDecoder) {
         tjDestroy(tjDecoder);
@@ -1607,6 +2124,8 @@ struct V4L2DmabufCam {
       mjpegPlaneY.clear();
       mjpegPlaneU.clear();
       mjpegPlaneV.clear();
+      yuyvRgba.clear();
+      recordRgba.clear();
       mjpegSubsamp = -1;
       mjpegHasChroma = false;
       mjpegPlaneW[0] = mjpegPlaneW[1] = mjpegPlaneW[2] = 0;
@@ -1667,7 +2186,8 @@ struct V4L2DmabufCam {
                   << ": " << tjGetErrorStr() << "\n";
         return fail();
       }
-      if (!mjpegHw.init(cam.devPath, allowFullHwMjpeg, allowVaapiHwMjpeg)) {
+      if (!mjpegHw.init(cam.devPath, allowCudaHwMjpeg, allowVaapiHwMjpeg,
+                        allowQsvHwMjpeg, preferVaapiHwMjpeg)) {
         std::cerr << "MJPEG hardware decode unavailable for " << cam.devPath
                   << "; using turbojpeg CPU decode fallback.\n";
       }
@@ -1680,9 +2200,15 @@ struct V4L2DmabufCam {
                 << " instead.\n";
     }
 
+    yuyvCpuConvert = yuyv && preferCpuYuyv;
     if (yuyv) {
-      std::cerr << "Warning: " << cam.devPath
-                << " is YUYV; using GPU shader conversion path.\n";
+      if (yuyvCpuConvert) {
+        std::cerr << "Warning: " << cam.devPath
+                  << " is YUYV; using CPU YUYV unpack + GPU RGBA render fallback.\n";
+      } else {
+        std::cerr << "Warning: " << cam.devPath
+                  << " is YUYV; using GPU shader conversion path.\n";
+      }
     }
 
     std::cerr << "Configured " << cam.devPath << ": "
@@ -1762,6 +2288,7 @@ struct V4L2DmabufCam {
       b = Buf{};
     }
     bufs.clear();
+    recorder.stop();
     if (uploadYTex) glDeleteTextures(1, &uploadYTex);
     if (uploadUVTex) glDeleteTextures(1, &uploadUVTex);
     if (yuyvTex) glDeleteTextures(1, &yuyvTex);
@@ -1795,10 +2322,12 @@ struct V4L2DmabufCam {
     scratchY.clear();
     scratchUV.clear();
     scratchYuyv.clear();
+    yuyvRgba.clear();
     scratchMjpegY.clear();
     scratchMjpegU.clear();
     scratchMjpegV.clear();
     overlayRgba.clear();
+    recordRgba.clear();
     overlayText.clear();
     fpsValue = 0.0;
     fpsFrameCount = 0;
@@ -1837,6 +2366,8 @@ int main(int argc, char** argv) {
   bool preferMjpeg = false;
   bool allowFullMjpegHw = false;
   bool strictGpuSync = false;
+  bool enableRecording = false;
+  RawVideoRecorder::Profile recordProfile = RawVideoRecorder::Profile::Fast;
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
     if (arg == "-reset" || arg == "--reset") {
@@ -1867,15 +2398,33 @@ int main(int argc, char** argv) {
       strictGpuSync = true;
       continue;
     }
+    if (arg == "-rec" || arg == "--rec") {
+      enableRecording = true;
+      continue;
+    }
+    if (arg == "-rec-fast" || arg == "--rec-fast") {
+      enableRecording = true;
+      recordProfile = RawVideoRecorder::Profile::Fast;
+      continue;
+    }
+    if (arg == "-rec-quality" || arg == "--rec-quality") {
+      enableRecording = true;
+      recordProfile = RawVideoRecorder::Profile::Quality;
+      continue;
+    }
     if (arg == "-h" || arg == "--help") {
       std::cout << "Usage: " << argv[0]
-                << " [-reset] [-res-each] [-res] [-mjpeg] [-mjpeg-hw] [-strict-sync]\n";
+                << " [-reset] [-res-each] [-res] [-mjpeg] [-mjpeg-hw] [-strict-sync]"
+                   " [-rec] [-rec-fast] [-rec-quality]\n";
       std::cout << "  -reset   Delete saved window position/resolution settings and start with defaults.\n";
       std::cout << "  -res-each   Choose resolution separately for each camera.\n";
       std::cout << "  -res        Choose one common pixel height for all cameras.\n";
       std::cout << "  -mjpeg     Prefer MJPEG capture (falls back to NV12/YUYV if unavailable).\n";
       std::cout << "  -mjpeg-hw  Allow full hardware MJPEG decode including CUDA/CUVID.\n";
       std::cout << "  -strict-sync  Use glFinish() for conservative buffer safety (higher latency).\n";
+      std::cout << "  -rec      Record each camera window to MP4 in ~/Desktop/USB-Recordings.\n";
+      std::cout << "  -rec-fast  Recording profile tuned for maximum FPS (default).\n";
+      std::cout << "  -rec-quality  Recording profile tuned for better quality, lower throughput.\n";
       return 0;
     }
     std::cerr << "Warning: unknown argument '" << arg << "' (ignored)\n";
@@ -1893,11 +2442,21 @@ int main(int argc, char** argv) {
             << "\n";
   std::cerr << "MJPEG decode mode: "
             << (allowFullMjpegHw ? "full hardware decode allowed"
-                                 : "low-latency (skip CUDA/CUVID, prefer QSV, Intel-only VAAPI fallback, then turbojpeg)")
+                                 : "low-latency (prefer VAAPI on AMD, prefer QSV on Intel, then turbojpeg)")
             << "\n";
   std::cerr << "GPU sync mode: "
             << (strictGpuSync ? "strict (glFinish)" : "low-latency (glFlush)")
             << "\n";
+  std::cerr << "Recording mode: "
+            << (enableRecording ? ("enabled -> " + recordings_dir()) : "disabled")
+            << "\n";
+  if (enableRecording) {
+    std::cerr << "Recording profile: "
+              << (recordProfile == RawVideoRecorder::Profile::Fast ? "fast" : "quality")
+              << "\n";
+  }
+
+  maybe_enable_amd_zink_workaround();
 
   const std::string positionsCsv = positions_file();
   const std::string resolutionsCsv = resolutions_file();
@@ -2070,12 +2629,10 @@ int main(int argc, char** argv) {
       (PFNEGLDESTROYIMAGEKHRPROC)eglGetProcAddress("eglDestroyImageKHR");
   auto glEGLImageTargetTexture2DOES =
       (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)eglGetProcAddress("glEGLImageTargetTexture2DOES");
-  if (!eglCreateImageKHR || !eglDestroyImageKHR || !glEGLImageTargetTexture2DOES) {
-    std::cerr << "Missing EGLImage extension functions.\n";
-    eglDestroyContext(edpy, ctx);
-    eglTerminate(edpy);
-    XCloseDisplay(dpy);
-    return 1;
+  const bool haveEglImageImport =
+      eglCreateImageKHR && eglDestroyImageKHR && glEGLImageTargetTexture2DOES;
+  if (!haveEglImageImport) {
+    std::cerr << "EGLImage DMABUF import extensions unavailable; using GPU upload fallback.\n";
   }
 
   std::vector<XWin> wins;
@@ -2175,8 +2732,15 @@ int main(int argc, char** argv) {
     cam.requestedW = desired.w;
     cam.requestedH = desired.h;
     cam.lowLatency = true;
+    cam.allowCudaHwMjpeg = allowFullMjpegHw && g_activeRendererIsNvidia;
     cam.allowFullHwMjpeg = allowFullMjpegHw;
-    cam.allowVaapiHwMjpeg = allowFullMjpegHw || g_activeRendererIsIntel;
+    cam.allowVaapiHwMjpeg = allowFullMjpegHw || g_activeRendererIsIntel || g_activeRendererIsAmd;
+    cam.allowQsvHwMjpeg = g_activeRendererIsIntel;
+    cam.preferVaapiHwMjpeg = g_activeRendererIsAmd;
+    cam.preferCpuYuyv = g_activeRendererIsAmd;
+    cam.record = enableRecording;
+    cam.recorder.enabled = enableRecording;
+    cam.recorder.profile = recordProfile;
     if (!cam.open_and_configure(capturePref)) {
       std::cerr << "Failed camera candidate " << c.devPath
                 << " (group=" << c.stableId << "), trying next candidate.\n";
@@ -2210,7 +2774,7 @@ int main(int argc, char** argv) {
                 << " capture=" << cam.width << "x" << cam.height << "\n";
     }
 
-    if (cam.nv12) {
+    if (cam.nv12 && haveEglImageImport) {
       for (auto& b : cam.bufs) {
         if (b.dmabuf < 0) continue;
 
@@ -2265,6 +2829,9 @@ int main(int argc, char** argv) {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)b.uvImg);
       }
+    } else if (cam.nv12) {
+      std::cerr << "DMABUF EGL import disabled for " << cam.cam.devPath
+                << "; using GPU NV12 upload path.\n";
     }
 
     wins.push_back({w, surf, r});
@@ -2297,29 +2864,58 @@ int main(int argc, char** argv) {
     XCloseDisplay(dpy);
     return 1;
   }
-  GLuint progNV12 = make_program(kFS_NV12);
-  GLuint progYUYV = make_program(kFS_YUYV);
-  GLuint progYUVPlanar = make_program(kFS_YUV_PLANAR);
+  const bool needYuyvShader = std::any_of(vcams.begin(), vcams.end(),
+                                          [](const V4L2DmabufCam& c) {
+                                            return c.yuyv && !c.yuyvCpuConvert;
+                                          });
+  const bool needNV12Shader = std::any_of(vcams.begin(), vcams.end(),
+                                          [](const V4L2DmabufCam& c) {
+                                            return c.nv12 || c.mjpeg;
+                                          });
+  const bool needYUVPlanarShader = std::any_of(vcams.begin(), vcams.end(),
+                                               [](const V4L2DmabufCam& c) {
+                                                 return c.mjpeg;
+                                               });
+
+  GLuint progNV12 = needNV12Shader ? make_program(kFS_NV12) : 0;
+  GLuint progYUYV = needYuyvShader ? make_program(kFS_YUYV) : 0;
+  GLuint progYUVPlanar = needYUVPlanarShader ? make_program(kFS_YUV_PLANAR) : 0;
   GLuint progRGBA = make_program(kFS_RGBA);
-  GLint locY = glGetUniformLocation(progNV12, "texY");
-  GLint locUV = glGetUniformLocation(progNV12, "texUV");
-  GLint locYuyv = glGetUniformLocation(progYUYV, "texYUYV");
-  GLint locYuyvWidth = glGetUniformLocation(progYUYV, "frameWidth");
-  GLint locPlanarY = glGetUniformLocation(progYUVPlanar, "texPlanarY");
-  GLint locPlanarU = glGetUniformLocation(progYUVPlanar, "texPlanarU");
-  GLint locPlanarV = glGetUniformLocation(progYUVPlanar, "texPlanarV");
-  GLint locRGBA = glGetUniformLocation(progRGBA, "texRGBA");
-  glUseProgram(progNV12);
-  glUniform1i(locY, 0);
-  glUniform1i(locUV, 1);
-  glUseProgram(progYUYV);
-  glUniform1i(locYuyv, 0);
-  glUseProgram(progYUVPlanar);
-  glUniform1i(locPlanarY, 0);
-  glUniform1i(locPlanarU, 1);
-  glUniform1i(locPlanarV, 2);
-  glUseProgram(progRGBA);
-  glUniform1i(locRGBA, 0);
+
+  GLint locY = progNV12 ? glGetUniformLocation(progNV12, "texY") : -1;
+  GLint locUV = progNV12 ? glGetUniformLocation(progNV12, "texUV") : -1;
+  GLint locYuyv = progYUYV ? glGetUniformLocation(progYUYV, "texYUYV") : -1;
+  GLint locYuyvWidth = progYUYV ? glGetUniformLocation(progYUYV, "frameWidth") : -1;
+  GLint locPlanarY = progYUVPlanar ? glGetUniformLocation(progYUVPlanar, "texPlanarY") : -1;
+  GLint locPlanarU = progYUVPlanar ? glGetUniformLocation(progYUVPlanar, "texPlanarU") : -1;
+  GLint locPlanarV = progYUVPlanar ? glGetUniformLocation(progYUVPlanar, "texPlanarV") : -1;
+  GLint locRGBA = progRGBA ? glGetUniformLocation(progRGBA, "texRGBA") : -1;
+
+  if (progNV12) {
+    glUseProgram(progNV12);
+    glUniform1i(locY, 0);
+    glUniform1i(locUV, 1);
+  } else if (needNV12Shader) {
+    std::cerr << "NV12 shader program unavailable; NV12 streams may fail to render.\n";
+  }
+  if (progYUYV) {
+    glUseProgram(progYUYV);
+    glUniform1i(locYuyv, 0);
+  } else if (needYuyvShader) {
+    std::cerr << "YUYV shader program unavailable; YUYV streams may fail to render.\n";
+  }
+  if (progYUVPlanar) {
+    glUseProgram(progYUVPlanar);
+    glUniform1i(locPlanarY, 0);
+    glUniform1i(locPlanarU, 1);
+    glUniform1i(locPlanarV, 2);
+  } else if (needYUVPlanarShader) {
+    std::cerr << "Planar YUV shader program unavailable; MJPEG streams may fail to render.\n";
+  }
+  if (progRGBA) {
+    glUseProgram(progRGBA);
+    glUniform1i(locRGBA, 0);
+  }
 
   const char* glExt = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
   const bool canUseUnpackRowLength = gl_extension_supported(glExt, "GL_EXT_unpack_subimage");
@@ -2438,7 +3034,10 @@ int main(int argc, char** argv) {
         glClear(GL_COLOR_BUFFER_BIT);
 
         bool rendered = false;
-        if (cam.nv12 && cam.bufs[b.index].yTex && cam.bufs[b.index].uvTex) {
+        const uint8_t* recordSourceRgba = nullptr;
+        int recordSourceW = 0;
+        int recordSourceH = 0;
+        if (progNV12 && cam.nv12 && cam.bufs[b.index].yTex && cam.bufs[b.index].uvTex) {
           glUseProgram(progNV12);
           glActiveTexture(GL_TEXTURE0);
           glBindTexture(GL_TEXTURE_2D, cam.bufs[b.index].yTex);
@@ -2464,7 +3063,7 @@ int main(int argc, char** argv) {
                                                      cam.width / 2, cam.height / 2, 2,
                                                      srcUV, cam.strideUV, canUseUnpackRowLength,
                                                      cam.scratchUV);
-              if (upY && upUV) {
+              if (upY && upUV && progNV12) {
                 glUseProgram(progNV12);
                 glActiveTexture(GL_TEXTURE0);
                 glBindTexture(GL_TEXTURE_2D, cam.uploadYTex);
@@ -2487,8 +3086,10 @@ int main(int argc, char** argv) {
                     int hwChromaW = 0;
                     int hwChromaH = 0;
                     const AVPixelFormat hwFmt = static_cast<AVPixelFormat>(hwFrame->format);
+                    const bool hwIsYuyvPacked = (hwFmt == AV_PIX_FMT_YUYV422);
                     if (hwW > 0 && hwH > 0 &&
-                        ffmpeg_planar_yuv_info(hwFmt, hwW, hwH, hwIsNV12, hwHasChroma, hwChromaW, hwChromaH)) {
+                        (hwIsYuyvPacked ||
+                         ffmpeg_planar_yuv_info(hwFmt, hwW, hwH, hwIsNV12, hwHasChroma, hwChromaW, hwChromaH))) {
                       if ((hwW != cam.width || hwH != cam.height) && !cam.warnedMjpegHwSizeMismatch) {
                         std::cerr << "MJPEG hardware decode size differs from capture config ("
                                   << cam.cam.devPath << "): decoded=" << hwW << "x" << hwH
@@ -2496,7 +3097,28 @@ int main(int argc, char** argv) {
                         cam.warnedMjpegHwSizeMismatch = true;
                       }
 
-                      if (hwIsNV12) {
+                      if (hwIsYuyvPacked) {
+                        const bool converted = convert_yuyv_to_rgba(hwFrame->data[0], hwW, hwH,
+                                                                    hwFrame->linesize[0], cam.yuyvRgba);
+                        if (converted) {
+                          recordSourceRgba = cam.yuyvRgba.data();
+                          recordSourceW = hwW;
+                          recordSourceH = hwH;
+                          ensure_plane_texture(cam.yuyvTex, cam.yuyvTexW, cam.yuyvTexH,
+                                               GL_RGBA, hwW, hwH, GL_LINEAR);
+                          const bool up = upload_plane_texture(cam.yuyvTex, GL_RGBA,
+                                                               hwW, hwH, 4,
+                                                               cam.yuyvRgba.data(), hwW * 4,
+                                                               canUseUnpackRowLength, cam.scratchYuyv);
+                          if (up && progRGBA) {
+                            glUseProgram(progRGBA);
+                            glActiveTexture(GL_TEXTURE0);
+                            glBindTexture(GL_TEXTURE_2D, cam.yuyvTex);
+                            draw_quad(quad);
+                            rendered = true;
+                          }
+                        }
+                      } else if (hwIsNV12) {
                         ensure_plane_texture(cam.uploadYTex, cam.uploadYTexW, cam.uploadYTexH,
                                              GL_LUMINANCE, hwW, hwH, GL_LINEAR);
                         ensure_plane_texture(cam.uploadUVTex, cam.uploadUVTexW, cam.uploadUVTexH,
@@ -2509,7 +3131,7 @@ int main(int argc, char** argv) {
                                                                hwChromaW, hwChromaH, 2,
                                                                hwFrame->data[1], hwFrame->linesize[1],
                                                                canUseUnpackRowLength, cam.scratchUV);
-                        if (upY && upUV) {
+                        if (upY && upUV && progNV12) {
                           glUseProgram(progNV12);
                           glActiveTexture(GL_TEXTURE0);
                           glBindTexture(GL_TEXTURE_2D, cam.uploadYTex);
@@ -2550,7 +3172,7 @@ int main(int argc, char** argv) {
                           texU = cam.neutralChromaTex;
                           texV = cam.neutralChromaTex;
                         }
-                        if (upY && upU && upV && texU && texV) {
+                        if (upY && upU && upV && texU && texV && progYUVPlanar) {
                           glUseProgram(progYUVPlanar);
                           glActiveTexture(GL_TEXTURE0);
                           glBindTexture(GL_TEXTURE_2D, cam.mjpegYTex);
@@ -2624,7 +3246,7 @@ int main(int argc, char** argv) {
                             texV = cam.neutralChromaTex;
                           }
 
-                          if (upY && upU && upV && texU && texV) {
+                          if (upY && upU && upV && texU && texV && progYUVPlanar) {
                             glUseProgram(progYUVPlanar);
                             glActiveTexture(GL_TEXTURE0);
                             glBindTexture(GL_TEXTURE_2D, cam.mjpegYTex);
@@ -2661,19 +3283,42 @@ int main(int argc, char** argv) {
                 }
               }
             } else if (cam.yuyv) {
-              ensure_plane_texture(cam.yuyvTex, cam.yuyvTexW, cam.yuyvTexH,
-                                   GL_RGBA, cam.width / 2, cam.height, GL_NEAREST);
-              const bool up = upload_plane_texture(cam.yuyvTex, GL_RGBA,
-                                                   cam.width / 2, cam.height, 4,
-                                                   base, cam.strideY, canUseUnpackRowLength,
-                                                   cam.scratchYuyv);
-              if (up) {
-                glUseProgram(progYUYV);
-                glUniform1f(locYuyvWidth, static_cast<float>(cam.width));
-                glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_2D, cam.yuyvTex);
-                draw_quad(quad);
-                rendered = true;
+              if (cam.yuyvCpuConvert) {
+                const bool converted = convert_yuyv_to_rgba(base, cam.width, cam.height, cam.strideY,
+                                                            cam.yuyvRgba);
+                if (converted) {
+                  recordSourceRgba = cam.yuyvRgba.data();
+                  recordSourceW = cam.width;
+                  recordSourceH = cam.height;
+                  ensure_plane_texture(cam.yuyvTex, cam.yuyvTexW, cam.yuyvTexH,
+                                       GL_RGBA, cam.width, cam.height, GL_LINEAR);
+                  const bool up = upload_plane_texture(cam.yuyvTex, GL_RGBA,
+                                                       cam.width, cam.height, 4,
+                                                       cam.yuyvRgba.data(), cam.width * 4,
+                                                       canUseUnpackRowLength, cam.scratchYuyv);
+                  if (up && progRGBA) {
+                    glUseProgram(progRGBA);
+                    glActiveTexture(GL_TEXTURE0);
+                    glBindTexture(GL_TEXTURE_2D, cam.yuyvTex);
+                    draw_quad(quad);
+                    rendered = true;
+                  }
+                }
+              } else if (progYUYV) {
+                ensure_plane_texture(cam.yuyvTex, cam.yuyvTexW, cam.yuyvTexH,
+                                     GL_RGBA, cam.width / 2, cam.height, GL_NEAREST);
+                const bool up = upload_plane_texture(cam.yuyvTex, GL_RGBA,
+                                                     cam.width / 2, cam.height, 4,
+                                                     base, cam.strideY, canUseUnpackRowLength,
+                                                     cam.scratchYuyv);
+                if (up) {
+                  glUseProgram(progYUYV);
+                  glUniform1f(locYuyvWidth, static_cast<float>(cam.width));
+                  glActiveTexture(GL_TEXTURE0);
+                  glBindTexture(GL_TEXTURE_2D, cam.yuyvTex);
+                  draw_quad(quad);
+                  rendered = true;
+                }
               }
             }
           }
@@ -2718,7 +3363,41 @@ int main(int argc, char** argv) {
                             GL_RGBA, GL_UNSIGNED_BYTE, cam.overlayRgba.data());
           }
         }
-        if (cam.overlayTex && cam.overlayTexW > 0 && cam.overlayTexH > 0) {
+        if (cam.record && cam.recorder.enabled) {
+          const int winW = std::max(1, wins[i].geom.w);
+          const int winH = std::max(1, wins[i].geom.h);
+          const bool useDirectRgba =
+              recordSourceRgba && recordSourceW > 0 && recordSourceH > 0 &&
+              recordSourceW == winW && recordSourceH == winH;
+          const int recW = useDirectRgba ? recordSourceW : winW;
+          const int recH = useDirectRgba ? recordSourceH : winH;
+          const std::string recName =
+              cam.cam.stableId.empty() ? cam.cam.devPath : cam.cam.stableId;
+          if (cam.recorder.ensure_started(recName, recW, recH)) {
+            const size_t recBytes =
+                static_cast<size_t>(recW) * static_cast<size_t>(recH) * 4u;
+            const uint8_t* recPtr = nullptr;
+            if (useDirectRgba) {
+              recPtr = recordSourceRgba;
+            } else {
+              cam.recordRgba.resize(recBytes);
+              glPixelStorei(GL_PACK_ALIGNMENT, 1);
+              glReadPixels(0, 0, recW, recH, GL_RGBA, GL_UNSIGNED_BYTE, cam.recordRgba.data());
+              recPtr = cam.recordRgba.data();
+            }
+            if (!cam.recorder.write_frame(recPtr, recBytes)) {
+              cam.record = false;
+              std::cerr << "Recording disabled for " << cam.cam.devPath
+                        << " due to recorder pipeline failure.\n";
+            }
+          } else {
+            cam.record = false;
+            std::cerr << "Recording disabled for " << cam.cam.devPath
+                      << " because recorder startup failed.\n";
+          }
+        }
+
+        if (progRGBA && cam.overlayTex && cam.overlayTexW > 0 && cam.overlayTexH > 0) {
           const int viewW = std::max(1, wins[i].geom.w);
           const int viewH = std::max(1, wins[i].geom.h);
           int overlayW = std::min(cam.overlayTexW, viewW);
