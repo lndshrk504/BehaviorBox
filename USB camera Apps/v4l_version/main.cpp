@@ -21,6 +21,8 @@ extern "C" {
 #include <linux/videodev2.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <sys/wait.h>
 #include <poll.h>
 #include <fcntl.h>
@@ -606,6 +608,44 @@ static std::string recordings_dir() {
   return dir;
 }
 
+static std::string control_socket_file() {
+  const char* env = std::getenv("USBCAMV4L_CONTROL_SOCKET");
+  if (env && std::strlen(env) > 0) return std::string(env);
+  return "/tmp/usbcamv4l-control.sock";
+}
+
+static int create_control_socket(const std::string& socketPath) {
+  if (socketPath.empty()) return -1;
+  if (socketPath.size() >= sizeof(sockaddr_un{}.sun_path)) {
+    std::cerr << "Control socket path too long: " << socketPath << "\n";
+    return -1;
+  }
+
+  const int fd = socket(AF_UNIX, SOCK_DGRAM, 0);
+  if (fd < 0) {
+    std::cerr << "Failed to create control socket: " << strerror(errno) << "\n";
+    return -1;
+  }
+
+  if (fcntl(fd, F_SETFL, O_NONBLOCK) != 0) {
+    std::cerr << "Failed to set control socket nonblocking mode: " << strerror(errno) << "\n";
+    close(fd);
+    return -1;
+  }
+
+  unlink(socketPath.c_str());
+  sockaddr_un addr{};
+  addr.sun_family = AF_UNIX;
+  std::strncpy(addr.sun_path, socketPath.c_str(), sizeof(addr.sun_path) - 1);
+  if (bind(fd, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr)) != 0) {
+    std::cerr << "Failed to bind control socket " << socketPath
+              << ": " << strerror(errno) << "\n";
+    close(fd);
+    return -1;
+  }
+  return fd;
+}
+
 static std::string sanitize_filename_component(std::string s) {
   s = sanitize_stable_id(s);
   for (char& c : s) {
@@ -1029,6 +1069,316 @@ static CameraScanResult enumerate_cameras(CapturePreference capturePref) {
     scan.cams.push_back(c.cam);
   }
   return scan;
+}
+
+static std::string fps_string_from_fraction(uint32_t numerator, uint32_t denominator) {
+  if (numerator == 0 || denominator == 0) return "n/a";
+  const double fps = static_cast<double>(denominator) / static_cast<double>(numerator);
+  char buf[32];
+  std::snprintf(buf, sizeof(buf), "%.2f", fps);
+  return std::string(buf);
+}
+
+static std::string frame_interval_summary(int fd, uint32_t pixFmt, uint32_t width, uint32_t height) {
+  v4l2_frmivalenum fi{};
+  fi.pixel_format = pixFmt;
+  fi.width = width;
+  fi.height = height;
+  fi.index = 0;
+  if (ioctl(fd, VIDIOC_ENUM_FRAMEINTERVALS, &fi) != 0) return "fps: unknown";
+
+  if (fi.type == V4L2_FRMIVAL_TYPE_DISCRETE) {
+    std::vector<double> fpsValues;
+    for (uint32_t idx = 0;; ++idx) {
+      v4l2_frmivalenum cur{};
+      cur.pixel_format = pixFmt;
+      cur.width = width;
+      cur.height = height;
+      cur.index = idx;
+      if (ioctl(fd, VIDIOC_ENUM_FRAMEINTERVALS, &cur) != 0) break;
+      if (cur.type != V4L2_FRMIVAL_TYPE_DISCRETE ||
+          cur.discrete.numerator == 0 || cur.discrete.denominator == 0) {
+        continue;
+      }
+      fpsValues.push_back(static_cast<double>(cur.discrete.denominator) /
+                          static_cast<double>(cur.discrete.numerator));
+      if (fpsValues.size() >= 8) break;
+    }
+    if (fpsValues.empty()) return "fps: unknown";
+    std::sort(fpsValues.begin(), fpsValues.end());
+    fpsValues.erase(std::unique(fpsValues.begin(), fpsValues.end()), fpsValues.end());
+    std::string out = "fps:";
+    for (double fps : fpsValues) {
+      char buf[24];
+      std::snprintf(buf, sizeof(buf), " %.2f", fps);
+      out += buf;
+    }
+    return out;
+  }
+
+  if (fi.type == V4L2_FRMIVAL_TYPE_STEPWISE || fi.type == V4L2_FRMIVAL_TYPE_CONTINUOUS) {
+    const std::string minFps = fps_string_from_fraction(fi.stepwise.max.numerator, fi.stepwise.max.denominator);
+    const std::string maxFps = fps_string_from_fraction(fi.stepwise.min.numerator, fi.stepwise.min.denominator);
+    return "fps: " + minFps + "-" + maxFps;
+  }
+  return "fps: unknown";
+}
+
+static void list_camera_formats_and_modes(const CamInfo& cam) {
+  std::cout << "Camera: " << cam.card << " [" << cam.devPath << "]\n";
+  std::cout << "  stable-id: " << cam.stableId << "\n";
+  if (!trim(cam.busInfo).empty()) std::cout << "  bus-info: " << cam.busInfo << "\n";
+
+  int fd = ::open(cam.devPath.c_str(), O_RDONLY | O_NONBLOCK);
+  if (fd < 0) {
+    std::cout << "  open failed: " << strerror(errno) << "\n\n";
+    return;
+  }
+
+  auto enum_type = [&](uint32_t type, const char* typeLabel) {
+    bool printedType = false;
+    for (uint32_t fmtIdx = 0;; ++fmtIdx) {
+      v4l2_fmtdesc fmt{};
+      fmt.type = type;
+      fmt.index = fmtIdx;
+      if (ioctl(fd, VIDIOC_ENUM_FMT, &fmt) != 0) break;
+      if (!printedType) {
+        std::cout << "  " << typeLabel << ":\n";
+        printedType = true;
+      }
+      std::cout << "    format " << fourcc_to_string(fmt.pixelformat)
+                << " (" << reinterpret_cast<const char*>(fmt.description) << ")\n";
+
+      int listedSizes = 0;
+      int totalSizes = 0;
+      bool truncated = false;
+      for (uint32_t sizeIdx = 0;; ++sizeIdx) {
+        v4l2_frmsizeenum fsize{};
+        fsize.index = sizeIdx;
+        fsize.pixel_format = fmt.pixelformat;
+        if (ioctl(fd, VIDIOC_ENUM_FRAMESIZES, &fsize) != 0) break;
+        ++totalSizes;
+        if (listedSizes >= 16) {
+          truncated = true;
+          continue;
+        }
+        if (fsize.type == V4L2_FRMSIZE_TYPE_DISCRETE) {
+          const uint32_t w = fsize.discrete.width;
+          const uint32_t h = fsize.discrete.height;
+          std::cout << "      " << w << "x" << h
+                    << " (" << frame_interval_summary(fd, fmt.pixelformat, w, h) << ")\n";
+        } else if (fsize.type == V4L2_FRMSIZE_TYPE_STEPWISE ||
+                   fsize.type == V4L2_FRMSIZE_TYPE_CONTINUOUS) {
+          std::cout << "      "
+                    << fsize.stepwise.min_width << "x" << fsize.stepwise.min_height
+                    << " .. "
+                    << fsize.stepwise.max_width << "x" << fsize.stepwise.max_height
+                    << " (step "
+                    << std::max(1u, fsize.stepwise.step_width) << "x"
+                    << std::max(1u, fsize.stepwise.step_height) << ")\n";
+        }
+        ++listedSizes;
+      }
+      if (truncated) {
+        std::cout << "      ... +" << (totalSizes - listedSizes) << " more sizes\n";
+      }
+    }
+  };
+
+  enum_type(V4L2_BUF_TYPE_VIDEO_CAPTURE, "VIDEO_CAPTURE");
+  enum_type(V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE, "VIDEO_CAPTURE_MPLANE");
+  ::close(fd);
+  std::cout << "\n";
+}
+
+static int list_cameras_mode(CapturePreference capturePref) {
+  auto scan = enumerate_cameras(capturePref);
+  if (scan.cams.empty()) {
+    if (scan.videoNodes == 0) {
+      std::cerr << "No /dev/video* devices found.\n";
+    } else if (scan.permissionDenied == scan.videoNodes) {
+      std::cerr << "Permission denied opening all /dev/video* devices.\n";
+      std::cerr << "Add this user to the 'video' group and re-login.\n";
+    } else {
+      std::cerr << "No capture-capable V4L2 cameras found.\n";
+    }
+    return 1;
+  }
+
+  std::unordered_set<std::string> seen;
+  for (const auto& cam : scan.cams) {
+    if (!seen.insert(cam.devPath).second) continue;
+    list_camera_formats_and_modes(cam);
+  }
+  return 0;
+}
+
+struct CaptureBenchScore {
+  uint32_t requestedPixFmt{0};
+  uint32_t actualPixFmt{0};
+  int width{0};
+  int height{0};
+  int frames{0};
+  double fps{0.0};
+  bool ok{false};
+};
+
+static CaptureBenchScore benchmark_capture_format(const std::string& devPath,
+                                                  int reqW, int reqH,
+                                                  uint32_t requestedPixFmt,
+                                                  int durationMs) {
+  CaptureBenchScore out;
+  out.requestedPixFmt = requestedPixFmt;
+  if (durationMs <= 0) return out;
+
+  int fd = ::open(devPath.c_str(), O_RDWR | O_NONBLOCK);
+  if (fd < 0) return out;
+
+  std::vector<v4l2_buffer> queuedBuffers;
+  std::vector<void*> mappedPtrs;
+  std::vector<size_t> mappedLens;
+
+  auto cleanup = [&]() {
+    if (fd >= 0) {
+      v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+      (void)ioctl(fd, VIDIOC_STREAMOFF, &type);
+    }
+    for (size_t i = 0; i < mappedPtrs.size(); ++i) {
+      if (mappedPtrs[i] && mappedPtrs[i] != MAP_FAILED) {
+        munmap(mappedPtrs[i], mappedLens[i]);
+      }
+    }
+    if (fd >= 0) {
+      ::close(fd);
+      fd = -1;
+    }
+  };
+
+  v4l2_format fmt{};
+  if (!try_set_capture_format(fd, reqW, reqH, requestedPixFmt, fmt)) {
+    cleanup();
+    return out;
+  }
+  out.actualPixFmt = fmt.fmt.pix.pixelformat;
+  out.width = static_cast<int>(fmt.fmt.pix.width);
+  out.height = static_cast<int>(fmt.fmt.pix.height);
+
+  v4l2_requestbuffers req{};
+  req.count = 3;
+  req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  req.memory = V4L2_MEMORY_MMAP;
+  if (ioctl(fd, VIDIOC_REQBUFS, &req) != 0 || req.count < 2) {
+    cleanup();
+    return out;
+  }
+
+  mappedPtrs.resize(req.count, nullptr);
+  mappedLens.resize(req.count, 0);
+  queuedBuffers.resize(req.count);
+
+  for (uint32_t i = 0; i < req.count; ++i) {
+    v4l2_buffer b{};
+    b.type = req.type;
+    b.memory = req.memory;
+    b.index = i;
+    if (ioctl(fd, VIDIOC_QUERYBUF, &b) != 0) {
+      cleanup();
+      return out;
+    }
+    mappedLens[i] = b.length;
+    mappedPtrs[i] = mmap(nullptr, b.length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, b.m.offset);
+    if (mappedPtrs[i] == MAP_FAILED) {
+      mappedPtrs[i] = nullptr;
+      cleanup();
+      return out;
+    }
+    queuedBuffers[i] = b;
+    if (ioctl(fd, VIDIOC_QBUF, &b) != 0) {
+      cleanup();
+      return out;
+    }
+  }
+
+  v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  if (ioctl(fd, VIDIOC_STREAMON, &type) != 0) {
+    cleanup();
+    return out;
+  }
+
+  pollfd pfd{};
+  pfd.fd = fd;
+  pfd.events = POLLIN;
+
+  const auto start = std::chrono::steady_clock::now();
+  while (true) {
+    const auto now = std::chrono::steady_clock::now();
+    const auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
+    if (elapsedMs >= durationMs) break;
+
+    const int timeoutMs = std::min<int>(40, durationMs - static_cast<int>(elapsedMs));
+    const int prc = poll(&pfd, 1, std::max(1, timeoutMs));
+    if (prc < 0) {
+      if (errno == EINTR) continue;
+      break;
+    }
+    if (prc == 0 || (pfd.revents & POLLIN) == 0) continue;
+
+    v4l2_buffer dq{};
+    dq.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    dq.memory = V4L2_MEMORY_MMAP;
+    if (ioctl(fd, VIDIOC_DQBUF, &dq) != 0) {
+      if (errno == EAGAIN || errno == EINTR) continue;
+      break;
+    }
+    ++out.frames;
+    if (ioctl(fd, VIDIOC_QBUF, &dq) != 0) break;
+  }
+
+  const double elapsedSec =
+      std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() - start).count();
+  if (elapsedSec > 0.0) out.fps = static_cast<double>(out.frames) / elapsedSec;
+  out.ok = out.frames > 0;
+  cleanup();
+  return out;
+}
+
+static int capture_pref_bonus(uint32_t requestedPixFmt, CapturePreference capturePref) {
+  if (capturePref == CapturePreference::MJPEG) {
+    if (requestedPixFmt == V4L2_PIX_FMT_MJPEG) return 3;
+    if (requestedPixFmt == V4L2_PIX_FMT_NV12) return 2;
+    if (requestedPixFmt == V4L2_PIX_FMT_YUYV) return 1;
+    return 0;
+  }
+  if (requestedPixFmt == V4L2_PIX_FMT_NV12) return 3;
+  if (requestedPixFmt == V4L2_PIX_FMT_YUYV) return 2;
+  if (requestedPixFmt == V4L2_PIX_FMT_MJPEG) return 1;
+  return 0;
+}
+
+static std::optional<CaptureBenchScore> auto_benchmark_best_format(const std::string& devPath,
+                                                                   int reqW, int reqH,
+                                                                   CapturePreference capturePref,
+                                                                   int totalDurationMs = 1200) {
+  std::vector<uint32_t> candidates;
+  if (capturePref == CapturePreference::MJPEG) candidates.push_back(V4L2_PIX_FMT_MJPEG);
+  candidates.push_back(V4L2_PIX_FMT_NV12);
+  candidates.push_back(V4L2_PIX_FMT_YUYV);
+
+  const int eachMs = std::max(250, totalDurationMs / std::max(1, static_cast<int>(candidates.size())));
+  std::optional<CaptureBenchScore> best;
+  double bestScore = -1e9;
+
+  for (uint32_t fmt : candidates) {
+    CaptureBenchScore s = benchmark_capture_format(devPath, reqW, reqH, fmt, eachMs);
+    if (!s.ok) continue;
+
+    const double weighted = s.fps + 0.1 * static_cast<double>(capture_pref_bonus(fmt, capturePref));
+    if (!best.has_value() || weighted > bestScore) {
+      best = s;
+      bestScore = weighted;
+    }
+  }
+  return best;
 }
 
 static std::unordered_map<std::string, Rect> load_positions_csv(const std::string& file) {
@@ -1944,6 +2294,8 @@ struct V4L2DmabufCam {
   int requestedW{DEFAULT_FRAME_W};
   int requestedH{DEFAULT_FRAME_H};
   bool lowLatency{true};
+  uint32_t preferredPixFmt{0}; // Optional startup benchmark hint.
+  int requestedBufferCount{3}; // Adaptive queue depth [2..4].
   bool allowCudaHwMjpeg{false};
   bool allowFullHwMjpeg{false};
   bool allowVaapiHwMjpeg{false};
@@ -1994,6 +2346,13 @@ struct V4L2DmabufCam {
   int fpsFrameCount{0};
   std::chrono::steady_clock::time_point fpsWindowStart{};
   bool fpsStarted{false};
+  bool frameClockStarted{false};
+  std::chrono::steady_clock::time_point lastFrameTs{};
+  std::chrono::steady_clock::time_point lastReconnectAttempt{};
+  int consecutiveDqErrors{0};
+  double frameIntervalEwmaMs{0.0};
+  int stutterEvents{0};
+  bool reconnectPending{false};
 
   MjpegHwDecoder mjpegHw;
 
@@ -2106,6 +2465,12 @@ struct V4L2DmabufCam {
     fpsValue = 0.0;
     fpsFrameCount = 0;
     fpsStarted = false;
+    frameClockStarted = false;
+    consecutiveDqErrors = 0;
+    frameIntervalEwmaMs = 0.0;
+    stutterEvents = 0;
+    reconnectPending = false;
+    lastReconnectAttempt = std::chrono::steady_clock::time_point{};
     mjpegHw.reset();
 
     auto fail = [&]() -> bool {
@@ -2140,18 +2505,31 @@ struct V4L2DmabufCam {
 
     v4l2_format fmt{};
     bool configured = false;
-    if (capturePref == CapturePreference::MJPEG &&
-        try_set_capture_format(fd, requestedW, requestedH, V4L2_PIX_FMT_MJPEG, fmt)) {
-      mjpeg = true;
+    std::vector<uint32_t> formatOrder;
+    auto push_format = [&](uint32_t f) {
+      if (f == 0) return;
+      if (std::find(formatOrder.begin(), formatOrder.end(), f) == formatOrder.end()) {
+        formatOrder.push_back(f);
+      }
+    };
+    push_format(preferredPixFmt);
+    if (capturePref == CapturePreference::MJPEG) push_format(V4L2_PIX_FMT_MJPEG);
+    push_format(V4L2_PIX_FMT_NV12);
+    push_format(V4L2_PIX_FMT_YUYV);
+
+    uint32_t requestedFmt = 0;
+    for (uint32_t f : formatOrder) {
+      if (!try_set_capture_format(fd, requestedW, requestedH, f, fmt)) continue;
       configured = true;
+      requestedFmt = f;
+      break;
     }
-    if (!configured && try_set_capture_format(fd, requestedW, requestedH, V4L2_PIX_FMT_NV12, fmt)) {
-      nv12 = true;
-      configured = true;
-    }
-    if (!configured && try_set_capture_format(fd, requestedW, requestedH, V4L2_PIX_FMT_YUYV, fmt)) {
-      yuyv = true;
-      configured = true;
+    if (configured) {
+      const uint32_t actualFmt = fmt.fmt.pix.pixelformat;
+      mjpeg = is_mjpeg_fourcc(actualFmt);
+      nv12 = (actualFmt == V4L2_PIX_FMT_NV12);
+      yuyv = (actualFmt == V4L2_PIX_FMT_YUYV);
+      (void)requestedFmt;
     }
     if (!configured) {
       if (capturePref == CapturePreference::MJPEG) {
@@ -2216,7 +2594,7 @@ struct V4L2DmabufCam {
               << " (stride=" << strideY << ")\n";
 
     v4l2_requestbuffers req{};
-    req.count = lowLatency ? 3 : 4;
+    req.count = static_cast<uint32_t>(std::clamp(requestedBufferCount, 2, 4));
     req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     req.memory = V4L2_MEMORY_MMAP;
     if (ioctl(fd, VIDIOC_REQBUFS, &req) != 0 || req.count < 2) {
@@ -2270,6 +2648,10 @@ struct V4L2DmabufCam {
       std::cerr << "VIDIOC_STREAMON failed\n";
       return fail();
     }
+    lastFrameTs = std::chrono::steady_clock::now();
+    frameClockStarted = false;
+    consecutiveDqErrors = 0;
+    reconnectPending = false;
     return true;
   }
 
@@ -2332,6 +2714,12 @@ struct V4L2DmabufCam {
     fpsValue = 0.0;
     fpsFrameCount = 0;
     fpsStarted = false;
+    frameClockStarted = false;
+    consecutiveDqErrors = 0;
+    frameIntervalEwmaMs = 0.0;
+    stutterEvents = 0;
+    reconnectPending = false;
+    lastReconnectAttempt = std::chrono::steady_clock::time_point{};
     mjpegHw.reset();
     mjpegPlaneY.clear();
     mjpegPlaneU.clear();
@@ -2366,6 +2754,11 @@ int main(int argc, char** argv) {
   bool preferMjpeg = false;
   bool allowFullMjpegHw = false;
   bool strictGpuSync = false;
+  bool showFpsOverlay = false;
+  bool listCamerasOnly = false;
+  bool autoBenchmarkStartup = true;
+  int benchmarkDurationMs = 1200;
+  bool enableControlSocket = true;
   bool enableRecording = false;
   RawVideoRecorder::Profile recordProfile = RawVideoRecorder::Profile::Fast;
   for (int i = 1; i < argc; ++i) {
@@ -2398,6 +2791,30 @@ int main(int argc, char** argv) {
       strictGpuSync = true;
       continue;
     }
+    if (arg == "-fps" || arg == "--fps") {
+      showFpsOverlay = true;
+      continue;
+    }
+    if (arg == "-list-cameras" || arg == "--list-cameras") {
+      listCamerasOnly = true;
+      continue;
+    }
+    if (arg == "-no-bench" || arg == "--no-bench" || arg == "--no-benchmark") {
+      autoBenchmarkStartup = false;
+      continue;
+    }
+    if ((arg == "-bench-ms" || arg == "--bench-ms") && (i + 1) < argc) {
+      try {
+        benchmarkDurationMs = std::clamp(std::stoi(argv[++i]), 300, 4000);
+      } catch (...) {
+        benchmarkDurationMs = 1200;
+      }
+      continue;
+    }
+    if (arg == "-no-control" || arg == "--no-control") {
+      enableControlSocket = false;
+      continue;
+    }
     if (arg == "-rec" || arg == "--rec") {
       enableRecording = true;
       continue;
@@ -2414,14 +2831,19 @@ int main(int argc, char** argv) {
     }
     if (arg == "-h" || arg == "--help") {
       std::cout << "Usage: " << argv[0]
-                << " [-reset] [-res-each] [-res] [-mjpeg] [-mjpeg-hw] [-strict-sync]"
-                   " [-rec] [-rec-fast] [-rec-quality]\n";
+                << " [-reset] [-res-each] [-res] [-mjpeg] [-mjpeg-hw] [-strict-sync] [-fps] [-list-cameras]"
+                   " [-no-bench] [-bench-ms N] [-no-control] [-rec] [-rec-fast] [-rec-quality]\n";
       std::cout << "  -reset   Delete saved window position/resolution settings and start with defaults.\n";
       std::cout << "  -res-each   Choose resolution separately for each camera.\n";
       std::cout << "  -res        Choose one common pixel height for all cameras.\n";
       std::cout << "  -mjpeg     Prefer MJPEG capture (falls back to NV12/YUYV if unavailable).\n";
       std::cout << "  -mjpeg-hw  Allow full hardware MJPEG decode including CUDA/CUVID.\n";
       std::cout << "  -strict-sync  Use glFinish() for conservative buffer safety (higher latency).\n";
+      std::cout << "  -fps      Show capture resolution + FPS overlay in the bottom-left.\n";
+      std::cout << "  -list-cameras  List device formats, resolutions, and FPS modes, then exit.\n";
+      std::cout << "  -no-bench  Disable startup capture-format auto-benchmarking.\n";
+      std::cout << "  -bench-ms N  Total benchmark budget per camera in milliseconds (300-4000).\n";
+      std::cout << "  -no-control  Disable runtime control socket.\n";
       std::cout << "  -rec      Record each camera window to MP4 in ~/Desktop/USB-Recordings.\n";
       std::cout << "  -rec-fast  Recording profile tuned for maximum FPS (default).\n";
       std::cout << "  -rec-quality  Recording profile tuned for better quality, lower throughput.\n";
@@ -2445,10 +2867,21 @@ int main(int argc, char** argv) {
                                  : "low-latency (prefer VAAPI on AMD, prefer QSV on Intel, then turbojpeg)")
             << "\n";
   std::cerr << "GPU sync mode: "
-            << (strictGpuSync ? "strict (glFinish)" : "low-latency (glFlush)")
+            << (strictGpuSync ? "strict (glFinish, fixed)"
+                              : "adaptive (glFlush default, glFinish on stutter)")
+            << "\n";
+  std::cerr << "Overlay mode: "
+            << (showFpsOverlay ? "enabled (-fps)" : "disabled (default)")
             << "\n";
   std::cerr << "Recording mode: "
             << (enableRecording ? ("enabled -> " + recordings_dir()) : "disabled")
+            << "\n";
+  std::cerr << "Startup benchmark: "
+            << (autoBenchmarkStartup ? ("enabled (" + std::to_string(benchmarkDurationMs) + "ms/camera)")
+                                     : "disabled")
+            << "\n";
+  std::cerr << "Control socket: "
+            << (enableControlSocket ? control_socket_file() : "disabled")
             << "\n";
   if (enableRecording) {
     std::cerr << "Recording profile: "
@@ -2457,6 +2890,10 @@ int main(int argc, char** argv) {
   }
 
   maybe_enable_amd_zink_workaround();
+
+  if (listCamerasOnly) {
+    return list_cameras_mode(capturePref);
+  }
 
   const std::string positionsCsv = positions_file();
   const std::string resolutionsCsv = resolutions_file();
@@ -2504,6 +2941,11 @@ int main(int argc, char** argv) {
       std::cerr << "No capture-capable V4L2 cameras found.\n";
     }
     return 1;
+  }
+
+  std::unordered_map<std::string, std::vector<CamInfo>> candidatePoolByStableId;
+  for (const auto& cam : cams) {
+    candidatePoolByStableId[cam.stableId].push_back(cam);
   }
 
   std::unordered_set<std::string> discoveredStableIds;
@@ -2732,6 +3174,7 @@ int main(int argc, char** argv) {
     cam.requestedW = desired.w;
     cam.requestedH = desired.h;
     cam.lowLatency = true;
+    cam.requestedBufferCount = 2;
     cam.allowCudaHwMjpeg = allowFullMjpegHw && g_activeRendererIsNvidia;
     cam.allowFullHwMjpeg = allowFullMjpegHw;
     cam.allowVaapiHwMjpeg = allowFullMjpegHw || g_activeRendererIsIntel || g_activeRendererIsAmd;
@@ -2741,6 +3184,17 @@ int main(int argc, char** argv) {
     cam.record = enableRecording;
     cam.recorder.enabled = enableRecording;
     cam.recorder.profile = recordProfile;
+    if (autoBenchmarkStartup) {
+      auto bench = auto_benchmark_best_format(c.devPath, desired.w, desired.h, capturePref, benchmarkDurationMs);
+      if (bench.has_value()) {
+        cam.preferredPixFmt = bench->requestedPixFmt;
+        std::cerr << "Startup benchmark (" << c.devPath << "): selected "
+                  << fourcc_to_string(bench->requestedPixFmt)
+                  << " -> delivered " << fourcc_to_string(bench->actualPixFmt)
+                  << " @ " << bench->width << "x" << bench->height
+                  << " (" << bench->fps << " fps over " << bench->frames << " frames)\n";
+      }
+    }
     if (!cam.open_and_configure(capturePref)) {
       std::cerr << "Failed camera candidate " << c.devPath
                 << " (group=" << c.stableId << "), trying next candidate.\n";
@@ -2876,11 +3330,12 @@ int main(int argc, char** argv) {
                                                [](const V4L2DmabufCam& c) {
                                                  return c.mjpeg;
                                                });
+  const bool needOverlayShader = showFpsOverlay || enableControlSocket;
 
   GLuint progNV12 = needNV12Shader ? make_program(kFS_NV12) : 0;
   GLuint progYUYV = needYuyvShader ? make_program(kFS_YUYV) : 0;
   GLuint progYUVPlanar = needYUVPlanarShader ? make_program(kFS_YUV_PLANAR) : 0;
-  GLuint progRGBA = make_program(kFS_RGBA);
+  GLuint progRGBA = needOverlayShader ? make_program(kFS_RGBA) : 0;
 
   GLint locY = progNV12 ? glGetUniformLocation(progNV12, "texY") : -1;
   GLint locUV = progNV12 ? glGetUniformLocation(progNV12, "texUV") : -1;
@@ -2930,9 +3385,278 @@ int main(int argc, char** argv) {
      1.f,  1.f, 1.f, 0.f,
   };
 
+  bool adaptiveGpuSync = !strictGpuSync;
+  bool runtimeStrictGpuSync = strictGpuSync;
+  int syncStutterEvents = 0;
+  int syncQuietWindows = 0;
+  auto syncWindowStart = std::chrono::steady_clock::now();
+  const int reconnectRetryMs = 1200;
+  const int watchdogNoFrameMs = 1500;
+
+  const std::string controlSocketPath = control_socket_file();
+  int controlFd = -1;
+  if (enableControlSocket) {
+    controlFd = create_control_socket(controlSocketPath);
+    if (controlFd >= 0) {
+      std::cerr << "Runtime control socket ready: " << controlSocketPath << "\n";
+    }
+  }
+
+  auto apply_record_mode_to_all = [&](bool enabled) {
+    enableRecording = enabled;
+    for (auto& cam : vcams) {
+      cam.record = enabled;
+      cam.recorder.enabled = enabled;
+      if (!enabled) cam.recorder.stop();
+    }
+  };
+
+  auto apply_queue_depth_to_all = [&](int depth) {
+    const int clamped = std::clamp(depth, 2, 4);
+    for (auto& cam : vcams) {
+      cam.requestedBufferCount = clamped;
+      cam.reconnectPending = true;
+    }
+  };
+
+  auto try_reconnect_camera = [&](size_t camIndex, const std::string& reason) -> bool {
+    if (camIndex >= vcams.size() || camIndex >= wins.size()) return false;
+    auto& cam = vcams[camIndex];
+    const std::string stableId = cam.cam.stableId;
+    if (stableId.empty()) return false;
+
+    const auto now = std::chrono::steady_clock::now();
+    if (cam.lastReconnectAttempt.time_since_epoch().count() != 0) {
+      const auto sinceMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - cam.lastReconnectAttempt).count();
+      if (sinceMs < reconnectRetryMs) return false;
+    }
+    cam.lastReconnectAttempt = now;
+    std::cerr << "Attempting camera reconnect for " << cam.cam.devPath
+              << " (reason: " << reason << ")\n";
+
+    const int reqW = cam.requestedW;
+    const int reqH = cam.requestedH;
+    const uint32_t prefFmt = cam.preferredPixFmt;
+    const int reqBufs = cam.requestedBufferCount;
+    const bool lowLatency = cam.lowLatency;
+    const bool allowCuda = cam.allowCudaHwMjpeg;
+    const bool allowFull = cam.allowFullHwMjpeg;
+    const bool allowVaapi = cam.allowVaapiHwMjpeg;
+    const bool allowQsv = cam.allowQsvHwMjpeg;
+    const bool preferVaapi = cam.preferVaapiHwMjpeg;
+    const bool preferCpuYuyv = cam.preferCpuYuyv;
+    const bool recEnabled = cam.record;
+    const auto recProfile = cam.recorder.profile;
+
+    if (!eglMakeCurrent(edpy, wins[camIndex].surf, wins[camIndex].surf, ctx)) {
+      std::cerr << "Reconnect aborted: eglMakeCurrent failed.\n";
+      return false;
+    }
+    cam.shutdown(eglDestroyImageKHR, edpy);
+
+    auto refresh_pool = [&]() {
+      auto rescanned = enumerate_cameras(capturePref);
+      for (const auto& c : rescanned.cams) {
+        auto& vec = candidatePoolByStableId[c.stableId];
+        const bool exists = std::any_of(vec.begin(), vec.end(),
+                                        [&](const CamInfo& e) { return e.devPath == c.devPath; });
+        if (!exists) vec.push_back(c);
+      }
+    };
+    refresh_pool();
+
+    auto itPool = candidatePoolByStableId.find(stableId);
+    if (itPool == candidatePoolByStableId.end() || itPool->second.empty()) {
+      std::cerr << "Reconnect failed: no candidates found for stable-id " << stableId << "\n";
+      cam.reconnectPending = true;
+      return false;
+    }
+
+    for (const auto& candidate : itPool->second) {
+      bool inUse = false;
+      for (size_t j = 0; j < vcams.size(); ++j) {
+        if (j == camIndex) continue;
+        if (vcams[j].fd >= 0 && vcams[j].cam.devPath == candidate.devPath) {
+          inUse = true;
+          break;
+        }
+      }
+      if (inUse) continue;
+
+      V4L2DmabufCam replacement;
+      replacement.cam = candidate;
+      replacement.requestedW = reqW;
+      replacement.requestedH = reqH;
+      replacement.preferredPixFmt = prefFmt;
+      replacement.requestedBufferCount = reqBufs;
+      replacement.lowLatency = lowLatency;
+      replacement.allowCudaHwMjpeg = allowCuda;
+      replacement.allowFullHwMjpeg = allowFull;
+      replacement.allowVaapiHwMjpeg = allowVaapi;
+      replacement.allowQsvHwMjpeg = allowQsv;
+      replacement.preferVaapiHwMjpeg = preferVaapi;
+      replacement.preferCpuYuyv = preferCpuYuyv;
+      replacement.record = recEnabled;
+      replacement.recorder.enabled = recEnabled;
+      replacement.recorder.profile = recProfile;
+
+      if (!replacement.open_and_configure(capturePref)) {
+        replacement.shutdown(eglDestroyImageKHR, edpy);
+        continue;
+      }
+
+      vcams[camIndex] = std::move(replacement);
+      vcams[camIndex].reconnectPending = false;
+      vcams[camIndex].consecutiveDqErrors = 0;
+      vcams[camIndex].frameClockStarted = false;
+      vcams[camIndex].stutterEvents = 0;
+      std::cerr << "Reconnect successful: now using " << vcams[camIndex].cam.devPath << "\n";
+      return true;
+    }
+
+    cam.reconnectPending = true;
+    std::cerr << "Reconnect failed for stable-id " << stableId << "; will retry.\n";
+    return false;
+  };
+
+  auto handle_control_command = [&](const std::string& raw) -> std::string {
+    const std::string cmd = trim(raw);
+    if (cmd.empty()) return "ERR empty command\n";
+
+    std::istringstream iss(cmd);
+    std::string op;
+    iss >> op;
+    op = to_lower_copy(op);
+
+    auto parse_toggle = [&](const std::string& value, bool& target) -> bool {
+      const std::string v = to_lower_copy(value);
+      if (v == "on" || v == "1" || v == "true") { target = true; return true; }
+      if (v == "off" || v == "0" || v == "false") { target = false; return true; }
+      if (v == "toggle") { target = !target; return true; }
+      return false;
+    };
+
+    if (op == "help") {
+      return "OK commands: status | fps on/off/toggle | rec on/off/toggle | sync strict/low/auto | queue 2..4 | cam <idx> rec on/off/toggle | cam <idx> reconnect\n";
+    }
+    if (op == "status") {
+      std::ostringstream out;
+      out << "OK overlay=" << (showFpsOverlay ? "on" : "off")
+          << " sync=" << (adaptiveGpuSync ? "auto" : (runtimeStrictGpuSync ? "strict" : "low"))
+          << " recording=" << (enableRecording ? "on" : "off")
+          << " cams=" << vcams.size() << "\n";
+      for (size_t i = 0; i < vcams.size(); ++i) {
+        const auto& c = vcams[i];
+        out << "cam " << i
+            << " dev=" << c.cam.devPath
+            << " fmt=" << (c.mjpeg ? "MJPEG" : (c.nv12 ? "NV12" : (c.yuyv ? "YUYV" : "UNKNOWN")))
+            << " " << c.width << "x" << c.height
+            << " fps=" << c.fpsValue
+            << " queue=" << c.requestedBufferCount
+            << " rec=" << (c.record ? "on" : "off")
+            << " reconnect=" << (c.reconnectPending ? "pending" : "no")
+            << "\n";
+      }
+      return out.str();
+    }
+    if (op == "fps") {
+      std::string arg;
+      iss >> arg;
+      bool v = showFpsOverlay;
+      if (!parse_toggle(arg, v)) return "ERR usage: fps on|off|toggle\n";
+      showFpsOverlay = v;
+      return std::string("OK fps=") + (showFpsOverlay ? "on\n" : "off\n");
+    }
+    if (op == "rec") {
+      std::string arg;
+      iss >> arg;
+      bool v = enableRecording;
+      if (!parse_toggle(arg, v)) return "ERR usage: rec on|off|toggle\n";
+      apply_record_mode_to_all(v);
+      return std::string("OK rec=") + (enableRecording ? "on\n" : "off\n");
+    }
+    if (op == "sync") {
+      std::string arg;
+      iss >> arg;
+      arg = to_lower_copy(arg);
+      if (arg == "strict") {
+        adaptiveGpuSync = false;
+        runtimeStrictGpuSync = true;
+        return "OK sync=strict\n";
+      }
+      if (arg == "low") {
+        adaptiveGpuSync = false;
+        runtimeStrictGpuSync = false;
+        return "OK sync=low\n";
+      }
+      if (arg == "auto") {
+        adaptiveGpuSync = true;
+        runtimeStrictGpuSync = false;
+        syncStutterEvents = 0;
+        syncQuietWindows = 0;
+        return "OK sync=auto\n";
+      }
+      return "ERR usage: sync strict|low|auto\n";
+    }
+    if (op == "queue") {
+      int depth = 0;
+      iss >> depth;
+      if (depth < 2 || depth > 4) return "ERR usage: queue 2|3|4\n";
+      apply_queue_depth_to_all(depth);
+      return "OK queue depth update scheduled\n";
+    }
+    if (op == "cam") {
+      int idx = -1;
+      std::string sub;
+      iss >> idx >> sub;
+      sub = to_lower_copy(sub);
+      if (idx < 0 || static_cast<size_t>(idx) >= vcams.size()) return "ERR camera index out of range\n";
+      auto& c = vcams[static_cast<size_t>(idx)];
+      if (sub == "reconnect") {
+        c.reconnectPending = true;
+        return "OK reconnect scheduled\n";
+      }
+      if (sub == "rec") {
+        std::string arg;
+        iss >> arg;
+        bool v = c.record;
+        if (!parse_toggle(arg, v)) return "ERR usage: cam <idx> rec on|off|toggle\n";
+        c.record = v;
+        c.recorder.enabled = v;
+        if (!v) c.recorder.stop();
+        enableRecording = std::any_of(vcams.begin(), vcams.end(), [](const V4L2DmabufCam& cam) {
+          return cam.record;
+        });
+        return std::string("OK cam rec=") + (c.record ? "on\n" : "off\n");
+      }
+      return "ERR usage: cam <idx> rec ... | cam <idx> reconnect\n";
+    }
+    return "ERR unknown command\n";
+  };
+
+  auto drain_control_socket = [&]() {
+    if (controlFd < 0) return;
+    while (true) {
+      sockaddr_un peer{};
+      socklen_t peerLen = sizeof(peer);
+      char buf[512];
+      const ssize_t n = recvfrom(controlFd, buf, sizeof(buf) - 1, 0,
+                                 reinterpret_cast<sockaddr*>(&peer), &peerLen);
+      if (n < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) break;
+        std::cerr << "Control socket recv error: " << strerror(errno) << "\n";
+        break;
+      }
+      buf[n] = '\0';
+      const std::string response = handle_control_command(std::string(buf));
+      (void)sendto(controlFd, response.data(), response.size(), 0,
+                   reinterpret_cast<const sockaddr*>(&peer), peerLen);
+    }
+  };
+
   const int xfd = ConnectionNumber(dpy);
   std::vector<pollfd> pfds;
-  pfds.reserve(1 + vcams.size());
+  pfds.reserve(2 + vcams.size());
 
   bool quit = false;
   bool positionsDirty = false;
@@ -2945,9 +3669,11 @@ int main(int argc, char** argv) {
 
     pfds.clear();
     pfds.push_back({xfd, POLLIN, 0});
+    if (controlFd >= 0) pfds.push_back({controlFd, POLLIN, 0});
     for (auto& c : vcams) if (c.fd >= 0) pfds.push_back({c.fd, POLLIN, 0});
     const int pollRc = poll(pfds.data(), pfds.size(), 10);
     if (pollRc < 0 && errno == EINTR) continue;
+    drain_control_socket();
 
     while (XPending(dpy)) {
       XEvent ev;
@@ -2997,16 +3723,28 @@ int main(int argc, char** argv) {
 
     for (size_t i = 0; i < vcams.size(); ++i) {
       auto& cam = vcams[i];
+      const auto camLoopNow = std::chrono::steady_clock::now();
+
+      if (cam.reconnectPending ||
+          (cam.frameClockStarted &&
+           std::chrono::duration_cast<std::chrono::milliseconds>(camLoopNow - cam.lastFrameTs).count() > watchdogNoFrameMs) ||
+          cam.fd < 0) {
+        cam.reconnectPending = true;
+        (void)try_reconnect_camera(i, cam.fd < 0 ? "camera fd invalid" : "watchdog timeout");
+        if (cam.fd < 0) continue;
+      }
 
       v4l2_buffer b{};
       bool haveFrame = false;
       bool dqFailed = false;
+      int dqErrno = 0;
       while (true) {
         v4l2_buffer dq{};
         dq.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         dq.memory = V4L2_MEMORY_MMAP;
         if (ioctl(cam.fd, VIDIOC_DQBUF, &dq) != 0) {
           if (errno == EAGAIN) break;
+          dqErrno = errno;
           std::cerr << "VIDIOC_DQBUF failed (" << cam.cam.devPath << "): " << strerror(errno) << "\n";
           dqFailed = true;
           break;
@@ -3022,7 +3760,57 @@ int main(int argc, char** argv) {
         haveFrame = true;
         if (!cam.lowLatency) break;
       }
-      if (dqFailed || !haveFrame) continue;
+      if (dqFailed) {
+        ++cam.consecutiveDqErrors;
+        if (cam.consecutiveDqErrors >= 2 || dqErrno == ENODEV || dqErrno == EIO || dqErrno == ENXIO || dqErrno == EBADF) {
+          cam.reconnectPending = true;
+          if (cam.requestedBufferCount < 4) {
+            ++cam.requestedBufferCount;
+            std::cerr << "Increasing capture queue depth to " << cam.requestedBufferCount
+                      << " for " << cam.cam.devPath << " after dequeue errors.\n";
+          }
+        }
+        continue;
+      }
+      cam.consecutiveDqErrors = 0;
+      if (!haveFrame) {
+        if (cam.frameClockStarted) {
+          const auto msSinceFrame = std::chrono::duration_cast<std::chrono::milliseconds>(
+              std::chrono::steady_clock::now() - cam.lastFrameTs).count();
+          if (msSinceFrame > watchdogNoFrameMs) {
+            cam.reconnectPending = true;
+          }
+        }
+        continue;
+      }
+
+      {
+        const auto frameNow = std::chrono::steady_clock::now();
+        if (cam.frameClockStarted) {
+          const double frameMs = std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(
+              frameNow - cam.lastFrameTs).count();
+          if (cam.frameIntervalEwmaMs <= 0.0) cam.frameIntervalEwmaMs = frameMs;
+          else cam.frameIntervalEwmaMs = 0.90 * cam.frameIntervalEwmaMs + 0.10 * frameMs;
+          if (cam.frameIntervalEwmaMs > 0.0 && frameMs > cam.frameIntervalEwmaMs * 1.8 && frameMs > 18.0) {
+            ++cam.stutterEvents;
+            ++syncStutterEvents;
+          } else {
+            cam.stutterEvents = std::max(0, cam.stutterEvents - 1);
+          }
+        } else {
+          cam.frameClockStarted = true;
+          cam.frameIntervalEwmaMs = 0.0;
+        }
+        cam.lastFrameTs = frameNow;
+      }
+      if (cam.stutterEvents >= 4 && cam.requestedBufferCount < 4) {
+        ++cam.requestedBufferCount;
+        cam.reconnectPending = true;
+        cam.stutterEvents = 0;
+        std::cerr << "Detected recurring stutter on " << cam.cam.devPath
+                  << "; increasing queue depth to " << cam.requestedBufferCount
+                  << " and scheduling reconnect.\n";
+      }
 
       if (!eglMakeCurrent(edpy, wins[i].surf, wins[i].surf, ctx)) {
         std::cerr << "eglMakeCurrent failed\n";
@@ -3329,38 +4117,41 @@ int main(int argc, char** argv) {
           glClear(GL_COLOR_BUFFER_BIT);
         }
 
-        const auto now = std::chrono::steady_clock::now();
-        if (!cam.fpsStarted) {
-          cam.fpsStarted = true;
-          cam.fpsWindowStart = now;
-          cam.fpsFrameCount = 0;
-          cam.fpsValue = 0.0;
-        }
-        if (rendered) ++cam.fpsFrameCount;
-        const double fpsElapsed =
-            std::chrono::duration_cast<std::chrono::duration<double>>(now - cam.fpsWindowStart).count();
-        if (fpsElapsed >= 0.4) {
-          cam.fpsValue = (fpsElapsed > 0.0) ? (static_cast<double>(cam.fpsFrameCount) / fpsElapsed) : 0.0;
-          cam.fpsFrameCount = 0;
-          cam.fpsWindowStart = now;
-        }
+        if (showFpsOverlay) {
+          // Keep overlay bookkeeping entirely out of the hot path unless -fps is explicitly requested.
+          const auto now = std::chrono::steady_clock::now();
+          if (!cam.fpsStarted) {
+            cam.fpsStarted = true;
+            cam.fpsWindowStart = now;
+            cam.fpsFrameCount = 0;
+            cam.fpsValue = 0.0;
+          }
+          if (rendered) ++cam.fpsFrameCount;
+          const double fpsElapsed =
+              std::chrono::duration_cast<std::chrono::duration<double>>(now - cam.fpsWindowStart).count();
+          if (fpsElapsed >= 0.4) {
+            cam.fpsValue = (fpsElapsed > 0.0) ? (static_cast<double>(cam.fpsFrameCount) / fpsElapsed) : 0.0;
+            cam.fpsFrameCount = 0;
+            cam.fpsWindowStart = now;
+          }
 
-        char overlayBuf[96];
-        std::snprintf(overlayBuf, sizeof(overlayBuf), "%dx%d %5.1f FPS", cam.width, cam.height, cam.fpsValue);
-        const std::string nextOverlayText(overlayBuf);
-        if (nextOverlayText != cam.overlayText || cam.overlayTex == 0) {
-          cam.overlayText = nextOverlayText;
-          int overlayW = 0;
-          int overlayH = 0;
-          overlay_dimensions_for_text(cam.overlayText, overlayW, overlayH);
-          render_overlay_text_rgba(cam.overlayRgba, overlayW, overlayH, cam.overlayText);
-          ensure_plane_texture(cam.overlayTex, cam.overlayTexW, cam.overlayTexH,
-                               GL_RGBA, overlayW, overlayH, GL_LINEAR);
-          if (!cam.overlayRgba.empty()) {
-            glBindTexture(GL_TEXTURE_2D, cam.overlayTex);
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, overlayW, overlayH,
-                            GL_RGBA, GL_UNSIGNED_BYTE, cam.overlayRgba.data());
+          char overlayBuf[96];
+          std::snprintf(overlayBuf, sizeof(overlayBuf), "%dx%d %5.1f FPS", cam.width, cam.height, cam.fpsValue);
+          const std::string nextOverlayText(overlayBuf);
+          if (nextOverlayText != cam.overlayText || cam.overlayTex == 0) {
+            cam.overlayText = nextOverlayText;
+            int overlayW = 0;
+            int overlayH = 0;
+            overlay_dimensions_for_text(cam.overlayText, overlayW, overlayH);
+            render_overlay_text_rgba(cam.overlayRgba, overlayW, overlayH, cam.overlayText);
+            ensure_plane_texture(cam.overlayTex, cam.overlayTexW, cam.overlayTexH,
+                                 GL_RGBA, overlayW, overlayH, GL_LINEAR);
+            if (!cam.overlayRgba.empty()) {
+              glBindTexture(GL_TEXTURE_2D, cam.overlayTex);
+              glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+              glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, overlayW, overlayH,
+                              GL_RGBA, GL_UNSIGNED_BYTE, cam.overlayRgba.data());
+            }
           }
         }
         if (cam.record && cam.recorder.enabled) {
@@ -3397,7 +4188,7 @@ int main(int argc, char** argv) {
           }
         }
 
-        if (progRGBA && cam.overlayTex && cam.overlayTexW > 0 && cam.overlayTexH > 0) {
+        if (showFpsOverlay && progRGBA && cam.overlayTex && cam.overlayTexW > 0 && cam.overlayTexH > 0) {
           const int viewW = std::max(1, wins[i].geom.w);
           const int viewH = std::max(1, wins[i].geom.h);
           int overlayW = std::min(cam.overlayTexW, viewW);
@@ -3417,12 +4208,37 @@ int main(int argc, char** argv) {
           glDisable(GL_BLEND);
         }
 
-        if (strictGpuSync) glFinish();
+        if (runtimeStrictGpuSync) glFinish();
         else glFlush();
         eglSwapBuffers(edpy, wins[i].surf);
       }
 
       ioctl(cam.fd, VIDIOC_QBUF, &b);
+    }
+
+    if (adaptiveGpuSync) {
+      const auto now = std::chrono::steady_clock::now();
+      const auto windowMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - syncWindowStart).count();
+      if (windowMs >= 800) {
+        if (syncStutterEvents >= 3) {
+          if (!runtimeStrictGpuSync) {
+            runtimeStrictGpuSync = true;
+            std::cerr << "Adaptive sync: switching to strict glFinish() due to stutter.\n";
+          }
+          syncQuietWindows = 0;
+        } else {
+          if (runtimeStrictGpuSync) {
+            ++syncQuietWindows;
+            if (syncQuietWindows >= 3) {
+              runtimeStrictGpuSync = false;
+              syncQuietWindows = 0;
+              std::cerr << "Adaptive sync: returning to low-latency glFlush().\n";
+            }
+          }
+        }
+        syncStutterEvents = 0;
+        syncWindowStart = now;
+      }
     }
 
     if (positionsDirty) {
@@ -3459,6 +4275,10 @@ int main(int argc, char** argv) {
     if (progYUYV) glDeleteProgram(progYUYV);
     if (progYUVPlanar) glDeleteProgram(progYUVPlanar);
     if (progRGBA) glDeleteProgram(progRGBA);
+  }
+  if (controlFd >= 0) {
+    close(controlFd);
+    unlink(controlSocketPath.c_str());
   }
   if (eglMakeCurrent(edpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT)) {}
   eglDestroyContext(edpy, ctx);

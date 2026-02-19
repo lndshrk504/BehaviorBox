@@ -20,9 +20,11 @@ pkg_check_modules(DEP_AVCODEC REQUIRED IMPORTED_TARGET libavcodec)
 pkg_check_modules(DEP_AVUTIL REQUIRED IMPORTED_TARGET libavutil)
 
 add_executable(usbcamv4l main.cpp)
+add_executable(usbcamctl usbcamctl.cpp)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(usbcamv4l PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(usbcamctl PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
 target_link_libraries(usbcamv4l PRIVATE
