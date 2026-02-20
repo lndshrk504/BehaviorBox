@@ -101,7 +101,7 @@ alias BB='matlab -nosplash -nodesktop -r "BehaviorBox_App"'
 alias BBwheel='matlab -nosplash -nodesktop -r "BehaviorBox_App Wheel"'
 alias BBnose='matlab -nosplash -nodesktop -r "BehaviorBox_App Nose"'
 #alias cam='matlab -nosplash -nodesktop -r "viewDualCameras"'
-alias cam='/home/will/Desktop/BehaviorBox/usbcamv4l-inteln100'
+#alias cam='/home/will/Desktop/BehaviorBox/usbcamv4l-inteln100'
 alias FixSet='chmod guo+rw ComputerSettingsACM*.mat'
 alias GLtest="matlab -batch 'rendererinfo'"
 # Add an "alert" alias for long running commands.  Use like so:
