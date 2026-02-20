@@ -111,6 +111,7 @@ Runtime control examples (in another terminal while app is running):
 - Watchdog reconnect attempts to recover disconnected cameras without restarting the app.
 - Queue depth now auto-tunes from 2 to 4 buffers when stutter/dequeue errors are detected.
 - GPU sync now defaults to adaptive mode (`glFlush` baseline with automatic temporary `glFinish` during stutter spikes).
+- Camera window resize snaps to the active feed aspect ratio shortly after resize drag stops (for example, 640x480 stays 4:3).
 - If EGLImage/DMABUF import extensions are unavailable, the app falls back to GPU texture upload paths instead of exiting.
 - On AMD renderers, YUYV capture uses a stable fallback path (**CPU YUYV unpack + GPU RGBA render**) to avoid known `gfx11xx` LLVM shader backend issues.
 - On AMD systems, the app requests Mesa **Zink** automatically (`MESA_LOADER_DRIVER_OVERRIDE=zink`) unless you set `USBCAMV4L_DISABLE_ZINK_WORKAROUND=1`.

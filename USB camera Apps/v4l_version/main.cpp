@@ -42,6 +42,7 @@ extern "C" {
 #include <fstream>
 #include <iostream>
 #include <limits>
+#include <numeric>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -1470,6 +1471,49 @@ static bool save_resolutions_csv(const std::string& file,
   return true;
 }
 
+static Rect constrain_rect_to_aspect(Rect r, int aspectW, int aspectH) {
+  if (aspectW <= 0 || aspectH <= 0 || r.w <= 0 || r.h <= 0) return r;
+
+  const int64_t wFromH = std::max<int64_t>(1, (static_cast<int64_t>(r.h) * aspectW + aspectH / 2) / aspectH);
+  const int64_t hFromW = std::max<int64_t>(1, (static_cast<int64_t>(r.w) * aspectH + aspectW / 2) / aspectW);
+
+  const int deltaW = std::abs(static_cast<int>(wFromH) - r.w);
+  const int deltaH = std::abs(static_cast<int>(hFromW) - r.h);
+  if (deltaH <= deltaW) {
+    r.h = static_cast<int>(hFromW);
+  } else {
+    r.w = static_cast<int>(wFromH);
+  }
+  r.w = std::max(1, r.w);
+  r.h = std::max(1, r.h);
+  return r;
+}
+
+static void x11_apply_window_hints(Display* dpy, Window w, const Rect& r, int aspectW = 0, int aspectH = 0) {
+  XSizeHints hints{};
+  hints.flags = USPosition | USSize | PPosition | PSize;
+  hints.x = r.x;
+  hints.y = r.y;
+  hints.width = std::max(1, r.w);
+  hints.height = std::max(1, r.h);
+
+  if (aspectW > 0 && aspectH > 0) {
+    int aw = aspectW;
+    int ah = aspectH;
+    const int g = std::gcd(std::abs(aw), std::abs(ah));
+    if (g > 1) {
+      aw /= g;
+      ah /= g;
+    }
+    hints.flags |= PAspect;
+    hints.min_aspect.x = aw;
+    hints.min_aspect.y = ah;
+    hints.max_aspect.x = aw;
+    hints.max_aspect.y = ah;
+  }
+  XSetWMNormalHints(dpy, w, &hints);
+}
+
 static bool x11_get_window_root_xy(Display* dpy, Window w, int& rx, int& ry) {
   Window child;
   int wx, wy;
@@ -1480,14 +1524,7 @@ static bool x11_get_window_root_xy(Display* dpy, Window w, int& rx, int& ry) {
 }
 
 static void x11_apply_window_geometry(Display* dpy, Window w, const Rect& r) {
-  XSizeHints hints{};
-  hints.flags = USPosition | USSize | PPosition | PSize;
-  hints.x = r.x;
-  hints.y = r.y;
-  hints.width = std::max(1, r.w);
-  hints.height = std::max(1, r.h);
-  XSetWMNormalHints(dpy, w, &hints);
-
+  x11_apply_window_hints(dpy, w, r);
   XMoveResizeWindow(dpy, w,
                     r.x, r.y,
                     static_cast<unsigned>(std::max(1, r.w)),
@@ -1587,11 +1624,17 @@ void main() {
 }
 )";
 
-static constexpr int kOverlayScale = 2;
+// Compact, light sans bitmap for low-visual-footprint telemetry.
+static constexpr int kOverlayScale = 1;
 static constexpr int kOverlayGlyphW = 5;
 static constexpr int kOverlayGlyphH = 7;
 static constexpr int kOverlayAdvance = (kOverlayGlyphW + 1) * kOverlayScale;
-static constexpr int kOverlayMargin = 6;
+static constexpr int kOverlayMargin = 2;
+static constexpr uint8_t kOverlayTextR = 240;
+static constexpr uint8_t kOverlayTextG = 240;
+static constexpr uint8_t kOverlayTextB = 240;
+static constexpr uint8_t kOverlayTextA = 150;  // Intentionally translucent.
+static constexpr uint8_t kOverlayShadowA = 52;
 
 static void glyph_5x7(char c, uint8_t rows[7]) {
   std::memset(rows, 0, 7);
@@ -1631,13 +1674,6 @@ static void render_overlay_text_rgba(std::vector<uint8_t>& rgba, int w, int h, c
   if (w <= 0 || h <= 0) return;
   rgba.assign(static_cast<size_t>(w) * static_cast<size_t>(h) * 4u, 0);
 
-  // Semi-transparent background block for readability on bright scenes.
-  for (int y = 0; y < h; ++y) {
-    for (int x = 0; x < w; ++x) {
-      overlay_put_pixel(rgba, w, h, x, y, 0, 0, 0, 132);
-    }
-  }
-
   const int baseX = kOverlayMargin;
   const int baseY = kOverlayMargin;
 
@@ -1651,10 +1687,15 @@ static void render_overlay_text_rgba(std::vector<uint8_t>& rgba, int w, int h, c
         if ((bits & (1u << (kOverlayGlyphW - 1 - gx))) == 0) continue;
         for (int sy = 0; sy < kOverlayScale; ++sy) {
           for (int sx = 0; sx < kOverlayScale; ++sx) {
+            // Soft shadow to keep text legible without a heavy background block.
+            overlay_put_pixel(rgba, w, h,
+                              penX + gx * kOverlayScale + sx + 1,
+                              baseY + gy * kOverlayScale + sy + 1,
+                              0, 0, 0, kOverlayShadowA);
             overlay_put_pixel(rgba, w, h,
                               penX + gx * kOverlayScale + sx,
                               baseY + gy * kOverlayScale + sy,
-                              255, 255, 255, 255);
+                              kOverlayTextR, kOverlayTextG, kOverlayTextB, kOverlayTextA);
           }
         }
       }
@@ -1668,8 +1709,8 @@ static void overlay_dimensions_for_text(const std::string& text, int& outW, int&
   const int chars = std::max(1, static_cast<int>(text.size()));
   outW = kOverlayMargin + chars * kOverlayAdvance + kOverlayMargin;
   outH = kOverlayMargin + kOverlayGlyphH * kOverlayScale + kOverlayMargin;
-  outW = std::clamp(outW, 96, 512);
-  outH = std::clamp(outH, 24, 64);
+  outW = std::clamp(outW, 56, 360);
+  outH = std::clamp(outH, 12, 28);
 }
 
 static void make_overlay_quad(int viewportW, int viewportH,
@@ -2741,7 +2782,51 @@ struct XWin {
   Window win{0};
   EGLSurface surf{EGL_NO_SURFACE};
   Rect geom{};
+  Rect pendingGeom{};
+  bool resizePending{false};
+  std::chrono::steady_clock::time_point lastResizeEvent{};
 };
+
+static void print_usbcamv4l_help(const char* argv0) {
+  std::cout
+      << "usbcamv4l - multi USB camera viewer (V4L2 + EGL/GLES)\n\n"
+      << "Usage:\n"
+      << "  " << argv0 << " [OPTIONS]\n\n"
+      << "Options (alphabetical):\n"
+      << "  -b, --bench-ms N\n"
+      << "      Startup benchmark budget per camera in milliseconds (300-4000).\n"
+      << "  -f, --fps\n"
+      << "      Enable live resolution+FPS overlay.\n"
+      << "  -h, --help\n"
+      << "      Show this help and exit.\n"
+      << "  -l, --list-cameras\n"
+      << "      List formats, resolutions, and FPS modes, then exit.\n"
+      << "  -m, --mjpeg\n"
+      << "      Prefer MJPEG capture (fallback: NV12 then YUYV).\n"
+      << "  -M, --mjpeg-hw\n"
+      << "      Enable full hardware MJPEG decode backend probing.\n"
+      << "  -B, --no-bench\n"
+      << "      Disable startup capture-path benchmark selection.\n"
+      << "  -C, --no-control\n"
+      << "      Disable runtime control socket.\n"
+      << "  -r, --rec\n"
+      << "      Enable recording for all cameras.\n"
+      << "  -F, --rec-fast\n"
+      << "      Recording profile: fast throughput (default recording profile).\n"
+      << "  -Q, --rec-quality\n"
+      << "      Recording profile: higher quality, lower throughput.\n"
+      << "  -s, --res\n"
+      << "      Choose one common capture height for all cameras.\n"
+      << "  -e, --res-each\n"
+      << "      Choose capture resolution separately for each camera.\n"
+      << "  -R, --reset\n"
+      << "      Reset saved window position and resolution state.\n"
+      << "  -S, --strict-sync\n"
+      << "      Force strict GPU sync (glFinish every frame).\n\n"
+      << "Compatibility aliases:\n"
+      << "  Legacy long flags with single dash are accepted (example: -mjpeg).\n"
+      << "  Common misspellings are normalized (example: --mpjeg -> --mjpeg).\n";
+}
 
 int main(int argc, char** argv) {
   std::signal(SIGINT, handle_stop_signal);
@@ -2761,95 +2846,170 @@ int main(int argc, char** argv) {
   bool enableControlSocket = true;
   bool enableRecording = false;
   RawVideoRecorder::Profile recordProfile = RawVideoRecorder::Profile::Fast;
+  auto normalize_option_alias = [](std::string arg) -> std::string {
+    auto lower = to_lower_copy(arg);
+    if (lower == "--help" || lower == "-help" || lower == "--hlep" || lower == "--halp") return "-h";
+    if (lower == "--reset" || lower == "-reset" || lower == "--rest") return "-R";
+    if (lower == "--res" || lower == "-res" ||
+        lower == "--choose-all-res" || lower == "-choose-all-res" ||
+        lower == "--choose-all-resolution" || lower == "-choose-all-resolution") return "-s";
+    if (lower == "--res-each" || lower == "-res-each" ||
+        lower == "--choose-each-res" || lower == "-choose-each-res" ||
+        lower == "--choose-each-resolution" || lower == "-choose-each-resolution" ||
+        lower == "--choose-res" || lower == "-choose-res" ||
+        lower == "--choose-resolution" || lower == "-choose-resolution" ||
+        lower == "--res-ech" || lower == "--res-eash") return "-e";
+    if (lower == "--mjpeg" || lower == "-mjpeg" ||
+        lower == "--mpjeg" || lower == "-mpjeg" ||
+        lower == "--mjpg" || lower == "-mjpg") return "-m";
+    if (lower == "--mjpeg-hw" || lower == "-mjpeg-hw" ||
+        lower == "--mpjeg-hw" || lower == "-mpjeg-hw" ||
+        lower == "--mjpg-hw" || lower == "-mjpg-hw") return "-M";
+    if (lower == "--strict-sync" || lower == "-strict-sync" ||
+        lower == "--strictsync" || lower == "-strictsync" ||
+        lower == "--stric-sync" || lower == "-stric-sync") return "-S";
+    if (lower == "--fps" || lower == "-fps" ||
+        lower == "--fpps" || lower == "-fpps" ||
+        lower == "--fpss" || lower == "-fpss") return "-f";
+    if (lower == "--list-cameras" || lower == "-list-cameras" ||
+        lower == "--list-camera" || lower == "-list-camera" ||
+        lower == "--listcams" || lower == "-listcams" ||
+        lower == "--list-camreas" || lower == "-list-camreas") return "-l";
+    if (lower == "--no-bench" || lower == "-no-bench" ||
+        lower == "--no-benchmark" || lower == "-no-benchmark" ||
+        lower == "--nobench" || lower == "-nobench") return "-B";
+    if (lower == "--no-control" || lower == "-no-control" ||
+        lower == "--nocontrol" || lower == "-nocontrol") return "-C";
+    if (lower == "--rec" || lower == "-rec") return "-r";
+    if (lower == "--rec-fast" || lower == "-rec-fast" ||
+        lower == "--recf-fast" || lower == "-recf-fast") return "-F";
+    if (lower == "--rec-quality" || lower == "-rec-quality" ||
+        lower == "--rec-qaulity" || lower == "-rec-qaulity") return "-Q";
+    return arg;
+  };
+
+  std::vector<std::string> normalizedArgs;
+  normalizedArgs.reserve(static_cast<size_t>(argc) * 2u);
+  normalizedArgs.push_back(argv[0]);
   for (int i = 1; i < argc; ++i) {
-    const std::string arg = argv[i];
-    if (arg == "-reset" || arg == "--reset") {
-      resetWindowPositions = true;
+    std::string arg = argv[i];
+    const std::string lower = to_lower_copy(arg);
+    if (arg == "--") {
+      normalizedArgs.push_back(arg);
+      for (int j = i + 1; j < argc; ++j) normalizedArgs.push_back(argv[j]);
+      break;
+    }
+    if (lower.rfind("--bench-ms=", 0) == 0 || lower.rfind("-bench-ms=", 0) == 0 ||
+        lower.rfind("--benchms=", 0) == 0 || lower.rfind("-benchms=", 0) == 0 ||
+        lower.rfind("--bech-ms=", 0) == 0 || lower.rfind("-bech-ms=", 0) == 0) {
+      normalizedArgs.push_back("-b");
+      normalizedArgs.push_back(arg.substr(arg.find('=') + 1));
       continue;
     }
-    if (arg == "-res-each" || arg == "--res-each" ||
-        arg == "-choose-each-res" || arg == "--choose-each-resolution" ||
-        arg == "-choose-res" || arg == "--choose-resolution") {
-      chooseEachResolution = true;
+    if (lower == "--bench-ms" || lower == "-bench-ms" ||
+        lower == "--benchms" || lower == "-benchms" ||
+        lower == "--bech-ms" || lower == "-bech-ms") {
+      normalizedArgs.push_back("-b");
+      if (i + 1 < argc) normalizedArgs.push_back(argv[++i]);
       continue;
     }
-    if (arg == "-res" || arg == "--res" ||
-        arg == "-choose-all-res" || arg == "--choose-all-resolution") {
-      chooseAllResolution = true;
-      continue;
+    normalizedArgs.push_back(normalize_option_alias(arg));
+  }
+
+  std::vector<char*> argvMutable;
+  argvMutable.reserve(normalizedArgs.size() + 1u);
+  for (auto& s : normalizedArgs) argvMutable.push_back(s.data());
+  argvMutable.push_back(nullptr);
+
+  opterr = 0;
+  optind = 1;
+  int opt = 0;
+  while ((opt = getopt(static_cast<int>(normalizedArgs.size()), argvMutable.data(),
+                       "b:fhlmMBCrFQseRS")) != -1) {
+    switch (opt) {
+      case 'b':
+        try {
+          benchmarkDurationMs = std::clamp(std::stoi(optarg), 300, 4000);
+        } catch (...) {
+          std::cerr << "Invalid value for --bench-ms: " << (optarg ? optarg : "(null)") << "\n";
+          return 1;
+        }
+        break;
+      case 'f':
+        showFpsOverlay = true;
+        break;
+      case 'h':
+        print_usbcamv4l_help(argv[0]);
+        return 0;
+      case 'l':
+        listCamerasOnly = true;
+        break;
+      case 'm':
+        preferMjpeg = true;
+        break;
+      case 'M':
+        preferMjpeg = true;
+        allowFullMjpegHw = true;
+        break;
+      case 'B':
+        autoBenchmarkStartup = false;
+        break;
+      case 'C':
+        enableControlSocket = false;
+        break;
+      case 'r':
+        enableRecording = true;
+        break;
+      case 'F':
+        enableRecording = true;
+        recordProfile = RawVideoRecorder::Profile::Fast;
+        break;
+      case 'Q':
+        enableRecording = true;
+        recordProfile = RawVideoRecorder::Profile::Quality;
+        break;
+      case 's':
+        chooseAllResolution = true;
+        break;
+      case 'e':
+        chooseEachResolution = true;
+        break;
+      case 'R':
+        resetWindowPositions = true;
+        break;
+      case 'S':
+        strictGpuSync = true;
+        break;
+      case '?':
+      default:
+        if (optopt == 'b') {
+          std::cerr << "Missing value for -b/--bench-ms\n";
+        } else {
+          std::string badOpt;
+          if (optind - 1 >= 0 && optind - 1 < static_cast<int>(normalizedArgs.size())) {
+            badOpt = normalizedArgs[static_cast<size_t>(optind - 1)];
+          }
+          if (badOpt == normalizedArgs.front() &&
+              optind >= 0 && optind < static_cast<int>(normalizedArgs.size())) {
+            badOpt = normalizedArgs[static_cast<size_t>(optind)];
+          }
+          if (!badOpt.empty()) {
+            std::cerr << "Unknown option: " << badOpt << "\n";
+          } else {
+            std::cerr << "Unknown option.\n";
+          }
+        }
+        std::cerr << "Use --help for usage.\n";
+        return 1;
     }
-    if (arg == "-mjpeg" || arg == "--mjpeg") {
-      preferMjpeg = true;
-      continue;
+  }
+
+  if (optind < static_cast<int>(normalizedArgs.size())) {
+    for (int i = optind; i < static_cast<int>(normalizedArgs.size()); ++i) {
+      std::cerr << "Unexpected positional argument: " << normalizedArgs[static_cast<size_t>(i)] << "\n";
     }
-    if (arg == "-mjpeg-hw" || arg == "--mjpeg-hw") {
-      preferMjpeg = true;
-      allowFullMjpegHw = true;
-      continue;
-    }
-    if (arg == "-strict-sync" || arg == "--strict-sync") {
-      strictGpuSync = true;
-      continue;
-    }
-    if (arg == "-fps" || arg == "--fps") {
-      showFpsOverlay = true;
-      continue;
-    }
-    if (arg == "-list-cameras" || arg == "--list-cameras") {
-      listCamerasOnly = true;
-      continue;
-    }
-    if (arg == "-no-bench" || arg == "--no-bench" || arg == "--no-benchmark") {
-      autoBenchmarkStartup = false;
-      continue;
-    }
-    if ((arg == "-bench-ms" || arg == "--bench-ms") && (i + 1) < argc) {
-      try {
-        benchmarkDurationMs = std::clamp(std::stoi(argv[++i]), 300, 4000);
-      } catch (...) {
-        benchmarkDurationMs = 1200;
-      }
-      continue;
-    }
-    if (arg == "-no-control" || arg == "--no-control") {
-      enableControlSocket = false;
-      continue;
-    }
-    if (arg == "-rec" || arg == "--rec") {
-      enableRecording = true;
-      continue;
-    }
-    if (arg == "-rec-fast" || arg == "--rec-fast") {
-      enableRecording = true;
-      recordProfile = RawVideoRecorder::Profile::Fast;
-      continue;
-    }
-    if (arg == "-rec-quality" || arg == "--rec-quality") {
-      enableRecording = true;
-      recordProfile = RawVideoRecorder::Profile::Quality;
-      continue;
-    }
-    if (arg == "-h" || arg == "--help") {
-      std::cout << "Usage: " << argv[0]
-                << " [-reset] [-res-each] [-res] [-mjpeg] [-mjpeg-hw] [-strict-sync] [-fps] [-list-cameras]"
-                   " [-no-bench] [-bench-ms N] [-no-control] [-rec] [-rec-fast] [-rec-quality]\n";
-      std::cout << "  -reset   Delete saved window position/resolution settings and start with defaults.\n";
-      std::cout << "  -res-each   Choose resolution separately for each camera.\n";
-      std::cout << "  -res        Choose one common pixel height for all cameras.\n";
-      std::cout << "  -mjpeg     Prefer MJPEG capture (falls back to NV12/YUYV if unavailable).\n";
-      std::cout << "  -mjpeg-hw  Allow full hardware MJPEG decode including CUDA/CUVID.\n";
-      std::cout << "  -strict-sync  Use glFinish() for conservative buffer safety (higher latency).\n";
-      std::cout << "  -fps      Show capture resolution + FPS overlay in the bottom-left.\n";
-      std::cout << "  -list-cameras  List device formats, resolutions, and FPS modes, then exit.\n";
-      std::cout << "  -no-bench  Disable startup capture-format auto-benchmarking.\n";
-      std::cout << "  -bench-ms N  Total benchmark budget per camera in milliseconds (300-4000).\n";
-      std::cout << "  -no-control  Disable runtime control socket.\n";
-      std::cout << "  -rec      Record each camera window to MP4 in ~/Desktop/USB-Recordings.\n";
-      std::cout << "  -rec-fast  Recording profile tuned for maximum FPS (default).\n";
-      std::cout << "  -rec-quality  Recording profile tuned for better quality, lower throughput.\n";
-      return 0;
-    }
-    std::cerr << "Warning: unknown argument '" << arg << "' (ignored)\n";
+    std::cerr << "Use --help for usage.\n";
+    return 1;
   }
 
   if (chooseEachResolution && chooseAllResolution) {
@@ -3510,6 +3670,14 @@ int main(int argc, char** argv) {
       vcams[camIndex].consecutiveDqErrors = 0;
       vcams[camIndex].frameClockStarted = false;
       vcams[camIndex].stutterEvents = 0;
+      Rect corrected = constrain_rect_to_aspect(wins[camIndex].geom,
+                                                vcams[camIndex].width, vcams[camIndex].height);
+      if (corrected.w != wins[camIndex].geom.w || corrected.h != wins[camIndex].geom.h) {
+        x11_apply_window_geometry(dpy, wins[camIndex].win, corrected);
+      }
+      wins[camIndex].geom = corrected;
+      wins[camIndex].pendingGeom = corrected;
+      wins[camIndex].resizePending = false;
       std::cerr << "Reconnect successful: now using " << vcams[camIndex].cam.devPath << "\n";
       return true;
     }
@@ -3660,6 +3828,7 @@ int main(int argc, char** argv) {
 
   bool quit = false;
   bool positionsDirty = false;
+  static constexpr int kResizeSettleMs = 140;
   while (!quit) {
     if (g_stopRequested) {
       std::cerr << "Stop requested, saving camera window state and exiting.\n";
@@ -3709,17 +3878,47 @@ int main(int argc, char** argv) {
           if (w.win == ev.xconfigure.window) {
             int rx = 0, ry = 0;
             x11_get_window_root_xy(dpy, w.win, rx, ry);
-            w.geom = {rx, ry, ev.xconfigure.width, ev.xconfigure.height};
-            if (i < vcams.size()) {
-              saved[vcams[i].cam.stableId] = w.geom;
-              positionsDirty = true;
-            }
+            Rect nextGeom{rx, ry, ev.xconfigure.width, ev.xconfigure.height};
+            w.geom = nextGeom;
+            w.pendingGeom = nextGeom;
+            w.lastResizeEvent = std::chrono::steady_clock::now();
+            w.resizePending = true;
             break;
           }
         }
       }
     }
     if (quit) break;
+
+    const auto nowAfterEvents = std::chrono::steady_clock::now();
+    for (size_t i = 0; i < wins.size(); ++i) {
+      auto& w = wins[i];
+      if (!w.resizePending || i >= vcams.size()) continue;
+      const auto sinceMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+          nowAfterEvents - w.lastResizeEvent).count();
+      if (sinceMs < kResizeSettleMs) continue;
+
+      Rect current = w.pendingGeom;
+      int rx = 0, ry = 0;
+      XWindowAttributes wa{};
+      if (x11_get_window_root_xy(dpy, w.win, rx, ry) && XGetWindowAttributes(dpy, w.win, &wa)) {
+        current = {rx, ry, wa.width, wa.height};
+      }
+      Rect corrected = constrain_rect_to_aspect(current, vcams[i].width, vcams[i].height);
+      clamp_rect_to_screen(corrected, screenW, screenH);
+
+      const bool sizeChanged = corrected.w != current.w || corrected.h != current.h;
+      const bool posChanged = corrected.x != current.x || corrected.y != current.y;
+      if (sizeChanged || posChanged) {
+        x11_apply_window_geometry(dpy, w.win, corrected);
+        XSync(dpy, False);
+      }
+      w.geom = corrected;
+      w.pendingGeom = corrected;
+      w.resizePending = false;
+      saved[vcams[i].cam.stableId] = corrected;
+      positionsDirty = true;
+    }
 
     for (size_t i = 0; i < vcams.size(); ++i) {
       auto& cam = vcams[i];
@@ -4136,7 +4335,7 @@ int main(int argc, char** argv) {
           }
 
           char overlayBuf[96];
-          std::snprintf(overlayBuf, sizeof(overlayBuf), "%dx%d %5.1f FPS", cam.width, cam.height, cam.fpsValue);
+          std::snprintf(overlayBuf, sizeof(overlayBuf), "%dx%d %.1f FPS", cam.width, cam.height, cam.fpsValue);
           const std::string nextOverlayText(overlayBuf);
           if (nextOverlayText != cam.overlayText || cam.overlayTex == 0) {
             cam.overlayText = nextOverlayText;
