@@ -1145,6 +1145,7 @@ classdef BehaviorBoxWheel < handle
                     didStallFlash = true;
                     % If you want repeated flashing every stallSec while stalled, uncomment:
                     tStall = tic;
+                    continue
                 end
 
                 delta = (dist/threshold)*StimDistance;  % A full revolution is about 4000 pulses 4400/360 = 12.22 pulses/degree 90 deg is ~1000 pulses
