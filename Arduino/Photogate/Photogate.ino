@@ -11,6 +11,8 @@
 #define PIN_VALVE_L 7
 #define PIN_VALVE_R 8
 
+constexpr unsigned long SERIAL_PARSE_TIMEOUT_MS = 5000UL;
+
 enum FlagIndex : uint8_t {
   FLAG_L = 0,
   FLAG_M = 1,
@@ -49,6 +51,7 @@ static inline void customDelay(float durationSec);
 static inline void toggleReward(int pin, float durationSec);
 static inline void toggleValve(int pin, bool &state);
 static inline float getDurationFromSerial(const __FlashStringHelper* prompt);
+static inline bool tryHandleInlineSetup(bool isRight);
 static inline void displayWelcomeMessage();
 static inline void checkAndPrintPhotogateState();
 static inline void resetFlags();
@@ -79,10 +82,14 @@ void loop() {
         currentState = LEFT_OPEN;
         break;
       case 's':
-        currentState = RIGHT_SETUP;
+        if (!tryHandleInlineSetup(true)) {
+          currentState = RIGHT_SETUP;
+        }
         break;
       case 'S':
-        currentState = LEFT_SETUP;
+        if (!tryHandleInlineSetup(false)) {
+          currentState = LEFT_SETUP;
+        }
         break;
       case 'W':
         currentState = SETUP;
@@ -98,7 +105,7 @@ void loop() {
 
 static inline void initializeSerial() {
   Serial.begin(115200);
-  Serial.setTimeout(200); // Keep parseFloat from blocking too long if input is incomplete
+  Serial.setTimeout(SERIAL_PARSE_TIMEOUT_MS); // Allow interactive terminal entry for setup durations
   while (!Serial) { } // wait for serial port to connect. Needed for native USB port only
 }
 
@@ -201,6 +208,42 @@ static inline float getDurationFromSerial(const __FlashStringHelper* prompt) {
   return DURinp;
 }
 
+static inline bool tryHandleInlineSetup(bool isRight) {
+  // Skip whitespace after command byte so inputs like "s 0.05" are accepted.
+  while (Serial.available() > 0) {
+    const int peeked = Serial.peek();
+    if (peeked == ' ' || peeked == '\t' || peeked == '\r') {
+      Serial.read();
+    } else {
+      break;
+    }
+  }
+
+  if (Serial.available() == 0) {
+    return false;
+  }
+
+  const int peeked = Serial.peek();
+  const bool looksNumeric = (peeked == '-') || (peeked == '+') || (peeked == '.') || (peeked >= '0' && peeked <= '9');
+  if (!looksNumeric) {
+    return false;
+  }
+
+  float duration = Serial.parseFloat();
+  if (isRight) {
+    rightdur = duration;
+    Serial.print(F("Right dur="));
+    Serial.println(rightdur);
+  } else {
+    leftdur = duration;
+    Serial.print(F("Left dur="));
+    Serial.println(leftdur);
+  }
+  currentState = READING;
+  resetFlags();
+  return true;
+}
+
 static inline void displayWelcomeMessage() {
   Serial.println();
   Serial.println(F("Welcome to BehaviorBox - NosePoke"));
@@ -267,6 +310,6 @@ static inline void resetFlags() {
 }
 
 static inline void printToken(char token) {
-  Serial.write(token);
-  Serial.write('\n');
+  Serial.println(token);
+  //Serial.write('\n');
 }

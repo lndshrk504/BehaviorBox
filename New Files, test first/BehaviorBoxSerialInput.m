@@ -14,7 +14,7 @@ classdef BehaviorBoxSerialInput < handle
     %   3) Use serialport's NumBytesAvailable (not legacy BytesAvailable).
 
     properties
-        Ard = serialport.empty
+        Ard = serialport().empty
 
         % Mode
         Input_type char = 'NosePoke'  % 'Wheel' or 'NosePoke'
@@ -226,15 +226,15 @@ classdef BehaviorBoxSerialInput < handle
             pause(0.3);
         end
 
-        function result = processReading(~, newReading)
-            result = char(newReading);
-            % if strcmp(this.Input_type, 'Wheel')
-            %     %result = str2double(newReading);
-            %     result = char(newReading);
-            % else
-            %     result = char(newReading);
-            % end
-        end
+        % function result = processReading(~, newReading)
+        %     result = char(newReading);
+        %     % if strcmp(this.Input_type, 'Wheel')
+        %     %     %result = str2double(newReading);
+        %     %     result = char(newReading);
+        %     % else
+        %     %     result = char(newReading);
+        %     % end
+        % end
        
         % ---------- Fast getters (use these in tight loops) ----------
         function v = ReadWheel(this)
