@@ -12,18 +12,16 @@ sudo apt-get install -y build-essential cmake pkg-config libx11-dev libegl1-mesa
 
 Or use the helper script:
 ```bash
-./install_deps.sh
+./deps_install.sh
 ```
 
 Requires a working EGL/GLES stack (Intel, NVIDIA, AMD, etc.).
 
 ## Build & run
 ```bash
-mkdir -p build
-cd build
-cmake ..
-cmake --build . -j
-./usbcamv4l
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+./build/usbcamv4l
 ```
 
 To prefer MJPEG capture (useful to reduce USB bandwidth):
