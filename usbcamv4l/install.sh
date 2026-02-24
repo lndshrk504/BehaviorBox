@@ -4,6 +4,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD_DIR="${ROOT_DIR}/build"
 LINK_FILE="${ROOT_DIR}/usbcamv4l"
 CTL_LINK_FILE="${ROOT_DIR}/usbcamctl"
+INSTALL_DIR="/usr/local/bin"
+INSTALL_NAME="cam"
 
 mkdir -p "${BUILD_DIR}"
 
@@ -22,6 +24,21 @@ cmake --build "${BUILD_DIR}" -j
 
 ln -sf "build/usbcamv4l" "${LINK_FILE}"
 ln -sf "build/usbcamctl" "${CTL_LINK_FILE}"
+
+SUDO=""
+if [[ "${EUID}" -ne 0 ]]; then
+  if command -v sudo >/dev/null 2>&1; then
+    SUDO="sudo"
+  else
+    echo "Root access is required to install into ${INSTALL_DIR}. Run as root or install sudo." >&2
+    exit 1
+  fi
+fi
+
+${SUDO} install -d "${INSTALL_DIR}"
+${SUDO} install -m 0755 "${BUILD_DIR}/usbcamv4l" "${INSTALL_DIR}/${INSTALL_NAME}"
+
 echo "Built: ${BUILD_DIR}/usbcamv4l"
 echo "Launch with: ${LINK_FILE}"
 echo "Control with: ${CTL_LINK_FILE} status"
+echo "Installed: ${INSTALL_DIR}/${INSTALL_NAME}"
