@@ -78,17 +78,46 @@ function [devicesInfo, COM, ID] = arduinoServer(opts)
             Ards_Info(deviceCount).Port = erase(serialPortInfo(i), '/dev/tty'); % Store the port and identity in the preallocated array
     
             % Create serial port object
-            Ards_Info(deviceCount).Device = serialport(serialPortInfo(i), 115200); % Modify the baud rate if required
+            %delete(device)
+            Ards_Info(deviceCount).Device = serialport(serialPortInfo(i), 115200, "Timeout",0.5); % Modify the baud rate if required
             configureTerminator(Ards_Info(deviceCount).Device, "CR/LF")
             device = Ards_Info(deviceCount).Device;
     
-            pause(2)
+            %tic
+            %pause(1)
     
-            Data = string;
-            while device.NumBytesAvailable > 0
-                Data(end+1,1) = strip(readline(device));
+            % Read bytes in chunks so we never block on an incomplete line terminator.
+            Data = strings(0,1);
+            rawText = "";
+            readStart = tic;
+            lastRx = tic;
+            sawData = false;
+            maxReadTime = 3;   % seconds
+            idleStopTime = 0.1; % stop once serial has been quiet after data arrives
+            pollInterval = 0.02;
+            %tic
+            while toc(readStart) < maxReadTime
+                nBytes = device.NumBytesAvailable;
+                if nBytes > 0
+                    %toc
+                    %toc(lastRx)
+                    sawData = true;
+                    rawText = rawText + string(read(device, nBytes, "char"));
+                    lastRx = tic;
+                elseif sawData && toc(lastRx) >= idleStopTime
+                    %toc
+                    break
+                else
+                    pause(pollInterval)
+                end
+            end
+            %toc
+            if strlength(rawText) > 0
+                Data = strip(splitlines(rawText));
+                Data(Data == "") = [];
             end
             response = Data;
+            %toc
     
             % Store the port and identity in the preallocated array
             Identity = response(contains(response, 'Box ID'));
