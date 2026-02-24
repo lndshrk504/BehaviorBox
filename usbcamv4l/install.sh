@@ -13,7 +13,7 @@ if [[ ! -f "${ROOT_DIR}/CMakeLists.txt" ]]; then
 fi
 
 if ! command -v cmake >/dev/null 2>&1; then
-  echo "cmake is required. Install dependencies with ./install_deps.sh" >&2
+  echo "cmake is required. Install dependencies with ./deps_install.sh" >&2
   exit 1
 fi
 
