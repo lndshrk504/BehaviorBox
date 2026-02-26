@@ -1221,18 +1221,18 @@ classdef BehaviorBoxWheel < handle
                             Lines = [findobj('Tag','Contour') ; findobj('Tag','Distractor')];
                         end
                         try
-                            Lines.Color = baseColor;
+                            [Lines(:).Color] = deal(baseColor);
                         catch
                             set(Lines,'Color',baseColor);
                         end
                         blinkActive = false;
                     end
-                elseif ~didStallBlink && (tNow - tLastMove) >= stallSec
+                elseif ~blinkActive && (tNow - tLastMove) >= stallSec
                     if isempty(Lines) || any(~isgraphics(Lines))
                         Lines = [findobj('Tag','Contour') ; findobj('Tag','Distractor')];
                     end
                     try
-                        Lines.Color = dimColor;
+                        [Lines(:).Color] = deal(dimColor);
                     catch
                         set(Lines,'Color',dimColor);
                     end
@@ -1246,11 +1246,12 @@ classdef BehaviorBoxWheel < handle
                         Lines = [findobj('Tag','Contour') ; findobj('Tag','Distractor')];
                     end
                     try
-                        Lines.Color = baseColor;
+                        [Lines(:).Color] = deal(baseColor);
                     catch
                         set(Lines,'Color',baseColor);
                     end
                     blinkActive = false;
+                    tLastMove = tNow;
                 end
 
                 % dist -> delta
@@ -1530,7 +1531,8 @@ classdef BehaviorBoxWheel < handle
             end
 
             try
-            this.Time.Log(end+1,1) = "Choice made";
+                this.Time.Log(end+1,1) = "Choice made";
+            catch
             end
 
             % Publish trace
@@ -1998,7 +2000,8 @@ classdef BehaviorBoxWheel < handle
                 return
             end
             try
-            this.Time.Log(end+1,1) = "Reward";
+                this.Time.Log(end+1,1) = "Reward";
+            catch
             end
             % Give first drop only once
             this.a.GiveReward();
@@ -2007,7 +2010,10 @@ classdef BehaviorBoxWheel < handle
             this.FlashNew(this.StimulusStruct, this.Box,  lines, "Correct_Confirmation");
             for i = 2:PulseNum
                 pause(this.Box.SecBwPulse)
-                this.Time.Log(end+1,1) = "Reward";
+                try
+                    this.Time.Log(end+1,1) = "Reward";
+                catch
+                end
                 this.a.GiveReward();
                 this.FlashNew(this.StimulusStruct, this.Box,  lines, "Correct_Confirmation");
             end
@@ -2067,7 +2073,8 @@ classdef BehaviorBoxWheel < handle
             end
             this.ReadyCue(true)
             try
-            this.Time.Log(end+1,1) = "Stim off";
+                this.Time.Log(end+1,1) = "Stim off";
+            catch
             end
             %Wait for interval
             this.UpdatePause(interval_time)
