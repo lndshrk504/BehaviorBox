@@ -2595,7 +2595,7 @@ classdef BehaviorBoxWheel < handle
                     %BX.Position(X_or_Y) = BX.Position(X_or_Y) + direction * stepSize;
                     if ~one_drop_only && AX.Position(X_or_Y) > (Center-0.01) && AX.Position(X_or_Y) < (Center+0.01)
                         if this.app.Animate_MimicTrial.Value
-                            this.a.GiveReward
+                            this.a.GiveReward()
                             one_drop_only = true;
                         end
                     end
@@ -2653,7 +2653,7 @@ classdef BehaviorBoxWheel < handle
                     Pos_Record(I,2) = 4;
                     if this.app.Animate_MimicTrial.Value
                         try
-                            this.a.GiveReward
+                            this.a.GiveReward()
                         catch
                         end
                     end
@@ -2827,7 +2827,7 @@ classdef BehaviorBoxWheel < handle
                 if AX.Position(X_or_Y) > (Center-0.01) && AX.Position(X_or_Y) < (Center+0.01)
                     AX.Position(X_or_Y) = Center;
                     drawnow;
-                    this.a.GiveReward
+                    this.a.GiveReward()
                     break
                 end
             end

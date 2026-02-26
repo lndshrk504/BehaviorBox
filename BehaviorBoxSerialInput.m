@@ -252,14 +252,16 @@ classdef BehaviorBoxSerialInput < handle
                 this.DispOutput = true;
             end
 
-            side = upper(strtrim(string(opts.Side)));
-            if any(side == ["RIGHT","R"])
-                this.sendSerialBytes('R');
-            elseif any(side == ["LEFT","L"])
-                this.sendSerialBytes('L');
-            else
-                error('GiveReward:InvalidSide', 'opts.Side must be R/L or Right/Left');
-            end
+            % side = upper(strtrim(string(opts.Side)));
+            % if any(side == ["RIGHT","R"])
+            %     this.sendSerialBytes('R');
+            % elseif any(side == ["LEFT","L"])
+            %     this.sendSerialBytes('L');
+            % else
+            %     error('GiveReward:InvalidSide', 'opts.Side must be R/L or Right/Left');
+            % end
+
+            this.sendSerialBytes(char(opts.Side));
 
             if ~this.UseCallback
                 pause(0.05);
