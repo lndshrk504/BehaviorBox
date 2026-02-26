@@ -380,7 +380,12 @@ classdef BehaviorBoxWheel < handle
             [this.fig, this.LStimAx, this.RStimAx, this.FLAx, ~] = this.Stimulus_Object.setUpFigure();
             if ~any([this.app.Animate_Go.Value this.app.Animate_Show.Value this.app.Animate_Flash.Value this.app.Animate_Rec.Value]) % Don't show finish line for animation
                 this.ReadyCue('Create')
-                this.ReadyCueAx = this.fig.Children(3);
+                if isempty(this.ReadyCueAx) || ~isgraphics(this.ReadyCueAx)
+                    this.ReadyCueAx = findobj(this.fig, 'Type', 'axes', 'Tag', 'ReadyCue');
+                    if ~isempty(this.ReadyCueAx)
+                        this.ReadyCueAx = this.ReadyCueAx(1);
+                    end
+                end
                 this.ReadyCueStruct.Ax = this.ReadyCueAx;
                 this.StimulusStruct.ReadyCue = this.ReadyCueStruct;
             end
@@ -710,14 +715,24 @@ classdef BehaviorBoxWheel < handle
                 case ~isempty(this.a) && this.Box.Input_type==6 %Wheel 2.0, wait for the mouse to hold the wheel still for the interval to start a new trial
                     if this.i ~=1
                         this.ReadyCue(true);
-                        set(this.FLAx, 'Visible', true);
+                        if isempty(this.FLAx) || any(~isgraphics(this.FLAx))
+                            this.FLAx = [ ...
+                                findobj(this.fig, 'Type', 'Polygon', 'Tag', 'FinishLine'); ...
+                                findobj(this.fig, 'Type', 'Patch', 'Tag', 'FinishLineTri') ...
+                                ];
+                        end
+                        if ~isempty(this.FLAx)
+                            set(this.FLAx, 'Visible', true);
+                        end
                         drawnow
                         timelimit = this.Setting_Struct.HoldStill;
                         tic;
                         while toc<=timelimit
                             this.message_handle.Text = "Keep the wheel still for "+num2str(round(timelimit - toc,1))+" seconds."; drawnow limitrate
                             if this.a.ReadWheel() ~= 0
-                                this.Flash(this.StimulusStruct, this.Box, findobj('Type', 'Polygon'), 'Wheel');
+                                if ~isempty(this.FLAx) && all(isgraphics(this.FLAx))
+                                    this.Flash(this.StimulusStruct, this.Box, this.FLAx, 'Wheel');
+                                end
                                 this.a.Reset();
                                 tic;
                             end
@@ -1132,7 +1147,6 @@ classdef BehaviorBoxWheel < handle
             gL = [];
             scaleR = 1;
             scaleL = 1;
-            M = eye(4);
             try
                 if ~isempty(this.Stimulus_Object) && ismethod(this.Stimulus_Object,'getWheelMotionTargets')
                     [gR, gL, scaleR, scaleL] = this.Stimulus_Object.getWheelMotionTargets();
@@ -1264,10 +1278,10 @@ classdef BehaviorBoxWheel < handle
                 % Apply motion only when delta changes
                 if isnan(prevDelta) || abs(delta - prevDelta) > 1e-7
                     if useXform
-                        M(1,4) = double(delta) * scaleR;
-                        gR.Matrix = M;
-                        M(1,4) = double(delta) * scaleL;
-                        gL.Matrix = M;
+                        txR = double(delta) * scaleR;
+                        txL = double(delta) * scaleL;
+                        gR.Matrix = makehgtform('translate', [txR 0 0]);
+                        gL.Matrix = makehgtform('translate', [txL 0 0]);
                     else
                         pos1 = pos1i + ([double(delta) 0 0 0]);
                         axR.Position = pos1;
@@ -1281,7 +1295,7 @@ classdef BehaviorBoxWheel < handle
 
                 % Render/UI pump at target Hz (avoid 20 Hz cap of drawnow limitrate)
                 if (tNow - tLastDraw) >= drawInterval
-                    drawnow nocallbacks
+                    drawnow %nocallbacks
                     tLastDraw = tNow;
                 end
 
@@ -1426,10 +1440,10 @@ classdef BehaviorBoxWheel < handle
 
                     if isnan(prevDelta) || abs(delta - prevDelta) > 1e-7
                         if useXform
-                            M(1,4) = double(delta) * scaleR;
-                            gR.Matrix = M;
-                            M(1,4) = double(delta) * scaleL;
-                            gL.Matrix = M;
+                            txR = double(delta) * scaleR;
+                            txL = double(delta) * scaleL;
+                            gR.Matrix = makehgtform('translate', [txR 0 0]);
+                            gL.Matrix = makehgtform('translate', [txL 0 0]);
                         else
                             pos1 = pos1i + ([double(delta) 0 0 0]);
                             axR.Position = pos1;
@@ -1560,7 +1574,6 @@ classdef BehaviorBoxWheel < handle
             gL = [];
             scaleR = 1;
             scaleL = 1;
-            M = eye(4);
             try
                 if ~isempty(this.Stimulus_Object) && ismethod(this.Stimulus_Object,'getWheelMotionTargets')
                     [gR, gL, scaleR, scaleL] = this.Stimulus_Object.getWheelMotionTargets();
@@ -1683,10 +1696,10 @@ classdef BehaviorBoxWheel < handle
 
                 if isnan(prevDelta) || abs(delta - prevDelta) > 1e-7
                     if useXform
-                        M(1,4) = double(delta) * scaleR;
-                        gR.Matrix = M;
-                        M(1,4) = double(delta) * scaleL;
-                        gL.Matrix = M;
+                        txR = double(delta) * scaleR;
+                        txL = double(delta) * scaleL;
+                        gR.Matrix = makehgtform('translate', [txR 0 0]);
+                        gL.Matrix = makehgtform('translate', [txL 0 0]);
                     else
                         pos1 = pos1i + ([double(delta) 0 0 0]);
                         axR.Position = pos1;
@@ -2265,6 +2278,10 @@ classdef BehaviorBoxWheel < handle
                 case islogical(isVis)
                     set(this.ReadyCueAx, 'Visible', isVis)
                 case isVis == "Create"
+                    oldRQ = findobj(this.fig, 'Type', 'axes', 'Tag', 'ReadyCue');
+                    if ~isempty(oldRQ)
+                        delete(oldRQ(isgraphics(oldRQ)));
+                    end
                     RCAx = axes('Parent', this.fig, ...
                         'Position', [0 0 1 1], ...
                         'Color', 'k', ...
@@ -2273,7 +2290,20 @@ classdef BehaviorBoxWheel < handle
                         'YColor', 'none', ...
                         'YTick', [], ...
                         'XTick', []);
-                    this.fig.Children = [this.fig.Children([2 3 1 4 5])];
+                    this.ReadyCueAx = RCAx;
+                    % Keep old layering intent (ReadyCue not top-most), but make it
+                    % robust to any number of figure children.
+                    try
+                        ch = this.fig.Children;
+                        iRQ = find(ch == RCAx, 1, 'first');
+                        if ~isempty(iRQ)
+                            others = ch([1:iRQ-1 iRQ+1:end]);
+                            ins = min(3, numel(others) + 1);
+                            newOrder = [others(1:ins-1); RCAx; others(ins:end)];
+                            this.fig.Children = newOrder;
+                        end
+                    catch
+                    end
                     % case ischar(isVis) %Letter color abbrev.
                     %     ax = findobj(this.ReadyCueAx, 'Type', 'Axes');
                     %     ax.Color = char(isVis);
@@ -2968,6 +2998,13 @@ classdef BehaviorBoxWheel < handle
             if ~Stim.FlashStim
                 return
             end
+            if isempty(Lines)
+                return
+            end
+            Lines = Lines(isgraphics(Lines));
+            if isempty(Lines)
+                return
+            end
             switch 1
                 case contains(whatdecision, 'wrong')
                     Reps = Stim.RepFlashAfterW;
@@ -3027,7 +3064,7 @@ classdef BehaviorBoxWheel < handle
                             pause(1/Freq/2)
                         end
                     end
-                elseif Lines(1).Type == "polygon" %Wheel
+                elseif any(strcmpi(string(Lines(1).Type), ["polygon","patch"])) %Wheel finish line
                     for StimRep = 1:Reps
                         [Lines.FaceColor] = deal(flash_color); drawnow
                         pause(1/Freq/6)

@@ -21,7 +21,7 @@ classdef BehaviorBoxSerialInput < handle
         UseCallback logical = true
 
         % Debug (printing to MATLAB console is very slow)
-        DispOutput logical = false
+        DispOutput logical = true
 
         % Cached readings (fast path)
         ReadingChar char = '-'        % Nose tokens
@@ -47,6 +47,9 @@ classdef BehaviorBoxSerialInput < handle
 
         % Parsing behavior
         IgnoreNonData logical = true
+
+        % Serial receive buffer for byte-based callback parsing
+        RxBuffer char = ''
     end
 
     methods
@@ -60,48 +63,88 @@ classdef BehaviorBoxSerialInput < handle
 
             try
                 this.Ard = serialport(port, baudRate, "Timeout", 2);
-                configureTerminator(this.Ard, "CR/LF");
-                configureCallback(this.Ard, "terminator", @this.SerialRead);
+                configureTerminator(this.Ard, "LF");
+                flush(this.Ard);
+                if this.UseCallback
+                    % Byte callback is robust to mixed line endings and partial lines.
+                    configureCallback(this.Ard, "byte", 1, @(src, evt) this.SerialReadCallback(src, evt));
+                else
+                    configureCallback(this.Ard, "off");
+                end
             catch err
                 disp('Serial connection failed.')
             end
-            if this.Input_type == "Wheel"
+            if strcmpi(this.Input_type, 'Wheel')
                 this.DispOutput = true;
                 this.ReadingChar = '0';
                 this.ReadingDouble = 0;
                 this.Reading = "0";
             else
+                this.DispOutput = true;
                 this.ReadingChar = '-';
                 this.ReadingDouble = 0;
                 this.Reading = "-";
             end
         end
 
-        function out = SerialRead(this, src, ~)
+        function SerialReadCallback(this, src, evt)
+            % Wrapper for serial callback (callbacks should not rely on outputs).
+            try
+                this.SerialRead(src, evt);
+            catch
+                % Keep callback alive even if one parse event fails.
+            end
+        end
+
+        function out = SerialRead(this, varargin)
             % Callback or polling read. Updates cached readings.
-            arguments
-                this
-                src = this.Ard
-                ~
+            src = this.Ard;
+            if nargin >= 2 && ~isempty(varargin{1})
+                src = varargin{1};
             end
 
+            out = this.readingForOutput();
             try
-                if src.NumBytesAvailable == 0
-                    out = this.readingForOutput();
-                    return
-                end
+                nBytes = src.NumBytesAvailable;
             catch
-                out = this.readingForOutput();
+                return
+            end
+            if nBytes == 0
                 return
             end
 
-            newReading = readline(src);  % string
-            this.processReading(newReading);
+            rawChars = read(src, nBytes, "char");
+            this.consumeRawChars(rawChars);
 
             if this.DispOutput
-                disp(this.Reading);
+                trimChars = regexprep(rawChars, '\r\n|\r|\n', '');
+                disp(trimChars);
             end
             out = this.readingForOutput();
+        end
+
+        function consumeRawChars(this, rawChars)
+            % Parse incoming stream into newline-delimited records.
+            if isempty(rawChars)
+                return
+            end
+            this.RxBuffer = [this.RxBuffer, char(rawChars)];
+
+            while true
+                lfIdx = find(this.RxBuffer == char(10), 1, 'first');
+                if isempty(lfIdx)
+                    break
+                end
+
+                line = this.RxBuffer(1:lfIdx-1);
+                this.RxBuffer = this.RxBuffer(lfIdx+1:end);
+
+                if ~isempty(line) && line(end) == char(13)
+                    line(end) = [];
+                end
+
+                this.processReading(string(line));
+            end
         end
 
         function out = readingForOutput(this)
@@ -124,7 +167,7 @@ classdef BehaviorBoxSerialInput < handle
 
             if strcmpi(this.Input_type, 'Wheel')
                 % Expect a number per line. Ignore any non-numeric debug text.
-                v = sscanf(char(newReading), '%f', 1);
+                v = sscanf(strtrim(char(newReading)), '%f', 1);
                 if isempty(v)
                     if ~this.IgnoreNonData
                         this.ReadingDouble = NaN;
@@ -135,9 +178,9 @@ classdef BehaviorBoxSerialInput < handle
                 this.ReadingChar = '0'; % not used, but keep defined
             else
                 % Expect single-character tokens: L/M/R/-
-                s = char(newReading);
+                s = strtrim(char(newReading));
                 if numel(s) ~= 1
-                    if ~this.IgnoreNonData
+                    if ~this.IgnoreNonData && ~isempty(s)
                         this.ReadingChar = s(1);
                     end
                     return
@@ -171,42 +214,73 @@ classdef BehaviorBoxSerialInput < handle
         function SetupReward(this, opts)
             arguments
                 this
-                opts.DurationRight string = string(this.Rrewardtime)
-                opts.DurationLeft string = string(this.Lrewardtime)
-                opts.Which string = "Right"
+                opts.DurationRight = this.Rrewardtime
+                opts.DurationLeft = this.Lrewardtime
+                opts.Which = "Right"
             end
             this.DispOutput = true;
-            
-            if ismember(opts.Which, ["Right","Both"])
-                writeline(this.Ard, "s" + opts.DurationRight);
+
+            which = upper(strtrim(string(opts.Which)));
+            sendRight = any(which == ["RIGHT","R","BOTH"]);
+            sendLeft  = any(which == ["LEFT","L","BOTH"]);
+
+            durationRight = strtrim(char(string(opts.DurationRight)));
+            durationLeft  = strtrim(char(string(opts.DurationLeft)));
+
+            if sendRight
+                this.sendSerialBytes(['s', durationRight, char(10)]);
             end
-            if ismember(opts.Which, ["Left","Both"])
-                writeline(this.Ard, "S" + opts.DurationLeft);
+            if sendLeft
+                this.sendSerialBytes(['S', durationLeft, char(10)]);
             end
 
-            this.Rrewardtime = str2double(opts.DurationRight);
-            this.Lrewardtime = str2double(opts.DurationLeft);
-            pause(0.1)
+            this.Rrewardtime = str2double(string(opts.DurationRight));
+            this.Lrewardtime = str2double(string(opts.DurationLeft));
+            pause(0.1);
+            if ~this.UseCallback
+                this.SerialRead();
+            end
             this.DispOutput = false;
-            
-            % if this.Input_type == "Wheel"
-            %     pause(0.1)
-            %     this.DispOutput = false;
-            % end
         end
 
         function GiveReward(this, opts)
             arguments
                 this
-                opts.Side char = 'R'
+                opts.Side = 'R'
             end
-            if this.Input_type == "Wheel"
+            if strcmpi(this.Input_type, 'Wheel')
                 this.DispOutput = true;
             end
-            write(this.Ard, opts.Side, "char");
-            if this.Input_type == "Wheel"
+
+            side = upper(strtrim(string(opts.Side)));
+            if any(side == ["RIGHT","R"])
+                this.sendSerialBytes('R');
+            elseif any(side == ["LEFT","L"])
+                this.sendSerialBytes('L');
+            else
+                error('GiveReward:InvalidSide', 'opts.Side must be R/L or Right/Left');
+            end
+
+            if ~this.UseCallback
+                pause(0.05);
+                this.SerialRead();
+            end
+            if strcmpi(this.Input_type, 'Wheel')
                 this.DispOutput = false;
             end
+        end
+
+        function sendSerialBytes(this, payload)
+            % Send raw bytes to serial device (robust across MATLAB versions).
+            if isempty(this.Ard)
+                error('BehaviorBoxSerialInput:NoSerial', 'Serial device is not initialized.');
+            end
+
+            bytes = uint8(payload);
+            if isempty(bytes)
+                return
+            end
+            writeline(this.Ard, payload);
         end
 
         function TimeStamp(this, Type)
@@ -242,23 +316,23 @@ classdef BehaviorBoxSerialInput < handle
         end
 
         function LeftRead = ReadLeft(this)
-            reading = this.Reading; % Read the value once
-            LeftRead = strcmp(reading, 'L');
+            reading = this.ReadingChar; % cached single-char token
+            LeftRead = (reading == 'L');
         end
 
         function RightRead = ReadRight(this)
-            reading = this.Reading; % Read the value once
-            RightRead = strcmp(reading, 'R');
+            reading = this.ReadingChar; % cached single-char token
+            RightRead = (reading == 'R');
         end
 
         function MiddleRead = ReadMiddle(this)
-            reading = this.Reading; % Read the value once
-            MiddleRead = strcmp(reading, 'M');
+            reading = this.ReadingChar; % cached single-char token
+            MiddleRead = (reading == 'M');
         end
 
         function NoneRead = ReadNone(this)
-            reading = this.Reading; % Read the value once
-            NoneRead = ~strcmp(reading, '-');
+            reading = this.ReadingChar; % cached single-char token
+            NoneRead = (reading ~= '-');
             % To match behavior this one is flipped, because it is only
             % used for the flashing while waiting for input
         end
@@ -313,7 +387,7 @@ classdef BehaviorBoxSerialInput < handle
                 configureCallback(this.Ard, "off");
             catch
             end
-            this.Ard = serialport.empty;
+            this.Ard = serialport().empty;
             disp('Behavior Serial port is closed');
         end
     end

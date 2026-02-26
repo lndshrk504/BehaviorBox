@@ -99,6 +99,7 @@ classdef BehaviorBoxNose < handle
         Sound_Object = struct();
         Sound_Struct = struct(); %This is only used to make the sounds, which are not used anymore since mice are trained concurrently.
         textdiary
+        textdiary_pos = 0;
     end
     methods
         function this = BehaviorBoxNose(GUI_handles, app)
@@ -269,27 +270,53 @@ classdef BehaviorBoxNose < handle
         end
         function OUT = ManyLevels(~, In)
             OUT = In;
-            if ~isnumeric(In.HardLvList)
-                HardLevs = str2num(string(In.HardLvList)); %#ok<ST2NM>
+            if isnumeric(In.HardLvList)
+                HardLevs = In.HardLvList;
             else
                 HardLevs = str2num(string(In.HardLvList)); %#ok<ST2NM>
             end
-            if ~isnumeric(In.EasyLvList)
-                EasyLevs = str2num(string(In.EasyLvList)); %#ok<ST2NM>
+            if isnumeric(In.EasyLvList)
+                EasyLevs = In.EasyLvList;
             else
                 EasyLevs = str2num(string(In.EasyLvList)); %#ok<ST2NM>
             end
             LEVELS = {EasyLevs HardLevs; In.EasyLvProb In.HardLvProb};
-            PossibleLevels = [];
-            for L = LEVELS
-                levs = L{1};
-                p = ceil((L{2}*100)/numel(levs));
+            reps_per_level = zeros(1, size(LEVELS, 2));
+            total_count = 0;
+            for k = 1:size(LEVELS, 2)
+                levs = LEVELS{1, k};
+                levs = levs(:)';
+                if isempty(levs)
+                    continue
+                end
+                reps_per_level(k) = max(0, ceil((LEVELS{2, k} * 100) / numel(levs)));
+                total_count = total_count + numel(levs) * reps_per_level(k);
+            end
+
+            PossibleLevels = zeros(1, total_count);
+            idx = 1;
+            for k = 1:size(LEVELS, 2)
+                levs = LEVELS{1, k};
+                levs = levs(:)';
+                p = reps_per_level(k);
+                if isempty(levs) || p == 0
+                    continue
+                end
                 for l = levs
-                    PossibleLevels = [PossibleLevels repmat(l, 1, p)];
+                    PossibleLevels(idx:(idx + p - 1)) = l;
+                    idx = idx + p;
+                end
+            end
+            if idx > 1
+                PossibleLevels = PossibleLevels(1:idx-1);
+            else
+                PossibleLevels = [EasyLevs HardLevs];
+                if isempty(PossibleLevels)
+                    PossibleLevels = 1;
                 end
             end
             OUT.PossibleLevels = PossibleLevels;
-            OUT.ChooseLevel = @(x)OUT.PossibleLevels(randperm(numel(PossibleLevels), 1));
+            OUT.ChooseLevel = @(~)OUT.PossibleLevels(randi(numel(OUT.PossibleLevels)));
         end
         %set hardware (arduino) parameters
         function ConfigureBox(this)
@@ -357,6 +384,7 @@ classdef BehaviorBoxNose < handle
                 diaryname = fullfile(this.Data_Object.Sub, DATE);
             end
             this.textdiary = diaryname;
+            this.textdiary_pos = 0;
             diary(diaryname)
             this.Data_Object.TrainingNow = 1;
             %create stimulus depending on input device
@@ -422,7 +450,16 @@ classdef BehaviorBoxNose < handle
             end
             %Update GUI window numbers
             this.updateGUIbeforeIteration(); %Update again, in case the level changed
-            [this.fig.Children.findobj('Type','Line').Visible] = deal(0);
+            stim_objs = [ ...
+                findobj(this.fig, 'Tag', 'Contour'); ...
+                findobj(this.fig, 'Tag', 'Distractor'); ...
+                findobj(this.fig, 'Tag', 'Spotlight'); ...
+                findobj(this.fig, 'Tag', 'Dot') ...
+                ];
+            stim_objs = stim_objs(isgraphics(stim_objs));
+            if ~isempty(stim_objs)
+                set(stim_objs, 'Visible', 0);
+            end
             drawnow
             this.ReadyCue(1)
         end
@@ -705,14 +742,14 @@ classdef BehaviorBoxNose < handle
         function stable = Middle_StableChoice_StartTrial(this, checkDelay)
             % Check if the sensor value remains stable for 1 second
             if checkDelay
-                delayTime = this.Setting_Struct.Input_Delay_Respond;
+                delayTime = this.getDelaySetting_('Input_Delay_Start', 'Input_Delay_Respond');
             else
                 delayTime = 0;
             end
             STABLE = true;
             % Ensure the value remains 1 for the specified duration
-            tic
-            while toc < delayTime
+            t_hold = tic;
+            while toc(t_hold) < delayTime
                 pause(0.01); % check in small intervals
                 if ~this.a.ReadNone()
                     STABLE = false;
@@ -789,7 +826,7 @@ classdef BehaviorBoxNose < handle
             text = 'Only choose Middle to start trial, malingering timeout...';
             fprintf([text '\n']);
             set(this.message_handle, 'Text', text);
-            timerStart = clock;
+            t_start = tic;
 
             while true
                 pause(0.1);
@@ -799,7 +836,7 @@ classdef BehaviorBoxNose < handle
                     break;
                 end
 
-                if etime(clock, timerStart) > InterTMalInterv
+                if toc(t_start) > InterTMalInterv
                     this.ReadyCue(1);
                     set(this.message_handle, 'Text', 'Waiting for Trial initialization');
                     break;
@@ -837,29 +874,51 @@ classdef BehaviorBoxNose < handle
             this.ResponseTime = 0;
             this.WhatDecision = 'time out';
             this.DrinkTime = 0;
-% Make stimulus line elements background color
-            set(findobj(this.fig.Children, 'Type','line'), 'Color', this.StimulusStruct.BackgroundColor)
-            o = {this.fig.Children.Children}; % Hide ReadyCue and set background
-            validObjs = o(~cellfun(@isempty, o));
-            for x = validObjs
-                set([x{:}], 'Visible', 1);
+            % Restore only task stimulus objects (not wheel finish line/UI overlays).
+            stim_vis = [ ...
+                findobj(this.fig, 'Tag', 'Contour'); ...
+                findobj(this.fig, 'Tag', 'Distractor'); ...
+                findobj(this.fig, 'Tag', 'Spotlight'); ...
+                findobj(this.fig, 'Tag', 'Dot') ...
+                ];
+            stim_vis = stim_vis(isgraphics(stim_vis));
+            if ~isempty(stim_vis)
+                set(stim_vis, 'Visible', 1);
+            end
+
+            % Start each trial from background for line-based stimuli.
+            stim_lines = [ ...
+                findobj(this.fig, 'Type', 'Line', 'Tag', 'Contour'); ...
+                findobj(this.fig, 'Type', 'Line', 'Tag', 'Distractor'); ...
+                findobj(this.fig, 'Type', 'ConstantLine', 'Tag', 'Contour'); ...
+                findobj(this.fig, 'Type', 'ConstantLine', 'Tag', 'Distractor') ...
+                ];
+            if ~isempty(stim_lines)
+                set(stim_lines, 'Color', this.StimulusStruct.BackgroundColor, 'Visible', 1);
             end
             this.fig.Color = this.StimulusStruct.BackgroundColor;
             this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'ReadyCueDot'), "Make_Background", true);
             this.ReadyCue(0);
-            this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'line'), "Make_StartColor");
+            this.FlashNew(this.StimulusStruct, this.Box, stim_lines, "Make_StartColor");
         end
         function processIgnoredInput(this)
-            tic;
-            while this.Box.ardunioReadDigital && this.Setting_Struct.Input_ignored && toc <= this.Setting_Struct.Pokes_ignored_time
+            if ~(this.Box.ardunioReadDigital && this.Setting_Struct.Input_ignored)
+                return
+            end
+            t_ignore = tic;
+            while toc(t_ignore) <= this.Setting_Struct.Pokes_ignored_time
+                if get(this.stop_handle, 'Value')
+                    break
+                end
                 if this.Setting_Struct.ConfirmChoice
                     this.confirmCorrectChoice();
                 end
                 if this.a.ReadMiddle()
                     this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), "NewStim");
-                    tic; % Restart the timer to avoid skipping confirmation period
+                    % Restart the ignore interval when center is re-triggered.
+                    t_ignore = tic;
                 end
-                this.updateInputIgnoredMessage();
+                this.updateInputIgnoredMessage(t_ignore);
                 drawnow;
             end
         end
@@ -870,8 +929,8 @@ classdef BehaviorBoxNose < handle
                 this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Contour'), "Flash_Contour");
             end
         end
-        function updateInputIgnoredMessage(this)
-            time = this.Setting_Struct.Pokes_ignored_time - toc;
+        function updateInputIgnoredMessage(this, t_ignore)
+            time = max(this.Setting_Struct.Pokes_ignored_time - toc(t_ignore), 0);
             txt = sprintf("Ignoring input for %.1f sec...", round(time, 1));
             set(this.message_handle, 'Text', txt);
         end
@@ -979,21 +1038,6 @@ classdef BehaviorBoxNose < handle
             this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), "Make_Background", true)
             [o(:).Visible] = deal(0);
         end
-        function updatePause(this, interval)
-            % This fcn is unused, UpdatePause (capital U) is the function
-            % used... why? eliminate?)
-            starttime = clock;
-            while etime(clock, starttime) < interval
-                pause(0.1); drawnow;
-                if this.Pause.Value
-                    this.pauseMessage();
-                    continue;
-                end
-                if get(this.stop_handle, 'Value') || get(this.FF, 'Value')
-                    break;
-                end
-            end
-        end
         function pauseMessage(this)
             set(this.message_handle, 'Text', 'Paused, click pause button again to continue...');
             o = findobj(this.fig.Children);
@@ -1006,82 +1050,19 @@ classdef BehaviorBoxNose < handle
         end
         %read the lever (digital read)
         function [WhatDecision, response_time] = readLeverLoopDigital(this)
-            response_time = 0;
-            this.DuringTMal = 0;
-            event = -1;
-            try
-                timeout_value = this.Box.Timeout_after_time;
-                response_timer_start = datetime("now");
-                % Main loop to wait for actions
-                tic
-                while timeout_value == 0 || toc < timeout_value
-                    pause(0.01); % Pause is needed otherwise Arduino callback won't update
-                    % Check for skip or stop conditions
-                    if get(this.Skip, 'Value')
-                        this.Skip.Value = 0;
-                        response_time = response_timer_start;
-                        break;
-                    elseif get(this.stop_handle, 'Value')
-                        response_time = response_timer_start;
-                        break;
-                    end
-                    % Handle middle reading for inter-trial malingering
-                    if this.a.ReadMiddle()
-                        this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), "Make_Background", false);
-                        this.DuringTMal = this.DuringTMal + 1;
-                    end
-                    % Check for left or right decisions with stability
-                    if this.Left_StableChoice_DuringTrial(true)  % With delay
-                        event = 1; % Left Choice
-                        response_time = datetime("now");
-                        break;
-                    elseif this.Right_StableChoice_DuringTrial(true)  % With delay
-                        event = 2; % Right Choice
-                        response_time = datetime("now");
-                        break;
-                    end
-                end
-                % Fade all distractor color to dim
-                try
-                    d = findobj(this.fig.Children, "Tag", "Distractor");
-                    this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Distractor'), "Make_Dim")
-                    [d.Color] = deal(this.StimulusStruct.DimColor);
-                catch % Ignore errors related to finding and updating distractors
-                end
-                response_time = seconds(response_time-response_timer_start);
-            catch err
-                this.unwrapError(err);
-            end
-            % Translate event to decision enum
-            switch event
-                case -1
-                    WhatDecision = 'time out';
-                    response_time = 0;
-                case 1
-                    if this.isLeftTrial == 1 || this.isLeftTrial == -1
-                        WhatDecision = 'left correct';
-                    else
-                        WhatDecision = 'left wrong';
-                    end
-                case 2
-                    if this.isLeftTrial == 0 || this.isLeftTrial == -1
-                        WhatDecision = 'right correct';
-                    else
-                        WhatDecision = 'right wrong';
-                    end
-            end
+            [WhatDecision, response_time] = this.readLeverLoopDigitalCore(false);
         end
         function stable = Left_StableChoice_DuringTrial(this, checkDelay)
             % Check if the sensor value remains stable for 1 second
             if checkDelay
-                delayTime = this.Setting_Struct.Input_Delay_Respond;
+                delayTime = this.getDelaySetting_('Input_Delay_Respond');
             else
                 delayTime = 0;
             end
             STABLE = true;
             % Ensure the value remains 1 for the specified duration
-            tic
-            while toc < delayTime
+            t_hold = tic;
+            while toc(t_hold) < delayTime
                 pause(0.01); % Pause is needed otherwise Arduino callback won't update
                 if ~this.a.ReadNone()
                     stable = false;
@@ -1104,14 +1085,14 @@ classdef BehaviorBoxNose < handle
         function stable = Right_StableChoice_DuringTrial(this, checkDelay)
             % Check if the sensor value remains stable for 1 second
             if checkDelay
-                delayTime = this.Setting_Struct.Input_Delay_Respond;
+                delayTime = this.getDelaySetting_('Input_Delay_Respond');
             else
                 delayTime = 0;
             end
             STABLE = true;
             % Ensure the value remains 1 for the specified duration
-            tic
-            while toc < delayTime
+            t_hold = tic;
+            while toc(t_hold) < delayTime
                 pause(0.01); % Pause is needed otherwise Arduino callback won't update
                 if ~this.a.ReadNone()
                     stable = false;
@@ -1133,77 +1114,214 @@ classdef BehaviorBoxNose < handle
         end
         %read the lever (digital read)
         function [WhatDecision, response_time] = readLeverLoopDigital_OnlyCorrect(this)
+            [WhatDecision, response_time] = this.readLeverLoopDigitalCore(true);
+        end
+        function [WhatDecision, response_time] = readLeverLoopDigitalCore(this, only_correct_mode)
             response_time = 0;
             this.DuringTMal = 0;
             event = -1;
             try
                 timeout_value = this.Box.Timeout_after_time;
-                response_timer_start = datetime("now");
-                % Main loop to wait for actions
-                tic
-                while timeout_value == 0 || toc < timeout_value
-                    pause(0.01); % Pause is needed otherwise Arduino callback won't update
-                    % Check for skip or stop conditions
-                    if get(this.Skip, 'Value')
-                        this.Skip.Value = 0;
+                skip_handle = this.Skip;
+                stop_handle = this.stop_handle;
+                stim = this.StimulusStruct;
+                box = this.Box;
+                loop_pause = 0.01;
+                middle_flash_interval = 0.05;
+                contour_flash_interval = 0.05;
+                is_left_trial = this.isLeftTrial;
+                confirm_choice = isfield(this.Setting_Struct, 'ConfirmChoice') && logical(this.Setting_Struct.ConfirmChoice);
+                delay_time = this.getDelaySetting_('Input_Delay_Respond');
+
+                accept_left = true;
+                accept_right = true;
+                if only_correct_mode
+                    accept_left = logical(is_left_trial);
+                    accept_right = ~accept_left;
+                end
+
+                all_lines = findobj(this.fig.Children, 'Type', 'Line');
+                distractor_lines = findobj(this.fig.Children, 'Tag', 'Distractor');
+                contour_lines = findobj(this.fig.Children, 'Tag', 'Contour');
+
+                candidate_side = '';
+                candidate_t0 = NaN;
+                prev_middle = false;
+                last_middle_flash_t = -Inf;
+                last_contour_flash_t = -Inf;
+
+                t_loop = tic;
+                while timeout_value == 0 || toc(t_loop) < timeout_value
+                    pause(loop_pause);
+                    if get(skip_handle, 'Value')
+                        skip_handle.Value = 0;
+                        response_time = toc(t_loop);
                         break;
-                    elseif get(this.stop_handle, 'Value')
+                    elseif get(stop_handle, 'Value')
+                        response_time = toc(t_loop);
                         break;
                     end
-                    % Handle middle reading for inter-trial malingering
-                    if this.a.ReadMiddle()
-                        this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), "Make_Background", false);
+
+                    t_now = toc(t_loop);
+                    token = this.currentNoseToken_();
+
+                    if token == 'M'
                         this.DuringTMal = this.DuringTMal + 1;
+                        if (~prev_middle) || ((t_now - last_middle_flash_t) >= middle_flash_interval)
+                            if isempty(all_lines) || any(~isgraphics(all_lines))
+                                all_lines = findobj(this.fig.Children, 'Type', 'Line');
+                            end
+                            this.FlashNew(stim, box, all_lines, "Make_Background", false);
+                            last_middle_flash_t = t_now;
+                        end
+                        candidate_side = '';
+                        candidate_t0 = NaN;
+                        last_contour_flash_t = -Inf;
+                        prev_middle = true;
+                        continue;
                     end
-                    % Check for left or right decisions with stability
-                    if this.Left_StableChoice_DuringTrial(true)  % With delay
-                        if this.isLeftTrial
-                            event = 1;
-                            response_time = datetime("now");
-                            break;
-                        else
-                            %this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), "Make_Background", false);
+                    prev_middle = false;
+
+                    if token == 'L' || token == 'R'
+                        if isempty(candidate_side) || candidate_side ~= token
+                            candidate_side = token;
+                            candidate_t0 = max(0, t_now - loop_pause);
+                            last_contour_flash_t = -Inf;
                         end
-                    elseif this.Right_StableChoice_DuringTrial(true)  % With delay
-                        if ~this.isLeftTrial
-                            event = 2;
-                            response_time = datetime("now");
-                            break;
-                        else
-                            %this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Type', 'Line'), "Make_Background", false);
+
+                        if confirm_choice
+                            is_correct_candidate = ...
+                                ((candidate_side == 'L') && (is_left_trial == 1 || is_left_trial == -1)) || ...
+                                ((candidate_side == 'R') && (is_left_trial == 0 || is_left_trial == -1));
+                            if is_correct_candidate && ((t_now - last_contour_flash_t) >= contour_flash_interval)
+                                if isempty(contour_lines) || any(~isgraphics(contour_lines))
+                                    contour_lines = findobj(this.fig.Children, 'Tag', 'Contour');
+                                end
+                                this.FlashNew(stim, box, contour_lines, "Flash_Contour");
+                                last_contour_flash_t = t_now;
+                            end
                         end
+
+                        if ~isnan(candidate_t0) && (t_now - candidate_t0) >= delay_time
+                            if candidate_side == 'L' && accept_left
+                                event = 1;
+                                response_time = t_now;
+                                break;
+                            elseif candidate_side == 'R' && accept_right
+                                event = 2;
+                                response_time = t_now;
+                                break;
+                            else
+                                candidate_side = '';
+                                candidate_t0 = NaN;
+                                last_contour_flash_t = -Inf;
+                            end
+                        end
+                    else
+                        candidate_side = '';
+                        candidate_t0 = NaN;
+                        last_contour_flash_t = -Inf;
                     end
                 end
-                % Fade all distractor color to dim
-                try
-                    d = findobj(this.fig.Children, "Tag", "Distractor");
-                    this.FlashNew(this.StimulusStruct, this.Box, findobj(this.fig.Children, 'Tag', 'Distractor'), "Make_Dim")
-                    [d.Color] = deal(this.StimulusStruct.DimColor);
-                catch % Ignore errors related to finding and updating distractors
+
+                should_dim_distractors = true;
+                if ~only_correct_mode && isfield(this.Setting_Struct, 'OnlyCorrect') && logical(this.Setting_Struct.OnlyCorrect)
+                    is_wrong_initial = false;
+                    if event == 1
+                        is_wrong_initial = ~(is_left_trial == 1 || is_left_trial == -1);
+                    elseif event == 2
+                        is_wrong_initial = ~(is_left_trial == 0 || is_left_trial == -1);
+                    end
+                    if is_wrong_initial
+                        should_dim_distractors = false;
+                    end
                 end
-                response_time = seconds(response_time-response_timer_start);
+
+                if should_dim_distractors
+                    try
+                        if isempty(distractor_lines) || any(~isgraphics(distractor_lines))
+                            distractor_lines = findobj(this.fig.Children, "Tag", "Distractor");
+                        end
+                        this.FlashNew(stim, box, distractor_lines, "Make_Dim")
+                        if ~isempty(distractor_lines) && all(isgraphics(distractor_lines))
+                            [distractor_lines.Color] = deal(stim.DimColor);
+                        end
+                    catch
+                    end
+                end
             catch err
                 this.unwrapError(err);
             end
-            % Translate event to decision enum
+
             switch event
                 case -1
                     WhatDecision = 'time out';
                     response_time = 0;
                 case 1
                     if this.isLeftTrial == 1 || this.isLeftTrial == -1
-                        WhatDecision = 'left correct OC';
+                        if only_correct_mode
+                            WhatDecision = 'left correct OC';
+                        else
+                            WhatDecision = 'left correct';
+                        end
                     else
                         WhatDecision = 'left wrong';
                     end
                 case 2
                     if this.isLeftTrial == 0 || this.isLeftTrial == -1
-                        WhatDecision = 'right correct OC';
+                        if only_correct_mode
+                            WhatDecision = 'right correct OC';
+                        else
+                            WhatDecision = 'right correct';
+                        end
                     else
                         WhatDecision = 'right wrong';
                     end
-                case 3 % Only_Correct Setting active, mouse got it wrong but gets second chance
-                    WhatDecision = 'OC';
+            end
+        end
+        function token = currentNoseToken_(this)
+            token = '-';
+            try
+                if isprop(this.a, 'ReadingChar')
+                    rc = this.a.ReadingChar;
+                    if ~isempty(rc)
+                        token = char(rc(1));
+                    end
+                    return
+                end
+            catch
+            end
+            try
+                if this.a.ReadMiddle()
+                    token = 'M';
+                elseif this.a.ReadLeft()
+                    token = 'L';
+                elseif this.a.ReadRight()
+                    token = 'R';
+                else
+                    token = '-';
+                end
+            catch
+            end
+        end
+        function delay = getDelaySetting_(this, primaryField, fallbackField)
+            arguments
+                this
+                primaryField (1,:) char
+                fallbackField (1,:) char = ''
+            end
+            delay = 0;
+            try
+                if isfield(this.Setting_Struct, primaryField) && ~isempty(this.Setting_Struct.(primaryField))
+                    delay = double(this.Setting_Struct.(primaryField));
+                elseif ~isempty(fallbackField) && isfield(this.Setting_Struct, fallbackField) && ~isempty(this.Setting_Struct.(fallbackField))
+                    delay = double(this.Setting_Struct.(fallbackField));
+                end
+            catch
+                delay = 0;
+            end
+            if ~isfinite(delay) || delay < 0
+                delay = 0;
             end
         end
         function FlashNew(this, Stim, Box, Lines, whatdecision, OneWay)
@@ -1211,18 +1329,25 @@ classdef BehaviorBoxNose < handle
                 this
                 Stim = this.StimulusStruct % from Setting structure
                 Box = this.Box
-                Lines = findobj(this.fig.Children, 'Tag', 'Contour')
+                Lines = findobj(this.fig, 'Tag', 'Contour')
                 whatdecision = "time out"
                 OneWay logical = false
             end
-            if isempty(Lines) || ~Stim.FlashStim
+            if isempty(Lines)
+                return
+            end
+            is_make_action = any(strcmpi(string(whatdecision), ["Make_Dim", "Make_Background", "Make_StartColor", "Make_FlashColor"]));
+            if ~Stim.FlashStim && ~is_make_action
                 return
             end
             start_color = Stim.LineColor;
             flash_color = Stim.FlashColor;
             dark_color = Stim.DimColor;
             background_color = Stim.BackgroundColor;
-            Steps = Stim.FreqAnimation;
+            Steps = max(1, round(double(Stim.FreqAnimation)));
+            if ~Stim.FlashStim && is_make_action
+                Steps = 1;
+            end
             if whatdecision == "WaitForInput" % Interrupt flash if mouse stops selecting center
                 this.BasicFlashCosine("Lines",Lines, "NewColor", flash_color, "steps", Steps, "Interruptor", @(x)~this.a.ReadNone())
             elseif whatdecision == "Flash_Contour" % Interrupt flash if mouse stops selecting correct side
@@ -1251,59 +1376,79 @@ classdef BehaviorBoxNose < handle
             end
         end
         function BasicFlashCosine(this, vars)
-            % Faster cosine flash:
-            %   - avoids interp1/repmat
-            %   - dot-notation property assignment where possible
-            %   - drawnow limitrate nocallbacks to skip redundant frames
-
             arguments
                 this
                 vars.Lines = findobj(this.fig.Children, 'Tag','Contour')
-                vars.NewColor double
-                vars.steps double
+                vars.NewColor
+                vars.steps
                 vars.OneWay logical = false
-                vars.Interruptor = []
-            end
-            if vars.steps == 1
-                return
+                vars.Interruptor = [];
             end
             obj = vars.Lines;
+            obj = obj(isgraphics(obj));
+            if isempty(obj)
+                return
+            end
             NewColor = vars.NewColor;
             steps = vars.steps;
             OneWay = vars.OneWay;
-            if OneWay
-                X = linspace(0,pi, steps);
-            else
-                %X = linspace(0,2*pi, 2*steps-1);
-                X = linspace(0,2*pi, steps);
-            end
             % This blinks the Obj to the NewColor and back, over a total of
             % 2*steps increments
             if obj(1).Type == "scatter"
                 start_color = [obj(1).MarkerFaceColor];
                 COLOR_PROP = 'MarkerFaceColor';
-            elseif obj(1).Type == "polygon"
+            elseif any(obj(1).Type == ["polygon", "patch"])
                 start_color = [obj(1).FaceColor];
-            elseif obj(1).Type == "line"
+                COLOR_PROP = 'FaceColor';
+            elseif any(obj(1).Type == ["line", "constantline"])
                 start_color = [obj(1).Color];
                 COLOR_PROP = 'Color';
+            elseif obj(1).Type == "rectangle"
+                start_color = [obj(1).FaceColor];
+                COLOR_PROP = 'FaceColor';
             else
                 return %prevent an error crash
             end
-% Calculations for Cosine function:
-% A cosine oscillates from 1 to -1 and 1, some adjustments must be made:
-            Range = start_color(1) - NewColor(1); % Maximum - Minimum of cosine oscillation
-            Amplitude = Range/2; % Half of the Range
-            Offset = (start_color(1) + NewColor(1))/2; % Vertical Shift
-            y = Amplitude * cos(X) + Offset; % Cosine smoothed oscillation between start and new color
-            mat = repmat(y,3,1); % Expand to RGB values
-            for C = mat
+            start_color = normalizeRGB_(start_color);
+            NewColor = normalizeRGB_(NewColor);
+            if steps <= 1
+                set(obj, COLOR_PROP, NewColor);
+                drawnow;
+                return
+            end
+            if OneWay
+                ST = 1:steps;
+            else
+                ST = [1:steps steps-1:-1:1];
+            end
+            mat = interp1([1 ; steps], [start_color ; NewColor], ST);
+            for i_step = 1:size(mat, 1)
+                C = mat(i_step, :);
+                C = max(0, min(1, C));
                 set(obj, COLOR_PROP, C); drawnow
                 %pause(0.01)
                 if ~isempty(vars.Interruptor) && vars.Interruptor() %This is all very slow and will be sped up later
                     set(obj, COLOR_PROP, start_color)
                     break
                 end
+            end
+
+            function c = normalizeRGB_(c)
+                c = double(c);
+                c = c(:)';
+                if isempty(c)
+                    c = [0 0 0];
+                elseif isscalar(c)
+                    c = [c c c];
+                elseif numel(c) < 3
+                    c = [c repmat(c(end), 1, 3 - numel(c))];
+                elseif numel(c) > 3
+                    c = c(1:3);
+                end
+                if any(c > 1)
+                    c = c / 255;
+                end
+                c = max(0, min(1, c));
             end
         end
         %open reward valves
@@ -1433,15 +1578,49 @@ classdef BehaviorBoxNose < handle
         end
         function updateMessageBox(this)
             try
-                % Read the content of the diary file
-                diaryContent = fileread(this.textdiary);
-                % Update the GUI text box with the latest content
-                this.GuiHandles.MsgBox.String = diaryContent;
+                fid = fopen(this.textdiary, 'r');
+                if fid < 0
+                    return
+                end
+                cleanupObj = onCleanup(@()fclose(fid));
+                fseek(fid, 0, 'eof');
+                file_end = ftell(fid);
+                if file_end < this.textdiary_pos
+                    this.textdiary_pos = 0;
+                    this.GuiHandles.MsgBox.String = '';
+                end
+                if file_end == this.textdiary_pos
+                    return
+                end
+                fseek(fid, this.textdiary_pos, 'bof');
+                new_chars = fread(fid, [1, file_end - this.textdiary_pos], '*char');
+                this.textdiary_pos = file_end;
+                if isempty(new_chars)
+                    return
+                end
+
+                old_text = this.GuiHandles.MsgBox.String;
+                if ischar(old_text)
+                    old_text = string(cellstr(old_text));
+                elseif iscell(old_text)
+                    old_text = string(old_text);
+                elseif ~isstring(old_text)
+                    old_text = string(old_text);
+                end
+                if isempty(old_text)
+                    old_text = "";
+                elseif numel(old_text) > 1
+                    old_text = strjoin(old_text, newline);
+                end
+                this.GuiHandles.MsgBox.String = char(old_text + string(new_chars));
             catch err
-                % Handle any error that occurs while reading the file
                 this.unwrapError(err);
-                delete(this.textdiary)
+                if exist(this.textdiary, 'file') == 2
+                    delete(this.textdiary)
+                end
                 diary(this.textdiary)
+                this.textdiary_pos = 0;
+                this.GuiHandles.MsgBox.String = '';
             end
         end
         %Update the data object
@@ -1632,8 +1811,12 @@ classdef BehaviorBoxNose < handle
             copyobj(this.graphFig.Children, f)
             f.Children.Title.String = string(this.Data_Object.Inp)+" "+cell2mat(this.Data_Object.Sub);
             [file, path] = uiputfile(pwd, 'Choose folder to save training data', saveasname);
+            if isequal(file, 0) || isequal(path, 0)
+                set(this.message_handle,'Text', 'Save canceled.');
+                return
+            end
             save(fullfile(path, file), 'Settings', 'newData', 'Notes');
-            this.saveFigure(f, savefolder, saveasname);
+            this.saveFigure(f, path, erase(string(file), '.mat'));
         end
         function setMessage(~, message_handle, message, saveasname)
             msg = message+" "+saveasname;
@@ -1791,11 +1974,11 @@ classdef BehaviorBoxNose < handle
             fprintf([text '\n']); 
             drawnow
             prompt = 'L, R, or M/C:   ';
-            keypress = 0; t1 = clock;
+            keypress = 0; t1 = tic;
             while keypress==0
                 pause(0.1); drawnow;
                 currkey = input(prompt,"s");
-                response_time = etime(clock, t1);
+                response_time = toc(t1);
                 switch true
                     case strcmp(currkey, 'l') || strcmp(currkey, 'L')
                         text = 'Left choice...'; fprintf([text '\n']); set(message_handle,'Text',text); drawnow
