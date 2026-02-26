@@ -316,23 +316,23 @@ classdef BehaviorBoxSerialInput < handle
         end
 
         function LeftRead = ReadLeft(this)
-            reading = this.Reading; % Read the value once
-            LeftRead = strcmp(reading, 'L');
+            reading = this.ReadingChar; % cached single-char token
+            LeftRead = (reading == 'L');
         end
 
         function RightRead = ReadRight(this)
-            reading = this.Reading; % Read the value once
-            RightRead = strcmp(reading, 'R');
+            reading = this.ReadingChar; % cached single-char token
+            RightRead = (reading == 'R');
         end
 
         function MiddleRead = ReadMiddle(this)
-            reading = this.Reading; % Read the value once
-            MiddleRead = strcmp(reading, 'M');
+            reading = this.ReadingChar; % cached single-char token
+            MiddleRead = (reading == 'M');
         end
 
         function NoneRead = ReadNone(this)
-            reading = this.Reading; % Read the value once
-            NoneRead = ~strcmp(reading, '-');
+            reading = this.ReadingChar; % cached single-char token
+            NoneRead = (reading ~= '-');
             % To match behavior this one is flipped, because it is only
             % used for the flashing while waiting for input
         end

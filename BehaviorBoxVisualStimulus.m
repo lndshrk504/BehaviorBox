@@ -1,51 +1,87 @@
-classdef BehaviorBoxVisualStimulus
+classdef BehaviorBoxVisualStimulus < handle
     properties(GetAccess = 'public', SetAccess = 'public')
         type;
         numDistractorsTable = [0,0 ; 1,0 ; 2,0 ; 3,0 ; 4,0 ; 5,0 ; 6,1 ; 7,2 ; 8,3 ; 9,4 ; 10,5 ; 11,6 ; 12,7 ; 13,8 ; 14,9 ; 15,10 ; 16,11 ; 17,12 ; 18,13 ; 19,14]; %Distractor side is first item, target is second item
+        
         fig;
-        position_x;
-        position_y;
-        size_x = 10;
-        size_y = 6.5;
-        figpos = [1 1 9.5 7]; % Hard coded in INCHES and matlab will adjust automatically
+        figpos double = [1 1 9.5 7];
+        StimCache = struct(); % cache handles to delete fast between trials
+        position_x double = 100;
+        position_y double = 100;
+        size_x double = 10;
+        size_y double = 6.5;
+
         LStimAx; %Axis that contains the left stimulus plot
         RStimAx; %Axis that contains the left stimulus plot
         FLAx; %Axis that contains the 2 finish line triangles
         ChoiceAx; %Axis to plot the wheel choice
-        SpotlightColor = [0 0 0];
-        SpotlightToggle = 1;
-        FinishLine = 1;
-        BetweenSpotlight = 10;
-        LineColor = [0.6 0.6 0.6];
-        FlashColor = [0.7 0.7 0.7];
-        DimColor = [0.3 0.3 0.3];
+        
+        BackgroundColor double = [0 0 0];
+        LineColor double = [0.6 0.6 0.6];
+        FlashColor double = [0.7 0.7 0.7];
+        DimColor double = [0.3 0.3 0.3];
+        
+        SegLength double = 15;
+        SegThick  double = 10;
+        SegSpacing double = 13;
+        ContLength double = 5; % number of segments in the target
+        ContTol double = 10;
+        
+        SpotlightColor double = [0 0 0];
+        SpotlightToggle logical = true;
+        FinishLine logical = true;
+        BetweenSpotlight double = 10;
+        
+        Orient double = 0;
+        InputType double = 6;
+        
+        DotSize double = 1;        % used by some preview / cues
+
         Levertype;
-        BackgroundColor = [0 0 0];
-        SegLength = 15;
-        SegThick = 10;
-        SegSpacing = 13;
-        ContLength = 5; % number of segments in the target
-        ContTol = 10;
-        ContourNodes;
+        %ContourNodes;
         PatchSize=7; % size of patch, pick uneven
         BinSize=8; %size of bins
         SegmJitter=0.3;% jitter of segments
-        Orient = 0;
-        InputType;
-        DotSize
     end
+
     properties(SetAccess = 'public', GetAccess = 'public')
         % Properties of the stimulus that change each trial (level, which side)
-        trialID;
-        show;
-        Level;
-        isLeftTrial;
+        % runtime
+        trialID double = 0;
+        show logical = true;
+        Level double = 1;
+        isLeftTrial logical = true;
+
+        % precomputed grid
+        ContourNodes double = [];
     end
+
+    properties (Access=private)
+        % ---------------- Performance: pooled objects ----------------
+        LStimGroup;     % hgtransform
+        RStimGroup;     % hgtransform
+
+        % One polyline each (NaN-separated segments)
+        LContourLine;
+        LDistractorLine;
+        RContourLine;
+        RDistractorLine;
+
+        % Spotlight rectangles (parented under transforms for wheel motion)
+        LSpotlight;
+        RSpotlight;
+
+        % Cached scale factors for mapping "delta in normalized fig units"
+        % to "data-units translation" for hgtransform.
+        MotionScaleR double = NaN;
+        MotionScaleL double = NaN;
+    end
+    
     methods % methods, including the constructor are defined in this block
         % Constructor:
         function [this] = BehaviorBoxVisualStimulus(StimStruct, options)
             arguments
-                StimStruct = struct();
+                StimStruct struct = struct()
                 options.Preview logical = false
             end
             if nargin == 0
@@ -55,8 +91,10 @@ classdef BehaviorBoxVisualStimulus
                 delete(findobj("Type", "figure", "Name", "Stimulus"))
             end
             this = this.updateProps(StimStruct);
+
             this.figpos = [this.position_x this.position_y this.size_x this.size_y];
             this.ContourNodes = this.SetupHexGrid();
+            this.StimCache = struct('Lines', gobjects(0), 'Axes', gobjects(0));
             try
                 this = this.findfigs();
                 if isempty(this.LStimAx)
@@ -90,10 +128,12 @@ classdef BehaviorBoxVisualStimulus
         function [fig, LStimAx, RStimAx, FLAx, ChoiceAx] = setUpFigure(this, options)
             arguments
                 this
-                options.StimHist logical = false %If this is on, we're plotting the record into a SUBPLOT
-                options.T
+                options.StimHist logical = false
             end
-            if isvalid(this.fig) & isvalid(this.LStimAx) & isvalid(this.RStimAx)
+
+            % If already built, just refresh pooled handles
+            if ~isempty(this.fig) && isgraphics(this.fig) && ~isempty(this.LStimAx) && isgraphics(this.LStimAx)
+                this.ensurePools_();
                 fig = this.fig;
                 LStimAx = this.LStimAx;
                 RStimAx = this.RStimAx;
@@ -101,80 +141,187 @@ classdef BehaviorBoxVisualStimulus
                 ChoiceAx = this.ChoiceAx;
                 return
             end
-            % https://www.mathworks.com/help/matlab/creating_guis/update-app-figure-and-containers.html
-            %Move this to a new function...
-            %stimWidth = abs(100-this.BetweenSpotlight)/200;
-            stimWidth = 0.5;
-            ChoiceAx = [];
-            if options.StimHist
-                T = options.T;
-                fig = T.Parent;
-                LStimAx = nexttile(T); hold(LStimAx,'on');
-                axis image;
-                RStimAx = nexttile(T); hold(RStimAx,'on');
-                axis image;
-                LStimAx.Tag = 'Left';
-                RStimAx.Tag = 'Right';
-                if this.InputType == 5
-                    ChoiceAx = nexttile(T); hold(ChoiceAx,'on');
-                    %axis image;
-                    ChoiceAx.Tag = 'Choice';
-                end
-                if this.SpotlightToggle
-                    this.getRect(RStimAx); this.getRect(LStimAx);
-                end
-                [T.Children(:).Color] = deal(this.BackgroundColor);
-                [T.Children(:).YTick] = deal([]);
-                [T.Children(:).XTick] = deal([]);
-                [T.Children(:).Box] = deal('off');
-            else
-                fig = figure('NumberTitle', 'off', ...
-                    "Name", "Stimulus", ...
-                    "MenuBar","none", ...
-                    "HandleVisibility","on", ...
-                    "InvertHardcopy","off");
-                %fig.Renderer = "painters";
-                %set(fig, 'Renderer', 'OpenGL'); % openGL is the default but this may help
-                %fig.WindowStyle = "alwaysontop";
-                fig.Units = "inches";
-                fig.Position = this.figpos;
-                fig.GraphicsSmoothing = 'off'; % Should help prevent graphics errors
-                %fig.AlignVertexCenters = 'on';
-                this.fig = fig;
-                clf(fig);
-                fig.Color = this.BackgroundColor;
-                LStimAx = axes('Parent', fig, ...
-                    'Tag', 'Left', ...
-                    'Color', 'none', ...
-                    'Position', [0 0 stimWidth 1], ...
-                    'Visible','off', 'PickableParts','none');
-                hold(LStimAx,'on');
-                LStimAx.Toolbar.Visible = 'off';
-                axis image;
-                RStimAx = axes('Parent', fig, ...
-                    'Tag', 'Right', ...
-                    'Color', 'none', ...
-                    'Position', [1-stimWidth 0 stimWidth 1], ...
-                    'Visible','off', 'PickableParts','none');
-                hold(RStimAx,'on');
-                RStimAx.Toolbar.Visible = 'off';
-                axis image;
-                if this.SpotlightToggle
-                    this.getRect(RStimAx); this.getRect(LStimAx);
-                end
-                ch = [fig.Children.Children];
-                [ch(:).Visible] = deal(0);
+
+            % ---- Create figure ----
+            this.fig = figure('Name', 'Stimulus', ...
+                'Color', this.BackgroundColor, ...
+                'MenuBar', 'none', ...
+                'ToolBar', 'none', ...
+                'NumberTitle', 'off');
+
+            % Default: full screen-ish placement from figpos, but keep your original logic
+            positionfig = [this.position_x this.position_y this.size_x this.size_y];
+            this.fig.Units = 'inches';
+            this.fig.OuterPosition = positionfig;
+
+            % Disable figure interactions (small but free)
+            try
+                this.fig.IntegerHandle = 'off';
+            catch
             end
-            this.fig = fig;
-            this.LStimAx = LStimAx;
-            this.RStimAx = RStimAx;
-            FLAx = this.finishLine();
-            this.FLAx = FLAx;
+
+            % ---- Create axes ----
+            if ~options.StimHist
+                this.LStimAx = axes('Parent', this.fig, ...
+                    'Color', this.BackgroundColor, ...
+                    'Position', [0 0 0.5 1], ...
+                    'XTick', [], 'YTick', [], ...
+                    'Tag', 'StimulusAxLeft', ...
+                    'PickableParts', 'none', 'HitTest', 'off');
+
+                this.RStimAx = axes('Parent', this.fig, ...
+                    'Color', this.BackgroundColor, ...
+                    'Position', [0.5 0 0.5 1], ...
+                    'XTick', [], 'YTick', [], ...
+                    'Tag', 'StimulusAxRight', ...
+                    'PickableParts', 'none', 'HitTest', 'off');
+
+                % Choice axis (only used in some history/preview modes)
+                this.ChoiceAx = axes('Parent', this.fig, ...
+                    'Color', this.BackgroundColor, ...
+                    'Position', [0.4 0.4 0.2 0.2], ...
+                    'XTick', [], 'YTick', [], ...
+                    'Tag', 'ChoiceAx', ...
+                    'Visible', 'off', ...
+                    'PickableParts', 'none', 'HitTest', 'off');
+            else
+                % StimHist mode: keep your tiledlayout path in the original file.
+                this.LStimAx = axes('Parent', this.fig, 'Position', [0 0 0.5 1], 'XTick', [], 'YTick', [], 'Tag', 'StimulusAxLeft');
+                this.RStimAx = axes('Parent', this.fig, 'Position', [0.5 0 0.5 1], 'XTick', [], 'YTick', [], 'Tag', 'StimulusAxRight');
+            end
+
+            % ---- Axes performance toggles ----
+            for ax = [this.LStimAx this.RStimAx]
+                if isempty(ax) || ~isgraphics(ax); continue; end
+                ax.Toolbar = []; % faster than Visible='off' on some versions citeturn3view0
+                try
+                    disableDefaultInteractivity(ax); % citeturn3view0
+                catch
+                end
+                axis(ax, 'off');
+                axis(ax, 'image');
+                hold(ax, 'on');
+
+                % Fix limits once to avoid auto-limit recalcs during updates citeturn3view0
+                lim = (this.SegLength + this.SegSpacing + 5) * this.ContLength * 0.55;
+                xlim(ax, [-lim lim]);
+                ylim(ax, [-lim lim]);
+                ax.XLimMode = 'manual';
+                ax.YLimMode = 'manual';
+
+                % Set view once (avoid per-trial view() calls)
+                try
+                    ax.View = [-this.Orient 90];
+                catch
+                    view(ax, -this.Orient, 90);
+                end
+            end
+
+            % Finish line (static)
+            if this.FinishLine
+                this.finishLine_();
+            end
+
+            % Spotlight (static, but parented under transform for wheel motion)
+            if this.SpotlightToggle
+                this.LSpotlight = this.makeSpotlight_(this.LStimAx);
+                this.RSpotlight = this.makeSpotlight_(this.RStimAx);
+            end
+
+            % ---- Pool + transforms ----
+            this.ensurePools_();
+
+            fig = this.fig;
+            LStimAx = this.LStimAx;
+            RStimAx = this.RStimAx;
+            FLAx = this.FLAx;
+            ChoiceAx = this.ChoiceAx;
+        end
+        function finishLine_(this)
+            % Original design: two triangles centered in X, one near bottom and
+            % one near top, both pointing toward the center.
+            if isempty(this.fig) || ~isgraphics(this.fig) || ~this.FinishLine
+                return
+            end
+            delete(findobj(this.fig, 'Tag', 'FinishLine'));
+            delete(findobj(this.fig, 'Tag', 'FinishLineTri'));
+
+            width = 0.1;
+            xPos = 0.5 - (width / 2);
+            tri = nsidedpoly(3, 'Center', [0, 0], 'SideLength', 1);
+
+            axBottom = axes('Parent', this.fig, ...
+                'Position', [xPos 0.1 width width], ...
+                'Tag', 'FinishLine', ...
+                'Color', 'none', ...
+                'Visible', 'off', ...
+                'XTick', [], 'YTick', [], ...
+                'PickableParts', 'none', 'HitTest', 'off');
+            axis(axBottom, 'off');
+            hold(axBottom, 'on');
+            try
+                axBottom.Toolbar = [];
+            catch
+                try
+                    axBottom.Toolbar.Visible = 'off';
+                catch
+                end
+            end
+            t1 = plot(tri, 'Parent', axBottom, ...
+                'FaceColor', this.LineColor, ...
+                'EdgeAlpha', 0, ...
+                'FaceAlpha', 1, ...
+                'Tag', 'FinishLine', ...
+                'PickableParts', 'none', ...
+                'HitTest', 'off');
+
+            axTop = axes('Parent', this.fig, ...
+                'Position', [xPos 0.8 width width], ...
+                'Tag', 'FinishLine', ...
+                'Color', 'none', ...
+                'Visible', 'off', ...
+                'YDir', 'reverse', ...
+                'XTick', [], 'YTick', [], ...
+                'PickableParts', 'none', 'HitTest', 'off');
+            axis(axTop, 'off');
+            hold(axTop, 'on');
+            try
+                axTop.Toolbar = [];
+            catch
+                try
+                    axTop.Toolbar.Visible = 'off';
+                catch
+                end
+            end
+            t2 = plot(tri, 'Parent', axTop, ...
+                'FaceColor', this.LineColor, ...
+                'EdgeAlpha', 0, ...
+                'FaceAlpha', 1, ...
+                'Tag', 'FinishLine', ...
+                'PickableParts', 'none', ...
+                'HitTest', 'off');
+
+            this.FLAx = [t1 t2];
+        end
+        function rect = makeSpotlight_(this, ax)
+            if isempty(ax) || ~isgraphics(ax)
+                rect = [];
+                return
+            end
+            sz = (this.SegLength + this.SegSpacing + 5) * this.ContLength;
+            rect = rectangle('Parent', ax, ...
+                'Position', [-0.5*sz -0.5*sz sz sz], ...
+                'Curvature', [1 1], ...
+                'FaceColor', this.SpotlightColor, ...
+                'EdgeColor', 'none', ...
+                'Tag', 'Spotlight', ...
+                'Clipping', 'off', ...
+                'PickableParts', 'none', 'HitTest', 'off');
         end
         function getRect(this, ax)
             rectangle('Parent', ax, ...
                 'Position', [-(this.SegLength+this.SegSpacing+5)*this.ContLength*0.5 -(this.SegLength+this.SegSpacing+5)*this.ContLength*0.5 (this.SegLength+this.SegSpacing+5)*this.ContLength (this.SegLength+this.SegSpacing+5)*this.ContLength], ...
-                'Curvature', [1 1], 'FaceColor', [this.SpotlightColor], 'EdgeColor', 'none', 'Tag', 'Spotlight');
+                'Curvature', [1 1], 'FaceColor', [this.SpotlightColor], 'EdgeColor', 'none', 'Tag', 'Spotlight', 'Clipping', 'off');
         end
         function CurtainOn(this, options)
             arguments
@@ -184,22 +331,8 @@ classdef BehaviorBoxVisualStimulus
             
         end
         function FLAx = finishLine(this)
-% Make this visually similar to the stimulus elements
-            FLAx = [];
-            if ~this.FinishLine
-                return
-            end
-            width = 0.1;
-            X = 0.5-(width/2);
-            p = nsidedpoly(3, 'Center', [0 ,0], ...
-                'SideLength', 1);
-            f = axes('Position', [X 0.1 width width], 'Parent', this.fig, 'Tag', 'FinishLine', 'color', 'none');axis off; f.Toolbar.Visible = 'off';
-            hold(f,'on')
-            t1 = plot(p, 'Parent',f, 'FaceColor', this.LineColor, 'EdgeAlpha', 0, 'FaceAlpha', 1, 'Tag','FinishLine');
-            f2 = axes('Position', [X 0.8 width width], 'Parent', this.fig, 'Tag', 'FinishLine', 'color', 'none', 'YDir', 'reverse');axis off; f2.Toolbar.Visible = 'off';
-            hold(f2,'on')
-            t2 = plot(p, 'Parent',f2, 'FaceColor', this.LineColor, 'EdgeAlpha', 0, 'FaceAlpha', 1, 'Tag','FinishLine');
-            FLAx = [f f2];
+            this.finishLine_();
+            FLAx = this.FLAx;
         end
         function [L,R] = DisplayOnScreen(this, isLeftTrial, Level, options)
             arguments
@@ -213,14 +346,41 @@ classdef BehaviorBoxVisualStimulus
                 options.StartHidden logical = false
             end
             this = findfigs(this);
-            delete(findobj([this.fig], "Type", "Line"))
-            delete(findobj([this.fig], "Tag", "XLine"))
-            delete(findobj([this.fig], "Tag", "YLine"))
-            if ~options.NoDelete
-                delete(findobj([this.fig], "Tag", "DotAx"))
+
+            % --- Fast clear: delete cached handles rather than repeated findobj() calls
+            try
+                if isfield(this.StimCache, 'Lines') && ~isempty(this.StimCache.Lines)
+                    h = this.StimCache.Lines;
+                    h = h(isgraphics(h));
+                    if ~isempty(h); delete(h); end
+                else
+                    delete(findobj([this.fig], "Tag", "Contour"));
+                    delete(findobj([this.fig], "Tag", "Distractor"));
+                end
+
+                if isfield(this.StimCache, 'Axes') && ~isempty(this.StimCache.Axes)
+                    h = this.StimCache.Axes;
+                    h = h(isgraphics(h));
+                    if ~isempty(h); delete(h); end
+                else
+                    delete(findobj([this.fig], "Tag", "XLine"));
+                    delete(findobj([this.fig], "Tag", "YLine"));
+                    if ~options.NoDelete
+                        delete(findobj([this.fig], "Tag", "DotAx"));
+                    end
+                end
+            catch
+                % Fallback (safe, slower)
+                delete(findobj([this.fig], "Type", "Line"))
+                delete(findobj([this.fig], "Tag", "XLine"))
+                delete(findobj([this.fig], "Tag", "YLine"))
+                if ~options.NoDelete
+                    delete(findobj([this.fig], "Tag", "DotAx"))
+                end
             end
             this.LStimAx.Position(1) = 0;
             this.RStimAx.Position(1) = 0.5;
+            this.resetWheelOffset_();
             try
                 [this.FLAx.FaceColor] = deal(this.LineColor);
             end
@@ -288,6 +448,17 @@ classdef BehaviorBoxVisualStimulus
             if options.StartHidden
                 set(this.fig.findobj('Type', 'Line'), 'Visible', false)
             end
+
+            % Cache handles for faster cleanup on next trial
+            try
+                this.StimCache.Lines = [findobj(this.fig, 'Tag', 'Contour'); findobj(this.fig, 'Tag', 'Distractor')];
+                axDel = [findobj(this.fig, 'Tag', 'XLine'); findobj(this.fig, 'Tag', 'YLine')];
+                if ~options.NoDelete
+                    axDel = [axDel; findobj(this.fig, 'Tag', 'DotAx')];
+                end
+                this.StimCache.Axes = axDel;
+            catch
+            end
             %o = findobj(this.fig.Children);
             %[o(:).Visible] = deal(0);
         end
@@ -331,7 +502,7 @@ classdef BehaviorBoxVisualStimulus
         end
         function this = findfigs(this)
             try
-                this.fig = findobj("Name", "Stimulus");
+                this.fig = findobj('Type', 'figure', 'Name', 'Stimulus');
             end
             try
                 ch = [this.fig(end).Children];
@@ -344,7 +515,150 @@ classdef BehaviorBoxVisualStimulus
                 this.RStimAx = ch(contains({ch.Tag}, "Right"));
                 this.ChoiceAx = ch(contains({ch.Tag}, "Choice"));
                 t = ch(contains({ch.Tag}, "FinishLine"));
-                this.FLAx = t.findobj('Type', 'Polygon');
+                this.FLAx = [ ...
+                    findobj(t, 'Type', 'Polygon', 'Tag', 'FinishLine'); ...
+                    findobj(t, 'Type', 'Patch', 'Tag', 'FinishLineTri') ...
+                    ];
+                if isempty(this.FLAx)
+                    this.FLAx = [ ...
+                        findobj(this.fig, 'Type', 'Polygon', 'Tag', 'FinishLine'); ...
+                        findobj(this.fig, 'Type', 'Patch', 'Tag', 'FinishLineTri') ...
+                        ];
+                end
+            end
+        end
+
+        function [gR, gL, scaleR, scaleL] = getWheelMotionTargets(this)
+            % Return cached hgtransform handles + scale factors so the wheel loop
+            % can translate objects instead of axes.
+            this.ensurePools_();
+            this.parentWheelMovables_();
+
+            gR = this.RStimGroup;
+            gL = this.LStimGroup;
+
+            % Convert "delta in normalized figure units" -> "data translation"
+            % screenShift = (dx_data/diff(XLim))*axWidth  ~= deltaNorm
+            % => dx_data = deltaNorm * diff(XLim)/axWidth
+            scaleR = diff(this.RStimAx.XLim) / this.RStimAx.Position(3);
+            scaleL = diff(this.LStimAx.XLim) / this.LStimAx.Position(3);
+
+            this.MotionScaleR = scaleR;
+            this.MotionScaleL = scaleL;
+        end
+        function ensurePools_(this)
+            % Create/recreate pooled objects if needed.
+            if isempty(this.LStimAx) || ~isgraphics(this.LStimAx) || isempty(this.RStimAx) || ~isgraphics(this.RStimAx)
+                return
+            end
+
+            % hgtransform groups
+            if isempty(this.LStimGroup) || ~isgraphics(this.LStimGroup)
+                this.LStimGroup = hgtransform('Parent', this.LStimAx, 'Tag', 'StimulusTransform');
+            end
+            if isempty(this.RStimGroup) || ~isgraphics(this.RStimGroup)
+                this.RStimGroup = hgtransform('Parent', this.RStimAx, 'Tag', 'StimulusTransform');
+            end
+
+            % Pooled polylines (create distractor first so contour draws on top)
+            if isempty(this.LDistractorLine) || ~isgraphics(this.LDistractorLine)
+                this.LDistractorLine = line('Parent', this.LStimGroup, 'XData', nan, 'YData', nan, ...
+                    'Color', this.LineColor, 'LineWidth', this.SegThick, ...
+                    'Tag', 'Distractor', ...
+                    'PickableParts', 'none', 'HitTest', 'off', ...
+                    'Clipping', 'off');
+            end
+            if isempty(this.LContourLine) || ~isgraphics(this.LContourLine)
+                this.LContourLine = line('Parent', this.LStimGroup, 'XData', nan, 'YData', nan, ...
+                    'Color', this.LineColor, 'LineWidth', this.SegThick, ...
+                    'Tag', 'Contour', ...
+                    'PickableParts', 'none', 'HitTest', 'off', ...
+                    'Clipping', 'off');
+            end
+            if isempty(this.RDistractorLine) || ~isgraphics(this.RDistractorLine)
+                this.RDistractorLine = line('Parent', this.RStimGroup, 'XData', nan, 'YData', nan, ...
+                    'Color', this.LineColor, 'LineWidth', this.SegThick, ...
+                    'Tag', 'Distractor', ...
+                    'PickableParts', 'none', 'HitTest', 'off', ...
+                    'Clipping', 'off');
+            end
+            if isempty(this.RContourLine) || ~isgraphics(this.RContourLine)
+                this.RContourLine = line('Parent', this.RStimGroup, 'XData', nan, 'YData', nan, ...
+                    'Color', this.LineColor, 'LineWidth', this.SegThick, ...
+                    'Tag', 'Contour', ...
+                    'PickableParts', 'none', 'HitTest', 'off', ...
+                    'Clipping', 'off');
+            end
+
+            this.applyLineStyle_();
+
+            % Parent spotlight under transforms so it moves with wheel
+            if this.SpotlightToggle
+                if isempty(this.LSpotlight) || ~isgraphics(this.LSpotlight)
+                    this.LSpotlight = findobj(this.LStimAx, 'Type', 'rectangle', 'Tag', 'Spotlight');
+                end
+                if ~isempty(this.LSpotlight) && isgraphics(this.LSpotlight) && this.LSpotlight.Parent ~= this.LStimGroup
+                    this.LSpotlight.Parent = this.LStimGroup;
+                end
+
+                if isempty(this.RSpotlight) || ~isgraphics(this.RSpotlight)
+                    this.RSpotlight = findobj(this.RStimAx, 'Type', 'rectangle', 'Tag', 'Spotlight');
+                end
+                if ~isempty(this.RSpotlight) && isgraphics(this.RSpotlight) && this.RSpotlight.Parent ~= this.RStimGroup
+                    this.RSpotlight.Parent = this.RStimGroup;
+                end
+            end
+
+            this.resetWheelOffset_();
+        end
+        function applyLineStyle_(this)
+            % Keep pooled lines consistent with current StimStruct fields.
+            try
+                for h = [this.LContourLine this.LDistractorLine this.RContourLine this.RDistractorLine]
+                    if isempty(h) || ~isgraphics(h); continue; end
+                    h.LineWidth = this.SegThick;
+                    h.Color = this.LineColor;
+                end
+            catch
+            end
+        end
+        function resetWheelOffset_(this)
+            % Reset transforms to identity (called on each new stimulus).
+            try
+                if ~isempty(this.LStimGroup) && isgraphics(this.LStimGroup)
+                    this.LStimGroup.Matrix = eye(4);
+                end
+                if ~isempty(this.RStimGroup) && isgraphics(this.RStimGroup)
+                    this.RStimGroup.Matrix = eye(4);
+                end
+            catch
+            end
+        end
+        function parentWheelMovables_(this)
+            % Ensure current wheel-moved graphics are children of hgtransform.
+            this.parentWheelMovablesOneSide_(this.LStimAx, this.LStimGroup);
+            this.parentWheelMovablesOneSide_(this.RStimAx, this.RStimGroup);
+        end
+        function parentWheelMovablesOneSide_(this, ax, grp)
+            if isempty(ax) || ~isgraphics(ax) || isempty(grp) || ~isgraphics(grp)
+                return
+            end
+            h = [ ...
+                findobj(ax, 'Type', 'line', 'Tag', 'Contour'); ...
+                findobj(ax, 'Type', 'line', 'Tag', 'Distractor'); ...
+                findobj(ax, 'Type', 'rectangle', 'Tag', 'Spotlight') ...
+                ];
+            h = h(isgraphics(h));
+            for k = 1:numel(h)
+                try
+                    if h(k).Parent ~= grp
+                        h(k).Parent = grp;
+                    end
+                    if isprop(h(k), 'Clipping')
+                        h(k).Clipping = 'off';
+                    end
+                catch
+                end
             end
         end
         function ContourNodes = SetupHexGrid(this)
@@ -476,6 +790,14 @@ classdef BehaviorBoxVisualStimulus
                 Tags = strings(size(Dists,1),1);
             end
             try
+                this.ensurePools_();
+                parentTarget = theAxis;
+                if isequal(theAxis, this.LStimAx) && ~isempty(this.LStimGroup) && isgraphics(this.LStimGroup)
+                    parentTarget = this.LStimGroup;
+                elseif isequal(theAxis, this.RStimAx) && ~isempty(this.RStimGroup) && isgraphics(this.RStimGroup)
+                    parentTarget = this.RStimGroup;
+                end
+
                 [theAxis.Children(:).Visible] = deal(1);
                 dc = 0;
                 for D = Dists' %Creates the coordinates of the bar tip centered in [0,0]
@@ -484,7 +806,15 @@ classdef BehaviorBoxVisualStimulus
                     [Tip2X, Tip2Y] = pol2cart(deg2rad(D(3) + 180), this.SegLength/2); %Creates the other half-bar
                     xCoordinates = [D(1) + Tip1X, D(1) + Tip2X]; %Adds the coords from the nodes and half bars
                     yCoordinates = [D(2) + Tip1Y, D(2) + Tip2Y];
-                    plot(xCoordinates, yCoordinates,'Color', [this.LineColor],'LineWidth',this.SegThick, 'Parent', theAxis, 'Tag', Tags(dc))
+                    line('Parent', parentTarget, ...
+                        'XData', xCoordinates, ...
+                        'YData', yCoordinates, ...
+                        'Color', [this.LineColor], ...
+                        'LineWidth', this.SegThick, ...
+                        'Tag', char(Tags(dc)), ...
+                        'Clipping', 'off', ...
+                        'PickableParts', 'none', ...
+                        'HitTest', 'off')
                     if options.OrdPair
                         TXT = "["+D(1)+","+D(2)+"]";
                         text(D(1), D(2), TXT,"Color","w", 'Parent', theAxis, "HorizontalAlignment","center", "VerticalAlignment","middle")

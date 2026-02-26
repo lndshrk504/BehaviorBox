@@ -1,7 +1,7 @@
 classdef BehaviorBoxWheel < handle
     %BehaviorBox Super class
     % WBS 10 . 10 . 2024
-    %=================================================0===================
+    %====================================================================
     %Super Class for BehaviorBox Ver 1.4
     %This Class is called by the GUI BehaviorBox via RunTraining()and runs the Training
     %loop, reads levers, gives rewards, plots data, etc. It stores data in the BehaviorBoxData.
@@ -97,7 +97,7 @@ classdef BehaviorBoxWheel < handle
         Sound_Object = struct();
         Sound_Struct = struct(); %This is only used to make the sounds, which are not used anymore since mice are trained concurrently.
         textdiary
-        
+
     end
     methods
         function this = BehaviorBoxWheel(GUI_handles, app)
@@ -300,7 +300,7 @@ classdef BehaviorBoxWheel < handle
                         this.Box.KeyboardInput = 0;
                         pause(2)
                         this.a.SetupReward("Which", "Right", "DurationRight", this.Box.Rrewardtime);
-                        disp('- - - Success - - -')                        
+                        disp('- - - Success - - -')
                         try % Timekeeper Arduino
                             disp('- - - Connecting to Timestamp Arduino - - -')
                             [~, comsnum, ~] = arduinoServer('ArduinoInfo', this.app.ArduinoInfo, 'desiredIdentity', 'Time', 'FindExact', true);
@@ -380,7 +380,12 @@ classdef BehaviorBoxWheel < handle
             [this.fig, this.LStimAx, this.RStimAx, this.FLAx, ~] = this.Stimulus_Object.setUpFigure();
             if ~any([this.app.Animate_Go.Value this.app.Animate_Show.Value this.app.Animate_Flash.Value this.app.Animate_Rec.Value]) % Don't show finish line for animation
                 this.ReadyCue('Create')
-                this.ReadyCueAx = this.fig.Children(3);
+                if isempty(this.ReadyCueAx) || ~isgraphics(this.ReadyCueAx)
+                    this.ReadyCueAx = findobj(this.fig, 'Type', 'axes', 'Tag', 'ReadyCue');
+                    if ~isempty(this.ReadyCueAx)
+                        this.ReadyCueAx = this.ReadyCueAx(1);
+                    end
+                end
                 this.ReadyCueStruct.Ax = this.ReadyCueAx;
                 this.StimulusStruct.ReadyCue = this.ReadyCueStruct;
             end
@@ -405,10 +410,10 @@ classdef BehaviorBoxWheel < handle
             end
             % Send Start Acquisition signal to ScanImage
             try
+                this.Time.Reset();
+                pause(0.1)
                 set(this.message_handle, 'Text', "Starting acquisition (ScanImage)...");
                 this.a.Acquisition('Start');
-                pause(2)
-                this.message_handle.Text = 'Starting recording, Pausing 2 sec...';
             catch
             end
         end
@@ -683,7 +688,9 @@ classdef BehaviorBoxWheel < handle
             if this.i == 1
                 % Stop acquisition and save those timestamps to the record
                 this.a.Acquisition('End')
-                this.timestamps_record{this.i} = this.Time.Log;
+                try
+                    this.timestamps_record{this.i} = this.Time.Log;
+                end
                 pause(0.1)
             end
             this.TrialStartTime = 0;
@@ -691,12 +698,13 @@ classdef BehaviorBoxWheel < handle
             this.t1 = datetime("now"); t2 = this.t1; %In case of crash
             this.a.DispOutput = false;
             this.a.Reset();
+            pause(0.2); % The nextfile acquisition signal has a builtin 200 ms delay
             % Display stimulus
             try % Clear timestamp log
                 set(this.message_handle, 'Text', "Clearing timestamp log ...");
                 this.Time.Reset();
                 pause(0.1)
-                this.Time.Log(end+1,1) = "Trial "+this.i+" "+this.current_side;
+                this.Time.Log(end+1,1) = "Trial "+this.i;
                 this.Time.Log(end+1,1) = "Hold still";
             catch
             end
@@ -705,19 +713,28 @@ classdef BehaviorBoxWheel < handle
                 this.a.Acquisition('Next');
             catch
             end
-            pause(0.2); % The nextfile acquisition signal has a builtin 200 ms delay
             switch true
                 case ~isempty(this.a) && this.Box.Input_type==6 %Wheel 2.0, wait for the mouse to hold the wheel still for the interval to start a new trial
                     if this.i ~=1
                         this.ReadyCue(true);
-                        set(this.FLAx, 'Visible', true);
+                        if isempty(this.FLAx) || any(~isgraphics(this.FLAx))
+                            this.FLAx = [ ...
+                                findobj(this.fig, 'Type', 'Polygon', 'Tag', 'FinishLine'); ...
+                                findobj(this.fig, 'Type', 'Patch', 'Tag', 'FinishLineTri') ...
+                                ];
+                        end
+                        if ~isempty(this.FLAx)
+                            set(this.FLAx, 'Visible', true);
+                        end
                         drawnow
                         timelimit = this.Setting_Struct.HoldStill;
                         tic;
                         while toc<=timelimit
                             this.message_handle.Text = "Keep the wheel still for "+num2str(round(timelimit - toc,1))+" seconds."; drawnow limitrate
-                            if str2double(this.a.SerialRead) ~= 0
-                                this.Flash(this.StimulusStruct, this.Box, findobj('Type', 'Polygon'), 'Wheel');
+                            if this.a.ReadWheel() ~= 0
+                                if ~isempty(this.FLAx) && all(isgraphics(this.FLAx))
+                                    this.Flash(this.StimulusStruct, this.Box, this.FLAx, 'Wheel');
+                                end
                                 this.a.Reset();
                                 tic;
                             end
@@ -1001,7 +1018,7 @@ classdef BehaviorBoxWheel < handle
             end
         end
         function setDistractorColor(this)
-                d = this.fig.Children.findobj('Tag', 'Distractor');
+            d = this.fig.Children.findobj('Tag', 'Distractor');
             DIM = this.StimulusStruct.DimColor;
             set(d, 'Color', DIM)
         end
@@ -1013,10 +1030,10 @@ classdef BehaviorBoxWheel < handle
             this.GiveRewardAndFlash();
             % Wait until the mouse calms down after the reward
             % if ~keyboardInput && inputType == 6
-                % NO WAY TO READ SPEED UNTIL I ADD A NEW FCN TO BBSERIAL
-                % while abs(this.Box.encoder.readSpeed) > this.Setting_Struct.Hold_Still_Thresh
-                %     pause(0.5); drawnow;
-                % end
+            % NO WAY TO READ SPEED UNTIL I ADD A NEW FCN TO BBSERIAL
+            % while abs(this.Box.encoder.readSpeed) > this.Setting_Struct.Hold_Still_Thresh
+            %     pause(0.5); drawnow;
+            % end
             % end
 
             this.DrinkTime = toc;
@@ -1078,103 +1095,216 @@ classdef BehaviorBoxWheel < handle
             drawnow
         end
         function [WhatDecision, response_time] = readLeverLoopAnalogWheel(this)
+            % REVISED v4:
+            %   1) Uses hgtransform stimulus translation if available (moves objects, not axes)
+            %   2) Non-blocking stall blink after 5 seconds of no wheel movement
+            %   3) Draw scheduling (avoids drawnow limitrate hard 20 Hz cap)
+
             event = -1;
             delta = 0;
             this.wheelchoice = cell(1,1e6);
             this.wheelchoicetime = cell(1,1e6);
+
+            % ---- Timeouts ----
             timeout_value = this.Box.Timeout_after_time;
             if isempty(timeout_value)
                 timeout_value = 0;
             end
+
+            % ---- Wheel scale ----
             threshold = this.Setting_Struct.TurnMag;
-            o = this.fig.findobj('Type', 'Axes');
-            C = o(contains({o.Tag}, 'Correct'));
-            W = o(contains({o.Tag}, 'Incorrect'));
             StimDistance = 0.3;
-            axes = [this.RStimAx this.LStimAx];
-            pos1i = axes(1).Position; % Axes1 (right) default position is [0.5 0 0.5 1]
-            if numel(axes) > 1
-                pos2i = axes(2).Position; % Axes2 (Left) default position is [0 0 0.5 1]
+            k = StimDistance/threshold; % multiply is faster than divide in loop
+
+            % ---- Motion bounds (legacy normalized figure units) ----
+            axR = this.RStimAx;
+            axL = this.LStimAx;
+            pos1i = axR.Position;
+            if numel([axR axL]) > 1
+                pos2i = axL.Position;
             end
-            thresh = abs(pos1i(1)/2); % Should be 0.25 usually
-            this.a.Reset();
-            % pause(0.1)
+            thresh = abs(pos1i(1)/2);
+
             if this.Setting_Struct.RoundUp
                 RoundUp = (this.Setting_Struct.RoundUpVal/100); %Default is 75 --> 0.75
                 thresh = RoundUp*thresh;
             end
+
+            % ---- Reset encoder at loop start ----
+            this.a.Reset();
+
             if this.app.Animate_MimicTrial.Value
                 this.SimulateTrial()
             end
-            tic
-            % ---------------- Stall / timers (IMPORTANT: no bare toc/tic) ----------------
-            t1 = tic;
-            tLoop  = tic;    % trial/response timer
-            tStall = tic;    % "no-change" timer
 
-            stallSec = 5;    % seconds without wheel change before flashing
-            stallTol = 0;    % pulses tolerance; keep 0 if Rotary.ino outputs stable integers
-
-            lastDist = NaN;
-            didStallFlash = false;
-
-            % Pre-cache handles once (avoid findobj inside tight loop)
-            Lines = [this.fig.findobj('Tag','Contour'); this.fig.findobj('Tag','Distractor')];
-
+            % ---- Preallocate trace buffers (fast, grows in chunks) ----
+            cap = 200000;
+            wheelchoice = zeros(1,cap,'single');
+            wheelchoicetime = zeros(1,cap,'single');
             I = 0;
-            while (timeout_value == 0 | toc(tLoop)<=timeout_value) && ~this.app.Animate_MimicTrial.Value% do NOT replace | with || or the expression is changed.
-                dist = str2double(this.a.SerialRead);
 
-                tNow = toc(tLoop);
+            % ---- Prefer hgtransform motion if available ----
+            useXform = false;
+            gR = [];
+            gL = [];
+            scaleR = 1;
+            scaleL = 1;
+            try
+                if ~isempty(this.Stimulus_Object) && ismethod(this.Stimulus_Object,'getWheelMotionTargets')
+                    [gR, gL, scaleR, scaleL] = this.Stimulus_Object.getWheelMotionTargets();
+                    useXform = ~isempty(gR) && ~isempty(gL) && all(isgraphics([gR gL]));
+                end
+            catch
+                useXform = false;
+            end
 
-                % --- Stall detection: reset stall timer on real movement
-                if isnan(lastDist) || abs(dist - lastDist) > stallTol
-                    lastDist = dist;
-                    tStall = tic;
-                    didStallFlash = false;
-                elseif toc(tStall) >= stallSec % && ~didStallFlash
-                    % Refresh Lines only when needed (in case graphics were recreated)
-                    if isempty(Lines) || any(~isgraphics(Lines))
-                        Lines = [this.fig.findobj('Tag','Contour'); this.fig.findobj('Tag','Distractor')];
+            % ---- Draw scheduling ----
+            drawHz = 60;
+            if isfield(this.Box,'GraphicsUpdateHz') && ~isempty(this.Box.GraphicsUpdateHz)
+                drawHz = double(this.Box.GraphicsUpdateHz);
+            else
+                % Heuristic: integrated / software renderers get a lower target
+                try
+                    ri = rendererinfo;
+                    dev = lower(string(ri.RendererDevice));
+                    if contains(dev,"swiftshader") || contains(dev,"microsoft basic") || contains(dev,"gdi generic")
+                        drawHz = 20;
+                    elseif contains(dev,"intel") && ~contains(dev,["nvidia","amd","radeon"])
+                        drawHz = 30;
                     end
-                    this.Time.Log(end+1,1) = "Stall flash...";
-                    for rep = 1:this.Setting_Struct.Stimulus_RepFlashInitial
-                        this.FlashNew(this.StimulusStruct, this.Box, Lines, 'Correct_Confirmation')
-                    end
-                    this.Time.Log(end+1,1) = "Stall flash over";
-                    didStallFlash = true;
-                    % If you want repeated flashing every stallSec while stalled, uncomment:
-                    tStall = tic;
+                catch
+                end
+            end
+            drawHz = max(10, min(drawHz, 240));
+            drawInterval = 1/drawHz;
+            tLastDraw = -Inf;
+
+            % ---- Stall -> blink (non-blocking) ----
+            stallSec = 5;
+            stallTol = 0; % pulses
+            lastDist = NaN;
+            tLastMove = 0;
+            didStallBlink = false;
+            blinkActive = false;
+            blinkT0 = 0;
+            blinkDur = 0.10;
+
+            Lines = [findobj('Tag', 'Contour') ; findobj('Tag', 'Distractor')];
+            baseColor = this.StimulusStruct.LineColor;
+            dimColor  = this.StimulusStruct.DimColor;
+
+            prevDelta = NaN;
+
+            % =========================
+            % Phase 1: free choice loop
+            % =========================
+            tLoop = tic;
+            while (timeout_value == 0 | toc(tLoop) <= timeout_value) && ~this.app.Animate_MimicTrial.Value % do NOT replace | with || or the expression is changed.
+                % Fast read if available
+                if ismethod(this.a,'ReadWheel')
+                    dist = this.a.ReadWheel();
+                else
+                    dist = str2double(this.a.SerialRead);
+                end
+                if isnan(dist)
                     continue
                 end
+                tNow = toc(tLoop);
 
-                delta = (dist/threshold)*StimDistance;  % A full revolution is about 4000 pulses 4400/360 = 12.22 pulses/degree 90 deg is ~1000 pulses
-                if abs(delta)>thresh % Prevent stim from being pushed off screen
-                    if sign(delta)>0
-                        delta =  thresh;
-                    elseif sign(delta)<0
-                        delta = -thresh;
+                % Stall detection (reset on movement)
+                if isnan(lastDist) || abs(dist - lastDist) > stallTol
+                    lastDist = dist;
+                    tLastMove = tNow;
+                    didStallBlink = false;
+                    if blinkActive
+                        if isempty(Lines) || any(~isgraphics(Lines))
+                            Lines = [findobj('Tag','Contour') ; findobj('Tag','Distractor')];
+                        end
+                        try
+                            Lines.Color = baseColor;
+                        catch
+                            set(Lines,'Color',baseColor);
+                        end
+                        blinkActive = false;
                     end
+                elseif ~didStallBlink && (tNow - tLastMove) >= stallSec
+                    if isempty(Lines) || any(~isgraphics(Lines))
+                        Lines = [findobj('Tag','Contour') ; findobj('Tag','Distractor')];
+                    end
+                    try
+                        Lines.Color = dimColor;
+                    catch
+                        set(Lines,'Color',dimColor);
+                    end
+                    blinkActive = true;
+                    blinkT0 = tNow;
+                    didStallBlink = true;
+                end
+
+                if blinkActive && (tNow - blinkT0) >= blinkDur
+                    if isempty(Lines) || any(~isgraphics(Lines))
+                        Lines = [findobj('Tag','Contour') ; findobj('Tag','Distractor')];
+                    end
+                    try
+                        Lines.Color = baseColor;
+                    catch
+                        set(Lines,'Color',baseColor);
+                    end
+                    blinkActive = false;
+                end
+
+                % dist -> delta
+                delta = dist * k;
+
+                % Clamp to bounds (legacy semantics)
+                if abs(delta) > thresh
+                    delta = sign(delta) * thresh;
                 end
                 if this.isLeftTrial & delta < -thresh
                     delta = -thresh;
                 elseif ~this.isLeftTrial & delta > thresh
                     delta = thresh;
                 end
+
+                % Trace
                 I = I+1;
-                this.wheelchoice{I} = delta;
-                this.wheelchoicetime{I} = toc(tLoop);
-                pos1 = pos1i + ([delta 0 0 0]);
-                axes(1).Position = pos1;
-                if numel(axes) > 1
-                    pos2 = pos2i + ([delta 0 0 0]);
-                    axes(2).Position = pos2;
+                if I > cap
+                    newCap = cap + 200000;
+                    wheelchoice(1,newCap) = single(0);
+                    wheelchoicetime(1,newCap) = single(0);
+                    cap = newCap;
                 end
-                %disp("Dist is "+dist+"; delta is "+delta); disp("R pos1 is is "+pos1(1)+"; L pos2 is "+pos2(1))
-                drawnow  %limitrate nocallbacks
-                
+                wheelchoice(I) = single(delta);
+                wheelchoicetime(I) = single(tNow);
+
+                % Apply motion only when delta changes
+                if isnan(prevDelta) || abs(delta - prevDelta) > 1e-7
+                    if useXform
+                        txR = double(delta) * scaleR;
+                        txL = double(delta) * scaleL;
+                        gR.Matrix = makehgtform('translate', [txR 0 0]);
+                        gL.Matrix = makehgtform('translate', [txL 0 0]);
+                    else
+                        pos1 = pos1i + ([double(delta) 0 0 0]);
+                        axR.Position = pos1;
+                        if exist('pos2i','var')
+                            pos2 = pos2i + ([double(delta) 0 0 0]);
+                            axL.Position = pos2;
+                        end
+                    end
+                    prevDelta = delta;
+                end
+
+                % Render/UI pump at target Hz (avoid 20 Hz cap of drawnow limitrate)
+                % if (tNow - tLastDraw) >= drawInterval
+                %     drawnow %nocallbacks
+                %     tLastDraw = tNow;
+                % end
+                drawnow
+
+                % Decision logic
                 if this.isLeftTrial & delta <= -thresh
-                    event = 2;
+                    event = 2; % right
                     break
                 elseif ~this.isLeftTrial & delta >= thresh
                     event = 1;
@@ -1182,10 +1312,10 @@ classdef BehaviorBoxWheel < handle
                 end
                 if double(abs(delta)) >= double(thresh) %If a choice is made: !!! Add code to round up the correct choice but not accept an incorrect choice until it is fully made. Accept the correct choice early but wait for a full incorrect choice.
                     if sign(delta) > 0
-                        event = 1;
+                        event = 1; % left
                         break
                     elseif sign(delta) < 0
-                        event = 2;
+                        event = 2; % right
                         break
                     end
                 end
@@ -1194,18 +1324,19 @@ classdef BehaviorBoxWheel < handle
                     break
                 end
             end
-            response_time = toc;
-            this.Time.Log(end+1,1) = "Choice made";
-            if event == -1 %If the mouse was close to picking a side, round up their choice:
-                if abs(delta) >= thresh
-                    if sign(delta) > 0
-                        event = 1;
-                    elseif sign(delta) < 0
-                        event = 2;
-                    end
+            drawnow
+
+            response_time = toc(tLoop);
+
+            % Round-up decision if timed out but close
+            if event == -1 & abs(delta) >= thresh
+                if sign(delta) > 0
+                    event = 1;
+                elseif sign(delta) < 0
+                    event = 2;
                 end
             end
-            %translate response to decision
+
             switch event
                 case -1
                     WhatDecision = 'time out';
@@ -1222,83 +1353,144 @@ classdef BehaviorBoxWheel < handle
                         WhatDecision = 'right wrong';
                     end
             end
-            if contains(WhatDecision, 'wrong') && this.Setting_Struct.OnlyCorrect
-                tic
+
+            % ===========================================
+            % Phase 2: OnlyCorrect "undo wrong" correction
+            % ===========================================
+            if contains(WhatDecision,'wrong') && isfield(this.Box,'OnlyCorrect') && this.Box.OnlyCorrect
                 Old_response_time = response_time;
-                delta = 0;
-                stallSec_OC = stallSec;
-                stallTol_OC = stallTol;
 
-                tLoopOC  = tic;   % timeout applies to this phase (matches original intent)
-                tStallOC = tic;
+                % Reset OC state
+                event = -1;
+                prevDelta = NaN;
+                lastDist = NaN;
+                tLastMove = 0;
+                didStallBlink = false;
+                blinkActive = false;
+                blinkT0 = 0;
+                tLastDraw = -Inf;
 
-                lastDistOC = NaN;
-                didStallFlashOC = false;
+                % Acceptance thresholds (match legacy 0.24/0.26 with a ratio)
+                accept = 0.96 * thresh;
 
-                while timeout_value == 0 | toc<timeout_value % do NOT replace | with || or the expression is changed.
-                    dist = str2double(this.a.SerialRead);
+                tLoopOC = tic;
+                while (timeout_value == 0 | toc(tLoopOC) < timeout_value)
+                    if ismethod(this.a,'ReadWheel')
+                        dist = this.a.ReadWheel();
+                    else
+                        dist = str2double(this.a.SerialRead);
+                    end
+                    if isnan(dist)
+                        continue
+                    end
                     tNowOC = toc(tLoopOC);
+                    tNowTotal = Old_response_time + tNowOC;
 
-                    % --- Stall detection in OC phase
-                    if isnan(lastDistOC) || abs(dist - lastDistOC) > stallTol_OC
-                        lastDistOC = dist;
-                        tStallOC = tic;
-                        didStallFlashOC = false;
-                    elseif toc(tStallOC) >= stallSec_OC % && ~didStallFlashOC
+                    % Stall detection (same as phase 1)
+                    if isnan(lastDist) || abs(dist - lastDist) > stallTol
+                        lastDist = dist;
+                        tLastMove = tNowOC;
+                        didStallBlink = false;
+                        if blinkActive
+                            if isempty(Lines) || any(~isgraphics(Lines))
+                                Lines = [findobj('Tag','Contour') ; findobj('Tag','Distractor')];
+                            end
+                            try
+                                Lines.Color = baseColor;
+                            catch
+                                set(Lines,'Color',baseColor);
+                            end
+                            blinkActive = false;
+                        end
+                    elseif ~didStallBlink && (tNowOC - tLastMove) >= stallSec
                         if isempty(Lines) || any(~isgraphics(Lines))
-                            Lines = [findobj('Tag', 'Contour') ; findobj('Tag', 'Distractor')];
+                            Lines = [findobj('Tag','Contour') ; findobj('Tag','Distractor')];
                         end
-                        for rep = 1:this.Setting_Struct.Stimulus_RepFlashInitial
-                            this.FlashNew(this.StimulusStruct, this.Box, Lines, 'Correct_Confirmation')
+                        try
+                            Lines.Color = dimColor;
+                        catch
+                            set(Lines,'Color',dimColor);
                         end
-                        tStallOC = tic;
-                        didStallFlashOC = true;
+                        blinkActive = true;
+                        blinkT0 = tNowOC;
+                        didStallBlink = true;
                     end
-                    delta = (dist/threshold)*StimDistance; % A full revolution is about 4000 pulses 4400/360 = 12.22 pulses/degree 90 deg is ~1000 pulses
-                    if abs(delta)>thresh % Prevent stim from being pushed off screen
-                        if sign(delta)>0
-                            delta =  thresh;
-                        elseif sign(delta)<0
-                            delta = -thresh;
+                    if blinkActive && (tNowOC - blinkT0) >= blinkDur
+                        if isempty(Lines) || any(~isgraphics(Lines))
+                            Lines = [findobj('Tag','Contour') ; findobj('Tag','Distractor')];
                         end
+                        try
+                            Lines.Color = baseColor;
+                        catch
+                            set(Lines,'Color',baseColor);
+                        end
+                        blinkActive = false;
                     end
+
+                    delta = dist * k;
+                    if abs(delta) > thresh
+                        delta = sign(delta) * thresh;
+                    end
+
                     I = I+1;
-                    this.wheelchoice{I} = delta;
-                    this.wheelchoicetime{I} = toc;
-                    pos1 = pos1i + ([delta 0 0 0]);
-                    axes(1).Position = pos1;
-                    if numel(axes) > 1
-                        pos2 = pos2i + ([delta 0 0 0]);
-                        axes(2).Position = pos2;
+                    if I > cap
+                        newCap = cap + 200000;
+                        wheelchoice(1,newCap) = single(0);
+                        wheelchoicetime(1,newCap) = single(0);
+                        cap = newCap;
                     end
-                    %disp("Dist is "+dist+"; delta is "+delta); disp("R pos1 is is "+pos1(1)+"; L pos2 is "+pos2(1))
-                    drawnow
-                    if this.isLeftTrial & pos2(1)<=-0.25
-                        this.a.Reset()
-                    elseif ~this.isLeftTrial & pos1(1) >= 0.75
-                        this.a.Reset()
+                    wheelchoice(I) = single(delta);
+                    wheelchoicetime(I) = single(tNowTotal);
+
+                    if isnan(prevDelta) || abs(delta - prevDelta) > 1e-7
+                        if useXform
+                            txR = double(delta) * scaleR;
+                            txL = double(delta) * scaleL;
+                            gR.Matrix = makehgtform('translate', [txR 0 0]);
+                            gL.Matrix = makehgtform('translate', [txL 0 0]);
+                        else
+                            pos1 = pos1i + ([double(delta) 0 0 0]);
+                            axR.Position = pos1;
+                            if exist('pos2i','var')
+                                pos2 = pos2i + ([double(delta) 0 0 0]);
+                                axL.Position = pos2;
+                            end
+                        end
+                        prevDelta = delta;
                     end
-                    if this.isLeftTrial & pos2(1) >= 0.24
-                        event = 1;
-                        break
-                    elseif ~this.isLeftTrial & pos1(1) <= 0.26
-                        event = 2;
-                        break
+
+                    if (tNowOC - tLastDraw) >= drawInterval
+                        drawnow nocallbacks
+                        tLastDraw = tNowOC;
                     end
-                    % if double(abs(delta)) >= double(thresh) %If a choice is made: !!! Add code to round up the correct choice but not accept an incorrect choice until it is fully made. Accept the correct choice early but wait for a full incorrect choice.
-                    %     if sign(delta) > 0
-                    %         event = 1;
-                    %         break
-                    %     elseif sign(delta) < 0
-                    %         event = 2;
-                    %         break
-                    %     end
-                    % end
-                    if get(this.Skip, 'Value')
-                        set(this.Skip, 'Value', 0) %Turn the button off
+
+                    % Legacy OC logic expressed in delta-space
+                    if this.isLeftTrial
+                        % Wrong side overshoot: reset
+                        if delta <= -thresh
+                            this.a.Reset();
+                        end
+                        % Accept only a corrective LEFT movement (delta positive)
+                        if delta >= accept
+                            event = 1; % left
+                            break
+                        end
+                    else
+                        if delta >= thresh
+                            this.a.Reset();
+                        end
+                        if delta <= -accept
+                            event = 2; % right
+                            break
+                        end
+                    end
+
+                    if get(this.Skip,'Value')
+                        set(this.Skip,'Value',0)
                         break
                     end
                 end
+
                 response_time = Old_response_time + toc(tLoopOC);
                 if event == -1 %If the mouse was close to picking a side, round up their choice:
                     if abs(delta) >= thresh
@@ -1327,119 +1519,275 @@ classdef BehaviorBoxWheel < handle
                         end
                 end
             end
-            this.wheelchoice(cellfun('isempty',this.wheelchoice)) = [];
-            this.wheelchoice = cell2mat(this.wheelchoice);
-            this.wheelchoicetime(cellfun('isempty',this.wheelchoicetime)) = [];
-            this.wheelchoicetime = cell2mat(this.wheelchoicetime);
+
+
+            % Ensure we exit with baseline stimulus color (avoid leaving it dimmed)
+            try
+                if ~isempty(Lines) && all(isgraphics(Lines))
+                    Lines.Color = baseColor;
+                end
+            catch
+            end
+
+            try
+            this.Time.Log(end+1,1) = "Choice made";
+            end
+
+            % Publish trace
+            if I == 0
+                this.wheelchoice = [];
+                this.wheelchoicetime = [];
+            else
+                this.wheelchoice = double(wheelchoice(1:I));
+                this.wheelchoicetime = double(wheelchoicetime(1:I));
+            end
         end
         function [WhatDecision, response_time] = readLeverLoopAnalogWheel_OnlyCorrect(this)
-% Unused and has been merged into the main function: thtis.readLeverLoopAnalogWheel()
+            % REVISED v4: standalone OnlyCorrect loop
+            %   - transform-based stimulus motion if available
+            %   - non-blocking stall blink after 5 seconds of no movement
+            %   - draw scheduling (avoid drawnow limitrate 20 Hz cap)
+
             event = -1;
             delta = 0;
-            %this.wheelchoice = cell(1,1e6);
+
             timeout_value = this.Box.Timeout_after_time;
-            threshold = this.Setting_Struct.TurnMag;
-            o = this.fig.findobj('Type', 'Axes');
-            C = o(contains({o.Tag}, 'Correct'));
-            W = o(contains({o.Tag}, 'Incorrect'));
-            StimDistance = 0.3;
-            axes = [this.RStimAx this.LStimAx];
-            pos1i = [0.5 0 0.5 1];% axes(1).Position; % Axes1 (right) default position is [0.5 0 0.5 1]
-            if numel(axes) > 1
-                pos2i = [0 0 0.5 1]; % axes(2).Position; % Axes2 (Left) default position is [0 0 0.5 1]
+            if isempty(timeout_value)
+                timeout_value = 0;
             end
-            thresh = abs(0.5/2);
+
+            threshold = this.Setting_Struct.TurnMag;
+            StimDistance = 0.3;
+            k = StimDistance/threshold;
+
+            % Bounds (legacy normalized)
+            axR = this.RStimAx;
+            axL = this.LStimAx;
+            pos1i = axR.Position;
+            if numel([axR axL]) > 1
+                pos2i = axL.Position;
+            end
+            thresh = abs(pos1i(1)/2);
+
             if this.Setting_Struct.RoundUp
                 RoundUp = (this.Setting_Struct.RoundUpVal/100); %Default is 75 --> 0.75
                 thresh = RoundUp*thresh;
             end
-            % if this.app.Animate_MimicTrial.Value
-            %     this.SimulateTrial()
-            % end
+
+            % Prefer hgtransform motion if available
+            useXform = false;
+            gR = [];
+            gL = [];
+            scaleR = 1;
+            scaleL = 1;
+            try
+                if ~isempty(this.Stimulus_Object) && ismethod(this.Stimulus_Object,'getWheelMotionTargets')
+                    [gR, gL, scaleR, scaleL] = this.Stimulus_Object.getWheelMotionTargets();
+                    useXform = ~isempty(gR) && ~isempty(gL) && all(isgraphics([gR gL]));
+                end
+            catch
+                useXform = false;
+            end
+
+            % Draw scheduling
+            drawHz = 60;
+            if isfield(this.Box,'GraphicsUpdateHz') && ~isempty(this.Box.GraphicsUpdateHz)
+                drawHz = double(this.Box.GraphicsUpdateHz);
+            else
+                try
+                    ri = rendererinfo;
+                    dev = lower(string(ri.RendererDevice));
+                    if contains(dev,"swiftshader") || contains(dev,"microsoft basic") || contains(dev,"gdi generic")
+                        drawHz = 20;
+                    elseif contains(dev,"intel") && ~contains(dev,["nvidia","amd","radeon"])
+                        drawHz = 30;
+                    end
+                catch
+                end
+            end
+            drawHz = max(10, min(drawHz, 240));
+            drawInterval = 1/drawHz;
+            tLastDraw = -Inf;
+
+            % Prealloc trace
+            cap = 200000;
+            wheelchoice = zeros(1,cap,'single');
+            wheelchoicetime = zeros(1,cap,'single');
             I = 0;
-            tic
-            while timeout_value == 0 | toc<timeout_value % do NOT replace | with || or the expression is changed.
-                dist = str2double(this.a.SerialRead);
-                delta = (dist/threshold)*StimDistance; % A full revolution is about 4000 pulses 4400/360 = 12.22 pulses/degree 90 deg is ~1000 pulses
-                if abs(delta)>thresh % Prevent stim from being pushed off screen
-                    if sign(delta)>0
-                        delta =  thresh;
-                    elseif sign(delta)<0
-                        delta = -thresh;
-                    end
+
+            % Stall -> blink
+            stallSec = 5;
+            stallTol = 0;
+            lastDist = NaN;
+            tLastMove = 0;
+            didStallBlink = false;
+            blinkActive = false;
+            blinkT0 = 0;
+            blinkDur = 0.10;
+
+            Lines = [findobj('Tag','Contour'); findobj('Tag','Distractor')];
+            baseColor = this.StimulusStruct.LineColor;
+            dimColor  = this.StimulusStruct.DimColor;
+
+            accept = 0.96 * thresh;
+            prevDelta = NaN;
+
+            tLoop = tic;
+            while (timeout_value == 0 | toc(tLoop) < timeout_value) % do NOT replace | with || or the expression is changed.
+                if ismethod(this.a,'ReadWheel')
+                    dist = this.a.ReadWheel();
+                else
+                    dist = str2double(this.a.SerialRead);
                 end
-                % if this.isLeftTrial & delta < -thresh
-                %     delta = -thresh;
-                % elseif ~this.isLeftTrial & delta > thresh
-                %     delta = thresh;
-                % end
+                if isnan(dist)
+                    continue
+                end
+                tNow = toc(tLoop);
+
+                % Stall detection
+                if isnan(lastDist) || abs(dist - lastDist) > stallTol
+                    lastDist = dist;
+                    tLastMove = tNow;
+                    didStallBlink = false;
+                    if blinkActive
+                        if isempty(Lines) || any(~isgraphics(Lines))
+                            Lines = [findobj('Tag','Contour'); findobj('Tag','Distractor')];
+                        end
+                        try
+                            Lines.Color = baseColor;
+                        catch
+                            set(Lines,'Color',baseColor);
+                        end
+                        blinkActive = false;
+                    end
+                elseif ~didStallBlink && (tNow - tLastMove) >= stallSec
+                    if isempty(Lines) || any(~isgraphics(Lines))
+                        Lines = [findobj('Tag','Contour'); findobj('Tag','Distractor')];
+                    end
+                    try
+                        Lines.Color = dimColor;
+                    catch
+                        set(Lines,'Color',dimColor);
+                    end
+                    blinkActive = true;
+                    blinkT0 = tNow;
+                    didStallBlink = true;
+                end
+                if blinkActive && (tNow - blinkT0) >= blinkDur
+                    if isempty(Lines) || any(~isgraphics(Lines))
+                        Lines = [findobj('Tag','Contour'); findobj('Tag','Distractor')];
+                    end
+                    try
+                        Lines.Color = baseColor;
+                    catch
+                        set(Lines,'Color',baseColor);
+                    end
+                    blinkActive = false;
+                end
+
+                delta = dist * k;
+                if abs(delta) > thresh
+                    delta = sign(delta) * thresh;
+                end
+
                 I = I+1;
-                %this.wheelchoice{I} = delta;
-                %this.wheelchoicetime{I} = toc;
-                pos1 = pos1i + ([delta 0 0 0]);
-                axes(1).Position = pos1;
-                if numel(axes) > 1
-                    pos2 = pos2i + ([delta 0 0 0]);
-                    axes(2).Position = pos2;
+                if I > cap
+                    newCap = cap + 200000;
+                    wheelchoice(1,newCap) = single(0);
+                    wheelchoicetime(1,newCap) = single(0);
+                    cap = newCap;
                 end
-                %disp("Dist is "+dist+"; delta is "+delta); disp("R pos1 is is "+pos1(1)+"; L pos2 is "+pos2(1))
-                drawnow
-                if this.isLeftTrial & pos2(1)<=-0.25
-                    this.a.Reset()
-                elseif ~this.isLeftTrial & pos1(1) >= 0.75
-                    this.a.Reset()
+                wheelchoice(I) = single(delta);
+                wheelchoicetime(I) = single(tNow);
+
+                if isnan(prevDelta) || abs(delta - prevDelta) > 1e-7
+                    if useXform
+                        txR = double(delta) * scaleR;
+                        txL = double(delta) * scaleL;
+                        gR.Matrix = makehgtform('translate', [txR 0 0]);
+                        gL.Matrix = makehgtform('translate', [txL 0 0]);
+                    else
+                        pos1 = pos1i + ([double(delta) 0 0 0]);
+                        axR.Position = pos1;
+                        if exist('pos2i','var')
+                            pos2 = pos2i + ([double(delta) 0 0 0]);
+                            axL.Position = pos2;
+                        end
+                    end
+                    prevDelta = delta;
                 end
-                if this.isLeftTrial & pos2(1) >= 0.24
-                    event = 1;
-                    break
-                elseif ~this.isLeftTrial & pos1(1) <= 0.26
-                    event = 2;
-                    break
+
+                if (tNow - tLastDraw) >= drawInterval
+                    drawnow nocallbacks
+                    tLastDraw = tNow;
                 end
-                % if double(abs(delta)) >= double(thresh) %If a choice is made: !!! Add code to round up the correct choice but not accept an incorrect choice until it is fully made. Accept the correct choice early but wait for a full incorrect choice.
-                %     if sign(delta) > 0
-                %         event = 1;
-                %         break
-                %     elseif sign(delta) < 0
-                %         event = 2;
-                %         break
-                %     end
-                % end
-                if get(this.Skip, 'Value')
-                    set(this.Skip, 'Value', 0) %Turn the button off
-                    break
-                end
-            end
-            %this.wheelchoice(cellfun('isempty',this.wheelchoice)) = [];
-            %this.wheelchoice = cell2mat(this.wheelchoice);
-            %this.wheelchoicetime(cellfun('isempty',this.wheelchoicetime)) = [];
-            %this.wheelchoicetime = cell2mat(this.wheelchoicetime);
-            response_time = toc;
-            if event == -1 %If the mouse was close to picking a side, round up their choice:
-                if abs(delta) >= thresh
-                    if sign(delta) > 0
+
+                % OnlyCorrect logic
+                if this.isLeftTrial
+                    if delta <= -thresh
+                        this.a.Reset();
+                    end
+                    if delta >= accept
                         event = 1;
-                    elseif sign(delta) < 0
+                        break
+                    end
+                else
+                    if delta >= thresh
+                        this.a.Reset();
+                    end
+                    if delta <= -accept
                         event = 2;
+                        break
                     end
                 end
+
+                if get(this.Skip,'Value')
+                    set(this.Skip,'Value',0)
+                    break
+                end
             end
-            %translate response to decision
+
+            response_time = toc(tLoop);
+
+            if event == -1 && abs(delta) >= thresh
+                if sign(delta) > 0
+                    event = 1;
+                elseif sign(delta) < 0
+                    event = 2;
+                end
+            end
+
             switch event
                 case -1
                     WhatDecision = 'time out';
                 case 1
                     if this.isLeftTrial == 1
-                        WhatDecision = 'left correct';
+                        WhatDecision = 'left correct OC';
                     else
                         WhatDecision = 'left wrong';
                     end
                 case 2
                     if this.isLeftTrial == 0
-                        WhatDecision = 'right correct';
+                        WhatDecision = 'right correct OC';
                     else
                         WhatDecision = 'right wrong';
                     end
+            end
+
+            % Ensure we exit with baseline stimulus color
+            try
+                if ~isempty(Lines) && all(isgraphics(Lines))
+                    Lines.Color = baseColor;
+                end
+            catch
+            end
+
+            if I == 0
+                this.wheelchoice = [];
+                this.wheelchoicetime = [];
+            else
+                this.wheelchoice = double(wheelchoice(1:I));
+                this.wheelchoicetime = double(wheelchoicetime(1:I));
             end
         end
         function FlashNew(this, Stim, Box, Lines, whatdecision, OneWay)
@@ -1505,10 +1853,10 @@ classdef BehaviorBoxWheel < handle
             arguments
                 this
                 vars.Lines = findobj('Tag','Contour')
-                vars.NewColor
-                vars.steps
+                vars.NewColor double
+                vars.steps double
                 vars.OneWay logical = false
-                vars.Interruptor = [];
+                vars.Interruptor = []
             end
             if vars.steps == 1
                 return
@@ -1623,8 +1971,8 @@ classdef BehaviorBoxWheel < handle
             else
                 return %prevent an error crash
             end
-% Calculations for Cosine function:
-% A cosine oscillates from 1 to -1 and 1, some adjustments must be made:
+            % Calculations for Cosine function:
+            % A cosine oscillates from 1 to -1 and 1, some adjustments must be made:
             Range = start_color(1) - NewColor(1); % Maximum - Minimum of cosine oscillation
             Amplitude = Range/2; % Half of the Range
             Offset = (start_color(1) + NewColor(1))/2; % Vertical Shift
@@ -1649,7 +1997,9 @@ classdef BehaviorBoxWheel < handle
             else
                 return
             end
+            try
             this.Time.Log(end+1,1) = "Reward";
+            end
             % Give first drop only once
             this.a.GiveReward();
             % then flash
@@ -1688,7 +2038,7 @@ classdef BehaviorBoxWheel < handle
             end
         end
         %Update data structure, update graphs, do intertrial time
-        function AfterTrial(this) 
+        function AfterTrial(this)
             decision = this.WhatDecision;
             settingStruct = this.Setting_Struct;
             switch true
@@ -1712,8 +2062,13 @@ classdef BehaviorBoxWheel < handle
             %Update data & Plot, update GUI numbers
             this.UpdateData();
             this.updateMessageText(decision, interval, interval_time);
-            this.Time.Log(end+1,1) = "Stim off";
+            if get(this.stop_handle, 'Value')
+                return
+            end
             this.ReadyCue(true)
+            try
+            this.Time.Log(end+1,1) = "Stim off";
+            end
             %Wait for interval
             this.UpdatePause(interval_time)
             this.updateMessageBox();
@@ -1721,9 +2076,8 @@ classdef BehaviorBoxWheel < handle
                 this.Setting_Struct = this.Temp_Old_Settings;
             end
             this.a.Acquisition('End')
+            try
             this.timestamps_record{(this.i+1)} = this.Time.Log; % +1 Offset to account for the frames that are recorded before trial 1 begins (setup period)
-            if get(this.stop_handle, 'Value')
-                return
             end
         end
         function updateMessageBox(this)
@@ -1934,6 +2288,10 @@ classdef BehaviorBoxWheel < handle
                 case islogical(isVis)
                     set(this.ReadyCueAx, 'Visible', isVis)
                 case isVis == "Create"
+                    oldRQ = findobj(this.fig, 'Type', 'axes', 'Tag', 'ReadyCue');
+                    if ~isempty(oldRQ)
+                        delete(oldRQ(isgraphics(oldRQ)));
+                    end
                     RCAx = axes('Parent', this.fig, ...
                         'Position', [0 0 1 1], ...
                         'Color', 'k', ...
@@ -1942,15 +2300,28 @@ classdef BehaviorBoxWheel < handle
                         'YColor', 'none', ...
                         'YTick', [], ...
                         'XTick', []);
-                    this.fig.Children = [this.fig.Children([2 3 1 4 5])];
-                % case ischar(isVis) %Letter color abbrev.
-                %     ax = findobj(this.ReadyCueAx, 'Type', 'Axes');
-                %     ax.Color = char(isVis);
-                %     [this.ReadyCueAx.Visible] = deal(1);
-                %     try
-                %         [this.ReadyCueAx.Children.Visible] = deal(0);
-                %     end
-                %     return
+                    this.ReadyCueAx = RCAx;
+                    % Keep old layering intent (ReadyCue not top-most), but make it
+                    % robust to any number of figure children.
+                    try
+                        ch = this.fig.Children;
+                        iRQ = find(ch == RCAx, 1, 'first');
+                        if ~isempty(iRQ)
+                            others = ch([1:iRQ-1 iRQ+1:end]);
+                            ins = min(3, numel(others) + 1);
+                            newOrder = [others(1:ins-1); RCAx; others(ins:end)];
+                            this.fig.Children = newOrder;
+                        end
+                    catch
+                    end
+                    % case ischar(isVis) %Letter color abbrev.
+                    %     ax = findobj(this.ReadyCueAx, 'Type', 'Axes');
+                    %     ax.Color = char(isVis);
+                    %     [this.ReadyCueAx.Visible] = deal(1);
+                    %     try
+                    %         [this.ReadyCueAx.Children.Visible] = deal(0);
+                    %     end
+                    %     return
             end
             % Plot a circle in the center to show that a new trial is ready
             %Make the figure if this is the first call to readycue, or make a new one
@@ -2057,7 +2428,7 @@ classdef BehaviorBoxWheel < handle
             this.SetupBeforeLoop();
             STYLE = this.app.Animate_Style.Value;
             if options.Mode == "Show"
-%Remove everything that isn't the spotlights or the finish line
+                %Remove everything that isn't the spotlights or the finish line
                 this.TestStimulus("AnimateMode",true, "StimType", STYLE);
             end
             if options.Mode == "Go"
@@ -2125,7 +2496,7 @@ classdef BehaviorBoxWheel < handle
                 options.Type = 'normal';
                 options.Record logical = false; % Make sure to turn this off after
             end
-            set(this.fig, 'Renderer', 'OpenGL'); % openGL is the default but this may help 
+            set(this.fig, 'Renderer', 'OpenGL'); % openGL is the default but this may help
             if options.Record
                 folderName = 'RecordedFrames';
                 if ~exist(folderName, 'dir') % Check if the folder exists in the current working directory
@@ -2210,13 +2581,13 @@ classdef BehaviorBoxWheel < handle
             Pos_Record(I,1) = toc;
             Pos_Record(I,2) = AX.Position(X_or_Y); % Record initial position
             if this.app.Animate_Style.Value ~= "Dot"
-% All other stimuli translate across the screen and the timestamp is
-% matched to their position
+                % All other stimuli translate across the screen and the timestamp is
+                % matched to their position
                 while all([~this.app.Animate_End.Value ~this.app.Stop.Value])
                     try
-                    % Send Next File signal to ScanImage
-                    set(this.message_handle, 'Text', "Next file (ScanImage)...");
-                    this.a.Acquisition('Next');
+                        % Send Next File signal to ScanImage
+                        set(this.message_handle, 'Text', "Next file (ScanImage)...");
+                        this.a.Acquisition('Next');
                     catch
                     end
                     % Update positions for axes
@@ -2242,14 +2613,14 @@ classdef BehaviorBoxWheel < handle
                     Pos_Record(I,2) = AX.Position(X_or_Y);
                 end
             elseif this.app.Animate_Style.Value == "Dot"
-% The Dot mode oscillates brighter and dimmer and shows a Lv 20 stimulus
-% when at maximum brightness, and the timestamp is matched to the
-% brightness
+                % The Dot mode oscillates brighter and dimmer and shows a Lv 20 stimulus
+                % when at maximum brightness, and the timestamp is matched to the
+                % brightness
                 while all([~this.app.Animate_End.Value ~this.app.Stop.Value])
                     try
-                    % Send Next File signal to ScanImage
-                    set(this.message_handle, 'Text', "Next file (ScanImage)...");
-                    this.a.Acquisition('Next');
+                        % Send Next File signal to ScanImage
+                        set(this.message_handle, 'Text', "Next file (ScanImage)...");
+                        this.a.Acquisition('Next');
                     catch
                     end
                     % Update positions for axes
@@ -2283,7 +2654,7 @@ classdef BehaviorBoxWheel < handle
                     if this.app.Animate_MimicTrial.Value
                         try
                             this.a.GiveReward
-                        catch 
+                        catch
                         end
                     end
                     if this.app.Animate_OnlyIncorrectButton.Value
@@ -2316,7 +2687,7 @@ classdef BehaviorBoxWheel < handle
             end
             try
                 set(this.message_handle, 'Text', "Ending acquisition (ScanImage)...");
-            this.a.Acquisition('End');
+                this.a.Acquisition('End');
             catch
             end
             close(this.fig)
@@ -2332,14 +2703,14 @@ classdef BehaviorBoxWheel < handle
             arguments
                 this
                 options.Type = 'normal';
-                options.Record logical = true; % Make sure to turn this off 
+                options.Record logical = true; % Make sure to turn this off
             end
-% With mouse 303743 no settings were saved, so the defaults will be X-Line,
-% and the stimulus will loop through the saved timestamps
+            % With mouse 303743 no settings were saved, so the defaults will be X-Line,
+            % and the stimulus will loop through the saved timestamps
             STYLE = 'X-Line';
             DataToRec = this.Data_Object.loadedData(:,7);
             this.TestStimulus("AnimateMode",true, "StimType", STYLE);
-            set(this.fig, 'Renderer', 'OpenGL'); % openGL is the default but this may help 
+            set(this.fig, 'Renderer', 'OpenGL'); % openGL is the default but this may help
             folderName = fullfile(this.Data_Object.filedir{:},'RecordedFrames');
             if ~exist(folderName, 'dir') % Check if the folder exists in the current working directory
                 mkdir(folderName);
@@ -2405,7 +2776,7 @@ classdef BehaviorBoxWheel < handle
                 fullFilePath = fullfile(folderName, fileName);
                 if ~exist(fullFilePath, 'file')
                     print(this.fig, '-dtiff', fullFilePath)
-                else 
+                else
                     break
                 end
                 % Check boundaries and reset position
@@ -2637,6 +3008,13 @@ classdef BehaviorBoxWheel < handle
             if ~Stim.FlashStim
                 return
             end
+            if isempty(Lines)
+                return
+            end
+            Lines = Lines(isgraphics(Lines));
+            if isempty(Lines)
+                return
+            end
             switch 1
                 case contains(whatdecision, 'wrong')
                     Reps = Stim.RepFlashAfterW;
@@ -2696,7 +3074,7 @@ classdef BehaviorBoxWheel < handle
                             pause(1/Freq/2)
                         end
                     end
-                elseif Lines(1).Type == "polygon" %Wheel
+                elseif any(strcmpi(string(Lines(1).Type), ["polygon","patch"])) %Wheel finish line
                     for StimRep = 1:Reps
                         [Lines.FaceColor] = deal(flash_color); drawnow
                         pause(1/Freq/6)

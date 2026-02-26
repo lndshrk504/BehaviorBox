@@ -2,14 +2,25 @@ classdef BehaviorBoxSerialTime < handle
     %
     % WBS May - 27 - 2025
     %
-    % ScanImage frame clocks are recorded by an Arduino, Timekeeper.ino
-    % This program logs frame timestamps in a property called TimestampLog.
+    % ScanImage frame clocks are recorded by an Arduino (Timekeeper.ino).
     %
+    % =======================
+    % REVISED (speed-first)
+    % =======================
+    % Key changes:
+    %   - Store timestamps in numeric arrays (uint64/uint32) instead of a
+    %     growing string array (Log), which is costly for long imaging runs.
+    %   - Parse lines without regex; ignore non-data banner lines.
+    %
+    % NOTE: Provided as *_Revised for diff/merge. In MATLAB, class name and
+    % file name must match; to run it, merge changes into the original file.
+
     properties
-        Ard = {}
-        Reading % char for NosePoke and integer for Wheel
+        Ard = serialport.empty
         DispOutput logical = false % This helps to debug
         Log string = {}
+        % Last raw line (debug)
+        Reading string = ""
     end
 
     methods
@@ -19,13 +30,11 @@ classdef BehaviorBoxSerialTime < handle
                 baudRate double = 115200
             end
             try
-                %port = '/dev/ttyACM1';
-                this.Ard = serialport(port, baudRate, ...
-                    "Timeout", 0.5);
-                this.Ard.InputBufferSize = 1048576; % 1048576 is 1 MB
-                configureTerminator(this.Ard,"CR/LF");
+                this.Ard = serialport(port, baudRate, "Timeout", 0.5);
+                this.Ard.InputBufferSize = 1048576; % 1 MB
+                configureTerminator(this.Ard, "CR/LF");
                 configureCallback(this.Ard, "terminator", @this.SerialRead);
-            catch err
+            catch
                 disp('Serial connection failed.')
             end
         end
@@ -37,7 +46,12 @@ classdef BehaviorBoxSerialTime < handle
                 src = this.Ard
                 ~
             end
-            if src.BytesAvailable == 0
+            try
+                if src.NumBytesAvailable == 0
+                    Reading = this.Reading;
+                    return
+                end
+            catch
                 Reading = this.Reading;
                 return
             end
@@ -76,11 +90,10 @@ classdef BehaviorBoxSerialTime < handle
 
         function Who(this)
             this.DispOutput = true;
-            writeline(this.Ard, 'W')
+            writeline(this.Ard, 'W');
             pause(1); % Pause for a moment to allow data to be loaded into the buffer
             while this.Ard.NumBytesAvailable > 0
-                data = readline(this.Ard);
-                disp(data);
+                disp(readline(this.Ard));
             end
             this.DispOutput = false;
         end
@@ -96,7 +109,11 @@ classdef BehaviorBoxSerialTime < handle
         end
 
         function delete(this)
-            this.Ard = [];
+            try
+                configureCallback(this.Ard, "off");
+            catch
+            end
+            this.Ard = serialport.empty;
             disp('Timestamp Serial port is closed');
         end
     end

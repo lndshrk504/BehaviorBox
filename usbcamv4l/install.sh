@@ -6,6 +6,7 @@ LINK_FILE="${ROOT_DIR}/usbcamv4l"
 CTL_LINK_FILE="${ROOT_DIR}/usbcamctl"
 INSTALL_DIR="/usr/local/bin"
 INSTALL_NAME="cam"
+CTL_INSTALL_NAME="camctl"
 
 mkdir -p "${BUILD_DIR}"
 
@@ -37,8 +38,10 @@ fi
 
 ${SUDO} install -d "${INSTALL_DIR}"
 ${SUDO} install -m 0755 "${BUILD_DIR}/usbcamv4l" "${INSTALL_DIR}/${INSTALL_NAME}"
+${SUDO} install -m 0755 "${BUILD_DIR}/usbcamctl" "${INSTALL_DIR}/${CTL_INSTALL_NAME}"
 
 echo "Built: ${BUILD_DIR}/usbcamv4l"
 echo "Launch with: ${LINK_FILE}"
 echo "Control with: ${CTL_LINK_FILE} status"
 echo "Installed: ${INSTALL_DIR}/${INSTALL_NAME}"
+echo "Installed: ${INSTALL_DIR}/${CTL_INSTALL_NAME}"
