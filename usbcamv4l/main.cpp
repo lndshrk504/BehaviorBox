@@ -697,6 +697,30 @@ struct RawVideoRecorder {
   std::string baseName;
   std::string outputPath;
 
+  static void set_fd_cloexec(int fd) {
+    if (fd < 0) return;
+    const int flags = fcntl(fd, F_GETFD);
+    if (flags < 0) return;
+    (void)fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
+  }
+
+  bool wait_for_child_exit(int timeoutMs) {
+    if (pid <= 0) return true;
+    const int sleepStepUs = 10 * 1000;
+    const int maxSteps = std::max(0, (timeoutMs * 1000) / sleepStepUs);
+    for (int step = 0; step <= maxSteps; ++step) {
+      int status = 0;
+      const pid_t rc = ::waitpid(pid, &status, WNOHANG);
+      if (rc == pid) return true;
+      if (rc < 0) {
+        if (errno == EINTR) continue;
+        return true;
+      }
+      if (step < maxSteps) ::usleep(sleepStepUs);
+    }
+    return false;
+  }
+
   bool write_all(const uint8_t* data, size_t bytes) {
     if (!started || writeFd < 0 || !data) return false;
     size_t off = 0;
@@ -718,8 +742,17 @@ struct RawVideoRecorder {
       writeFd = -1;
     }
     if (pid > 0) {
-      int status = 0;
-      (void)waitpid(pid, &status, 0);
+      if (!wait_for_child_exit(1500)) {
+        std::cerr << "Recorder process did not exit after EOF for " << baseName
+                  << "; sending SIGTERM.\n";
+        (void)::kill(pid, SIGTERM);
+        if (!wait_for_child_exit(1000)) {
+          std::cerr << "Recorder process still running for " << baseName
+                    << "; sending SIGKILL.\n";
+          (void)::kill(pid, SIGKILL);
+          (void)wait_for_child_exit(500);
+        }
+      }
       pid = -1;
     }
     started = false;
@@ -767,6 +800,8 @@ struct RawVideoRecorder {
                 << ": " << strerror(errno) << "\n";
       return false;
     }
+    set_fd_cloexec(pipeFds[0]);
+    set_fd_cloexec(pipeFds[1]);
 
     const pid_t child = fork();
     if (child < 0) {
