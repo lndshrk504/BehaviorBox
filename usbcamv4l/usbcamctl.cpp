@@ -134,7 +134,7 @@ static std::string normalize_option_alias(const std::string& arg) {
     return "-s";
   if (lower == "--sync" || lower == "-sync" || lower == "--sycn" || lower == "-sycn" ||
       lower == "--synch" || lower == "-synch")
-    return "-y";
+    return "-g";
   return arg;
 }
 
@@ -250,7 +250,7 @@ static void print_help(const char* argv0) {
       << "    Print current runtime state for all cameras.\n"
       << "  -x, --raw CMD\n"
       << "    Send raw command text directly to the control socket.\n"
-      << "  -y, --sync MODE\n"
+      << "  -g, --sync MODE\n"
       << "    MODE: strict|low|auto.\n"
       << "    strict: force glFinish() each frame.\n"
       << "    low: force glFlush() each frame.\n"
@@ -271,7 +271,7 @@ static void print_help(const char* argv0) {
       << "  " << argv0 << " rec toggle\n"
       << "  " << argv0 << " -r toggle\n"
       << "  " << argv0 << " sync auto\n"
-      << "  " << argv0 << " -y auto\n"
+      << "  " << argv0 << " -g auto\n"
       << "  " << argv0 << " queue 4\n"
       << "  " << argv0 << " -q 4\n"
       << "  " << argv0 << " cam 0 reconnect\n\n"
@@ -280,7 +280,8 @@ static void print_help(const char* argv0) {
       << "  Override: set USBCAMV4L_CONTROL_SOCKET\n\n"
       << "Compatibility aliases:\n"
       << "  Legacy long flags with a single dash are accepted (example: -status).\n"
-      << "  Common misspellings are normalized (example: --stauts -> --status).\n\n"
+      << "  Common misspellings are normalized (example: --stauts -> --status).\n"
+      << "  Legacy -y remains accepted as an alias for -g/--sync.\n\n"
       << "Notes:\n"
       << "  - usbcamv4l must be running with control enabled (default).\n"
       << "  - If usbcamv4l was started with -no-control, commands will fail.\n";
@@ -351,7 +352,7 @@ int main(int argc, char** argv) {
     }
     if (lower.rfind("--sync=", 0) == 0 || lower.rfind("-sync=", 0) == 0 ||
         lower.rfind("--sycn=", 0) == 0 || lower.rfind("-sycn=", 0) == 0) {
-      normalizedArgs.push_back("-y");
+      normalizedArgs.push_back("-g");
       normalizedArgs.push_back(arg.substr(arg.find('=') + 1));
       continue;
     }
@@ -366,7 +367,7 @@ int main(int argc, char** argv) {
   opterr = 0;
   optind = 1;
   int opt = 0;
-  while ((opt = getopt(static_cast<int>(normalizedArgs.size()), argvMutable.data(), "c:f:hp:q:r:sx:y:")) != -1) {
+  while ((opt = getopt(static_cast<int>(normalizedArgs.size()), argvMutable.data(), "c:f:hp:q:r:sx:g:y:")) != -1) {
     switch (opt) {
       case 'c': {
         std::string parsed;
@@ -425,13 +426,14 @@ int main(int argc, char** argv) {
           return 1;
         }
         break;
+      case 'g':
       case 'y': {
         const std::string mode = normalize_command_token(optarg ? optarg : "");
         if (!is_sync_mode(mode)) {
-          std::cerr << "Invalid sync mode for -y/--sync: " << mode << " (expected strict|low|auto)\n";
+          std::cerr << "Invalid sync mode for -g/--sync: " << mode << " (expected strict|low|auto)\n";
           return 1;
         }
-        if (!set_command("sync " + mode, "-y/--sync")) return 1;
+        if (!set_command("sync " + mode, "-g/--sync")) return 1;
         break;
       }
       case '?':

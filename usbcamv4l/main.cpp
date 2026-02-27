@@ -1639,6 +1639,16 @@ static constexpr uint8_t kOverlayShadowA = 52;
 static void glyph_5x7(char c, uint8_t rows[7]) {
   std::memset(rows, 0, 7);
   switch (c) {
+    case 'A':
+    case 'a': { const uint8_t g[7] = {0x0E, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11}; std::memcpy(rows, g, 7); break; }
+    case 'B':
+    case 'b': { const uint8_t g[7] = {0x1E, 0x11, 0x11, 0x1E, 0x11, 0x11, 0x1E}; std::memcpy(rows, g, 7); break; }
+    case 'C':
+    case 'c': { const uint8_t g[7] = {0x0E, 0x11, 0x10, 0x10, 0x10, 0x11, 0x0E}; std::memcpy(rows, g, 7); break; }
+    case 'D':
+    case 'd': { const uint8_t g[7] = {0x1C, 0x12, 0x11, 0x11, 0x11, 0x12, 0x1C}; std::memcpy(rows, g, 7); break; }
+    case 'E':
+    case 'e': { const uint8_t g[7] = {0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x1F}; std::memcpy(rows, g, 7); break; }
     case '0': { const uint8_t g[7] = {0x0E, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0E}; std::memcpy(rows, g, 7); break; }
     case '1': { const uint8_t g[7] = {0x04, 0x0C, 0x04, 0x04, 0x04, 0x04, 0x0E}; std::memcpy(rows, g, 7); break; }
     case '2': { const uint8_t g[7] = {0x0E, 0x11, 0x01, 0x02, 0x04, 0x08, 0x1F}; std::memcpy(rows, g, 7); break; }
@@ -1650,8 +1660,20 @@ static void glyph_5x7(char c, uint8_t rows[7]) {
     case '8': { const uint8_t g[7] = {0x0E, 0x11, 0x11, 0x0E, 0x11, 0x11, 0x0E}; std::memcpy(rows, g, 7); break; }
     case '9': { const uint8_t g[7] = {0x0E, 0x11, 0x11, 0x0F, 0x01, 0x01, 0x0E}; std::memcpy(rows, g, 7); break; }
     case 'F': { const uint8_t g[7] = {0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x10}; std::memcpy(rows, g, 7); break; }
+    case 'G':
+    case 'g': { const uint8_t g[7] = {0x0E, 0x11, 0x10, 0x17, 0x11, 0x11, 0x0E}; std::memcpy(rows, g, 7); break; }
+    case 'I':
+    case 'i': { const uint8_t g[7] = {0x0E, 0x04, 0x04, 0x04, 0x04, 0x04, 0x0E}; std::memcpy(rows, g, 7); break; }
+    case 'N':
+    case 'n': { const uint8_t g[7] = {0x11, 0x19, 0x15, 0x13, 0x11, 0x11, 0x11}; std::memcpy(rows, g, 7); break; }
+    case 'O':
+    case 'o': { const uint8_t g[7] = {0x0E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E}; std::memcpy(rows, g, 7); break; }
     case 'P': { const uint8_t g[7] = {0x1E, 0x11, 0x11, 0x1E, 0x10, 0x10, 0x10}; std::memcpy(rows, g, 7); break; }
+    case 'R':
+    case 'r': { const uint8_t g[7] = {0x1E, 0x11, 0x11, 0x1E, 0x14, 0x12, 0x11}; std::memcpy(rows, g, 7); break; }
     case 'S': { const uint8_t g[7] = {0x0F, 0x10, 0x10, 0x0E, 0x01, 0x01, 0x1E}; std::memcpy(rows, g, 7); break; }
+    case 'T':
+    case 't': { const uint8_t g[7] = {0x1F, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04}; std::memcpy(rows, g, 7); break; }
     case 'X':
     case 'x': { const uint8_t g[7] = {0x11, 0x11, 0x0A, 0x04, 0x0A, 0x11, 0x11}; std::memcpy(rows, g, 7); break; }
     case '.': { const uint8_t g[7] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x06}; std::memcpy(rows, g, 7); break; }
@@ -1670,12 +1692,24 @@ static inline void overlay_put_pixel(std::vector<uint8_t>& rgba, int w, int h, i
   rgba[idx + 3] = a;
 }
 
-static void render_overlay_text_rgba(std::vector<uint8_t>& rgba, int w, int h, const std::string& text) {
+static void render_overlay_text_rgba_scaled(std::vector<uint8_t>& rgba, int w, int h,
+                                            const std::string& text,
+                                            int scale,
+                                            int margin,
+                                            uint8_t textR,
+                                            uint8_t textG,
+                                            uint8_t textB,
+                                            uint8_t textA,
+                                            uint8_t shadowA) {
   if (w <= 0 || h <= 0) return;
   rgba.assign(static_cast<size_t>(w) * static_cast<size_t>(h) * 4u, 0);
 
-  const int baseX = kOverlayMargin;
-  const int baseY = kOverlayMargin;
+  const int glyphScale = std::max(1, scale);
+  const int glyphMargin = std::max(0, margin);
+  const int glyphAdvance = (kOverlayGlyphW + 1) * glyphScale;
+  const int shadowOffset = std::max(1, glyphScale / 2);
+  const int baseX = glyphMargin;
+  const int baseY = glyphMargin;
 
   int penX = baseX;
   for (char ch : text) {
@@ -1685,30 +1719,45 @@ static void render_overlay_text_rgba(std::vector<uint8_t>& rgba, int w, int h, c
       const uint8_t bits = glyph[gy];
       for (int gx = 0; gx < kOverlayGlyphW; ++gx) {
         if ((bits & (1u << (kOverlayGlyphW - 1 - gx))) == 0) continue;
-        for (int sy = 0; sy < kOverlayScale; ++sy) {
-          for (int sx = 0; sx < kOverlayScale; ++sx) {
+        for (int sy = 0; sy < glyphScale; ++sy) {
+          for (int sx = 0; sx < glyphScale; ++sx) {
             // Soft shadow to keep text legible without a heavy background block.
             overlay_put_pixel(rgba, w, h,
-                              penX + gx * kOverlayScale + sx + 1,
-                              baseY + gy * kOverlayScale + sy + 1,
-                              0, 0, 0, kOverlayShadowA);
+                              penX + gx * glyphScale + sx + shadowOffset,
+                              baseY + gy * glyphScale + sy + shadowOffset,
+                              0, 0, 0, shadowA);
             overlay_put_pixel(rgba, w, h,
-                              penX + gx * kOverlayScale + sx,
-                              baseY + gy * kOverlayScale + sy,
-                              kOverlayTextR, kOverlayTextG, kOverlayTextB, kOverlayTextA);
+                              penX + gx * glyphScale + sx,
+                              baseY + gy * glyphScale + sy,
+                              textR, textG, textB, textA);
           }
         }
       }
     }
-    penX += kOverlayAdvance;
-    if (penX + kOverlayAdvance >= w) break;
+    penX += glyphAdvance;
+    if (penX + glyphAdvance >= w) break;
   }
 }
 
-static void overlay_dimensions_for_text(const std::string& text, int& outW, int& outH) {
+static void overlay_dimensions_for_text_scaled(const std::string& text, int scale, int margin,
+                                               int& outW, int& outH) {
+  const int glyphScale = std::max(1, scale);
+  const int glyphMargin = std::max(0, margin);
   const int chars = std::max(1, static_cast<int>(text.size()));
-  outW = kOverlayMargin + chars * kOverlayAdvance + kOverlayMargin;
-  outH = kOverlayMargin + kOverlayGlyphH * kOverlayScale + kOverlayMargin;
+  outW = glyphMargin + chars * ((kOverlayGlyphW + 1) * glyphScale) + glyphMargin;
+  outH = glyphMargin + kOverlayGlyphH * glyphScale + glyphMargin;
+}
+
+static void render_overlay_text_rgba(std::vector<uint8_t>& rgba, int w, int h, const std::string& text) {
+  render_overlay_text_rgba_scaled(rgba, w, h, text,
+                                  kOverlayScale,
+                                  kOverlayMargin,
+                                  kOverlayTextR, kOverlayTextG, kOverlayTextB, kOverlayTextA,
+                                  kOverlayShadowA);
+}
+
+static void overlay_dimensions_for_text(const std::string& text, int& outW, int& outH) {
+  overlay_dimensions_for_text_scaled(text, kOverlayScale, kOverlayMargin, outW, outH);
   outW = std::clamp(outW, 56, 360);
   outH = std::clamp(outH, 12, 28);
 }
@@ -2803,29 +2852,30 @@ static void print_usbcamv4l_help(const char* argv0) {
       << "      List formats, resolutions, and FPS modes, then exit.\n"
       << "  -m, --mjpeg\n"
       << "      Prefer MJPEG capture (fallback: NV12 then YUYV).\n"
-      << "  -M, --mjpeg-hw\n"
+      << "  -w, --mjpeg-hw\n"
       << "      Enable full hardware MJPEG decode backend probing.\n"
-      << "  -B, --no-bench\n"
+      << "  -n, --no-bench\n"
       << "      Disable startup capture-path benchmark selection.\n"
-      << "  -C, --no-control\n"
+      << "  -c, --no-control\n"
       << "      Disable runtime control socket.\n"
       << "  -r, --rec\n"
       << "      Enable recording for all cameras.\n"
-      << "  -F, --rec-fast\n"
+      << "  -a, --rec-fast\n"
       << "      Recording profile: fast throughput (default recording profile).\n"
-      << "  -Q, --rec-quality\n"
+      << "  -q, --rec-quality\n"
       << "      Recording profile: higher quality, lower throughput.\n"
       << "  -s, --res\n"
       << "      Choose one common capture height for all cameras.\n"
       << "  -e, --res-each\n"
       << "      Choose capture resolution separately for each camera.\n"
-      << "  -R, --reset\n"
+      << "  -x, --reset\n"
       << "      Reset saved window position and resolution state.\n"
-      << "  -S, --strict-sync\n"
+      << "  -g, --strict-sync\n"
       << "      Force strict GPU sync (glFinish every frame).\n\n"
       << "Compatibility aliases:\n"
       << "  Legacy long flags with single dash are accepted (example: -mjpeg).\n"
-      << "  Common misspellings are normalized (example: --mpjeg -> --mjpeg).\n";
+      << "  Common misspellings are normalized (example: --mpjeg -> --mjpeg).\n"
+      << "  Legacy uppercase short flags were removed to reduce accidental misuse.\n";
 }
 
 int main(int argc, char** argv) {
@@ -2849,7 +2899,7 @@ int main(int argc, char** argv) {
   auto normalize_option_alias = [](std::string arg) -> std::string {
     auto lower = to_lower_copy(arg);
     if (lower == "--help" || lower == "-help" || lower == "--hlep" || lower == "--halp") return "-h";
-    if (lower == "--reset" || lower == "-reset" || lower == "--rest") return "-R";
+    if (lower == "--reset" || lower == "-reset" || lower == "--rest") return "-x";
     if (lower == "--res" || lower == "-res" ||
         lower == "--choose-all-res" || lower == "-choose-all-res" ||
         lower == "--choose-all-resolution" || lower == "-choose-all-resolution") return "-s";
@@ -2864,10 +2914,10 @@ int main(int argc, char** argv) {
         lower == "--mjpg" || lower == "-mjpg") return "-m";
     if (lower == "--mjpeg-hw" || lower == "-mjpeg-hw" ||
         lower == "--mpjeg-hw" || lower == "-mpjeg-hw" ||
-        lower == "--mjpg-hw" || lower == "-mjpg-hw") return "-M";
+        lower == "--mjpg-hw" || lower == "-mjpg-hw") return "-w";
     if (lower == "--strict-sync" || lower == "-strict-sync" ||
         lower == "--strictsync" || lower == "-strictsync" ||
-        lower == "--stric-sync" || lower == "-stric-sync") return "-S";
+        lower == "--stric-sync" || lower == "-stric-sync") return "-g";
     if (lower == "--fps" || lower == "-fps" ||
         lower == "--fpps" || lower == "-fpps" ||
         lower == "--fpss" || lower == "-fpss") return "-f";
@@ -2877,14 +2927,14 @@ int main(int argc, char** argv) {
         lower == "--list-camreas" || lower == "-list-camreas") return "-l";
     if (lower == "--no-bench" || lower == "-no-bench" ||
         lower == "--no-benchmark" || lower == "-no-benchmark" ||
-        lower == "--nobench" || lower == "-nobench") return "-B";
+        lower == "--nobench" || lower == "-nobench") return "-n";
     if (lower == "--no-control" || lower == "-no-control" ||
-        lower == "--nocontrol" || lower == "-nocontrol") return "-C";
+        lower == "--nocontrol" || lower == "-nocontrol") return "-c";
     if (lower == "--rec" || lower == "-rec") return "-r";
     if (lower == "--rec-fast" || lower == "-rec-fast" ||
-        lower == "--recf-fast" || lower == "-recf-fast") return "-F";
+        lower == "--recf-fast" || lower == "-recf-fast") return "-a";
     if (lower == "--rec-quality" || lower == "-rec-quality" ||
-        lower == "--rec-qaulity" || lower == "-rec-qaulity") return "-Q";
+        lower == "--rec-qaulity" || lower == "-rec-qaulity") return "-q";
     return arg;
   };
 
@@ -2925,7 +2975,7 @@ int main(int argc, char** argv) {
   optind = 1;
   int opt = 0;
   while ((opt = getopt(static_cast<int>(normalizedArgs.size()), argvMutable.data(),
-                       "b:fhlmMBCrFQseRS")) != -1) {
+                       "b:fhlmwncraqsexg")) != -1) {
     switch (opt) {
       case 'b':
         try {
@@ -2947,24 +2997,24 @@ int main(int argc, char** argv) {
       case 'm':
         preferMjpeg = true;
         break;
-      case 'M':
+      case 'w':
         preferMjpeg = true;
         allowFullMjpegHw = true;
         break;
-      case 'B':
+      case 'n':
         autoBenchmarkStartup = false;
         break;
-      case 'C':
+      case 'c':
         enableControlSocket = false;
         break;
       case 'r':
         enableRecording = true;
         break;
-      case 'F':
+      case 'a':
         enableRecording = true;
         recordProfile = RawVideoRecorder::Profile::Fast;
         break;
-      case 'Q':
+      case 'q':
         enableRecording = true;
         recordProfile = RawVideoRecorder::Profile::Quality;
         break;
@@ -2974,10 +3024,10 @@ int main(int argc, char** argv) {
       case 'e':
         chooseEachResolution = true;
         break;
-      case 'R':
+      case 'x':
         resetWindowPositions = true;
         break;
-      case 'S':
+      case 'g':
         strictGpuSync = true;
         break;
       case '?':
@@ -2995,6 +3045,21 @@ int main(int argc, char** argv) {
           }
           if (!badOpt.empty()) {
             std::cerr << "Unknown option: " << badOpt << "\n";
+            if (badOpt == "-F") {
+              std::cerr << "Use -a/--rec-fast (uppercase -F removed to avoid confusion with -f).\n";
+            } else if (badOpt == "-Q") {
+              std::cerr << "Use -q/--rec-quality.\n";
+            } else if (badOpt == "-M") {
+              std::cerr << "Use -w/--mjpeg-hw.\n";
+            } else if (badOpt == "-B") {
+              std::cerr << "Use -n/--no-bench.\n";
+            } else if (badOpt == "-C") {
+              std::cerr << "Use -c/--no-control.\n";
+            } else if (badOpt == "-R") {
+              std::cerr << "Use -x/--reset.\n";
+            } else if (badOpt == "-S") {
+              std::cerr << "Use -g/--strict-sync.\n";
+            }
           } else {
             std::cerr << "Unknown option.\n";
           }
@@ -3490,7 +3555,8 @@ int main(int argc, char** argv) {
                                                [](const V4L2DmabufCam& c) {
                                                  return c.mjpeg;
                                                });
-  const bool needOverlayShader = showFpsOverlay || enableControlSocket;
+  // Always compile the RGBA pass so runtime safety overlays can be rendered.
+  const bool needOverlayShader = true;
 
   GLuint progNV12 = needNV12Shader ? make_program(kFS_NV12) : 0;
   GLuint progYUYV = needYuyvShader ? make_program(kFS_YUYV) : 0;
@@ -3530,7 +3596,62 @@ int main(int argc, char** argv) {
   if (progRGBA) {
     glUseProgram(progRGBA);
     glUniform1i(locRGBA, 0);
+  } else if (needOverlayShader) {
+    std::cerr << "RGBA overlay shader unavailable; status overlays will be disabled.\n";
   }
+
+  GLuint recordingIndicatorTex = 0;
+  int recordingIndicatorTexW = 0;
+  int recordingIndicatorTexH = 0;
+  std::vector<uint8_t> recordingIndicatorRgba;
+  GLuint reconnectingIndicatorTex = 0;
+  int reconnectingIndicatorTexW = 0;
+  int reconnectingIndicatorTexH = 0;
+  std::vector<uint8_t> reconnectingIndicatorRgba;
+  static constexpr int kRecordBlinkPeriodMs = 500;
+  static constexpr int kReconnectBlinkPeriodMs = 320;
+
+  auto upload_static_overlay = [&](const std::string& text,
+                                   int scale,
+                                   int margin,
+                                   uint8_t textR,
+                                   uint8_t textG,
+                                   uint8_t textB,
+                                   uint8_t textA,
+                                   uint8_t shadowA,
+                                   GLuint& tex,
+                                   int& texW,
+                                   int& texH,
+                                   std::vector<uint8_t>& rgba) {
+    if (!progRGBA || text.empty()) return;
+    int overlayW = 0;
+    int overlayH = 0;
+    overlay_dimensions_for_text_scaled(text, scale, margin, overlayW, overlayH);
+    if (overlayW <= 0 || overlayH <= 0) return;
+    render_overlay_text_rgba_scaled(rgba, overlayW, overlayH, text, scale, margin,
+                                    textR, textG, textB, textA, shadowA);
+    ensure_plane_texture(tex, texW, texH, GL_RGBA, overlayW, overlayH, GL_LINEAR);
+    if (!rgba.empty()) {
+      glBindTexture(GL_TEXTURE_2D, tex);
+      glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+      glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, overlayW, overlayH,
+                      GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+    }
+  };
+  upload_static_overlay("RECORDING",
+                        2, 4,
+                        255, 70, 70, 225, 120,
+                        recordingIndicatorTex,
+                        recordingIndicatorTexW,
+                        recordingIndicatorTexH,
+                        recordingIndicatorRgba);
+  upload_static_overlay("RECONNECTING",
+                        4, 6,
+                        255, 70, 70, 240, 180,
+                        reconnectingIndicatorTex,
+                        reconnectingIndicatorTexW,
+                        reconnectingIndicatorTexH,
+                        reconnectingIndicatorRgba);
 
   const char* glExt = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
   const bool canUseUnpackRowLength = gl_extension_supported(glExt, "GL_EXT_unpack_subimage");
@@ -3552,6 +3673,60 @@ int main(int argc, char** argv) {
   auto syncWindowStart = std::chrono::steady_clock::now();
   const int reconnectRetryMs = 1200;
   const int watchdogNoFrameMs = 1500;
+
+  auto blink_visible = [](int periodMs) -> bool {
+    const int safePeriod = std::max(120, periodMs);
+    const auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+    return ((nowMs / safePeriod) % 2) == 0;
+  };
+
+  auto draw_overlay_texture = [&](GLuint tex,
+                                  int texW,
+                                  int texH,
+                                  int viewW,
+                                  int viewH,
+                                  int px,
+                                  int py) {
+    if (!progRGBA || tex == 0 || texW <= 0 || texH <= 0 || viewW <= 0 || viewH <= 0) return;
+    int drawW = std::min(texW, viewW);
+    int drawH = std::min(texH, viewH);
+    int drawX = std::clamp(px, 0, std::max(0, viewW - drawW));
+    int drawY = std::clamp(py, 0, std::max(0, viewH - drawH));
+    GLfloat overlayQuad[16];
+    make_overlay_quad(viewW, viewH, drawX, drawY, drawW, drawH, overlayQuad);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glUseProgram(progRGBA);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, tex);
+    draw_quad(overlayQuad);
+    glDisable(GL_BLEND);
+  };
+
+  auto draw_reconnecting_placeholder = [&](size_t camIndex) {
+    if (camIndex >= wins.size()) return;
+    if (!eglMakeCurrent(edpy, wins[camIndex].surf, wins[camIndex].surf, ctx)) return;
+
+    const int viewW = std::max(1, wins[camIndex].geom.w);
+    const int viewH = std::max(1, wins[camIndex].geom.h);
+    glViewport(0, 0, viewW, viewH);
+    glClearColor(0.06f, 0.02f, 0.02f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    if (blink_visible(kReconnectBlinkPeriodMs)) {
+      const int overlayX = std::max(0, (viewW - reconnectingIndicatorTexW) / 2);
+      const int overlayY = std::max(0, (viewH - reconnectingIndicatorTexH) / 2);
+      draw_overlay_texture(reconnectingIndicatorTex,
+                           reconnectingIndicatorTexW,
+                           reconnectingIndicatorTexH,
+                           viewW, viewH,
+                           overlayX, overlayY);
+    }
+    if (runtimeStrictGpuSync) glFinish();
+    else glFlush();
+    eglSwapBuffers(edpy, wins[camIndex].surf);
+  };
 
   const std::string controlSocketPath = control_socket_file();
   int controlFd = -1;
@@ -3930,7 +4105,10 @@ int main(int argc, char** argv) {
           cam.fd < 0) {
         cam.reconnectPending = true;
         (void)try_reconnect_camera(i, cam.fd < 0 ? "camera fd invalid" : "watchdog timeout");
-        if (cam.fd < 0) continue;
+        if (cam.fd < 0) {
+          draw_reconnecting_placeholder(i);
+          continue;
+        }
       }
 
       v4l2_buffer b{};
@@ -3969,6 +4147,7 @@ int main(int argc, char** argv) {
                       << " for " << cam.cam.devPath << " after dequeue errors.\n";
           }
         }
+        if (cam.reconnectPending) draw_reconnecting_placeholder(i);
         continue;
       }
       cam.consecutiveDqErrors = 0;
@@ -3980,6 +4159,7 @@ int main(int argc, char** argv) {
             cam.reconnectPending = true;
           }
         }
+        if (cam.reconnectPending) draw_reconnecting_placeholder(i);
         continue;
       }
 
@@ -4387,24 +4567,22 @@ int main(int argc, char** argv) {
           }
         }
 
-        if (showFpsOverlay && progRGBA && cam.overlayTex && cam.overlayTexW > 0 && cam.overlayTexH > 0) {
-          const int viewW = std::max(1, wins[i].geom.w);
-          const int viewH = std::max(1, wins[i].geom.h);
-          int overlayW = std::min(cam.overlayTexW, viewW);
-          int overlayH = std::min(cam.overlayTexH, viewH);
-          int overlayX = 8;
-          int overlayY = 8;  // Bottom-left origin in make_overlay_quad.
-          if (overlayX + overlayW > viewW) overlayX = 0;
-          if (overlayY + overlayH > viewH) overlayY = 0;
-          GLfloat overlayQuad[16];
-          make_overlay_quad(viewW, viewH, overlayX, overlayY, overlayW, overlayH, overlayQuad);
-          glEnable(GL_BLEND);
-          glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-          glUseProgram(progRGBA);
-          glActiveTexture(GL_TEXTURE0);
-          glBindTexture(GL_TEXTURE_2D, cam.overlayTex);
-          draw_quad(overlayQuad);
-          glDisable(GL_BLEND);
+        const int viewW = std::max(1, wins[i].geom.w);
+        const int viewH = std::max(1, wins[i].geom.h);
+        if (showFpsOverlay && cam.overlayTex && cam.overlayTexW > 0 && cam.overlayTexH > 0) {
+          draw_overlay_texture(cam.overlayTex, cam.overlayTexW, cam.overlayTexH,
+                               viewW, viewH, 8, 8);
+        }
+        if (cam.record && cam.recorder.enabled && blink_visible(kRecordBlinkPeriodMs)) {
+          const int recordX = std::max(0, viewW - recordingIndicatorTexW - 10);
+          draw_overlay_texture(recordingIndicatorTex, recordingIndicatorTexW, recordingIndicatorTexH,
+                               viewW, viewH, recordX, 8);
+        }
+        if (cam.reconnectPending && blink_visible(kReconnectBlinkPeriodMs)) {
+          const int reconnectX = std::max(0, (viewW - reconnectingIndicatorTexW) / 2);
+          const int reconnectY = std::max(0, (viewH - reconnectingIndicatorTexH) / 2);
+          draw_overlay_texture(reconnectingIndicatorTex, reconnectingIndicatorTexW, reconnectingIndicatorTexH,
+                               viewW, viewH, reconnectX, reconnectY);
         }
 
         if (runtimeStrictGpuSync) glFinish();
@@ -4470,6 +4648,8 @@ int main(int argc, char** argv) {
   }
 
   if (haveCurrent) {
+    if (recordingIndicatorTex) glDeleteTextures(1, &recordingIndicatorTex);
+    if (reconnectingIndicatorTex) glDeleteTextures(1, &reconnectingIndicatorTex);
     if (progNV12) glDeleteProgram(progNV12);
     if (progYUYV) glDeleteProgram(progYUYV);
     if (progYUVPlanar) glDeleteProgram(progYUVPlanar);
