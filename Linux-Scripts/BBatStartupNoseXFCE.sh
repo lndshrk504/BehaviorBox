@@ -5,8 +5,8 @@
 
 cd ~/Desktop/BehaviorBox
 
-xfce4-terminal -- bash -c 'matlab -nosplash -nodesktop -r "BehaviorBox_App Nose"; exec bash'
+xfce4-terminal -x bash -lc 'matlab -nosplash -nodesktop -r "BehaviorBox_App Nose"; exec bash'
 sleep 45
-xfce4-terminal -- bash -c 'matlab -nosplash -nodesktop -r "BehaviorBox_App Nose"; exec bash'
+xfce4-terminal -x bash -lc 'matlab -nosplash -nodesktop -r "BehaviorBox_App Nose"; exec bash'
 sleep 20
-xfce4-terminal -- bash -c 'cam -f -w; exec bash'
+xfce4-terminal -x bash -lc 'cam -f -w; exec bash'
