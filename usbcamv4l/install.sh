@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 BUILD_DIR="${ROOT_DIR}/build"
 LINK_FILE="${ROOT_DIR}/usbcamv4l"
 CTL_LINK_FILE="${ROOT_DIR}/usbcamctl"
@@ -18,6 +18,15 @@ fi
 if ! command -v cmake >/dev/null 2>&1; then
   echo "cmake is required. Install dependencies with ./deps_install.sh" >&2
   exit 1
+fi
+
+if [[ -f "${BUILD_DIR}/CMakeCache.txt" ]]; then
+  CACHE_SOURCE="$(sed -n 's|^CMAKE_HOME_DIRECTORY:INTERNAL=||p' "${BUILD_DIR}/CMakeCache.txt" | head -n 1)"
+  if [[ -n "${CACHE_SOURCE}" && "${CACHE_SOURCE}" != "${ROOT_DIR}" ]]; then
+    echo "Detected stale CMake cache from '${CACHE_SOURCE}'. Recreating ${BUILD_DIR}."
+    rm -rf "${BUILD_DIR}"
+    mkdir -p "${BUILD_DIR}"
+  fi
 fi
 
 cmake -S "${ROOT_DIR}" -B "${BUILD_DIR}" -DCMAKE_BUILD_TYPE=Release
