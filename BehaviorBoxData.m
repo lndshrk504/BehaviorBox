@@ -75,7 +75,7 @@ classdef BehaviorBoxData < handle
                 options.find logical = 0;
                 options.save logical = 0;
             end
-            addpath("fcns/")
+            addpath(fullfile(fileparts(mfilename("fullpath")), "fcns"))
             %Apply inputs
             this = copytoStruct(this, options);
             this.date = char(datetime("now", "Format","yyMMdd"));
