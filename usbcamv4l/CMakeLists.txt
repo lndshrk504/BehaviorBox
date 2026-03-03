@@ -8,8 +8,15 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(PkgConfig REQUIRED)
 find_package(X11 REQUIRED)
-find_library(EGL_LIBRARY EGL REQUIRED)
-find_library(GLES2_LIBRARY GLESv2 REQUIRED)
+find_library(EGL_LIBRARY EGL)
+if(NOT EGL_LIBRARY)
+  message(FATAL_ERROR "EGL library not found")
+endif()
+
+find_library(GLES2_LIBRARY GLESv2)
+if(NOT GLES2_LIBRARY)
+  message(FATAL_ERROR "GLESv2 library not found")
+endif()
 
 pkg_check_modules(LIBDRM REQUIRED IMPORTED_TARGET libdrm)
 pkg_check_modules(TURBOJPEG REQUIRED IMPORTED_TARGET libturbojpeg)
