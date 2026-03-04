@@ -1,0 +1,1132 @@
+--- a/fcns/clo.m
++++ b/fcns/clo.m
+@@ -0,0 +1,48 @@
++function clo(h)
++% CLO Clear children of graphics containers.
++%
++%   clo(h) deletes children of figures/panels/tabs/etc, and resets axes.
++%   This is a small convenience wrapper used throughout BehaviorBox.
++%
++%   Safe behaviors:
++%   - Accepts scalar handles, handle arrays, and cell arrays.
++%   - Ignores invalid / non-graphics inputs.
++%
++% Repo patch
++
++if nargin == 0 || isempty(h)
++    return
++end
++
++% Allow cells of handles
++if iscell(h)
++    cellfun(@clo, h);
++    return
++end
++
++% Handle arrays
++if numel(h) > 1
++    arrayfun(@clo, h);
++    return
++end
++
++if ~isgraphics(h)
++    return
++end
++
++try
++    % Axes should be reset (clears plots, but keeps the axes object alive)
++    if strcmpi(h.Type, 'axes') || isa(h, 'matlab.graphics.axis.Axes')
++        cla(h, 'reset');
++    else
++        delete(allchild(h));
++    end
++catch
++    % Best-effort cleanup for unusual graphics/container types
++    try
++        delete(allchild(h));
++    catch
++    end
++end
++
++end
+--- a/BehaviorBoxData.m
++++ b/BehaviorBoxData.m
+@@ -178,55 +178,74 @@
+             fds = [];
+             subfiledir = pwd;
+ 
+-            if any(matches([this.Sub, this.Str], 'w', 'IgnoreCase', true))
++            % 'w' is used throughout the GUI as a placeholder ("no selection")
++            subs = string(this.Sub);
++            str  = string(this.Str);
++            if any(matches([subs, str], "w", "IgnoreCase", true))
+                 return
+             end
+ 
+-            NEW = false;
++            dataRoot = fullfile(GetFilePath("Data"), this.Inv, this.Inp);
+ 
+-            % Construct the starting path for directory search
+-            startpath = fullfile(GetFilePath("Data"), this.Inv, this.Inp, '**', '*');
+-            % dirlist = dir(startpath);
+-            % dirlist = dirlist([dirlist.isdir] & ...
+-            %     ~contains({dirlist.name}, {'.', 'settings', 'alltime', 'Rescued'}, 'IgnoreCase',true) ...
+-            %     & contains({dirlist.name}, this.Sub, "IgnoreCase",true));
+-
+-            level1Folders = dir(startpath);
+-            level1Folders = level1Folders([level1Folders.isdir]); % Keep only directories
+-            dirlist = level1Folders(~ismember({level1Folders.name}, {'.', '..'}) ...
+-                & contains({level1Folders.name}, this.Sub, "IgnoreCase",true) ...
+-                & ~contains({level1Folders.name}, 'time', "IgnoreCase",true) ...
+-                & ~contains({level1Folders.name}, '_', "IgnoreCase",true)); % Exclude . and ..
+-
+-            % Attempt to group directories
+-            if isempty(dirlist)
+-                NEW = true;
+-            elseif isscalar(dirlist) % Just one subject
+-                dirPath = {fullfile(dirlist.folder, dirlist.name)};
+-                % If this.Sub is only 1 mouse's name:
+-                % filelist = dir(fullfile(GetFilePath("Data"), this.Inv,this.Inp, '**', '*.mat'));
+-                % filelist = filelist(contains({filelist.name}, this.Sub) & ~contains({filelist.name}, 'settings', 'IgnoreCase',true));
+-            else % A whole Group
+-                [~,b]=findgroups({dirlist.folder}');
+-                if isscalar(b)
+-                    dirPath = fullfile(b, {dirlist.name});
+-                else
+-                    dirPath = strcat({dirlist.folder}, filesep, {dirlist.name});
++            % ------------------------------------------------------------
++            % Fast-path: if Strain is provided and exists, check directly
++            % for the requested subject folder(s) instead of scanning the
++            % entire tree with dir("**").
++            % ------------------------------------------------------------
++            dirPath = {};
++            if strlength(str) > 0 && ~matches(str, "w", "IgnoreCase", true)
++                strainRoot = fullfile(dataRoot, str);
++                if isfolder(strainRoot)
++                    candidate = fullfile(strainRoot, cellstr(subs));
++                    if iscell(candidate)
++                        isOk = cellfun(@isfolder, candidate);
++                        dirPath = candidate(isOk);
++                    else
++                        if isfolder(candidate)
++                            dirPath = {candidate};
++                        end
++                    end
+                 end
+             end
+ 
+-            % Determine the action based on conditions
+-            if NEW
+-                % Handle paths based on user input and state
+-                subfiledir = handleNewStrain(this, dirlist);
+-            else % any(contains({filelist.name}, this.Sub))
+-                % If any files match the subject, proceed to create file datastore
+-                [subfiledir, fds] = this.makefiles(dirPath);
++            % ------------------------------------------------------------
++            % Fallback: recursive search for subject directories
++            % ------------------------------------------------------------
++            if isempty(dirPath)
++                startpath = fullfile(dataRoot, '**', '*');
++                d = dir(startpath);
++                d = d([d.isdir]); % Keep only directories
++                d = d(~ismember({d.name}, {'.', '..'}));
++
++                names = string({d.name});
++                isSub = contains(names, subs, "IgnoreCase", true);
++
++                % Exclusions (historical folder conventions)
++                bad = contains(names, "time", "IgnoreCase", true) | ...
++                      contains(names, "_", "IgnoreCase", true) | ...
++                      contains(names, "settings", "IgnoreCase", true) | ...
++                      contains(names, "alltime", "IgnoreCase", true) | ...
++                      contains(names, "Rescued", "IgnoreCase", true);
++
++                d = d(isSub & ~bad);
++                if ~isempty(d)
++                    dirPath = cellstr(fullfile(string({d.folder}), string({d.name})));
++                end
+             end
+ 
++            % If nothing found, create folder(s) for a new subject/strain
++            if isempty(dirPath)
++                subfiledir = this.handleNewStrain();
++                return
++            end
++
++            [subfiledir, fds] = this.makefiles(dirPath);
++
+             % Report found files if fds is populated
+             if ~isempty(fds)
+-                fprintf("Found "+numel(fds.Files)+" files for "+numel(this.Sub)+" subject(s) matching user input:\n - "+cell2mat(join(this.Sub, "\n - "))+"\n")
++                fprintf("Found "+numel(fds.Files)+" files for "+numel(this.Sub)+ ...
++                    " subject(s) matching user input:\n - "+ ...
++                    cell2mat(join(string(this.Sub), "\n - "))+"\n")
+             end
+ 
+         end
+@@ -236,21 +255,28 @@
+             SUBDIR = [];
+             try
+                 FDS = fileDatastore(direc, "ReadMode", "file" ,"ReadFcn", @readFcn, "FileExtensions", ".mat", "IncludeSubfolders",false);
+-                forest = cellfun(@(x) split(x,filesep), FDS.Files', 'UniformOutput', false);
+-                [~,this.Sub]=findgroups(cellfun(@(x) x(end-1), forest));
+-                [~,strains]=findgroups(cellfun(@(x) x(end-2), forest));
+-                this.Str = string(strains);
+-                if numel(direc)>1
+-                    file = forest{1}(1:end-2);
+-                    SUBDIR = fullfile(join(file(:),filesep));
+-                elseif numel(this.Sub)>1
+-                    % Use strain folder for directory when multiple subjects
+-                    file = forest{1}(1:end-2);
+-                    SUBDIR = fullfile(join(file(:),filesep));
++
++                % Normalize to a cell array of directory paths for parsing
++                if isstring(direc)
++                    direc = cellstr(direc);
++                elseif ischar(direc)
++                    direc = {direc};
++                end
++                direc = direc(:);
++
++                % Derive subject/strain from directory paths (faster than splitting
++                % every datastore filename).
++                [parentDirs, subjNames] = cellfun(@fileparts, direc, 'UniformOutput', false);
++                this.Sub = unique(string(subjNames), "stable");
++
++                [~, strainNames] = cellfun(@fileparts, parentDirs, 'UniformOutput', false);
++                this.Str = string(unique(string(strainNames), "stable"));
++
++                % Choose a sensible working directory for saving outputs/logs
++                if numel(this.Sub) > 1
++                    SUBDIR = parentDirs{1}; % strain folder
+                 else
+-                    % Use subject folder for directory
+-                    file = forest{1}(1:end-1);
+-                    SUBDIR = fullfile(join(file(:),filesep));
++                    SUBDIR = direc{1}; % subject folder
+                 end
+             catch err
+                 display(err.message)
+@@ -264,28 +290,60 @@
+             end
+         end
+ 
+-        function subdirPath = handleNewStrain(this, dirlist)
+-            if ~isempty(this.Str)
+-                newpath = fullfile(GetFilePath("Data"), this.Inv, this.Inp, this.Str, this.Sub);
+-                actionOnFolderPresence(newpath, this.Sub);
+-                subdirPath = newpath;
++        function subdirPath = handleNewStrain(this, ~)
++            dataRoot = fullfile(GetFilePath("Data"), this.Inv, this.Inp);
++
++            strain = string(this.Str);
++            if strlength(strain) == 0 || matches(strain, "w", "IgnoreCase", true)
++                strain = "New";
++                this.Str = char(strain);
++                fprintf("Indicated filepath not found - defaulting strain to 'New'.\n");
++            end
++
++            subList = cellstr(string(this.Sub));
++            subList(cellfun(@isempty, subList)) = [];
++
++            % Create subject folder(s)
++            newpaths = cellfun(@(s) fullfile(dataRoot, strain, s), subList, 'UniformOutput', false);
++
++            this.actionOnFolderPresence(newpaths, subList);
++
++            % Return a single directory path for convenience
++            if isscalar(subList)
++                subdirPath = newpaths{1};
+             else
+-                fprintf("Indicated filepath not found - Check the file path..?\n");
+-                this.Str = 'New';
+-                newpath = fullfile(GetFilePath("Data"), this.Inv, this.Inp, 'New', this.Sub);
+-                this.actionOnFolderPresence(newpath, this.Sub);
+-                subdirPath = newpath;
++                subdirPath = char(fullfile(dataRoot, strain));
+             end
+         end
+ 
+         function actionOnFolderPresence(this, newpath, subjects)
+-            if isfolder(newpath)
++            if nargin < 3
++                subjects = {};
++            end
++
++            if ischar(subjects) || isstring(subjects)
++                subjects = cellstr(subjects);
++            end
++
++            if ischar(newpath) || isstring(newpath)
++                newpath = cellstr(newpath);
++            end
++
++            exists = cellfun(@isfolder, newpath);
++
++            if all(exists)
+                 fprintf("Found %d subject(s) matching user input:\n - %s\n", ...
+-                    numel(subjects), cell2mat(join(subjects, "\n - ")));
+-            else
+-                mkdir(newpath{:});
+-                fprintf("New strain, folders will be created when saving data...\n");
++                    numel(subjects), strjoin(subjects, "\n - "));
++                return
++            end
++
++            % Create any missing folders
++            for i = 1:numel(newpath)
++                if ~exists(i)
++                    mkdir(newpath{i});
++                end
+             end
++            fprintf("New strain/subject folder(s) will be created when saving data...\n");
+         end
+ 
+         function [varargout] = loadFiles(this, options)
+--- a/BehaviorBoxDataNew.m
++++ b/BehaviorBoxDataNew.m
+@@ -164,48 +164,74 @@
+             fds = [];
+             subfiledir = pwd;
+ 
+-            if any(matches([this.Sub, this.Str], 'w', 'IgnoreCase', true))
++            % 'w' is used throughout the GUI as a placeholder ("no selection")
++            subs = string(this.Sub);
++            str  = string(this.Str);
++            if any(matches([subs, str], "w", "IgnoreCase", true))
+                 return
+             end
+ 
+-            NEW = false;
++            dataRoot = fullfile(GetFilePath("Data"), this.Inv, this.Inp);
+ 
+-            % Construct the starting path for directory search
+-            startpath = fullfile(GetFilePath("Data"), this.Inv, this.Inp, '**', '*');
+-            dirlist = dir(startpath);
+-            dirlist = dirlist([dirlist.isdir] & ...
+-                ~contains({dirlist.name}, {'.', 'settings', 'alltime', 'Rescued'}, 'IgnoreCase',true) ...
+-                & contains({dirlist.name}, this.Sub, "IgnoreCase",true));
+-
+-            % Attempt to group directories
+-            if isempty(dirlist)
+-                NEW = true;
+-            elseif isscalar(dirlist) % Just one subject
+-                dirPath = {fullfile(dirlist.folder, dirlist.name)};
+-                % If this.Sub is only 1 mouse's name:
+-                % filelist = dir(fullfile(GetFilePath("Data"), this.Inv,this.Inp, '**', '*.mat'));
+-                % filelist = filelist(contains({filelist.name}, this.Sub) & ~contains({filelist.name}, 'settings', 'IgnoreCase',true));
+-            else % A whole Group
+-                [~,b]=findgroups({dirlist.folder}');
+-                if isscalar(b)
+-                    dirPath = fullfile(b, {dirlist.name});
+-                else
+-                    dirPath = strcat({dirlist.folder}, filesep, {dirlist.name});
++            % ------------------------------------------------------------
++            % Fast-path: if Strain is provided and exists, check directly
++            % for the requested subject folder(s) instead of scanning the
++            % entire tree with dir("**").
++            % ------------------------------------------------------------
++            dirPath = {};
++            if strlength(str) > 0 && ~matches(str, "w", "IgnoreCase", true)
++                strainRoot = fullfile(dataRoot, str);
++                if isfolder(strainRoot)
++                    candidate = fullfile(strainRoot, cellstr(subs));
++                    if iscell(candidate)
++                        isOk = cellfun(@isfolder, candidate);
++                        dirPath = candidate(isOk);
++                    else
++                        if isfolder(candidate)
++                            dirPath = {candidate};
++                        end
++                    end
+                 end
+             end
+ 
+-            % Determine the action based on conditions
+-            if NEW
+-                % Handle paths based on user input and state
+-                subfiledir = handleNewStrain(this, dirlist);
+-            else % any(contains({filelist.name}, this.Sub))
+-                % If any files match the subject, proceed to create file datastore
+-                [subfiledir, fds] = this.makefiles(dirPath);
++            % ------------------------------------------------------------
++            % Fallback: recursive search for subject directories
++            % ------------------------------------------------------------
++            if isempty(dirPath)
++                startpath = fullfile(dataRoot, '**', '*');
++                d = dir(startpath);
++                d = d([d.isdir]); % Keep only directories
++                d = d(~ismember({d.name}, {'.', '..'}));
++
++                names = string({d.name});
++                isSub = contains(names, subs, "IgnoreCase", true);
++
++                % Exclusions (historical folder conventions)
++                bad = contains(names, "time", "IgnoreCase", true) | ...
++                      contains(names, "_", "IgnoreCase", true) | ...
++                      contains(names, "settings", "IgnoreCase", true) | ...
++                      contains(names, "alltime", "IgnoreCase", true) | ...
++                      contains(names, "Rescued", "IgnoreCase", true);
++
++                d = d(isSub & ~bad);
++                if ~isempty(d)
++                    dirPath = cellstr(fullfile(string({d.folder}), string({d.name})));
++                end
+             end
+ 
++            % If nothing found, create folder(s) for a new subject/strain
++            if isempty(dirPath)
++                subfiledir = this.handleNewStrain();
++                return
++            end
++
++            [subfiledir, fds] = this.makefiles(dirPath);
++
+             % Report found files if fds is populated
+             if ~isempty(fds)
+-                fprintf("Found "+numel(fds.Files)+" files for "+numel(this.Sub)+" subject(s) matching user input:\n - "+cell2mat(join(this.Sub, "\n - "))+"\n")
++                fprintf("Found "+numel(fds.Files)+" files for "+numel(this.Sub)+ ...
++                    " subject(s) matching user input:\n - "+ ...
++                    cell2mat(join(string(this.Sub), "\n - "))+"\n")
+             end
+ 
+         end
+@@ -215,21 +241,28 @@
+             SUBDIR = [];
+             try
+                 FDS = fileDatastore(direc, "ReadMode", "file" ,"ReadFcn", @readFcn, "FileExtensions", ".mat", "IncludeSubfolders",true);
+-                forest = cellfun(@(x) split(x,filesep), FDS.Files', 'UniformOutput', false);
+-                [~,this.Sub]=findgroups(cellfun(@(x) x(end-1), forest));
+-                [~,strains]=findgroups(cellfun(@(x) x(end-2), forest));
+-                this.Str = string(strains);
+-                if numel(direc)>1
+-                    file = forest{1}(1:end-2);
+-                    SUBDIR = fullfile(join(file(:),filesep));
+-                elseif numel(this.Sub)>1
+-                    % Use strain folder for directory when multiple subjects
+-                    file = forest{1}(1:end-2);
+-                    SUBDIR = fullfile(join(file(:),filesep));
++
++                % Normalize to a cell array of directory paths for parsing
++                if isstring(direc)
++                    direc = cellstr(direc);
++                elseif ischar(direc)
++                    direc = {direc};
++                end
++                direc = direc(:);
++
++                % Derive subject/strain from directory paths (faster than splitting
++                % every datastore filename).
++                [parentDirs, subjNames] = cellfun(@fileparts, direc, 'UniformOutput', false);
++                this.Sub = unique(string(subjNames), "stable");
++
++                [~, strainNames] = cellfun(@fileparts, parentDirs, 'UniformOutput', false);
++                this.Str = string(unique(string(strainNames), "stable"));
++
++                % Choose a sensible working directory for saving outputs/logs
++                if numel(this.Sub) > 1
++                    SUBDIR = parentDirs{1}; % strain folder
+                 else
+-                    % Use subject folder for directory
+-                    file = forest{1}(1:end-1);
+-                    SUBDIR = fullfile(join(file(:),filesep));
++                    SUBDIR = direc{1}; % subject folder
+                 end
+             catch err
+                 display(err.message)
+@@ -243,28 +276,60 @@
+             end
+         end
+ 
+-        function subdirPath = handleNewStrain(this, dirlist)
+-            if ~isempty(this.Str)
+-                newpath = fullfile(GetFilePath("Data"), this.Inv, this.Inp, this.Str, this.Sub);
+-                actionOnFolderPresence(newpath, this.Sub);
+-                subdirPath = newpath;
++        function subdirPath = handleNewStrain(this, ~)
++            dataRoot = fullfile(GetFilePath("Data"), this.Inv, this.Inp);
++
++            strain = string(this.Str);
++            if strlength(strain) == 0 || matches(strain, "w", "IgnoreCase", true)
++                strain = "New";
++                this.Str = char(strain);
++                fprintf("Indicated filepath not found - defaulting strain to 'New'.\n");
++            end
++
++            subList = cellstr(string(this.Sub));
++            subList(cellfun(@isempty, subList)) = [];
++
++            % Create subject folder(s)
++            newpaths = cellfun(@(s) fullfile(dataRoot, strain, s), subList, 'UniformOutput', false);
++
++            this.actionOnFolderPresence(newpaths, subList);
++
++            % Return a single directory path for convenience
++            if isscalar(subList)
++                subdirPath = newpaths{1};
+             else
+-                fprintf("Indicated filepath not found - Check the file path..?\n");
+-                this.Str = 'New';
+-                newpath = fullfile(GetFilePath("Data"), this.Inv, this.Inp, 'New', this.Sub);
+-                this.actionOnFolderPresence(newpath, this.Sub);
+-                subdirPath = newpath;
++                subdirPath = char(fullfile(dataRoot, strain));
+             end
+         end
+ 
+         function actionOnFolderPresence(this, newpath, subjects)
+-            if isfolder(newpath)
++            if nargin < 3
++                subjects = {};
++            end
++
++            if ischar(subjects) || isstring(subjects)
++                subjects = cellstr(subjects);
++            end
++
++            if ischar(newpath) || isstring(newpath)
++                newpath = cellstr(newpath);
++            end
++
++            exists = cellfun(@isfolder, newpath);
++
++            if all(exists)
+                 fprintf("Found %d subject(s) matching user input:\n - %s\n", ...
+-                    numel(subjects), cell2mat(join(subjects, "\n - ")));
+-            else
+-                mkdir(newpath{:});
+-                fprintf("New strain, folders will be created when saving data...\n");
++                    numel(subjects), strjoin(subjects, "\n - "));
++                return
++            end
++
++            % Create any missing folders
++            for i = 1:numel(newpath)
++                if ~exists(i)
++                    mkdir(newpath{i});
++                end
+             end
++            fprintf("New strain/subject folder(s) will be created when saving data...\n");
+         end
+ 
+         function [varargout] = loadFiles(this, options)
+--- a/BehaviorBoxWheel.m
++++ b/BehaviorBoxWheel.m
+@@ -42,8 +42,9 @@
+         Include = {};
+         GuiHandles = struct();
+         app = struct();
+-        appProps; %cycle thru these 3 to update settings
++        appProps; % Cached list of app properties that map into Setting_Struct
+         appPropsTypes;
++        appPropsTags;
+         dropdowns;
+         %Interface handles:
+         message_handle;
+@@ -179,26 +180,12 @@
+             bTags = this.GetTag(this.app, buttons);
+             this.Buttons = cell2struct(cellfun(@(x)(this.app.(x)), buttons, 'UniformOutput',false, 'ErrorHandler', @errorFuncNaN), bTags);
+             props = props(~contains(types, {'button'}) | contains(types, {'radiobutton'})); types = this.GetType(this.app, props);
+-            %Make Dropdown structure
++            % Cache GUI metadata so settings can be read quickly each trial
+             this.appProps = props;
+             this.appPropsTypes = types;
+-            Dropdowns = props(contains(types, {'dropdown'}));
+-            dTags = this.GetTag(this.app, Dropdowns);
+-            DropVals = cellfun(@(x)find(matches(this.app.(x).Items, this.app.(x).Value)), Dropdowns, 'UniformOutput',false);
+-            this.dropdowns = cell2struct(DropVals, dTags);
+-            props = props(~contains(types, {'dropdown'})); types = this.GetType(this.app, props);
+-            %Make Checkbox structure
+-            setVals = cell(size(props));
+-            CIdx = contains(types, {'check'});
+-            Checkboxes = props(CIdx);
+-            cVals = cellfun(@(x)logical(this.app.(x).Value), Checkboxes, 'UniformOutput',false);
+-            setVals(CIdx) = cVals;
+-            pTags = this.GetTag(this.app, props);
+-            setVals(~CIdx) = cellfun(@(x)str2double(this.app.(x).Value), props(~CIdx), 'UniformOutput',false);
+-            ReDo = cellfun(@isnan, setVals, 'UniformOutput',true);
+-            setVals(ReDo) = cellfun(@(x)(this.app.(x).Value), props(ReDo), 'UniformOutput',false);
+-            tempSetting_Struct = cell2struct(setVals, pTags);
+-            tempSetting_Struct = appendStruct(tempSetting_Struct, this.dropdowns);
++            this.appPropsTags = this.GetTag(this.app, props);
++
++            tempSetting_Struct = this.readSettingsFromApp();
+             this.makeTrialStructures(tempSetting_Struct);
+             this.LevelStruct = this.ManyLevels(this.LevelStruct);
+             this.Setting_Struct = tempSetting_Struct;
+@@ -238,45 +225,156 @@
+                 end
+             end
+         end
++
++        function Settings = readSettingsFromApp(this)
++            % Read all GUI settings into a struct using cached metadata.
++            props = this.appProps;
++            types = this.appPropsTypes;
++            tags  = this.appPropsTags;
++
++            if isempty(props) || isempty(tags)
++                Settings = struct();
++                this.dropdowns = struct();
++                return
++            end
++
++            n = numel(props);
++            vals = cell(1, n);
++            ddMask = false(1, n);
++
++            for i = 1:n
++                p = props{i};
++                t = types{i};
++                try
++                    if contains(t, 'dropdown', 'IgnoreCase', true)
++                        ddMask(i) = true;
++                        vals{i} = find(matches(this.app.(p).Items, this.app.(p).Value), 1);
++                    elseif contains(t, 'check', 'IgnoreCase', true)
++                        vals{i} = logical(this.app.(p).Value);
++                    else
++                        v = this.app.(p).Value;
++                        nv = str2double(v);
++                        if ~isnan(nv)
++                            vals{i} = nv;
++                        else
++                            vals{i} = v;
++                        end
++                    end
++                catch
++                    % Non-standard property (best-effort fallback)
++                    try
++                        vals{i} = this.app.(p);
++                    catch
++                        vals{i} = [];
++                    end
++                end
++            end
++
++            Settings = cell2struct(vals, tags);
++
++            % Optional convenience struct of only dropdown indices
++            if any(ddMask)
++                this.dropdowns = cell2struct(vals(ddMask), tags(ddMask));
++            else
++                this.dropdowns = struct();
++            end
++        end
++
+         function makeTrialStructures(this, Settings)
+-            this.StimulusStruct = appendStruct(this.StimulusStruct, PullOut(Settings, 'Stimulus_'));
+-            this.Box = appendStruct(this.Box, PullOut(Settings, 'Box_'));
+-            this.ReadyCueStruct = appendStruct(this.ReadyCueStruct, PullOut(Settings, 'ReadyCue_'));
+-            this.LevelStruct = appendStruct(this.LevelStruct, PullOut(Settings, 'Level_'));
+-            this.Temp_Settings = appendStruct(this.Temp_Settings, PullOut(Settings, '_Temp'));
+-            function OUT = PullOut(IN, chr)
+-                names = fieldnames(IN);
+-                inter = names(contains(names, chr));
+-                vals = cellfun(@(x)IN.(x), inter, "UniformOutput",false);
+-                CIDX = contains(inter, "color", IgnoreCase=true);
+-                vals(CIDX) = cellfun(@(x)repmat(x,1,3), vals(CIDX), "UniformOutput",false);
++            names = fieldnames(Settings);
++
++            this.StimulusStruct  = appendStruct(this.StimulusStruct,  PullOut(Settings, names, 'Stimulus_'));
++            this.Box            = appendStruct(this.Box,            PullOut(Settings, names, 'Box_'));
++            this.ReadyCueStruct = appendStruct(this.ReadyCueStruct, PullOut(Settings, names, 'ReadyCue_'));
++            this.LevelStruct    = appendStruct(this.LevelStruct,    PullOut(Settings, names, 'Level_'));
++            this.Temp_Settings  = appendStruct(this.Temp_Settings,  PullOut(Settings, names, '_Temp'));
++
++            function OUT = PullOut(IN, allNames, chr)
++                if strcmp(chr, '_Temp')
++                    inter = allNames(endsWith(allNames, chr));
++                else
++                    inter = allNames(startsWith(allNames, chr));
++                end
++
++                if isempty(inter)
++                    OUT = struct();
++                    return
++                end
++
++                vals = cellfun(@(x) IN.(x), inter, "UniformOutput", false);
++
++                % Normalize scalar grayscale -> RGB triplets
++                cidx = contains(inter, "color", "IgnoreCase", true);
++                vals(cidx) = cellfun(@normColor, vals(cidx), "UniformOutput", false);
++
+                 OUT = cell2struct(vals, erase(inter, chr));
+             end
++
++            function c = normColor(c)
++                if isnumeric(c) && isscalar(c)
++                    c = repmat(c, 1, 3);
++                end
++            end
+         end
++
+         function OUT = ManyLevels(~, In)
+             OUT = In;
+-            if ~isnumeric(In.HardLvList)
+-                HardLevs = str2num(In.HardLvList); %#ok<ST2NM>
+-            else
++
++            if isnumeric(In.HardLvList)
+                 HardLevs = In.HardLvList;
+-            end
+-            if ~isnumeric(In.EasyLvList)
+-                EasyLevs = str2num(string(In.EasyLvList)); %#ok<ST2NM>
+             else
++                HardLevs = str2num(string(In.HardLvList)); %#ok<ST2NM>
++            end
++
++            if isnumeric(In.EasyLvList)
+                 EasyLevs = In.EasyLvList;
++            else
++                EasyLevs = str2num(string(In.EasyLvList)); %#ok<ST2NM>
+             end
++
+             LEVELS = {EasyLevs HardLevs; In.EasyLvProb In.HardLvProb};
+-            PossibleLevels = [];
+-            for L = LEVELS
+-                levs = L{1};
+-                p = ceil((L{2}*100)/numel(levs));
++
++            reps_per_level = zeros(1, size(LEVELS, 2));
++            total_count = 0;
++            for k = 1:size(LEVELS, 2)
++                levs = LEVELS{1, k};
++                levs = levs(:)';
++                if isempty(levs)
++                    continue
++                end
++                reps_per_level(k) = max(0, ceil((LEVELS{2, k} * 100) / numel(levs)));
++                total_count = total_count + numel(levs) * reps_per_level(k);
++            end
++
++            PossibleLevels = zeros(1, total_count);
++            idx = 1;
++            for k = 1:size(LEVELS, 2)
++                levs = LEVELS{1, k};
++                levs = levs(:)';
++                p = reps_per_level(k);
++                if isempty(levs) || p == 0
++                    continue
++                end
+                 for l = levs
+-                    PossibleLevels = [PossibleLevels repmat(l, 1, p)];
++                    PossibleLevels(idx:(idx + p - 1)) = l;
++                    idx = idx + p;
++                end
++            end
++
++            if idx > 1
++                PossibleLevels = PossibleLevels(1:(idx - 1));
++            else
++                % Fallback if probabilities are 0 or lists are empty
++                PossibleLevels = [EasyLevs(:)' HardLevs(:)'];
++                if isempty(PossibleLevels)
++                    PossibleLevels = 1;
+                 end
+             end
++
+             OUT.PossibleLevels = PossibleLevels;
+-            OUT.ChooseLevel = @(x)OUT.PossibleLevels(randperm(numel(PossibleLevels), 1));
++            OUT.ChooseLevel = @() OUT.PossibleLevels(randi(numel(OUT.PossibleLevels)));
+         end
++
+         %set hardware (arduino) parameters
+         function ConfigureBox(this)
+             arguments
+@@ -502,56 +600,70 @@
+             this.setGuiNumbers(this.GUI_numbers);
+         end
+         %Pick difficulty level if variable:
+-        function [current_difficulty] = PickDifficultyLevel(this)
+-            PossibleLevels = this.LevelStruct.PossibleLevels;
+-            current_difficulty = PossibleLevels( randperm( numel(PossibleLevels), 1) );
++        function current_difficulty = PickDifficultyLevel(this)
++            current_difficulty = this.LevelStruct.ChooseLevel();
+         end
+         %Update all the settings if the button is ticked
+         function UpdateSettings(this)
+-            props = this.appProps;
+-            types = this.appPropsTypes;
+-            Dropdowns = props(contains(this.appPropsTypes, {'dropdown'}));
+-            dTags = this.GetTag(this.app, Dropdowns);
+-            DropVals = cellfun(@(x)find(matches(this.app.(x).Items, this.app.(x).Value)), Dropdowns, 'UniformOutput',false);
+-            this.dropdowns = cell2struct(DropVals, dTags);
+-            tempVal = cell(size(props));
+-            CIdx = contains(types, {'check'});
+-            Checkboxes = props(CIdx);
+-            cVals = cellfun(@(x)logical(this.app.(x).Value), Checkboxes, 'UniformOutput',false);
+-            tempVal(CIdx) = cVals;
+-            pTags = this.GetTag(this.app, props);
+-            tempVal(~CIdx) = cellfun(@(x)str2double(this.app.(x).Value), props(~CIdx), 'UniformOutput',false);
+-            ReDo = cellfun(@isnan, tempVal, 'UniformOutput',true);
+-            tempVal(ReDo) = cellfun(@(x)(this.app.(x).Value), props(ReDo), 'UniformOutput',false);
+-            tempSetting_Struct = cell2struct(tempVal, pTags);
+-            tempSetting_Struct = appendStruct(tempSetting_Struct, this.dropdowns);
+-            if isequal(tempSetting_Struct, this.Setting_Struct)
++            tempSetting_Struct = this.readSettingsFromApp();
++
++            if isequaln(tempSetting_Struct, this.Setting_Struct)
+                 return
+             end
++
+             updatelist = {};
+             names = fieldnames(tempSetting_Struct);
+-            for n = names'
+-                x = n{:};
+-                if ~isequal(tempSetting_Struct.(x), this.Setting_Struct.(x))
++            changed = false(size(names));
++
++            for k = 1:numel(names)
++                x = names{k};
++                if ~isfield(this.Setting_Struct, x) || ~isequaln(tempSetting_Struct.(x), this.Setting_Struct.(x))
++                    changed(k) = true;
+                     try
+-                        updatelist{end+1} = " "+x+" - "+this.Setting_Struct.(x)+" to "+tempSetting_Struct.(x);
++                        updatelist{end+1} = " " + x + " - " + string(this.Setting_Struct.(x)) + " to " + string(tempSetting_Struct.(x));
+                     catch
+-                        updatelist{end+1} = " "+x;
++                        updatelist{end+1} = " " + x;
+                     end
+                 end
+             end
+-            msg = "Trial "+this.i+" Updating:\n"+join([updatelist{:}],"\n")+"\n";
++
++            msg = "Trial " + this.i + " Updating:\n" + join([updatelist{:}], "\n") + "\n";
+             fprintf(msg) %Print this to the Message window
++
++            changedNames = string(names(changed));
++
+             this.Old_Setting_Struct{end+1} = this.Setting_Struct;
+-            this.makeTrialStructures(tempSetting_Struct)
+-            this.LevelStruct = this.ManyLevels(this.LevelStruct);
++
++            % Only rebuild derived structs when relevant settings changed
++            needsStim  = any(startsWith(changedNames, "Stimulus_"));
++            needsBox   = any(startsWith(changedNames, "Box_"));
++            needsReady = any(startsWith(changedNames, "ReadyCue_"));
++            needsLevel = any(startsWith(changedNames, "Level_"));
++            needsTemp  = any(endsWith(changedNames, "_Temp")) | any(contains(changedNames, "_Temp"));
++
++            if needsStim || needsBox || needsReady || needsLevel || needsTemp
++                this.makeTrialStructures(tempSetting_Struct);
++
++                if needsLevel
++                    this.LevelStruct = this.ManyLevels(this.LevelStruct);
++                end
++
++                if needsStim
++                    try
++                        this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
++                    catch
++                    end
++                end
++            end
++
+             this.Setting_Struct = tempSetting_Struct;
+             this.SetIdx = this.SetIdx + 1;
+             this.SetUpdate{end+1} = this.i;
+             [this.SetStr(end+1), this.Include(end+1)] = this.structureSettings(tempSetting_Struct);
+-            this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
++
+             [this.Level] = this.Setting_Struct.Starting_opacity;
+         end
++
+         %Choose if Left or Right will be correct
+         function isLeftTrial = PickSideForCorrect(this, isLeftTrial, ~)
+             % ATTENTION!!!
+--- a/BehaviorBoxNose.m
++++ b/BehaviorBoxNose.m
+@@ -47,8 +47,9 @@
+         Include = {};
+         GuiHandles = struct();
+         app = struct();
+-        appProps; %cycle thru these 3 to update settings
++        appProps; % Cached list of app properties that map into Setting_Struct
+         appPropsTypes;
++        appPropsTags;
+         dropdowns;
+         %Interface handles:
+         message_handle;
+@@ -194,26 +195,12 @@
+             bTags = this.GetTag(this.app, buttons);
+             this.Buttons = cell2struct(cellfun(@(x)(this.app.(x)), buttons, 'UniformOutput',false, 'ErrorHandler', @errorFuncNaN), bTags);
+             props = props(~contains(types, {'button'}) | contains(types, {'radiobutton'})); types = this.GetType(this.app, props);
+-            %Make Dropdown structure
++            % Cache GUI metadata so settings can be read quickly each trial
+             this.appProps = props;
+             this.appPropsTypes = types;
+-            Dropdowns = props(contains(types, {'dropdown'}));
+-            dTags = this.GetTag(this.app, Dropdowns);
+-            DropVals = cellfun(@(x)find(matches(this.app.(x).Items, this.app.(x).Value)), Dropdowns, 'UniformOutput',false);
+-            this.dropdowns = cell2struct(DropVals, dTags);
+-            props = props(~contains(types, {'dropdown'})); types = this.GetType(this.app, props);
+-            %Make Checkbox structure
+-            setVals = cell(size(props));
+-            CIdx = contains(types, {'check'});
+-            Checkboxes = props(CIdx);
+-            cVals = cellfun(@(x)logical(this.app.(x).Value), Checkboxes, 'UniformOutput',false);
+-            setVals(CIdx) = cVals;
+-            pTags = this.GetTag(this.app, props);
+-            setVals(~CIdx) = cellfun(@(x)str2double(this.app.(x).Value), props(~CIdx), 'UniformOutput',false);
+-            ReDo = cellfun(@isnan, setVals, 'UniformOutput',true);
+-            setVals(ReDo) = cellfun(@(x)(this.app.(x).Value), props(ReDo), 'UniformOutput',false);
+-            tempSetting_Struct = cell2struct(setVals, pTags);
+-            tempSetting_Struct = appendStruct(tempSetting_Struct, this.dropdowns);
++            this.appPropsTags = this.GetTag(this.app, props);
++
++            tempSetting_Struct = this.readSettingsFromApp();
+             this.makeTrialStructures(tempSetting_Struct);
+             this.LevelStruct = this.ManyLevels(this.LevelStruct);
+             this.Setting_Struct = tempSetting_Struct;
+@@ -253,21 +240,98 @@
+                 end
+             end
+         end
++
++        function Settings = readSettingsFromApp(this)
++            % Read all GUI settings into a struct using cached metadata.
++            props = this.appProps;
++            types = this.appPropsTypes;
++            tags  = this.appPropsTags;
++
++            if isempty(props) || isempty(tags)
++                Settings = struct();
++                this.dropdowns = struct();
++                return
++            end
++
++            n = numel(props);
++            vals = cell(1, n);
++            ddMask = false(1, n);
++
++            for i = 1:n
++                p = props{i};
++                t = types{i};
++                try
++                    if contains(t, 'dropdown', 'IgnoreCase', true)
++                        ddMask(i) = true;
++                        vals{i} = find(matches(this.app.(p).Items, this.app.(p).Value), 1);
++                    elseif contains(t, 'check', 'IgnoreCase', true)
++                        vals{i} = logical(this.app.(p).Value);
++                    else
++                        v = this.app.(p).Value;
++                        nv = str2double(v);
++                        if ~isnan(nv)
++                            vals{i} = nv;
++                        else
++                            vals{i} = v;
++                        end
++                    end
++                catch
++                    % Non-standard property (best-effort fallback)
++                    try
++                        vals{i} = this.app.(p);
++                    catch
++                        vals{i} = [];
++                    end
++                end
++            end
++
++            Settings = cell2struct(vals, tags);
++
++            % Optional convenience struct of only dropdown indices
++            if any(ddMask)
++                this.dropdowns = cell2struct(vals(ddMask), tags(ddMask));
++            else
++                this.dropdowns = struct();
++            end
++        end
++
+         function makeTrialStructures(this, Settings)
+-            this.StimulusStruct = appendStruct(this.StimulusStruct, PullOut(Settings, 'Stimulus_'));
+-            this.Box = appendStruct(this.Box, PullOut(Settings, 'Box_'));
+-            this.ReadyCueStruct = appendStruct(this.ReadyCueStruct, PullOut(Settings, 'ReadyCue_'));
+-            this.LevelStruct = appendStruct(this.LevelStruct, PullOut(Settings, 'Level_'));
+-            this.Temp_Settings = appendStruct(this.Temp_Settings, PullOut(Settings, '_Temp'));
+-            function OUT = PullOut(IN, chr)
+-                names = fieldnames(IN);
+-                inter = names(contains(names, chr));
+-                vals = cellfun(@(x)IN.(x), inter, "UniformOutput",false);
+-                CIDX = contains(inter, "color", IgnoreCase=true);
+-                vals(CIDX) = cellfun(@(x)repmat(x,1,3), vals(CIDX), "UniformOutput",false);
++            names = fieldnames(Settings);
++
++            this.StimulusStruct  = appendStruct(this.StimulusStruct,  PullOut(Settings, names, 'Stimulus_'));
++            this.Box            = appendStruct(this.Box,            PullOut(Settings, names, 'Box_'));
++            this.ReadyCueStruct = appendStruct(this.ReadyCueStruct, PullOut(Settings, names, 'ReadyCue_'));
++            this.LevelStruct    = appendStruct(this.LevelStruct,    PullOut(Settings, names, 'Level_'));
++            this.Temp_Settings  = appendStruct(this.Temp_Settings,  PullOut(Settings, names, '_Temp'));
++
++            function OUT = PullOut(IN, allNames, chr)
++                if strcmp(chr, '_Temp')
++                    inter = allNames(endsWith(allNames, chr));
++                else
++                    inter = allNames(startsWith(allNames, chr));
++                end
++
++                if isempty(inter)
++                    OUT = struct();
++                    return
++                end
++
++                vals = cellfun(@(x) IN.(x), inter, "UniformOutput", false);
++
++                % Normalize scalar grayscale -> RGB triplets
++                cidx = contains(inter, "color", "IgnoreCase", true);
++                vals(cidx) = cellfun(@normColor, vals(cidx), "UniformOutput", false);
++
+                 OUT = cell2struct(vals, erase(inter, chr));
+             end
++
++            function c = normColor(c)
++                if isnumeric(c) && isscalar(c)
++                    c = repmat(c, 1, 3);
++                end
++            end
+         end
++
+         function OUT = ManyLevels(~, In)
+             OUT = In;
+             if isnumeric(In.HardLvList)
+@@ -316,7 +380,7 @@
+                 end
+             end
+             OUT.PossibleLevels = PossibleLevels;
+-            OUT.ChooseLevel = @(~)OUT.PossibleLevels(randi(numel(OUT.PossibleLevels)));
++            OUT.ChooseLevel = @()OUT.PossibleLevels(randi(numel(OUT.PossibleLevels)));
+         end
+         %set hardware (arduino) parameters
+         function ConfigureBox(this)
+@@ -530,50 +594,65 @@
+         end
+         %Update all the settings if the button is ticked
+         function UpdateSettings(this)
+-            props = this.appProps;
+-            types = this.appPropsTypes;
+-            Dropdowns = props(contains(this.appPropsTypes, {'dropdown'}));
+-            dTags = this.GetTag(this.app, Dropdowns);
+-            DropVals = cellfun(@(x)find(matches(this.app.(x).Items, this.app.(x).Value)), Dropdowns, 'UniformOutput',false);
+-            this.dropdowns = cell2struct(DropVals, dTags);
+-            tempVal = cell(size(props));
+-            CIdx = contains(types, {'check'});
+-            Checkboxes = props(CIdx);
+-            cVals = cellfun(@(x)logical(this.app.(x).Value), Checkboxes, 'UniformOutput',false);
+-            tempVal(CIdx) = cVals;
+-            pTags = this.GetTag(this.app, props);
+-            tempVal(~CIdx) = cellfun(@(x)str2double(this.app.(x).Value), props(~CIdx), 'UniformOutput',false);
+-            ReDo = cellfun(@isnan, tempVal, 'UniformOutput',true);
+-            tempVal(ReDo) = cellfun(@(x)(this.app.(x).Value), props(ReDo), 'UniformOutput',false);
+-            tempSetting_Struct = cell2struct(tempVal, pTags);
+-            tempSetting_Struct = appendStruct(tempSetting_Struct, this.dropdowns);
+-            if isequal(tempSetting_Struct, this.Setting_Struct)
++            tempSetting_Struct = this.readSettingsFromApp();
++
++            if isequaln(tempSetting_Struct, this.Setting_Struct)
+                 return
+             end
++
+             updatelist = {};
+             names = fieldnames(tempSetting_Struct);
+-            for n = names'
+-                x = n{:};
+-                if ~isequal(tempSetting_Struct.(x), this.Setting_Struct.(x))
++            changed = false(size(names));
++
++            for k = 1:numel(names)
++                x = names{k};
++                if ~isfield(this.Setting_Struct, x) || ~isequaln(tempSetting_Struct.(x), this.Setting_Struct.(x))
++                    changed(k) = true;
+                     try
+-                        updatelist{end+1} = " "+x+" - "+this.Setting_Struct.(x)+" to "+tempSetting_Struct.(x);
++                        updatelist{end+1} = " " + x + " - " + string(this.Setting_Struct.(x)) + " to " + string(tempSetting_Struct.(x));
+                     catch
+-                        updatelist{end+1} = " "+x;
++                        updatelist{end+1} = " " + x;
+                     end
+                 end
+             end
+-            msg = "Trial "+this.i+" Updating:\n"+join([updatelist{:}],"\n")+"\n";
++
++            msg = "Trial " + this.i + " Updating:\n" + join([updatelist{:}], "\n") + "\n";
+             fprintf(msg) %Print this to the Message window
++
++            changedNames = string(names(changed));
++
+             this.Old_Setting_Struct{end+1} = this.Setting_Struct;
+-            this.makeTrialStructures(tempSetting_Struct)
+-            this.LevelStruct = this.ManyLevels(this.LevelStruct);
++
++            % Only rebuild derived structs when relevant settings changed
++            needsStim  = any(startsWith(changedNames, "Stimulus_"));
++            needsBox   = any(startsWith(changedNames, "Box_"));
++            needsReady = any(startsWith(changedNames, "ReadyCue_"));
++            needsLevel = any(startsWith(changedNames, "Level_"));
++            needsTemp  = any(endsWith(changedNames, "_Temp")) | any(contains(changedNames, "_Temp"));
++
++            if needsStim || needsBox || needsReady || needsLevel || needsTemp
++                this.makeTrialStructures(tempSetting_Struct);
++
++                if needsLevel
++                    this.LevelStruct = this.ManyLevels(this.LevelStruct);
++                end
++
++                if needsStim
++                    try
++                        this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
++                    catch
++                    end
++                end
++            end
++
+             this.Setting_Struct = tempSetting_Struct;
+             this.SetIdx = this.SetIdx + 1;
+             this.SetUpdate{end+1} = this.i;
+             [this.SetStr(end+1), this.Include(end+1)] = this.structureSettings(tempSetting_Struct);
+-            this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
++
+             [this.Level] = this.Setting_Struct.Starting_opacity;
+         end
++
+         %Choose if Left or Right will be correct
+         %Choose if Left or Right will be correct
+         function isLeftTrial = PickSideForCorrect(this, isLeftTrial, ~)
+--- a/BB_App.m
++++ b/BB_App.m
+@@ -912,34 +912,8 @@
+ 
+         % Callback function
+         function Train_Callback(app, event)
+-            % Create GUIDE-style callback args - Added by Migration Tool
+-            [hObject, eventdata, handles] = convertToGUIDECallbackArguments(app, event); %#ok<ASGLU>
+-            %TRAINING BUTTON
+-            % hObject    handle to pushbutton3 (see GCBO)
+-            % eventdata  reserved - to be defined in a future version of MATLAB
+-            % handles    structure with handles and user data (see GUIDATA)
+-            %run training
+-            try
+-                %Constructor functions, SetUp arduino and variables
+-                ThisTrial = BehaviorBoxSuper(handles, app);
+-                %Start the training
+-                ThisTrial.RunTraining();
+-            catch err
+-                disp(err.message);
+-                ThisTrial.cleanUP();
+-                set(handles.text1,'String',err.message );
+-            end
+-        end
+-
+-        % Button pushed function: PrintSetup
+-        function PrintSetup_Callback(app, event)
+-            % Create GUIDE-style callback args - Added by Migration Tool
+-            [hObject, eventdata, handles] = convertToGUIDECallbackArguments(app, event); %#ok<ASGLU>
+-            %PRINT CONNECTION AND PINS NEEDED
+-            % hObject    handle to pushbutton4 (see GCBO)
+-            % eventdata  reserved - to be defined in a future version of MATLAB
+-            % handles    structure with handles and user data (see GUIDATA)
+-            printHardwareConnections(app, handles)
++            % Legacy wrapper: keep Train button as an alias of Start.
++            Start_Callback(app, event);
+         end
+ 
+         % Button pushed function: ShowStim
