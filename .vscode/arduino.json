@@ -1,6 +1,0 @@
-{
-    "board": "arduino:avr:uno",
-    "port": "/dev/tty.usbmodem101",
-    "sketch": "Arduino/Photogate/Photogate.ino",
-    "programmer": "arduinoisp"
-}

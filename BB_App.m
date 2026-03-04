@@ -393,6 +393,57 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             % end
         end
 
+        function disconnectArduinos(app)
+            % Hard teardown of serial objects so COM ports are released immediately.
+            % Reset should not require physically unplugging USB devices.
+            try
+                if ~isempty(app.BB) && isvalid(app.BB)
+                    % Behavior Arduino wrapper
+                    try
+                        if isprop(app.BB, 'a') && ~isempty(app.BB.a)
+                            delete(app.BB.a);
+                        end
+                    catch
+                    end
+                    try
+                        if isprop(app.BB, 'a')
+                            app.BB.a = [];
+                        end
+                    catch
+                    end
+
+                    % Timestamp Arduino wrapper
+                    try
+                        if isprop(app.BB, 'Time') && ~isempty(app.BB.Time)
+                            delete(app.BB.Time);
+                        end
+                    catch
+                    end
+                    try
+                        if isprop(app.BB, 'Time')
+                            app.BB.Time = [];
+                        end
+                    catch
+                    end
+                end
+            catch
+            end
+
+            % Secondary guard: kill stray serialport objects that may have been kept alive
+            % (e.g. by callbacks / reference cycles).
+            try
+                if exist('serialportfind', 'file') == 2
+                    sp = serialportfind;
+                    if ~isempty(sp)
+                        delete(sp);
+                    end
+                end
+            catch
+            end
+
+            pause(0.05); % allow OS time to release ports
+        end
+
         function loadGuiInputAsStruct(app, handles, ~)
             BB = app.BB;
             %Read settings from interface:
@@ -808,9 +859,13 @@ classdef BehaviorBox_App < matlab.apps.AppBase
 
             % Initialize properties
             try
-                app.BB.a = [];
-                app.ArduinoInfo = [];
-                app.BB.Time = [];
+                % Explicitly tear down any existing serial objects so ports are released
+                app.disconnectArduinos();
+            catch
+            end
+
+            try
+                app.ArduinoInfo = struct();
                 app.a = [];
                 evalin('base', 'clc; clear  BB')
             catch
@@ -912,34 +967,8 @@ classdef BehaviorBox_App < matlab.apps.AppBase
 
         % Callback function
         function Train_Callback(app, event)
-            % Create GUIDE-style callback args - Added by Migration Tool
-            [hObject, eventdata, handles] = convertToGUIDECallbackArguments(app, event); %#ok<ASGLU>
-            %TRAINING BUTTON
-            % hObject    handle to pushbutton3 (see GCBO)
-            % eventdata  reserved - to be defined in a future version of MATLAB
-            % handles    structure with handles and user data (see GUIDATA)
-            %run training
-            try
-                %Constructor functions, SetUp arduino and variables
-                ThisTrial = BehaviorBoxSuper(handles, app);
-                %Start the training
-                ThisTrial.RunTraining();
-            catch err
-                disp(err.message);
-                ThisTrial.cleanUP();
-                set(handles.text1,'String',err.message );
-            end
-        end
-
-        % Button pushed function: PrintSetup
-        function PrintSetup_Callback(app, event)
-            % Create GUIDE-style callback args - Added by Migration Tool
-            [hObject, eventdata, handles] = convertToGUIDECallbackArguments(app, event); %#ok<ASGLU>
-            %PRINT CONNECTION AND PINS NEEDED
-            % hObject    handle to pushbutton4 (see GCBO)
-            % eventdata  reserved - to be defined in a future version of MATLAB
-            % handles    structure with handles and user data (see GUIDATA)
-            printHardwareConnections(app, handles)
+            % Legacy wrapper: keep Train button as an alias of Start.
+            Start_Callback(app, event);
         end
 
         % Button pushed function: ShowStim
@@ -1019,15 +1048,14 @@ classdef BehaviorBox_App < matlab.apps.AppBase
 
         % Close request function: figure1
         function figure1CloseRequest(app, event)
-            delete(app)
+            % Ensure hardware ports are released before the app is destroyed.
             try
-                app.BB.a = [];
-            end
-            try
-                app.BB.Time = [];
+                app.disconnectArduinos();
+            catch
             end
             evalin('base', 'clear a BB ');
             delete(findobj("Type", "figure", "Name", "Stimulus"))
+            delete(app)
         end
 
         % Button pushed function: LeftValveButton
@@ -1115,6 +1143,10 @@ classdef BehaviorBox_App < matlab.apps.AppBase
         % Value changed function: ResetAll
         function RESETALLButtonPushed(app, event)
             app.ResetAll.Text = 'Resetting...';
+            try
+                app.disconnectArduinos();
+            catch
+            end
             evalin('base', 'clear all hidden classes;!reset');
             BehaviorBox_OpeningFcn(app)
             app.ResetAll.Value = 0;

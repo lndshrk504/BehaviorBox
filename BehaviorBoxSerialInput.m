@@ -385,8 +385,24 @@ classdef BehaviorBoxSerialInput < handle
         end
 
         function delete(this)
+            % Ensure the serial port is released immediately.
+            % Important: callbacks can create reference cycles (serialport -> callback -> this)
+            % that keep the port busy unless the serialport itself is deleted.
             try
-                configureCallback(this.Ard, "off");
+                if ~isempty(this.Ard)
+                    try
+                        configureCallback(this.Ard, "off");
+                    catch
+                    end
+                    try
+                        flush(this.Ard);
+                    catch
+                    end
+                    try
+                        delete(this.Ard);
+                    catch
+                    end
+                end
             catch
             end
             this.Ard = serialport().empty;

@@ -164,48 +164,74 @@ classdef BehaviorBoxDataNew < handle
             fds = [];
             subfiledir = pwd;
 
-            if any(matches([this.Sub, this.Str], 'w', 'IgnoreCase', true))
+            % 'w' is used throughout the GUI as a placeholder ("no selection")
+            subs = string(this.Sub);
+            str  = string(this.Str);
+            if any(matches([subs, str], "w", "IgnoreCase", true))
                 return
             end
 
-            NEW = false;
+            dataRoot = fullfile(GetFilePath("Data"), this.Inv, this.Inp);
 
-            % Construct the starting path for directory search
-            startpath = fullfile(GetFilePath("Data"), this.Inv, this.Inp, '**', '*');
-            dirlist = dir(startpath);
-            dirlist = dirlist([dirlist.isdir] & ...
-                ~contains({dirlist.name}, {'.', 'settings', 'alltime', 'Rescued'}, 'IgnoreCase',true) ...
-                & contains({dirlist.name}, this.Sub, "IgnoreCase",true));
-
-            % Attempt to group directories
-            if isempty(dirlist)
-                NEW = true;
-            elseif isscalar(dirlist) % Just one subject
-                dirPath = {fullfile(dirlist.folder, dirlist.name)};
-                % If this.Sub is only 1 mouse's name:
-                % filelist = dir(fullfile(GetFilePath("Data"), this.Inv,this.Inp, '**', '*.mat'));
-                % filelist = filelist(contains({filelist.name}, this.Sub) & ~contains({filelist.name}, 'settings', 'IgnoreCase',true));
-            else % A whole Group
-                [~,b]=findgroups({dirlist.folder}');
-                if isscalar(b)
-                    dirPath = fullfile(b, {dirlist.name});
-                else
-                    dirPath = strcat({dirlist.folder}, filesep, {dirlist.name});
+            % ------------------------------------------------------------
+            % Fast-path: if Strain is provided and exists, check directly
+            % for the requested subject folder(s) instead of scanning the
+            % entire tree with dir("**").
+            % ------------------------------------------------------------
+            dirPath = {};
+            if strlength(str) > 0 && ~matches(str, "w", "IgnoreCase", true)
+                strainRoot = fullfile(dataRoot, str);
+                if isfolder(strainRoot)
+                    candidate = fullfile(strainRoot, cellstr(subs));
+                    if iscell(candidate)
+                        isOk = cellfun(@isfolder, candidate);
+                        dirPath = candidate(isOk);
+                    else
+                        if isfolder(candidate)
+                            dirPath = {candidate};
+                        end
+                    end
                 end
             end
 
-            % Determine the action based on conditions
-            if NEW
-                % Handle paths based on user input and state
-                subfiledir = handleNewStrain(this, dirlist);
-            else % any(contains({filelist.name}, this.Sub))
-                % If any files match the subject, proceed to create file datastore
-                [subfiledir, fds] = this.makefiles(dirPath);
+            % ------------------------------------------------------------
+            % Fallback: recursive search for subject directories
+            % ------------------------------------------------------------
+            if isempty(dirPath)
+                startpath = fullfile(dataRoot, '**', '*');
+                d = dir(startpath);
+                d = d([d.isdir]); % Keep only directories
+                d = d(~ismember({d.name}, {'.', '..'}));
+
+                names = string({d.name});
+                isSub = contains(names, subs, "IgnoreCase", true);
+
+                % Exclusions (historical folder conventions)
+                bad = contains(names, "time", "IgnoreCase", true) | ...
+                      contains(names, "_", "IgnoreCase", true) | ...
+                      contains(names, "settings", "IgnoreCase", true) | ...
+                      contains(names, "alltime", "IgnoreCase", true) | ...
+                      contains(names, "Rescued", "IgnoreCase", true);
+
+                d = d(isSub & ~bad);
+                if ~isempty(d)
+                    dirPath = cellstr(fullfile(string({d.folder}), string({d.name})));
+                end
             end
+
+            % If nothing found, create folder(s) for a new subject/strain
+            if isempty(dirPath)
+                subfiledir = this.handleNewStrain();
+                return
+            end
+
+            [subfiledir, fds] = this.makefiles(dirPath);
 
             % Report found files if fds is populated
             if ~isempty(fds)
-                fprintf("Found "+numel(fds.Files)+" files for "+numel(this.Sub)+" subject(s) matching user input:\n - "+cell2mat(join(this.Sub, "\n - "))+"\n")
+                fprintf("Found "+numel(fds.Files)+" files for "+numel(this.Sub)+ ...
+                    " subject(s) matching user input:\n - "+ ...
+                    cell2mat(join(string(this.Sub), "\n - "))+"\n")
             end
 
         end
@@ -215,21 +241,28 @@ classdef BehaviorBoxDataNew < handle
             SUBDIR = [];
             try
                 FDS = fileDatastore(direc, "ReadMode", "file" ,"ReadFcn", @readFcn, "FileExtensions", ".mat", "IncludeSubfolders",true);
-                forest = cellfun(@(x) split(x,filesep), FDS.Files', 'UniformOutput', false);
-                [~,this.Sub]=findgroups(cellfun(@(x) x(end-1), forest));
-                [~,strains]=findgroups(cellfun(@(x) x(end-2), forest));
-                this.Str = string(strains);
-                if numel(direc)>1
-                    file = forest{1}(1:end-2);
-                    SUBDIR = fullfile(join(file(:),filesep));
-                elseif numel(this.Sub)>1
-                    % Use strain folder for directory when multiple subjects
-                    file = forest{1}(1:end-2);
-                    SUBDIR = fullfile(join(file(:),filesep));
+
+                % Normalize to a cell array of directory paths for parsing
+                if isstring(direc)
+                    direc = cellstr(direc);
+                elseif ischar(direc)
+                    direc = {direc};
+                end
+                direc = direc(:);
+
+                % Derive subject/strain from directory paths (faster than splitting
+                % every datastore filename).
+                [parentDirs, subjNames] = cellfun(@fileparts, direc, 'UniformOutput', false);
+                this.Sub = unique(string(subjNames), "stable");
+
+                [~, strainNames] = cellfun(@fileparts, parentDirs, 'UniformOutput', false);
+                this.Str = string(unique(string(strainNames), "stable"));
+
+                % Choose a sensible working directory for saving outputs/logs
+                if numel(this.Sub) > 1
+                    SUBDIR = parentDirs{1}; % strain folder
                 else
-                    % Use subject folder for directory
-                    file = forest{1}(1:end-1);
-                    SUBDIR = fullfile(join(file(:),filesep));
+                    SUBDIR = direc{1}; % subject folder
                 end
             catch err
                 display(err.message)
@@ -243,28 +276,60 @@ classdef BehaviorBoxDataNew < handle
             end
         end
 
-        function subdirPath = handleNewStrain(this, dirlist)
-            if ~isempty(this.Str)
-                newpath = fullfile(GetFilePath("Data"), this.Inv, this.Inp, this.Str, this.Sub);
-                actionOnFolderPresence(newpath, this.Sub);
-                subdirPath = newpath;
+        function subdirPath = handleNewStrain(this, ~)
+            dataRoot = fullfile(GetFilePath("Data"), this.Inv, this.Inp);
+
+            strain = string(this.Str);
+            if strlength(strain) == 0 || matches(strain, "w", "IgnoreCase", true)
+                strain = "New";
+                this.Str = char(strain);
+                fprintf("Indicated filepath not found - defaulting strain to 'New'.\n");
+            end
+
+            subList = cellstr(string(this.Sub));
+            subList(cellfun(@isempty, subList)) = [];
+
+            % Create subject folder(s)
+            newpaths = cellfun(@(s) fullfile(dataRoot, strain, s), subList, 'UniformOutput', false);
+
+            this.actionOnFolderPresence(newpaths, subList);
+
+            % Return a single directory path for convenience
+            if isscalar(subList)
+                subdirPath = newpaths{1};
             else
-                fprintf("Indicated filepath not found - Check the file path..?\n");
-                this.Str = 'New';
-                newpath = fullfile(GetFilePath("Data"), this.Inv, this.Inp, 'New', this.Sub);
-                this.actionOnFolderPresence(newpath, this.Sub);
-                subdirPath = newpath;
+                subdirPath = char(fullfile(dataRoot, strain));
             end
         end
 
         function actionOnFolderPresence(this, newpath, subjects)
-            if isfolder(newpath)
-                fprintf("Found %d subject(s) matching user input:\n - %s\n", ...
-                    numel(subjects), cell2mat(join(subjects, "\n - ")));
-            else
-                mkdir(newpath{:});
-                fprintf("New strain, folders will be created when saving data...\n");
+            if nargin < 3
+                subjects = {};
             end
+
+            if ischar(subjects) || isstring(subjects)
+                subjects = cellstr(subjects);
+            end
+
+            if ischar(newpath) || isstring(newpath)
+                newpath = cellstr(newpath);
+            end
+
+            exists = cellfun(@isfolder, newpath);
+
+            if all(exists)
+                fprintf("Found %d subject(s) matching user input:\n - %s\n", ...
+                    numel(subjects), strjoin(subjects, "\n - "));
+                return
+            end
+
+            % Create any missing folders
+            for i = 1:numel(newpath)
+                if ~exists(i)
+                    mkdir(newpath{i});
+                end
+            end
+            fprintf("New strain/subject folder(s) will be created when saving data...\n");
         end
 
         function [varargout] = loadFiles(this, options)

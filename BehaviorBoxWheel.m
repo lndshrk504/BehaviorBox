@@ -42,8 +42,9 @@ classdef BehaviorBoxWheel < handle
         Include = {};
         GuiHandles = struct();
         app = struct();
-        appProps; %cycle thru these 3 to update settings
+        appProps; % Cached list of app properties that map into Setting_Struct
         appPropsTypes;
+        appPropsTags;
         dropdowns;
         %Interface handles:
         message_handle;
@@ -179,26 +180,12 @@ classdef BehaviorBoxWheel < handle
             bTags = this.GetTag(this.app, buttons);
             this.Buttons = cell2struct(cellfun(@(x)(this.app.(x)), buttons, 'UniformOutput',false, 'ErrorHandler', @errorFuncNaN), bTags);
             props = props(~contains(types, {'button'}) | contains(types, {'radiobutton'})); types = this.GetType(this.app, props);
-            %Make Dropdown structure
+            % Cache GUI metadata so settings can be read quickly each trial
             this.appProps = props;
             this.appPropsTypes = types;
-            Dropdowns = props(contains(types, {'dropdown'}));
-            dTags = this.GetTag(this.app, Dropdowns);
-            DropVals = cellfun(@(x)find(matches(this.app.(x).Items, this.app.(x).Value)), Dropdowns, 'UniformOutput',false);
-            this.dropdowns = cell2struct(DropVals, dTags);
-            props = props(~contains(types, {'dropdown'})); types = this.GetType(this.app, props);
-            %Make Checkbox structure
-            setVals = cell(size(props));
-            CIdx = contains(types, {'check'});
-            Checkboxes = props(CIdx);
-            cVals = cellfun(@(x)logical(this.app.(x).Value), Checkboxes, 'UniformOutput',false);
-            setVals(CIdx) = cVals;
-            pTags = this.GetTag(this.app, props);
-            setVals(~CIdx) = cellfun(@(x)str2double(this.app.(x).Value), props(~CIdx), 'UniformOutput',false);
-            ReDo = cellfun(@isnan, setVals, 'UniformOutput',true);
-            setVals(ReDo) = cellfun(@(x)(this.app.(x).Value), props(ReDo), 'UniformOutput',false);
-            tempSetting_Struct = cell2struct(setVals, pTags);
-            tempSetting_Struct = appendStruct(tempSetting_Struct, this.dropdowns);
+            this.appPropsTags = this.GetTag(this.app, props);
+
+            tempSetting_Struct = this.readSettingsFromApp();
             this.makeTrialStructures(tempSetting_Struct);
             this.LevelStruct = this.ManyLevels(this.LevelStruct);
             this.Setting_Struct = tempSetting_Struct;
@@ -238,45 +225,149 @@ classdef BehaviorBoxWheel < handle
                 end
             end
         end
-        function makeTrialStructures(this, Settings)
-            this.StimulusStruct = appendStruct(this.StimulusStruct, PullOut(Settings, 'Stimulus_'));
-            this.Box = appendStruct(this.Box, PullOut(Settings, 'Box_'));
-            this.ReadyCueStruct = appendStruct(this.ReadyCueStruct, PullOut(Settings, 'ReadyCue_'));
-            this.LevelStruct = appendStruct(this.LevelStruct, PullOut(Settings, 'Level_'));
-            this.Temp_Settings = appendStruct(this.Temp_Settings, PullOut(Settings, '_Temp'));
-            function OUT = PullOut(IN, chr)
-                names = fieldnames(IN);
-                inter = names(contains(names, chr));
-                vals = cellfun(@(x)IN.(x), inter, "UniformOutput",false);
-                CIDX = contains(inter, "color", IgnoreCase=true);
-                vals(CIDX) = cellfun(@(x)repmat(x,1,3), vals(CIDX), "UniformOutput",false);
-                OUT = cell2struct(vals, erase(inter, chr));
+
+        function Settings = readSettingsFromApp(this)
+            % Read all GUI settings into a struct using cached metadata.
+            props = this.appProps;
+            types = this.appPropsTypes;
+            tags  = this.appPropsTags;
+
+            if isempty(props) || isempty(tags)
+                Settings = struct();
+                this.dropdowns = struct();
+                return
             end
-        end
-        function OUT = ManyLevels(~, In)
-            OUT = In;
-            if ~isnumeric(In.HardLvList)
-                HardLevs = str2num(In.HardLvList); %#ok<ST2NM>
-            else
-                HardLevs = In.HardLvList;
-            end
-            if ~isnumeric(In.EasyLvList)
-                EasyLevs = str2num(string(In.EasyLvList)); %#ok<ST2NM>
-            else
-                EasyLevs = In.EasyLvList;
-            end
-            LEVELS = {EasyLevs HardLevs; In.EasyLvProb In.HardLvProb};
-            PossibleLevels = [];
-            for L = LEVELS
-                levs = L{1};
-                p = ceil((L{2}*100)/numel(levs));
-                for l = levs
-                    PossibleLevels = [PossibleLevels repmat(l, 1, p)];
+
+            n = numel(props);
+            vals = cell(1, n);
+            ddMask = false(1, n);
+
+            for i = 1:n
+                p = props{i};
+                t = types{i};
+                try
+                    if contains(t, 'dropdown', 'IgnoreCase', true)
+                        ddMask(i) = true;
+                        vals{i} = find(matches(this.app.(p).Items, this.app.(p).Value), 1);
+                    elseif contains(t, 'check', 'IgnoreCase', true)
+                        vals{i} = logical(this.app.(p).Value);
+                    else
+                        v = this.app.(p).Value;
+                        nv = str2double(v);
+                        if ~isnan(nv)
+                            vals{i} = nv;
+                        else
+                            vals{i} = v;
+                        end
+                    end
+                catch
+                    % Non-standard property (best-effort fallback)
+                    try
+                        vals{i} = this.app.(p);
+                    catch
+                        vals{i} = [];
+                    end
                 end
             end
-            OUT.PossibleLevels = PossibleLevels;
-            OUT.ChooseLevel = @(x)OUT.PossibleLevels(randperm(numel(PossibleLevels), 1));
+
+            % vals/tags are row vectors; build struct across dimension 2.
+            Settings = cell2struct(vals, tags, 2);
+
+            % Optional convenience struct of only dropdown indices
+            if any(ddMask)
+                this.dropdowns = cell2struct(vals(ddMask), tags(ddMask), 2);
+            else
+                this.dropdowns = struct();
+            end
         end
+
+        function makeTrialStructures(this, Settings)
+            names = fieldnames(Settings);
+
+            this.StimulusStruct  = appendStruct(this.StimulusStruct,  PullOut(Settings, names, 'Stimulus_'));
+            this.Box            = appendStruct(this.Box,            PullOut(Settings, names, 'Box_'));
+            this.ReadyCueStruct = appendStruct(this.ReadyCueStruct, PullOut(Settings, names, 'ReadyCue_'));
+            this.LevelStruct    = appendStruct(this.LevelStruct,    PullOut(Settings, names, 'Level_'));
+            this.Temp_Settings  = appendStruct(this.Temp_Settings,  PullOut(Settings, names, '_Temp'));
+
+            function OUT = PullOut(IN, allNames, chr)
+                if strcmp(chr, '_Temp')
+                    inter = allNames(endsWith(allNames, chr));
+                else
+                    inter = allNames(startsWith(allNames, chr));
+                end
+
+                if isempty(inter)
+                    OUT = struct();
+                    return
+                end
+
+                vals = cellfun(@(x) IN.(x), inter, "UniformOutput", false);
+
+                % Normalize scalar grayscale -> RGB triplets
+                cidx = contains(inter, "color", "IgnoreCase", true);
+                vals(cidx) = cellfun(@normColor, vals(cidx), "UniformOutput", false);
+
+                OUT = cell2struct(vals, erase(inter, chr));
+            end
+
+            function c = normColor(c)
+                if isnumeric(c) && isscalar(c)
+                    c = repmat(c, 1, 3);
+                end
+            end
+        end
+
+        function OUT = ManyLevels(~, In)
+            OUT = In;
+
+            HardLevs = bb_parseNumList(In.HardLvList);
+
+            EasyLevs = bb_parseNumList(In.EasyLvList);
+
+            LEVELS = {EasyLevs HardLevs; In.EasyLvProb In.HardLvProb};
+
+            reps_per_level = zeros(1, size(LEVELS, 2));
+            total_count = 0;
+            for k = 1:size(LEVELS, 2)
+                levs = LEVELS{1, k};
+                levs = levs(:)';
+                if isempty(levs)
+                    continue
+                end
+                reps_per_level(k) = max(0, ceil((LEVELS{2, k} * 100) / numel(levs)));
+                total_count = total_count + numel(levs) * reps_per_level(k);
+            end
+
+            PossibleLevels = zeros(1, total_count);
+            idx = 1;
+            for k = 1:size(LEVELS, 2)
+                levs = LEVELS{1, k};
+                levs = levs(:)';
+                p = reps_per_level(k);
+                if isempty(levs) || p == 0
+                    continue
+                end
+                for l = levs
+                    PossibleLevels(idx:(idx + p - 1)) = l;
+                    idx = idx + p;
+                end
+            end
+
+            if idx > 1
+                PossibleLevels = PossibleLevels(1:(idx - 1));
+            else
+                % Fallback if probabilities are 0 or lists are empty
+                PossibleLevels = [EasyLevs(:)' HardLevs(:)'];
+                if isempty(PossibleLevels)
+                    PossibleLevels = 1;
+                end
+            end
+
+            OUT.PossibleLevels = PossibleLevels;
+            OUT.ChooseLevel = @() OUT.PossibleLevels(randi(numel(OUT.PossibleLevels)));
+        end
+
         %set hardware (arduino) parameters
         function ConfigureBox(this)
             arguments
@@ -502,56 +593,70 @@ classdef BehaviorBoxWheel < handle
             this.setGuiNumbers(this.GUI_numbers);
         end
         %Pick difficulty level if variable:
-        function [current_difficulty] = PickDifficultyLevel(this)
-            PossibleLevels = this.LevelStruct.PossibleLevels;
-            current_difficulty = PossibleLevels( randperm( numel(PossibleLevels), 1) );
+        function current_difficulty = PickDifficultyLevel(this)
+            current_difficulty = this.LevelStruct.ChooseLevel();
         end
         %Update all the settings if the button is ticked
         function UpdateSettings(this)
-            props = this.appProps;
-            types = this.appPropsTypes;
-            Dropdowns = props(contains(this.appPropsTypes, {'dropdown'}));
-            dTags = this.GetTag(this.app, Dropdowns);
-            DropVals = cellfun(@(x)find(matches(this.app.(x).Items, this.app.(x).Value)), Dropdowns, 'UniformOutput',false);
-            this.dropdowns = cell2struct(DropVals, dTags);
-            tempVal = cell(size(props));
-            CIdx = contains(types, {'check'});
-            Checkboxes = props(CIdx);
-            cVals = cellfun(@(x)logical(this.app.(x).Value), Checkboxes, 'UniformOutput',false);
-            tempVal(CIdx) = cVals;
-            pTags = this.GetTag(this.app, props);
-            tempVal(~CIdx) = cellfun(@(x)str2double(this.app.(x).Value), props(~CIdx), 'UniformOutput',false);
-            ReDo = cellfun(@isnan, tempVal, 'UniformOutput',true);
-            tempVal(ReDo) = cellfun(@(x)(this.app.(x).Value), props(ReDo), 'UniformOutput',false);
-            tempSetting_Struct = cell2struct(tempVal, pTags);
-            tempSetting_Struct = appendStruct(tempSetting_Struct, this.dropdowns);
-            if isequal(tempSetting_Struct, this.Setting_Struct)
+            tempSetting_Struct = this.readSettingsFromApp();
+
+            if isequaln(tempSetting_Struct, this.Setting_Struct)
                 return
             end
+
             updatelist = {};
             names = fieldnames(tempSetting_Struct);
-            for n = names'
-                x = n{:};
-                if ~isequal(tempSetting_Struct.(x), this.Setting_Struct.(x))
+            changed = false(size(names));
+
+            for k = 1:numel(names)
+                x = names{k};
+                if ~isfield(this.Setting_Struct, x) || ~isequaln(tempSetting_Struct.(x), this.Setting_Struct.(x))
+                    changed(k) = true;
                     try
-                        updatelist{end+1} = " "+x+" - "+this.Setting_Struct.(x)+" to "+tempSetting_Struct.(x);
+                        updatelist{end+1} = " " + x + " - " + string(this.Setting_Struct.(x)) + " to " + string(tempSetting_Struct.(x));
                     catch
-                        updatelist{end+1} = " "+x;
+                        updatelist{end+1} = " " + x;
                     end
                 end
             end
-            msg = "Trial "+this.i+" Updating:\n"+join([updatelist{:}],"\n")+"\n";
+
+            msg = "Trial " + this.i + " Updating:\n" + join([updatelist{:}], "\n") + "\n";
             fprintf(msg) %Print this to the Message window
+
+            changedNames = string(names(changed));
+
             this.Old_Setting_Struct{end+1} = this.Setting_Struct;
-            this.makeTrialStructures(tempSetting_Struct)
-            this.LevelStruct = this.ManyLevels(this.LevelStruct);
+
+            % Only rebuild derived structs when relevant settings changed
+            needsStim  = any(startsWith(changedNames, "Stimulus_"));
+            needsBox   = any(startsWith(changedNames, "Box_"));
+            needsReady = any(startsWith(changedNames, "ReadyCue_"));
+            needsLevel = any(startsWith(changedNames, "Level_"));
+            needsTemp  = any(endsWith(changedNames, "_Temp")) | any(contains(changedNames, "_Temp"));
+
+            if needsStim || needsBox || needsReady || needsLevel || needsTemp
+                this.makeTrialStructures(tempSetting_Struct);
+
+                if needsLevel
+                    this.LevelStruct = this.ManyLevels(this.LevelStruct);
+                end
+
+                if needsStim
+                    try
+                        this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
+                    catch
+                    end
+                end
+            end
+
             this.Setting_Struct = tempSetting_Struct;
             this.SetIdx = this.SetIdx + 1;
             this.SetUpdate{end+1} = this.i;
             [this.SetStr(end+1), this.Include(end+1)] = this.structureSettings(tempSetting_Struct);
-            this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
+
             [this.Level] = this.Setting_Struct.Starting_opacity;
         end
+
         %Choose if Left or Right will be correct
         function isLeftTrial = PickSideForCorrect(this, isLeftTrial, ~)
             % ATTENTION!!!

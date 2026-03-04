@@ -57,3 +57,15 @@ build.ninja
 openCV camera app/viewMultiCameras_variants/viewMultiCameras_opencv_sdl/usbcams
 openCV camera app/viewMultiCameras_variants/viewMultiCameras_v4l2_dmabuf_egl/usbcamv4l
 USB camera Apps/v4l_version/usbcamv4l
+
+# Editor / OS junk
+.vscode/
+*.swp
+*.swo
+*.log
+*.rej
+*.orig
+
+# Convenience symlinks / local binaries
+usbcamv4l/usbcamv4l
+usbcamv4l/usbcamctl
