@@ -1222,6 +1222,16 @@ classdef BehaviorBoxNose < handle
                 last_middle_flash_t = -Inf;
                 last_contour_flash_t = -Inf;
 
+                % Stall reminder: if no nose input for stallSec, briefly dim stimulus.
+                stallSec = 5;
+                stallBlinkDur = 0.10;
+                tLastInput = 0;
+                stallBlinkActive = false;
+                stallBlinkT0 = 0;
+                stall_lines = this.getStallBlinkLines_([contour_lines; distractor_lines]);
+                stallBaseColor = stim.LineColor;
+                stallDimColor = stim.DimColor;
+
                 t_loop = tic;
                 while timeout_value == 0 || toc(t_loop) < timeout_value
                     pause(loop_pause);
@@ -1236,6 +1246,27 @@ classdef BehaviorBoxNose < handle
 
                     t_now = toc(t_loop);
                     token = this.currentNoseToken_();
+
+                    % Non-blocking stall blink while no sensor is active.
+                    if token ~= '-'
+                        tLastInput = t_now;
+                        if stallBlinkActive
+                            stall_lines = this.getStallBlinkLines_(stall_lines);
+                            this.setLinesColorSafe_(stall_lines, stallBaseColor);
+                            stallBlinkActive = false;
+                        end
+                    elseif ~stallBlinkActive && (t_now - tLastInput) >= stallSec
+                        stall_lines = this.getStallBlinkLines_(stall_lines);
+                        this.setLinesColorSafe_(stall_lines, stallDimColor);
+                        stallBlinkActive = true;
+                        stallBlinkT0 = t_now;
+                    end
+                    if stallBlinkActive && (t_now - stallBlinkT0) >= stallBlinkDur
+                        stall_lines = this.getStallBlinkLines_(stall_lines);
+                        this.setLinesColorSafe_(stall_lines, stallBaseColor);
+                        stallBlinkActive = false;
+                        tLastInput = t_now;
+                    end
 
                     if token == 'M'
                         this.DuringTMal = this.DuringTMal + 1;
@@ -1294,6 +1325,12 @@ classdef BehaviorBoxNose < handle
                         candidate_t0 = NaN;
                         last_contour_flash_t = -Inf;
                     end
+                end
+
+                % Never leave the stimulus dimmed after loop exit.
+                if stallBlinkActive
+                    stall_lines = this.getStallBlinkLines_(stall_lines);
+                    this.setLinesColorSafe_(stall_lines, stallBaseColor);
                 end
 
                 should_dim_distractors = true;
@@ -1394,6 +1431,77 @@ classdef BehaviorBoxNose < handle
             end
             if ~isfinite(delay) || delay < 0
                 delay = 0;
+            end
+        end
+        function lines = getStallBlinkLines_(this, lines)
+            if nargin < 2 || isempty(lines)
+                lines = gobjects(0);
+            end
+            try
+                lines = lines(isgraphics(lines));
+            catch
+                lines = gobjects(0);
+            end
+            if isempty(lines)
+                lines = [findobj(this.fig.Children, 'Tag', 'Contour'); findobj(this.fig.Children, 'Tag', 'Distractor')];
+                lines = lines(isgraphics(lines));
+            end
+            if isempty(lines)
+                lines = findobj(this.fig.Children, 'Type', 'Line');
+                lines = lines(isgraphics(lines));
+            end
+        end
+        function setLinesColorSafe_(~, lines, color)
+            if isempty(lines)
+                return
+            end
+            c = color;
+            if isnumeric(c) && isscalar(c)
+                c = repmat(c, 1, 3);
+            end
+            try
+                [lines(:).Color] = deal(c);
+            catch
+                try
+                    set(lines, 'Color', c);
+                catch
+                end
+            end
+        end
+        function waitForCorrectSensorAndStallBlink_(this, WaitCorrect)
+            stallSec = 5;
+            stallBlinkDur = 0.10;
+            tWait = tic;
+            tLastTrigger = 0;
+            blinkActive = false;
+            blinkT0 = 0;
+            lines = this.getStallBlinkLines_();
+            baseColor = this.StimulusStruct.LineColor;
+            dimColor = this.StimulusStruct.DimColor;
+
+            while contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && ~WaitCorrect()
+                tNow = toc(tWait);
+                if ~blinkActive && (tNow - tLastTrigger) >= stallSec
+                    lines = this.getStallBlinkLines_(lines);
+                    this.setLinesColorSafe_(lines, dimColor);
+                    blinkActive = true;
+                    blinkT0 = tNow;
+                elseif blinkActive && (tNow - blinkT0) >= stallBlinkDur
+                    lines = this.getStallBlinkLines_(lines);
+                    this.setLinesColorSafe_(lines, baseColor);
+                    blinkActive = false;
+                    tLastTrigger = tNow;
+                end
+
+                pause(0.05); drawnow;
+                if get(this.stop_handle, 'Value') || get(this.app.FastForward, 'Value')
+                    break
+                end
+            end
+
+            if blinkActive
+                lines = this.getStallBlinkLines_(lines);
+                this.setLinesColorSafe_(lines, baseColor);
             end
         end
         function FlashNew(this, Stim, Box, Lines, whatdecision, OneWay)
@@ -1559,12 +1667,8 @@ classdef BehaviorBoxNose < handle
                 otherwise %Keyboard, any input method I haven't used before
                     return
             end
-            while contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && ~WaitCorrect() %Wait for NosePoke Don't dispense the reward unless the mouse is waiting for it! Wait indefinitely between pulses for them to learn to collect all the water
-                pause(0.2); drawnow;
-                if get(this.stop_handle, 'Value') || get(this.app.FastForward, 'Value')
-                    break
-                end
-            end
+            % Wait for reward-port nosepoke with periodic stall reminder blink.
+            this.waitForCorrectSensorAndStallBlink_(WaitCorrect)
             REWARD()
             PulseNum = PulseNum-1;
             % then flash
@@ -1572,12 +1676,7 @@ classdef BehaviorBoxNose < handle
             for P = 1:PulseNum
                 if P <= PulseNum
                     pause(this.Box.SecBwPulse)
-                    while contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && ~WaitCorrect() %Wait for NosePoke Don't dispense the reward unless the mouse is waiting for it! Wait indefinitely between pulses for them to learn to collect all the water
-                        pause(0.2); drawnow;
-                        if get(this.stop_handle, 'Value') || get(this.app.FastForward, 'Value')
-                            break
-                        end
-                    end
+                    this.waitForCorrectSensorAndStallBlink_(WaitCorrect)
                 end
                 REWARD()
                 this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Contour'),  this.WhatDecision);
