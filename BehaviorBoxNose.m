@@ -1475,20 +1475,38 @@ classdef BehaviorBoxNose < handle
             tLastTrigger = 0;
             blinkActive = false;
             blinkT0 = 0;
-            lines = this.getStallBlinkLines_();
             baseColor = this.StimulusStruct.LineColor;
             dimColor = this.StimulusStruct.DimColor;
 
             while contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && ~WaitCorrect()
                 tNow = toc(tWait);
                 if ~blinkActive && (tNow - tLastTrigger) >= stallSec
-                    lines = this.getStallBlinkLines_(lines);
-                    this.setLinesColorSafe_(lines, dimColor);
+                    contour_lines = findobj(this.fig.Children, 'Tag', 'Contour');
+                    contour_lines = contour_lines(isgraphics(contour_lines));
+                    distractor_lines = findobj(this.fig.Children, 'Tag', 'Distractor');
+                    distractor_lines = distractor_lines(isgraphics(distractor_lines));
+                    if isempty(contour_lines) && isempty(distractor_lines)
+                        all_lines = this.getStallBlinkLines_();
+                        this.setLinesColorSafe_(all_lines, dimColor);
+                    else
+                        this.setLinesColorSafe_(contour_lines, dimColor);
+                        this.setLinesColorSafe_(distractor_lines, dimColor);
+                    end
                     blinkActive = true;
                     blinkT0 = tNow;
                 elseif blinkActive && (tNow - blinkT0) >= stallBlinkDur
-                    lines = this.getStallBlinkLines_(lines);
-                    this.setLinesColorSafe_(lines, baseColor);
+                    contour_lines = findobj(this.fig.Children, 'Tag', 'Contour');
+                    contour_lines = contour_lines(isgraphics(contour_lines));
+                    distractor_lines = findobj(this.fig.Children, 'Tag', 'Distractor');
+                    distractor_lines = distractor_lines(isgraphics(distractor_lines));
+                    if isempty(contour_lines) && isempty(distractor_lines)
+                        all_lines = this.getStallBlinkLines_();
+                        this.setLinesColorSafe_(all_lines, baseColor);
+                    else
+                        this.setLinesColorSafe_(contour_lines, baseColor);
+                        % Keep distractor dim after reward-wait idle blink.
+                        this.setLinesColorSafe_(distractor_lines, dimColor);
+                    end
                     blinkActive = false;
                     tLastTrigger = tNow;
                 end
@@ -1500,8 +1518,17 @@ classdef BehaviorBoxNose < handle
             end
 
             if blinkActive
-                lines = this.getStallBlinkLines_(lines);
-                this.setLinesColorSafe_(lines, baseColor);
+                contour_lines = findobj(this.fig.Children, 'Tag', 'Contour');
+                contour_lines = contour_lines(isgraphics(contour_lines));
+                distractor_lines = findobj(this.fig.Children, 'Tag', 'Distractor');
+                distractor_lines = distractor_lines(isgraphics(distractor_lines));
+                if isempty(contour_lines) && isempty(distractor_lines)
+                    all_lines = this.getStallBlinkLines_();
+                    this.setLinesColorSafe_(all_lines, baseColor);
+                else
+                    this.setLinesColorSafe_(contour_lines, baseColor);
+                    this.setLinesColorSafe_(distractor_lines, dimColor);
+                end
             end
         end
         function FlashNew(this, Stim, Box, Lines, whatdecision, OneWay)
