@@ -912,34 +912,8 @@ classdef BehaviorBox_App < matlab.apps.AppBase
 
         % Callback function
         function Train_Callback(app, event)
-            % Create GUIDE-style callback args - Added by Migration Tool
-            [hObject, eventdata, handles] = convertToGUIDECallbackArguments(app, event); %#ok<ASGLU>
-            %TRAINING BUTTON
-            % hObject    handle to pushbutton3 (see GCBO)
-            % eventdata  reserved - to be defined in a future version of MATLAB
-            % handles    structure with handles and user data (see GUIDATA)
-            %run training
-            try
-                %Constructor functions, SetUp arduino and variables
-                ThisTrial = BehaviorBoxSuper(handles, app);
-                %Start the training
-                ThisTrial.RunTraining();
-            catch err
-                disp(err.message);
-                ThisTrial.cleanUP();
-                set(handles.text1,'String',err.message );
-            end
-        end
-
-        % Button pushed function: PrintSetup
-        function PrintSetup_Callback(app, event)
-            % Create GUIDE-style callback args - Added by Migration Tool
-            [hObject, eventdata, handles] = convertToGUIDECallbackArguments(app, event); %#ok<ASGLU>
-            %PRINT CONNECTION AND PINS NEEDED
-            % hObject    handle to pushbutton4 (see GCBO)
-            % eventdata  reserved - to be defined in a future version of MATLAB
-            % handles    structure with handles and user data (see GUIDATA)
-            printHardwareConnections(app, handles)
+            % Legacy wrapper: keep Train button as an alias of Start.
+            Start_Callback(app, event);
         end
 
         % Button pushed function: ShowStim
