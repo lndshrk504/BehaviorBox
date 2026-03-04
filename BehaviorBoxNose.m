@@ -285,11 +285,12 @@ classdef BehaviorBoxNose < handle
                 end
             end
 
-            Settings = cell2struct(vals, tags);
+            % vals/tags are row vectors; build struct across dimension 2.
+            Settings = cell2struct(vals, tags, 2);
 
             % Optional convenience struct of only dropdown indices
             if any(ddMask)
-                this.dropdowns = cell2struct(vals(ddMask), tags(ddMask));
+                this.dropdowns = cell2struct(vals(ddMask), tags(ddMask), 2);
             else
                 this.dropdowns = struct();
             end

@@ -109,8 +109,24 @@ classdef BehaviorBoxSerialTime < handle
         end
 
         function delete(this)
+            % Ensure the serial port is released immediately.
+            % Serial callbacks can keep objects alive unless we tear down the
+            % underlying serialport explicitly.
             try
-                configureCallback(this.Ard, "off");
+                if ~isempty(this.Ard)
+                    try
+                        configureCallback(this.Ard, "off");
+                    catch
+                    end
+                    try
+                        flush(this.Ard);
+                    catch
+                    end
+                    try
+                        delete(this.Ard);
+                    catch
+                    end
+                end
             catch
             end
             this.Ard = serialport.empty;
