@@ -231,7 +231,7 @@ classdef BehaviorBoxDataNew < handle
             if ~isempty(fds)
                 fprintf("Found "+numel(fds.Files)+" files for "+numel(this.Sub)+ ...
                     " subject(s) matching user input:\n - "+ ...
-                    cell2mat(join(string(this.Sub), "\n - "))+"\n")
+                    join(string(this.Sub), "\n - ")+"\n")
             end
 
         end
