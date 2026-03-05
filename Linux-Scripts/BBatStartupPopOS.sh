@@ -9,7 +9,7 @@
 cd ~/Desktop/BehaviorBox
 
 gnome-terminal -- bash -lc 'source ~/.bashrc; /usr/local/bin/matlab -nosplash -nodesktop -r "BehaviorBox_App Wheel"; exec bash' &
-sleep 45
-gnome-terminal -- bash -lc 'source ~/.bashrc; /usr/local/bin/matlab -nosplash -nodesktop -r "BehaviorBox_App Wheel"; exec bash' &
 sleep 20
+gnome-terminal -- bash -lc 'source ~/.bashrc; /usr/local/bin/matlab -nosplash -nodesktop -r "BehaviorBox_App Wheel"; exec bash' &
+sleep 10
 gnome-terminal -- bash -lc 'source ~/.bashrc; cam -f -w; exec bash' &
