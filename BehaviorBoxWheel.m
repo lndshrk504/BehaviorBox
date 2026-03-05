@@ -1649,254 +1649,6 @@ classdef BehaviorBoxWheel < handle
                 this.wheelchoicetime = double(wheelchoicetime(1:I));
             end
         end
-        function [WhatDecision, response_time] = readLeverLoopAnalogWheel_OnlyCorrect(this)
-            % REVISED v4: standalone OnlyCorrect loop
-            %   - transform-based stimulus motion if available
-            %   - non-blocking stall blink after 5 seconds of no movement
-            %   - draw scheduling (avoid drawnow limitrate 20 Hz cap)
-
-            event = -1;
-            delta = 0;
-
-            timeout_value = this.Box.Timeout_after_time;
-            if isempty(timeout_value)
-                timeout_value = 0;
-            end
-
-            threshold = this.Setting_Struct.TurnMag;
-            StimDistance = 0.3;
-            k = StimDistance/threshold;
-
-            % Bounds (legacy normalized)
-            axR = this.RStimAx;
-            axL = this.LStimAx;
-            pos1i = axR.Position;
-            if numel([axR axL]) > 1
-                pos2i = axL.Position;
-            end
-            thresh = abs(pos1i(1)/2);
-
-            if this.Setting_Struct.RoundUp
-                RoundUp = (this.Setting_Struct.RoundUpVal/100); %Default is 75 --> 0.75
-                thresh = RoundUp*thresh;
-            end
-
-            % Prefer hgtransform motion if available
-            useXform = false;
-            gR = [];
-            gL = [];
-            scaleR = 1;
-            scaleL = 1;
-            try
-                if ~isempty(this.Stimulus_Object) && ismethod(this.Stimulus_Object,'getWheelMotionTargets')
-                    [gR, gL, scaleR, scaleL] = this.Stimulus_Object.getWheelMotionTargets();
-                    useXform = ~isempty(gR) && ~isempty(gL) && all(isgraphics([gR gL]));
-                end
-            catch
-                useXform = false;
-            end
-
-            % Draw scheduling
-            drawHz = 60;
-            if isfield(this.Box,'GraphicsUpdateHz') && ~isempty(this.Box.GraphicsUpdateHz)
-                drawHz = double(this.Box.GraphicsUpdateHz);
-            else
-                try
-                    ri = rendererinfo;
-                    dev = lower(string(ri.RendererDevice));
-                    if contains(dev,"swiftshader") || contains(dev,"microsoft basic") || contains(dev,"gdi generic")
-                        drawHz = 20;
-                    elseif contains(dev,"intel") && ~contains(dev,["nvidia","amd","radeon"])
-                        drawHz = 30;
-                    end
-                catch
-                end
-            end
-            drawHz = max(10, min(drawHz, 240));
-            drawInterval = 1/drawHz;
-            tLastDraw = -Inf;
-
-            % Prealloc trace
-            cap = 200000;
-            wheelchoice = zeros(1,cap,'single');
-            wheelchoicetime = zeros(1,cap,'single');
-            I = 0;
-
-            % Stall -> blink
-            stallSec = 5;
-            stallTol = 0;
-            lastDist = NaN;
-            tLastMove = 0;
-            didStallBlink = false;
-            blinkActive = false;
-            blinkT0 = 0;
-            blinkDur = 0.10;
-
-            Lines = [findobj('Tag','Contour'); findobj('Tag','Distractor')];
-            baseColor = this.StimulusStruct.LineColor;
-            dimColor  = this.StimulusStruct.DimColor;
-
-            accept = 0.96 * thresh;
-            prevDelta = NaN;
-
-            tLoop = tic;
-            while (timeout_value == 0 | toc(tLoop) < timeout_value) % do NOT replace | with || or the expression is changed.
-                if ismethod(this.a,'ReadWheel')
-                    dist = this.a.ReadWheel();
-                else
-                    dist = str2double(this.a.SerialRead);
-                end
-                if isnan(dist)
-                    continue
-                end
-                tNow = toc(tLoop);
-
-                % Stall detection
-                if isnan(lastDist) || abs(dist - lastDist) > stallTol
-                    lastDist = dist;
-                    tLastMove = tNow;
-                    didStallBlink = false;
-                    if blinkActive
-                        if isempty(Lines) || any(~isgraphics(Lines))
-                            Lines = [findobj('Tag','Contour'); findobj('Tag','Distractor')];
-                        end
-                        try
-                            Lines.Color = baseColor;
-                        catch
-                            set(Lines,'Color',baseColor);
-                        end
-                        blinkActive = false;
-                    end
-                elseif ~didStallBlink && (tNow - tLastMove) >= stallSec
-                    if isempty(Lines) || any(~isgraphics(Lines))
-                        Lines = [findobj('Tag','Contour'); findobj('Tag','Distractor')];
-                    end
-                    try
-                        Lines.Color = dimColor;
-                    catch
-                        set(Lines,'Color',dimColor);
-                    end
-                    blinkActive = true;
-                    blinkT0 = tNow;
-                    didStallBlink = true;
-                end
-                if blinkActive && (tNow - blinkT0) >= blinkDur
-                    if isempty(Lines) || any(~isgraphics(Lines))
-                        Lines = [findobj('Tag','Contour'); findobj('Tag','Distractor')];
-                    end
-                    try
-                        Lines.Color = baseColor;
-                    catch
-                        set(Lines,'Color',baseColor);
-                    end
-                    blinkActive = false;
-                end
-
-                delta = dist * k;
-                if abs(delta) > thresh
-                    delta = sign(delta) * thresh;
-                end
-
-                I = I+1;
-                if I > cap
-                    newCap = cap + 200000;
-                    wheelchoice(1,newCap) = single(0);
-                    wheelchoicetime(1,newCap) = single(0);
-                    cap = newCap;
-                end
-                wheelchoice(I) = single(delta);
-                wheelchoicetime(I) = single(tNow);
-
-                if isnan(prevDelta) || abs(delta - prevDelta) > 1e-7
-                    if useXform
-                        txR = double(delta) * scaleR;
-                        txL = double(delta) * scaleL;
-                        gR.Matrix = makehgtform('translate', [txR 0 0]);
-                        gL.Matrix = makehgtform('translate', [txL 0 0]);
-                    else
-                        pos1 = pos1i + ([double(delta) 0 0 0]);
-                        axR.Position = pos1;
-                        if exist('pos2i','var')
-                            pos2 = pos2i + ([double(delta) 0 0 0]);
-                            axL.Position = pos2;
-                        end
-                    end
-                    prevDelta = delta;
-                end
-
-                if (tNow - tLastDraw) >= drawInterval
-                    drawnow nocallbacks
-                    tLastDraw = tNow;
-                end
-
-                % OnlyCorrect logic
-                if this.isLeftTrial
-                    if delta <= -thresh
-                        this.a.Reset();
-                    end
-                    if delta >= accept
-                        event = 1;
-                        break
-                    end
-                else
-                    if delta >= thresh
-                        this.a.Reset();
-                    end
-                    if delta <= -accept
-                        event = 2;
-                        break
-                    end
-                end
-
-                if get(this.Skip,'Value')
-                    set(this.Skip,'Value',0)
-                    break
-                end
-            end
-
-            response_time = toc(tLoop);
-
-            if event == -1 && abs(delta) >= thresh
-                if sign(delta) > 0
-                    event = 1;
-                elseif sign(delta) < 0
-                    event = 2;
-                end
-            end
-
-            switch event
-                case -1
-                    WhatDecision = 'time out';
-                case 1
-                    if this.isLeftTrial == 1
-                        WhatDecision = 'left correct OC';
-                    else
-                        WhatDecision = 'left wrong';
-                    end
-                case 2
-                    if this.isLeftTrial == 0
-                        WhatDecision = 'right correct OC';
-                    else
-                        WhatDecision = 'right wrong';
-                    end
-            end
-
-            % Ensure we exit with baseline stimulus color
-            try
-                if ~isempty(Lines) && all(isgraphics(Lines))
-                    Lines.Color = baseColor;
-                end
-            catch
-            end
-
-            if I == 0
-                this.wheelchoice = [];
-                this.wheelchoicetime = [];
-            else
-                this.wheelchoice = double(wheelchoice(1:I));
-                this.wheelchoicetime = double(wheelchoicetime(1:I));
-            end
-        end
         function FlashNew(this, Stim, Box, Lines, whatdecision, OneWay)
             arguments
                 this
@@ -2296,26 +2048,9 @@ classdef BehaviorBoxWheel < handle
             Sub = this.Setting_Struct.Subject;
             Str = this.Data_Object.Str;
             saveasname = join([D Sub Str stim input],'_');
-            savefolder = this.Data_Object.filedir;
-            if iscell(savefolder)
-                savefolder = savefolder{1};
-            end
-            if isstring(savefolder)
-                savefolder = char(savefolder(1));
-            end
-            if isempty(savefolder)
-                savefolder = pwd;
-            end
+            savefolder = this.normalizeSaveFolder_(this.Data_Object.filedir);
             set(this.message_handle,'Text', 'Saving data as: '+saveasname+'.mat');
-            try
-                Settings = [this.Setting_Struct this.Old_Setting_Struct{:}];
-            catch
-                try
-                    Settings = [this.Setting_Struct cell2mat(this.Old_Setting_Struct)];
-                catch
-                    Settings = this.Setting_Struct;
-                end
-            end
+            Settings = this.combineSettingsForSave_();
             Notes = this.GuiHandles.NotesText.String;
             if options.Activity == "Training"
                 [newData] = this.Data_Object.current_data_struct;
@@ -2360,23 +2095,37 @@ classdef BehaviorBoxWheel < handle
                     end
                 end
                 newData.Weight = this.Setting_Struct.Weight;
-                subLabel = strjoin(string(this.Data_Object.Sub), ", ");
-                f = figure("MenuBar","none","Visible","off");
-                copyobj(this.graphFig.Children, f)
-                f.Children.Title.String = string(this.Data_Object.Inp)+" "+subLabel;
+                f = [];
+                try
+                    if ~isempty(this.graphFig) && isvalid(this.graphFig)
+                        f = figure("MenuBar","none","Visible","off");
+                        copyobj(this.graphFig.Children, f)
+                        f.Children.Title.String = string(this.Data_Object.Inp)+" "+this.formatSubjectLabel_(this.Data_Object.Sub);
+                    end
+                catch
+                    f = [];
+                end
                 try
                     try
                         saveFile = fullfile(savefolder, char(saveasname + ".mat"));
                         save(saveFile, 'Settings', 'newData', 'Notes')
-                        this.saveFigure(f, savefolder, saveasname)
+                        if ~isempty(f) && isvalid(f)
+                            this.saveFigure(f, savefolder, saveasname)
+                        end
                         dispstring = 'Data saved as: '+saveasname;
                         fprintf(dispstring+'\n');
                         set(this.message_handle,'Text',dispstring);
                     catch err
                         this.unwrapError(err)
                         [file,path] = uiputfile(pwd , 'Choose folder to save training data' , saveasname);
-                        save([path file],  'Settings', 'newData')
-                        this.saveFigure(this.graphFig, savefolder, saveasname)
+                        if isequal(file, 0) || isequal(path, 0)
+                            set(this.message_handle,'Text', 'Save canceled.');
+                            return
+                        end
+                        save(fullfile(path, file),  'Settings', 'newData')
+                        if ~isempty(f) && isvalid(f)
+                            this.saveFigure(f, path, erase(string(file), '.mat'))
+                        end
                     end
                 catch err
                     save(fullfile(pwd, char(saveasname + ".mat")), 'Settings', 'newData', 'Notes')
@@ -2384,7 +2133,9 @@ classdef BehaviorBoxWheel < handle
                 end
                 % f.MenuBar = 'figure';
                 % f.Visible = 1;
-                close(f)
+                if ~isempty(f) && isvalid(f)
+                    close(f)
+                end
             elseif options.Activity == "Animate"
                 Position_Record = options.PosRecord;
                 saveFile = fullfile(savefolder, char(saveasname + ".mat"));
@@ -2392,6 +2143,60 @@ classdef BehaviorBoxWheel < handle
                 dispstring = 'Data saved as: '+saveasname;
                 fprintf(dispstring+'\n');
                 set(this.message_handle,'Text',dispstring);
+            end
+        end
+        function Settings = combineSettingsForSave_(this)
+            Settings = this.Setting_Struct;
+            if isempty(this.Old_Setting_Struct)
+                return
+            end
+            try
+                oldSettings = [this.Old_Setting_Struct{:}];
+                Settings = [Settings oldSettings];
+            catch
+                try
+                    oldSettings = cell2mat(this.Old_Setting_Struct);
+                    Settings = [Settings oldSettings];
+                catch
+                    % Keep current settings only if legacy setting structs are incompatible.
+                end
+            end
+        end
+        function folder = normalizeSaveFolder_(~, filedir)
+            if iscell(filedir)
+                if isempty(filedir)
+                    folder = "";
+                else
+                    folder = string(filedir{1});
+                end
+            elseif isstring(filedir)
+                if isempty(filedir)
+                    folder = "";
+                else
+                    folder = filedir(1);
+                end
+            elseif ischar(filedir)
+                folder = string(filedir);
+            else
+                folder = string(filedir);
+            end
+
+            folder = strtrim(folder);
+            if strlength(folder) == 0
+                folder = string(pwd);
+            end
+            if ~isfolder(folder)
+                mkdir(folder);
+            end
+            folder = char(folder);
+        end
+        function subLabel = formatSubjectLabel_(~, subIn)
+            s = string(subIn);
+            s = s(strlength(s) > 0);
+            if isempty(s)
+                subLabel = "";
+            else
+                subLabel = strjoin(s, ", ");
             end
         end
         function cleanUP(this)

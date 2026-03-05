@@ -1222,6 +1222,16 @@ classdef BehaviorBoxNose < handle
                 last_middle_flash_t = -Inf;
                 last_contour_flash_t = -Inf;
 
+                % Stall reminder: if no nose input for stallSec, briefly dim stimulus.
+                stallSec = 5;
+                stallBlinkDur = 0.10;
+                tLastInput = 0;
+                stallBlinkActive = false;
+                stallBlinkT0 = 0;
+                stall_lines = this.getStallBlinkLines_([contour_lines; distractor_lines]);
+                stallBaseColor = stim.LineColor;
+                stallDimColor = stim.DimColor;
+
                 t_loop = tic;
                 while timeout_value == 0 || toc(t_loop) < timeout_value
                     pause(loop_pause);
@@ -1236,6 +1246,27 @@ classdef BehaviorBoxNose < handle
 
                     t_now = toc(t_loop);
                     token = this.currentNoseToken_();
+
+                    % Non-blocking stall blink while no sensor is active.
+                    if token ~= '-'
+                        tLastInput = t_now;
+                        if stallBlinkActive
+                            stall_lines = this.getStallBlinkLines_(stall_lines);
+                            this.setLinesColorSafe_(stall_lines, stallBaseColor);
+                            stallBlinkActive = false;
+                        end
+                    elseif ~stallBlinkActive && (t_now - tLastInput) >= stallSec
+                        stall_lines = this.getStallBlinkLines_(stall_lines);
+                        this.setLinesColorSafe_(stall_lines, stallDimColor);
+                        stallBlinkActive = true;
+                        stallBlinkT0 = t_now;
+                    end
+                    if stallBlinkActive && (t_now - stallBlinkT0) >= stallBlinkDur
+                        stall_lines = this.getStallBlinkLines_(stall_lines);
+                        this.setLinesColorSafe_(stall_lines, stallBaseColor);
+                        stallBlinkActive = false;
+                        tLastInput = t_now;
+                    end
 
                     if token == 'M'
                         this.DuringTMal = this.DuringTMal + 1;
@@ -1294,6 +1325,12 @@ classdef BehaviorBoxNose < handle
                         candidate_t0 = NaN;
                         last_contour_flash_t = -Inf;
                     end
+                end
+
+                % Never leave the stimulus dimmed after loop exit.
+                if stallBlinkActive
+                    stall_lines = this.getStallBlinkLines_(stall_lines);
+                    this.setLinesColorSafe_(stall_lines, stallBaseColor);
                 end
 
                 should_dim_distractors = true;
@@ -1394,6 +1431,110 @@ classdef BehaviorBoxNose < handle
             end
             if ~isfinite(delay) || delay < 0
                 delay = 0;
+            end
+        end
+        function lines = getStallBlinkLines_(this, lines)
+            if nargin < 2 || isempty(lines)
+                lines = gobjects(0);
+            end
+            try
+                lines = lines(isgraphics(lines));
+            catch
+                lines = gobjects(0);
+            end
+            if isempty(lines)
+                lines = [findobj(this.fig.Children, 'Tag', 'Contour'); findobj(this.fig.Children, 'Tag', 'Distractor')];
+                lines = lines(isgraphics(lines));
+            end
+            if isempty(lines)
+                lines = findobj(this.fig.Children, 'Type', 'Line');
+                lines = lines(isgraphics(lines));
+            end
+        end
+        function setLinesColorSafe_(~, lines, color)
+            if isempty(lines)
+                return
+            end
+            c = color;
+            if isnumeric(c) && isscalar(c)
+                c = repmat(c, 1, 3);
+            end
+            try
+                [lines(:).Color] = deal(c);
+            catch
+                try
+                    set(lines, 'Color', c);
+                catch
+                end
+            end
+        end
+        function waitForCorrectSensorAndStallBlink_(this, WaitCorrect)
+            stallSec = 5;
+            stallBlinkDur = 0.10;
+            tWait = tic;
+            tLastTrigger = 0;
+            blinkActive = false;
+            blinkT0 = 0;
+            baseColor = this.StimulusStruct.LineColor;
+            dimColor = this.StimulusStruct.DimColor;
+
+            % During reward waiting, distractor should remain dim the whole time.
+            distractor_lines = findobj(this.fig.Children, 'Tag', 'Distractor');
+            distractor_lines = distractor_lines(isgraphics(distractor_lines));
+            this.setLinesColorSafe_(distractor_lines, dimColor);
+
+            while contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && ~WaitCorrect()
+                tNow = toc(tWait);
+                if ~blinkActive && (tNow - tLastTrigger) >= stallSec
+                    contour_lines = findobj(this.fig.Children, 'Tag', 'Contour');
+                    contour_lines = contour_lines(isgraphics(contour_lines));
+                    distractor_lines = findobj(this.fig.Children, 'Tag', 'Distractor');
+                    distractor_lines = distractor_lines(isgraphics(distractor_lines));
+                    if isempty(contour_lines) && isempty(distractor_lines)
+                        all_lines = this.getStallBlinkLines_();
+                        this.setLinesColorSafe_(all_lines, dimColor);
+                    else
+                        % Reward idle flash: contour blinks; distractor stays dim.
+                        this.setLinesColorSafe_(contour_lines, dimColor);
+                        this.setLinesColorSafe_(distractor_lines, dimColor);
+                    end
+                    blinkActive = true;
+                    blinkT0 = tNow;
+                elseif blinkActive && (tNow - blinkT0) >= stallBlinkDur
+                    contour_lines = findobj(this.fig.Children, 'Tag', 'Contour');
+                    contour_lines = contour_lines(isgraphics(contour_lines));
+                    distractor_lines = findobj(this.fig.Children, 'Tag', 'Distractor');
+                    distractor_lines = distractor_lines(isgraphics(distractor_lines));
+                    if isempty(contour_lines) && isempty(distractor_lines)
+                        all_lines = this.getStallBlinkLines_();
+                        this.setLinesColorSafe_(all_lines, baseColor);
+                    else
+                        this.setLinesColorSafe_(contour_lines, baseColor);
+                        % Keep distractor dim after reward-wait idle blink.
+                        this.setLinesColorSafe_(distractor_lines, dimColor);
+                    end
+                    blinkActive = false;
+                    tLastTrigger = tNow;
+                end
+
+                pause(0.05); drawnow;
+                if get(this.stop_handle, 'Value') || get(this.app.FastForward, 'Value')
+                    break
+                end
+            end
+
+            if blinkActive
+                contour_lines = findobj(this.fig.Children, 'Tag', 'Contour');
+                contour_lines = contour_lines(isgraphics(contour_lines));
+                distractor_lines = findobj(this.fig.Children, 'Tag', 'Distractor');
+                distractor_lines = distractor_lines(isgraphics(distractor_lines));
+                if isempty(contour_lines) && isempty(distractor_lines)
+                    all_lines = this.getStallBlinkLines_();
+                    this.setLinesColorSafe_(all_lines, baseColor);
+                else
+                    this.setLinesColorSafe_(contour_lines, baseColor);
+                    this.setLinesColorSafe_(distractor_lines, dimColor);
+                end
             end
         end
         function FlashNew(this, Stim, Box, Lines, whatdecision, OneWay)
@@ -1559,12 +1700,8 @@ classdef BehaviorBoxNose < handle
                 otherwise %Keyboard, any input method I haven't used before
                     return
             end
-            while contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && ~WaitCorrect() %Wait for NosePoke Don't dispense the reward unless the mouse is waiting for it! Wait indefinitely between pulses for them to learn to collect all the water
-                pause(0.2); drawnow;
-                if get(this.stop_handle, 'Value') || get(this.app.FastForward, 'Value')
-                    break
-                end
-            end
+            % Wait for reward-port nosepoke with periodic stall reminder blink.
+            this.waitForCorrectSensorAndStallBlink_(WaitCorrect)
             REWARD()
             PulseNum = PulseNum-1;
             % then flash
@@ -1572,12 +1709,7 @@ classdef BehaviorBoxNose < handle
             for P = 1:PulseNum
                 if P <= PulseNum
                     pause(this.Box.SecBwPulse)
-                    while contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && ~WaitCorrect() %Wait for NosePoke Don't dispense the reward unless the mouse is waiting for it! Wait indefinitely between pulses for them to learn to collect all the water
-                        pause(0.2); drawnow;
-                        if get(this.stop_handle, 'Value') || get(this.app.FastForward, 'Value')
-                            break
-                        end
-                    end
+                    this.waitForCorrectSensorAndStallBlink_(WaitCorrect)
                 end
                 REWARD()
                 this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Contour'),  this.WhatDecision);
@@ -1780,17 +1912,7 @@ classdef BehaviorBoxNose < handle
             Sub = this.Setting_Struct.Subject;
             Str = this.Data_Object.Str;
             saveasname = join([timestamp, Sub, Str, stim, input], '_');
-
-            savefolder = this.Data_Object.filedir;
-            if iscell(savefolder)
-                savefolder = savefolder{1};
-            end
-            if isstring(savefolder)
-                savefolder = char(savefolder(1));
-            end
-            if isempty(savefolder)
-                savefolder = pwd;
-            end
+            savefolder = this.normalizeSaveFolder_(this.Data_Object.filedir);
             set(this.message_handle,'Text', 'Saving data as: '+saveasname+'.mat');
 
             % Construct data to save
@@ -1800,30 +1922,28 @@ classdef BehaviorBoxNose < handle
             % Align data structure lengths
             newData = this.alignDataLengths(newData);
 
-            try
-                Settings = [this.Setting_Struct this.Old_Setting_Struct{:}];
-            catch
-                try
-                    Settings = [this.Setting_Struct cell2mat(this.Old_Setting_Struct)];
-                catch
-                    Settings = this.Setting_Struct;
-                end
-            end
+            Settings = this.combineSettingsForSave_();
             newData.SetUpdate = this.SetUpdate;
             newData.StimHist = this.filterNonEmptyRows(this.StimHistory);
             newData = this.setDataIndexes(newData, Settings);
 
             newData.Weight = this.Setting_Struct.Weight;
             Notes = this.GuiHandles.NotesText.String;
-            subLabel = strjoin(string(this.Data_Object.Sub), ", ");
+            f = [];
             if ~options.RescueData
-                f = figure("MenuBar","none","Visible","off");
-                copyobj(this.graphFig.Children, f)
-                f.Children.Title.String = string(this.Data_Object.Inp)+" "+subLabel;
+                try
+                    if ~isempty(this.graphFig) && isvalid(this.graphFig)
+                        f = figure("MenuBar","none","Visible","off");
+                        copyobj(this.graphFig.Children, f)
+                        f.Children.Title.String = string(this.Data_Object.Inp)+" "+this.formatSubjectLabel_(this.Data_Object.Sub);
+                    end
+                catch
+                    f = [];
+                end
             end
             try
                 save(fullfile(savefolder, saveasname) + ".mat", 'Settings', 'newData', 'Notes');
-                if ~options.RescueData
+                if ~options.RescueData && ~isempty(f) && isvalid(f)
                     this.saveFigure(f, savefolder, saveasname)
                     f.MenuBar = 'figure';
                 end
@@ -1867,13 +1987,28 @@ classdef BehaviorBoxNose < handle
         % This fcn causes errors. How necessary is it? All trials are
         % Included, so a vector labelling each trial is unnecessary
             Ts = this.Include;
-            Idcs = unique([cell2mat(this.SetUpdate), length(newData.TimeStamp)]);
-            if Idcs == 0
-                Include = 1;
+            nTrials = numel(newData.TimeStamp);
+            if nTrials == 0
+                Include = [];
                 return
             end
+
+            Idcs = unique([this.normalizeSetUpdate_(this.SetUpdate), nTrials]);
+            Idcs = Idcs(isfinite(Idcs) & Idcs >= 0);
+            if isempty(Idcs)
+                Include = ones(nTrials, 1);
+                return
+            end
+            if Idcs(1) ~= 0
+                Idcs = [0 Idcs];
+            end
+            if numel(Idcs) == 1
+                Include = ones(nTrials, 1);
+                return
+            end
+
             try
-                [~, ~, newData.SetIdx] = histcounts(1:length(newData.TimeStamp), Idcs);
+                [~, ~, newData.SetIdx] = histcounts(1:nTrials, Idcs);
             catch
                 [~, ~, newData.SetIdx] = histcounts(1:length(newData.Score), Idcs);
             end
@@ -1893,17 +2028,101 @@ classdef BehaviorBoxNose < handle
         end
         function handleSaveError(this, err, saveasname, Settings, newData, Notes)
             this.unwrapError(err);
-            subLabel = strjoin(string(this.Data_Object.Sub), ", ");
-            f = figure("MenuBar","none","Visible","off");
-            copyobj(this.graphFig.Children, f)
-            f.Children.Title.String = string(this.Data_Object.Inp)+" "+subLabel;
+            f = [];
+            try
+                if ~isempty(this.graphFig) && isvalid(this.graphFig)
+                    f = figure("MenuBar","none","Visible","off");
+                    copyobj(this.graphFig.Children, f)
+                    f.Children.Title.String = string(this.Data_Object.Inp)+" "+this.formatSubjectLabel_(this.Data_Object.Sub);
+                end
+            catch
+                f = [];
+            end
             [file, path] = uiputfile(pwd, 'Choose folder to save training data', saveasname);
             if isequal(file, 0) || isequal(path, 0)
                 set(this.message_handle,'Text', 'Save canceled.');
                 return
             end
             save(fullfile(path, file), 'Settings', 'newData', 'Notes');
-            this.saveFigure(f, path, erase(string(file), '.mat'));
+            if ~isempty(f) && isvalid(f)
+                this.saveFigure(f, path, erase(string(file), '.mat'));
+            end
+        end
+        function Settings = combineSettingsForSave_(this)
+            Settings = this.Setting_Struct;
+            if isempty(this.Old_Setting_Struct)
+                return
+            end
+            try
+                oldSettings = [this.Old_Setting_Struct{:}];
+                Settings = [Settings oldSettings];
+            catch
+                try
+                    oldSettings = cell2mat(this.Old_Setting_Struct);
+                    Settings = [Settings oldSettings];
+                catch
+                    % Keep current settings only if legacy setting structs are incompatible.
+                end
+            end
+        end
+        function setUpdate = normalizeSetUpdate_(~, setUpdateIn)
+            if isempty(setUpdateIn)
+                setUpdate = 0;
+            elseif iscell(setUpdateIn)
+                try
+                    setUpdate = cell2mat(setUpdateIn);
+                catch
+                    try
+                        setUpdate = [setUpdateIn{:}];
+                    catch
+                        setUpdate = 0;
+                    end
+                end
+            else
+                setUpdate = double(setUpdateIn);
+            end
+            setUpdate = setUpdate(:)';
+            setUpdate = setUpdate(~isnan(setUpdate));
+            if isempty(setUpdate)
+                setUpdate = 0;
+            end
+        end
+        function folder = normalizeSaveFolder_(~, filedir)
+            if iscell(filedir)
+                if isempty(filedir)
+                    folder = "";
+                else
+                    folder = string(filedir{1});
+                end
+            elseif isstring(filedir)
+                if isempty(filedir)
+                    folder = "";
+                else
+                    folder = filedir(1);
+                end
+            elseif ischar(filedir)
+                folder = string(filedir);
+            else
+                folder = string(filedir);
+            end
+
+            folder = strtrim(folder);
+            if strlength(folder) == 0
+                folder = string(pwd);
+            end
+            if ~isfolder(folder)
+                mkdir(folder);
+            end
+            folder = char(folder);
+        end
+        function subLabel = formatSubjectLabel_(~, subIn)
+            s = string(subIn);
+            s = s(strlength(s) > 0);
+            if isempty(s)
+                subLabel = "";
+            else
+                subLabel = strjoin(s, ", ");
+            end
         end
         function setMessage(~, message_handle, message, saveasname)
             msg = message+" "+saveasname;

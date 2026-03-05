@@ -2913,64 +2913,59 @@ classdef BehaviorBoxData < handle
         function SaveAllData(this, Filename, Filedir)
             arguments
                 this
-                Filename
-                Filedir
+                Filename string = ""
+                Filedir = this.filedir
             end
-            
-            stim = erase(this.app.Stimulus_type.Value, ' ');
-            input = this.app.Box_Input_type.Value;
-            Sub = this.Setting_Struct.Subject;
-            Str = this.Data_Object.Str;
-            savefolder = fullfile(this.Data_Object.filedir);
-            saveasname = join([D Sub Str stim input], '_');
-            [newData] = this.getDataToSave();
-            newData.SetUpdate = this.SetUpdate;
-            nonEmptyRows = any(~cellfun(@isempty, this.StimHistory'))';
-            newData.StimHist = this.StimHistory(nonEmptyRows,:);
-            rmv = {'GUI_numbers', 'encoder'};
-            for r = rmv
-                try
-                    Settings = rmfield(Settings, r);
+
+            % Normalize destination folder to a writable char path.
+            if iscell(Filedir)
+                if isempty(Filedir)
+                    folder = string(pwd);
+                else
+                    folder = string(Filedir{1});
                 end
-            end
-            if this.Box.Input_type == 6
-                newData.wheel_record = this.wheelchoice_record;
-                newData.wheel_record(any(cellfun(@isempty, newData.wheel_record)'),:) = [];
-            end
-            dateStr = char(datetime(this.start_time, 'Format', 'yyMMdd_HHmmss'));
-            newData.Settings = Settings;
-            set(this.message_handle,'String',[ 'Saving data as: ' gui_save_string '.mat']);
-            if isscalar(this.SetUpdate) % Settings never changed during the session.
-                newData.SetStr = this.SetStr;
-                newData.Include = repmat(this.Include, size(newData.TimeStamp));
-                newData.SetIdx = repmat(this.SetIdx, size(newData.TimeStamp));
-            elseif numel(this.SetUpdate) > 1
-                newData.SetStr =  this.SetStr;
-                Idcs = unique([cell2mat(this.SetUpdate) length(newData.TimeStamp)]);
-                [~, ~, newData.SetIdx] = histcounts(1:length(newData.TimeStamp), Idcs);
-                newData.Include = this.Include(newData.SetIdx);
-            end
-            newData.Weight = this.Setting_Struct.Weight;
-            nonEmptyRows = any(~cellfun(@isempty, this.StimHistory'))';
-            newData.StimHist = this.StimHistory(nonEmptyRows, :);
-            Notes = this.GuiHandles.NotesText.String;
-            try
-                try
-                    save([savefolder, saveasname], 'Settings', 'newData', 'Text')
-                    this.saveFigure(this.graphFig, savefolder, saveasname)
-                    dispstring = ['Data saved as: ', saveasname];
-                    fprintf([dispstring, '\n']);
-                    set(this.message_handle,'String',dispstring);
-                catch err
-                    this.unwrapError(err)
-                    [file,path] = uiputfile(pwd , 'Choose folder to save training data' , saveasname);
-                    exportapp(this.app.figure1, [path file '.jpg'])
-                    save([path file],  'Settings', 'newData', 'Text')
+            elseif isstring(Filedir)
+                if isempty(Filedir)
+                    folder = string(pwd);
+                else
+                    folder = Filedir(1);
                 end
-            catch err
-                this.unwrapError(err)
+            elseif ischar(Filedir)
+                folder = string(Filedir);
+            else
+                folder = string(Filedir);
             end
-            this.graphFig.MenuBar = 'figure';
+            folder = strtrim(folder);
+            if strlength(folder) == 0
+                folder = string(pwd);
+            end
+            if ~isfolder(folder)
+                mkdir(folder);
+            end
+
+            if strlength(Filename) == 0
+                ts = string(datetime("now", "Format", "yyMMdd_HHmmss"));
+                sub = string(this.Sub);
+                sub = sub(strlength(sub) > 0);
+                if isempty(sub)
+                    sub = "UnknownSub";
+                else
+                    sub = strjoin(sub, "-");
+                end
+                inp = string(this.Inp);
+                if strlength(inp) == 0
+                    inp = "UnknownInput";
+                end
+                Filename = ts + "_" + sub + "_" + inp;
+            end
+
+            newData = this.current_data_struct;
+            Settings = this.Settings;
+            Notes = "";
+
+            outFile = fullfile(char(folder), char(Filename + ".mat"));
+            save(outFile, 'Settings', 'newData', 'Notes');
+            fprintf("Data saved as: %s\n", outFile);
         end
         function saveFigure(~, fig, folder, name)
             % saveFigure Save the given figure to a specified folder as a PDF file.
