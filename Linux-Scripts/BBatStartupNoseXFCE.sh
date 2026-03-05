@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# XFCE Sessions and Startup command: bash -lc 'sleep 20; bash /home/willsnyder/Desktop/BehaviorBox/Linux-Scripts/BBatStartupNoseXFCE.sh'
+# XFCE Sessions and Startup command: bash -lc 'sleep 20; bash "$HOME/Desktop/BehaviorBox/Linux-Scripts/BBatStartupNoseXFCE.sh"'
 
 # This function opens 3 terminal windows and launches 2 BB instances and opens the cameras
 # XFCE Xubuntu, not for Pop_OS!
