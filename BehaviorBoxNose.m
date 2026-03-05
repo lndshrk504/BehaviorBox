@@ -1780,11 +1780,16 @@ classdef BehaviorBoxNose < handle
             Sub = this.Setting_Struct.Subject;
             Str = this.Data_Object.Str;
             saveasname = join([timestamp, Sub, Str, stim, input], '_');
-            
-            if ispc
-                savefolder = fullfile([this.Data_Object.filedir{:}, filesep]);
-            elseif ismac || isunix
-                savefolder = fullfile([this.Data_Object.filedir{:}, filesep]);
+
+            savefolder = this.Data_Object.filedir;
+            if iscell(savefolder)
+                savefolder = savefolder{1};
+            end
+            if isstring(savefolder)
+                savefolder = char(savefolder(1));
+            end
+            if isempty(savefolder)
+                savefolder = pwd;
             end
             set(this.message_handle,'Text', 'Saving data as: '+saveasname+'.mat');
 
@@ -1795,17 +1800,26 @@ classdef BehaviorBoxNose < handle
             % Align data structure lengths
             newData = this.alignDataLengths(newData);
 
-            Settings = [this.Setting_Struct cell2mat(this.Old_Setting_Struct)];
+            try
+                Settings = [this.Setting_Struct this.Old_Setting_Struct{:}];
+            catch
+                try
+                    Settings = [this.Setting_Struct cell2mat(this.Old_Setting_Struct)];
+                catch
+                    Settings = this.Setting_Struct;
+                end
+            end
             newData.SetUpdate = this.SetUpdate;
             newData.StimHist = this.filterNonEmptyRows(this.StimHistory);
             newData = this.setDataIndexes(newData, Settings);
 
             newData.Weight = this.Setting_Struct.Weight;
             Notes = this.GuiHandles.NotesText.String;
+            subLabel = strjoin(string(this.Data_Object.Sub), ", ");
             if ~options.RescueData
                 f = figure("MenuBar","none","Visible","off");
                 copyobj(this.graphFig.Children, f)
-                f.Children.Title.String = string(this.Data_Object.Inp)+" "+cell2mat(this.Data_Object.Sub);
+                f.Children.Title.String = string(this.Data_Object.Inp)+" "+subLabel;
             end
             try
                 save(fullfile(savefolder, saveasname) + ".mat", 'Settings', 'newData', 'Notes');
@@ -1879,9 +1893,10 @@ classdef BehaviorBoxNose < handle
         end
         function handleSaveError(this, err, saveasname, Settings, newData, Notes)
             this.unwrapError(err);
+            subLabel = strjoin(string(this.Data_Object.Sub), ", ");
             f = figure("MenuBar","none","Visible","off");
             copyobj(this.graphFig.Children, f)
-            f.Children.Title.String = string(this.Data_Object.Inp)+" "+cell2mat(this.Data_Object.Sub);
+            f.Children.Title.String = string(this.Data_Object.Inp)+" "+subLabel;
             [file, path] = uiputfile(pwd, 'Choose folder to save training data', saveasname);
             if isequal(file, 0) || isequal(path, 0)
                 set(this.message_handle,'Text', 'Save canceled.');

@@ -2295,15 +2295,27 @@ classdef BehaviorBoxWheel < handle
             input = this.app.Box_Input_type.Value;
             Sub = this.Setting_Struct.Subject;
             Str = this.Data_Object.Str;
-            if ispc
-                saveasname = join([D Sub Str stim input],'_');
-                savefolder = fullfile(cell2mat(this.Data_Object.filedir));
-            elseif isunix
-                saveasname = join([D Sub Str stim input],'_');
-                savefolder = fullfile([cell2mat(this.Data_Object.filedir), filesep]);
+            saveasname = join([D Sub Str stim input],'_');
+            savefolder = this.Data_Object.filedir;
+            if iscell(savefolder)
+                savefolder = savefolder{1};
+            end
+            if isstring(savefolder)
+                savefolder = char(savefolder(1));
+            end
+            if isempty(savefolder)
+                savefolder = pwd;
             end
             set(this.message_handle,'Text', 'Saving data as: '+saveasname+'.mat');
-            Settings = [this.Setting_Struct cell2mat(this.Old_Setting_Struct)];
+            try
+                Settings = [this.Setting_Struct this.Old_Setting_Struct{:}];
+            catch
+                try
+                    Settings = [this.Setting_Struct cell2mat(this.Old_Setting_Struct)];
+                catch
+                    Settings = this.Setting_Struct;
+                end
+            end
             Notes = this.GuiHandles.NotesText.String;
             if options.Activity == "Training"
                 [newData] = this.Data_Object.current_data_struct;
@@ -2348,12 +2360,14 @@ classdef BehaviorBoxWheel < handle
                     end
                 end
                 newData.Weight = this.Setting_Struct.Weight;
+                subLabel = strjoin(string(this.Data_Object.Sub), ", ");
                 f = figure("MenuBar","none","Visible","off");
                 copyobj(this.graphFig.Children, f)
-                f.Children.Title.String = string(this.Data_Object.Inp)+" "+cell2mat(this.Data_Object.Sub);
+                f.Children.Title.String = string(this.Data_Object.Inp)+" "+subLabel;
                 try
                     try
-                        save(savefolder+saveasname+".mat", 'Settings', 'newData', 'Notes')
+                        saveFile = fullfile(savefolder, char(saveasname + ".mat"));
+                        save(saveFile, 'Settings', 'newData', 'Notes')
                         this.saveFigure(f, savefolder, saveasname)
                         dispstring = 'Data saved as: '+saveasname;
                         fprintf(dispstring+'\n');
@@ -2365,7 +2379,7 @@ classdef BehaviorBoxWheel < handle
                         this.saveFigure(this.graphFig, savefolder, saveasname)
                     end
                 catch err
-                    save(pwd+saveasname+".mat", 'Settings', 'newData', 'Notes')
+                    save(fullfile(pwd, char(saveasname + ".mat")), 'Settings', 'newData', 'Notes')
                     this.unwrapError(err)
                 end
                 % f.MenuBar = 'figure';
@@ -2373,7 +2387,8 @@ classdef BehaviorBoxWheel < handle
                 close(f)
             elseif options.Activity == "Animate"
                 Position_Record = options.PosRecord;
-                save(savefolder+saveasname+".mat", 'Settings', 'Position_Record', 'Notes')
+                saveFile = fullfile(savefolder, char(saveasname + ".mat"));
+                save(saveFile, 'Settings', 'Position_Record', 'Notes')
                 dispstring = 'Data saved as: '+saveasname;
                 fprintf(dispstring+'\n');
                 set(this.message_handle,'Text',dispstring);
