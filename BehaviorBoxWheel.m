@@ -2047,15 +2047,10 @@ classdef BehaviorBoxWheel < handle
             input = this.app.Box_Input_type.Value;
             Sub = this.Setting_Struct.Subject;
             Str = this.Data_Object.Str;
-            if ispc
-                saveasname = join([D Sub Str stim input],'_');
-                savefolder = fullfile(cell2mat(this.Data_Object.filedir));
-            elseif isunix
-                saveasname = join([D Sub Str stim input],'_');
-                savefolder = fullfile([cell2mat(this.Data_Object.filedir), filesep]);
-            end
+            saveasname = join([D Sub Str stim input],'_');
+            savefolder = this.normalizeSaveFolder_(this.Data_Object.filedir);
             set(this.message_handle,'Text', 'Saving data as: '+saveasname+'.mat');
-            Settings = [this.Setting_Struct cell2mat(this.Old_Setting_Struct)];
+            Settings = this.combineSettingsForSave_();
             Notes = this.GuiHandles.NotesText.String;
             if options.Activity == "Training"
                 [newData] = this.Data_Object.current_data_struct;
@@ -2100,35 +2095,108 @@ classdef BehaviorBoxWheel < handle
                     end
                 end
                 newData.Weight = this.Setting_Struct.Weight;
-                f = figure("MenuBar","none","Visible","off");
-                copyobj(this.graphFig.Children, f)
-                f.Children.Title.String = string(this.Data_Object.Inp)+" "+cell2mat(this.Data_Object.Sub);
+                f = [];
+                try
+                    if ~isempty(this.graphFig) && isvalid(this.graphFig)
+                        f = figure("MenuBar","none","Visible","off");
+                        copyobj(this.graphFig.Children, f)
+                        f.Children.Title.String = string(this.Data_Object.Inp)+" "+this.formatSubjectLabel_(this.Data_Object.Sub);
+                    end
+                catch
+                    f = [];
+                end
                 try
                     try
-                        save(savefolder+saveasname+".mat", 'Settings', 'newData', 'Notes')
-                        this.saveFigure(f, savefolder, saveasname)
+                        saveFile = fullfile(savefolder, char(saveasname + ".mat"));
+                        save(saveFile, 'Settings', 'newData', 'Notes')
+                        if ~isempty(f) && isvalid(f)
+                            this.saveFigure(f, savefolder, saveasname)
+                        end
                         dispstring = 'Data saved as: '+saveasname;
                         fprintf(dispstring+'\n');
                         set(this.message_handle,'Text',dispstring);
                     catch err
                         this.unwrapError(err)
                         [file,path] = uiputfile(pwd , 'Choose folder to save training data' , saveasname);
-                        save([path file],  'Settings', 'newData')
-                        this.saveFigure(this.graphFig, savefolder, saveasname)
+                        if isequal(file, 0) || isequal(path, 0)
+                            set(this.message_handle,'Text', 'Save canceled.');
+                            return
+                        end
+                        save(fullfile(path, file),  'Settings', 'newData')
+                        if ~isempty(f) && isvalid(f)
+                            this.saveFigure(f, path, erase(string(file), '.mat'))
+                        end
                     end
                 catch err
-                    save(pwd+saveasname+".mat", 'Settings', 'newData', 'Notes')
+                    save(fullfile(pwd, char(saveasname + ".mat")), 'Settings', 'newData', 'Notes')
                     this.unwrapError(err)
                 end
                 % f.MenuBar = 'figure';
                 % f.Visible = 1;
-                close(f)
+                if ~isempty(f) && isvalid(f)
+                    close(f)
+                end
             elseif options.Activity == "Animate"
                 Position_Record = options.PosRecord;
-                save(savefolder+saveasname+".mat", 'Settings', 'Position_Record', 'Notes')
+                saveFile = fullfile(savefolder, char(saveasname + ".mat"));
+                save(saveFile, 'Settings', 'Position_Record', 'Notes')
                 dispstring = 'Data saved as: '+saveasname;
                 fprintf(dispstring+'\n');
                 set(this.message_handle,'Text',dispstring);
+            end
+        end
+        function Settings = combineSettingsForSave_(this)
+            Settings = this.Setting_Struct;
+            if isempty(this.Old_Setting_Struct)
+                return
+            end
+            try
+                oldSettings = [this.Old_Setting_Struct{:}];
+                Settings = [Settings oldSettings];
+            catch
+                try
+                    oldSettings = cell2mat(this.Old_Setting_Struct);
+                    Settings = [Settings oldSettings];
+                catch
+                    % Keep current settings only if legacy setting structs are incompatible.
+                end
+            end
+        end
+        function folder = normalizeSaveFolder_(~, filedir)
+            if iscell(filedir)
+                if isempty(filedir)
+                    folder = "";
+                else
+                    folder = string(filedir{1});
+                end
+            elseif isstring(filedir)
+                if isempty(filedir)
+                    folder = "";
+                else
+                    folder = filedir(1);
+                end
+            elseif ischar(filedir)
+                folder = string(filedir);
+            else
+                folder = string(filedir);
+            end
+
+            folder = strtrim(folder);
+            if strlength(folder) == 0
+                folder = string(pwd);
+            end
+            if ~isfolder(folder)
+                mkdir(folder);
+            end
+            folder = char(folder);
+        end
+        function subLabel = formatSubjectLabel_(~, subIn)
+            s = string(subIn);
+            s = s(strlength(s) > 0);
+            if isempty(s)
+                subLabel = "";
+            else
+                subLabel = strjoin(s, ", ");
             end
         end
         function cleanUP(this)

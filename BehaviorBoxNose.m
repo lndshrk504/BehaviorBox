@@ -1923,21 +1923,28 @@ classdef BehaviorBoxNose < handle
             % Align data structure lengths
             newData = this.alignDataLengths(newData);
 
-            Settings = [this.Setting_Struct cell2mat(this.Old_Setting_Struct)];
+            Settings = this.combineSettingsForSave_();
             newData.SetUpdate = this.SetUpdate;
             newData.StimHist = this.filterNonEmptyRows(this.StimHistory);
             newData = this.setDataIndexes(newData, Settings);
 
             newData.Weight = this.Setting_Struct.Weight;
             Notes = this.GuiHandles.NotesText.String;
+            f = [];
             if ~options.RescueData
-                f = figure("MenuBar","none","Visible","off");
-                copyobj(this.graphFig.Children, f)
-                f.Children.Title.String = string(this.Data_Object.Inp)+" "+this.formatSubjectLabel_(this.Data_Object.Sub);
+                try
+                    if ~isempty(this.graphFig) && isvalid(this.graphFig)
+                        f = figure("MenuBar","none","Visible","off");
+                        copyobj(this.graphFig.Children, f)
+                        f.Children.Title.String = string(this.Data_Object.Inp)+" "+this.formatSubjectLabel_(this.Data_Object.Sub);
+                    end
+                catch
+                    f = [];
+                end
             end
             try
                 save(fullfile(savefolder, saveasname) + ".mat", 'Settings', 'newData', 'Notes');
-                if ~options.RescueData
+                if ~options.RescueData && ~isempty(f) && isvalid(f)
                     this.saveFigure(f, savefolder, saveasname)
                     f.MenuBar = 'figure';
                 end
@@ -1981,13 +1988,28 @@ classdef BehaviorBoxNose < handle
         % This fcn causes errors. How necessary is it? All trials are
         % Included, so a vector labelling each trial is unnecessary
             Ts = this.Include;
-            Idcs = unique([cell2mat(this.SetUpdate), length(newData.TimeStamp)]);
-            if Idcs == 0
-                Include = 1;
+            nTrials = numel(newData.TimeStamp);
+            if nTrials == 0
+                Include = [];
                 return
             end
+
+            Idcs = unique([this.normalizeSetUpdate_(this.SetUpdate), nTrials]);
+            Idcs = Idcs(isfinite(Idcs) & Idcs >= 0);
+            if isempty(Idcs)
+                Include = ones(nTrials, 1);
+                return
+            end
+            if Idcs(1) ~= 0
+                Idcs = [0 Idcs];
+            end
+            if numel(Idcs) == 1
+                Include = ones(nTrials, 1);
+                return
+            end
+
             try
-                [~, ~, newData.SetIdx] = histcounts(1:length(newData.TimeStamp), Idcs);
+                [~, ~, newData.SetIdx] = histcounts(1:nTrials, Idcs);
             catch
                 [~, ~, newData.SetIdx] = histcounts(1:length(newData.Score), Idcs);
             end
@@ -2007,16 +2029,64 @@ classdef BehaviorBoxNose < handle
         end
         function handleSaveError(this, err, saveasname, Settings, newData, Notes)
             this.unwrapError(err);
-            f = figure("MenuBar","none","Visible","off");
-            copyobj(this.graphFig.Children, f)
-            f.Children.Title.String = string(this.Data_Object.Inp)+" "+this.formatSubjectLabel_(this.Data_Object.Sub);
+            f = [];
+            try
+                if ~isempty(this.graphFig) && isvalid(this.graphFig)
+                    f = figure("MenuBar","none","Visible","off");
+                    copyobj(this.graphFig.Children, f)
+                    f.Children.Title.String = string(this.Data_Object.Inp)+" "+this.formatSubjectLabel_(this.Data_Object.Sub);
+                end
+            catch
+                f = [];
+            end
             [file, path] = uiputfile(pwd, 'Choose folder to save training data', saveasname);
             if isequal(file, 0) || isequal(path, 0)
                 set(this.message_handle,'Text', 'Save canceled.');
                 return
             end
             save(fullfile(path, file), 'Settings', 'newData', 'Notes');
-            this.saveFigure(f, path, erase(string(file), '.mat'));
+            if ~isempty(f) && isvalid(f)
+                this.saveFigure(f, path, erase(string(file), '.mat'));
+            end
+        end
+        function Settings = combineSettingsForSave_(this)
+            Settings = this.Setting_Struct;
+            if isempty(this.Old_Setting_Struct)
+                return
+            end
+            try
+                oldSettings = [this.Old_Setting_Struct{:}];
+                Settings = [Settings oldSettings];
+            catch
+                try
+                    oldSettings = cell2mat(this.Old_Setting_Struct);
+                    Settings = [Settings oldSettings];
+                catch
+                    % Keep current settings only if legacy setting structs are incompatible.
+                end
+            end
+        end
+        function setUpdate = normalizeSetUpdate_(~, setUpdateIn)
+            if isempty(setUpdateIn)
+                setUpdate = 0;
+            elseif iscell(setUpdateIn)
+                try
+                    setUpdate = cell2mat(setUpdateIn);
+                catch
+                    try
+                        setUpdate = [setUpdateIn{:}];
+                    catch
+                        setUpdate = 0;
+                    end
+                end
+            else
+                setUpdate = double(setUpdateIn);
+            end
+            setUpdate = setUpdate(:)';
+            setUpdate = setUpdate(~isnan(setUpdate));
+            if isempty(setUpdate)
+                setUpdate = 0;
+            end
         end
         function folder = normalizeSaveFolder_(~, filedir)
             if iscell(filedir)
