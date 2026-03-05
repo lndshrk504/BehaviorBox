@@ -1478,6 +1478,11 @@ classdef BehaviorBoxNose < handle
             baseColor = this.StimulusStruct.LineColor;
             dimColor = this.StimulusStruct.DimColor;
 
+            % During reward waiting, distractor should remain dim the whole time.
+            distractor_lines = findobj(this.fig.Children, 'Tag', 'Distractor');
+            distractor_lines = distractor_lines(isgraphics(distractor_lines));
+            this.setLinesColorSafe_(distractor_lines, dimColor);
+
             while contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && ~WaitCorrect()
                 tNow = toc(tWait);
                 if ~blinkActive && (tNow - tLastTrigger) >= stallSec
@@ -1489,6 +1494,7 @@ classdef BehaviorBoxNose < handle
                         all_lines = this.getStallBlinkLines_();
                         this.setLinesColorSafe_(all_lines, dimColor);
                     else
+                        % Reward idle flash: contour blinks; distractor stays dim.
                         this.setLinesColorSafe_(contour_lines, dimColor);
                         this.setLinesColorSafe_(distractor_lines, dimColor);
                     end
@@ -1907,11 +1913,7 @@ classdef BehaviorBoxNose < handle
             Str = this.Data_Object.Str;
             saveasname = join([timestamp, Sub, Str, stim, input], '_');
             
-            if ispc
-                savefolder = fullfile([this.Data_Object.filedir{:}, filesep]);
-            elseif ismac || isunix
-                savefolder = fullfile([this.Data_Object.filedir{:}, filesep]);
-            end
+            savefolder = this.normalizeSaveFolder_(this.Data_Object.filedir);
             set(this.message_handle,'Text', 'Saving data as: '+saveasname+'.mat');
 
             % Construct data to save
@@ -1931,7 +1933,7 @@ classdef BehaviorBoxNose < handle
             if ~options.RescueData
                 f = figure("MenuBar","none","Visible","off");
                 copyobj(this.graphFig.Children, f)
-                f.Children.Title.String = string(this.Data_Object.Inp)+" "+cell2mat(this.Data_Object.Sub);
+                f.Children.Title.String = string(this.Data_Object.Inp)+" "+this.formatSubjectLabel_(this.Data_Object.Sub);
             end
             try
                 save(fullfile(savefolder, saveasname) + ".mat", 'Settings', 'newData', 'Notes');
@@ -2007,7 +2009,7 @@ classdef BehaviorBoxNose < handle
             this.unwrapError(err);
             f = figure("MenuBar","none","Visible","off");
             copyobj(this.graphFig.Children, f)
-            f.Children.Title.String = string(this.Data_Object.Inp)+" "+cell2mat(this.Data_Object.Sub);
+            f.Children.Title.String = string(this.Data_Object.Inp)+" "+this.formatSubjectLabel_(this.Data_Object.Sub);
             [file, path] = uiputfile(pwd, 'Choose folder to save training data', saveasname);
             if isequal(file, 0) || isequal(path, 0)
                 set(this.message_handle,'Text', 'Save canceled.');
@@ -2015,6 +2017,43 @@ classdef BehaviorBoxNose < handle
             end
             save(fullfile(path, file), 'Settings', 'newData', 'Notes');
             this.saveFigure(f, path, erase(string(file), '.mat'));
+        end
+        function folder = normalizeSaveFolder_(~, filedir)
+            if iscell(filedir)
+                if isempty(filedir)
+                    folder = "";
+                else
+                    folder = string(filedir{1});
+                end
+            elseif isstring(filedir)
+                if isempty(filedir)
+                    folder = "";
+                else
+                    folder = filedir(1);
+                end
+            elseif ischar(filedir)
+                folder = string(filedir);
+            else
+                folder = string(filedir);
+            end
+
+            folder = strtrim(folder);
+            if strlength(folder) == 0
+                folder = string(pwd);
+            end
+            if ~isfolder(folder)
+                mkdir(folder);
+            end
+            folder = char(folder);
+        end
+        function subLabel = formatSubjectLabel_(~, subIn)
+            s = string(subIn);
+            s = s(strlength(s) > 0);
+            if isempty(s)
+                subLabel = "";
+            else
+                subLabel = strjoin(s, ", ");
+            end
         end
         function setMessage(~, message_handle, message, saveasname)
             msg = message+" "+saveasname;
