@@ -138,13 +138,7 @@ Mapping is a calibration tool; reproducibility matters.
 
 **Implementation plan:**
 - Use a high-resolution MATLAB timer approach:
-  - `t0 = tic;`
-  - update loop based on scheduled next frame time (e.g. 60 Hz):
-    - `next = next + dt;`
-    - update transforms
-    - `drawnow` (avoid `limitrate` if it imposes a cap)
-    - `pause(max(0, next - toc(t0)))`
-- Always log planned times and achieved times (see animation log design).
+  - `t0 = tic;`.
 
 ### 2.4 Reward gating (fixation dot)
 Reward delivery must be:

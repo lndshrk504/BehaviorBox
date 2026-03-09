@@ -131,6 +131,8 @@ classdef BehaviorBox_App < matlab.apps.AppBase
         text66                          matlab.ui.control.Label
         TemporaryTab                    matlab.ui.container.Tab
         AnimateStimulusPanel            matlab.ui.container.Panel
+        Animation_Angle                 matlab.ui.control.NumericEditField
+        AngleEditFieldLabel             matlab.ui.control.Label
         Timekeeper                      matlab.ui.control.DropDown
         TimeDropDownLabel               matlab.ui.control.Label
         Animate_LineAngle               matlab.ui.control.NumericEditField
@@ -2913,10 +2915,10 @@ classdef BehaviorBox_App < matlab.apps.AppBase
 
             % Create Animate_Style
             app.Animate_Style = uidropdown(app.AnimateStimulusPanel);
-            app.Animate_Style.Items = {'Y-Line', 'X-Line', 'Bar', 'Stimulus', 'Dot'};
+            app.Animate_Style.Items = {'Y-Line', 'X-Line', 'Sweeping Bar', 'Flash Stimulus', 'Dot'};
             app.Animate_Style.Tag = 'Animate_Style';
             app.Animate_Style.Position = [79 259 72 22];
-            app.Animate_Style.Value = 'Bar';
+            app.Animate_Style.Value = 'Y-Line';
 
             % Create YPositionSliderLabel
             app.YPositionSliderLabel = uilabel(app.AnimateStimulusPanel);
@@ -2960,7 +2962,7 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Animate_AlternateSide = uicheckbox(app.AnimateStimulusPanel);
             app.Animate_AlternateSide.Tag = 'Animate_AlternateSide';
             app.Animate_AlternateSide.Text = 'Alternate Side';
-            app.Animate_AlternateSide.Position = [177 224 98 22];
+            app.Animate_AlternateSide.Position = [177 238 98 22];
 
             % Create WhichStimulusButtonGroup
             app.WhichStimulusButtonGroup = uibuttongroup(app.AnimateStimulusPanel);
@@ -3007,6 +3009,17 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Timekeeper = uidropdown(app.AnimateStimulusPanel);
             app.Timekeeper.Tag = 'Timekeeper';
             app.Timekeeper.Position = [230 157 100 22];
+
+            % Create AngleEditFieldLabel
+            app.AngleEditFieldLabel = uilabel(app.AnimateStimulusPanel);
+            app.AngleEditFieldLabel.HorizontalAlignment = 'right';
+            app.AngleEditFieldLabel.Position = [192 215 36 22];
+            app.AngleEditFieldLabel.Text = 'Angle';
+
+            % Create Animation_Angle
+            app.Animation_Angle = uieditfield(app.AnimateStimulusPanel, 'numeric');
+            app.Animation_Angle.Tag = 'Animation_Angle';
+            app.Animation_Angle.Position = [239 213 29 22];
 
             % Create NotesTab
             app.NotesTab = uitab(app.TabGroup);
@@ -3507,4 +3520,4 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             delete(app.figure1)
         end
     end
-    endd
+end
