@@ -247,8 +247,8 @@ Below are the mapping modes you requested, expressed as concrete “modes” tha
 - Optionally include temporal envelope (e.g., ramp in, hold, ramp out).
 
 **Control variables:**
-- `LoomX` (default 0)
-- `LoomY` (default 0)
+- `LoomX` (default 0.5 or the center of the figure)
+- `LoomY` (default 0.5 or the center of the figure)
 - `LoomMinScale`, `LoomMaxScale`
 - `LoomPeriodSec`
 - `LoomVariant`
@@ -339,8 +339,7 @@ Below are the mapping modes you requested, expressed as concrete “modes” tha
 4) **5-second settling pause**:
    - while maintaining black screen, no objects visible
 5) **Start Timekeeper “Stimulus gate”** (decision point; see Section 5):
-   - Option 1 (current hardware semantics): `this.a.TimeStamp('On')` at **stimulus onset** (keeps existing meaning)
-   - Option 2 (recommended for mapping): `this.a.TimeStamp('On')` at **display on** to define time origin; then rely on animation log for detailed events
+   - `this.a.TimeStamp('On')` at **display on** to define time origin; then rely on animation log for detailed events
 6) Run the selected mapping mode sequence, updating `hgtransform.Matrix` at each step.
 7) End sequence:
    - hide objects
