@@ -339,13 +339,12 @@ Below are the mapping modes you requested, expressed as concrete “modes” tha
 4) **5-second settling pause**:
    - while maintaining black screen, no objects visible
 5) **Start Timekeeper “Stimulus gate”** (decision point; see Section 5):
-   - Option 1 (current hardware semantics): `this.a.TimeStamp('On')` at **stimulus onset** (keeps existing meaning)
-   - Option 2 (recommended for mapping): `this.a.TimeStamp('On')` at **display on** to define time origin; then rely on animation log for detailed events
+   - `this.a.TimeStamp('On')` at **display on** to define time origin; then rely on animation log for detailed events
 6) Run the selected mapping mode sequence, updating `hgtransform.Matrix` at each step.
 7) End sequence:
    - hide objects
    - `this.a.TimeStamp('Off')` at end of session (if using gate)
-   - optionally `this.a.Acquisition('End')` (or leave running depending on your workflow)
+   - `this.a.Acquisition('End')` (or leave running depending on your workflow)
 8) Save:
    - mapping animation log (table/struct) alongside `this.Time.Log`
 
@@ -446,7 +445,7 @@ Already present in the animate panel:
 - `Animate_MimicTrial` → not used for mapping (leave off)
 
 ### 7.2 New GUI properties to add (recommended)
-Add these as new `uieditfield` / `uicheckbox` controls and mirror into `Setting_Struct` or a new `MappingStruct`:
+The following have been added and mirror into `Setting_Struct` or a new `MappingStruct`:
 
 | GUI Property (proposed name) | Type | Default | Used by | Notes |
 |---|---:|---:|---|---|
@@ -472,7 +471,7 @@ Add these as new `uieditfield` / `uicheckbox` controls and mirror into `Setting_
 | `Fix_RewardSide` | dropdown | Right | A–D | valve side |
 
 ### 7.3 Add new animate dropdown items (StimType strings)
-Extend `Animate_Style.Items` to include:
+Extended `Animate_Style.Items` to include:
 - `Map-FlashContourX`
 - `Map-SweepVerticalLine`
 - `Map-SweepOrientedLine`

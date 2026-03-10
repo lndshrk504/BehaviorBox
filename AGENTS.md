@@ -3,6 +3,12 @@
 ## Project Structure & Module Organization
 `BehaviorBox_App.mlapp` and the root MATLAB classes (`BehaviorBoxData*.m`, `BehaviorBoxNose.m`, `BehaviorBoxWheel.m`, `BehaviorBoxVisualStimulus.m`) drive the main behavior-box workflow. Reusable MATLAB helpers live in `fcns/`. Hardware firmware and wiring references are kept in `Arduino/` and `Equipment/`. Linux automation lives in `Linux-Scripts/`. `iRecHS2/` contains eye-tracker examples and tests, while `usbcamv4l/` is a separate C++ camera utility with its own `CMakeLists.txt`.
 
+## When working with MATLAB code:
+- Use the matlab MCP server for execution and linting
+- Prefer MCP tools instead of guessing MATLAB syntax
+- Use run_matlab_file for scripts
+- Use check_matlab_code before suggesting changes
+
 ## Build, Test, and Development Commands
 Run MATLAB from the repository root so local scripts resolve correctly.
 
