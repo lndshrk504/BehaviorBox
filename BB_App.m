@@ -9,6 +9,7 @@ classdef BehaviorBox_App < matlab.apps.AppBase
         Git                             matlab.ui.control.Button
         TabGroup                        matlab.ui.container.TabGroup
         SettingsTab                     matlab.ui.container.Tab
+        One_ScanImage_File              matlab.ui.control.CheckBox
         InputControlPanel               matlab.ui.container.Panel
         TurnMag                         matlab.ui.control.NumericEditField
         TurnMagEditFieldLabel           matlab.ui.control.Label
@@ -131,8 +132,6 @@ classdef BehaviorBox_App < matlab.apps.AppBase
         text66                          matlab.ui.control.Label
         TemporaryTab                    matlab.ui.container.Tab
         AnimateStimulusPanel            matlab.ui.container.Panel
-        Animation_Angle                 matlab.ui.control.NumericEditField
-        AngleEditFieldLabel             matlab.ui.control.Label
         Timekeeper                      matlab.ui.control.DropDown
         TimeDropDownLabel               matlab.ui.control.Label
         Animate_LineAngle               matlab.ui.control.NumericEditField
@@ -2547,6 +2546,13 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.TurnMag.Position = [53 165 107 22];
             app.TurnMag.Value = 1000;
 
+            % Create One_ScanImage_File
+            app.One_ScanImage_File = uicheckbox(app.SettingsTab);
+            app.One_ScanImage_File.Tag = 'One_ScanImage_File';
+            app.One_ScanImage_File.Text = '1 Scanimage File';
+            app.One_ScanImage_File.Position = [376 191 114 22];
+            app.One_ScanImage_File.Value = true;
+
             % Create TemporaryTab
             app.TemporaryTab = uitab(app.TabGroup);
             app.TemporaryTab.AutoResizeChildren = 'off';
@@ -2915,9 +2921,9 @@ classdef BehaviorBox_App < matlab.apps.AppBase
 
             % Create Animate_Style
             app.Animate_Style = uidropdown(app.AnimateStimulusPanel);
-            app.Animate_Style.Items = {'Y-Line', 'X-Line', 'Sweeping Bar', 'Flash Stimulus', 'Dot'};
+            app.Animate_Style.Items = {'Y-Line', 'X-Line', 'Bar', 'Stimulus', 'Dot', 'Map-FlashContourX', 'Map-SweepLine', 'Map-LoomingStimulus'};
             app.Animate_Style.Tag = 'Animate_Style';
-            app.Animate_Style.Position = [79 259 72 22];
+            app.Animate_Style.Position = [79 259 106 22];
             app.Animate_Style.Value = 'Y-Line';
 
             % Create YPositionSliderLabel
@@ -2956,13 +2962,13 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Animate_CenteredStimulus = uicheckbox(app.AnimateStimulusPanel);
             app.Animate_CenteredStimulus.Tag = 'Animate_CenteredStimulus';
             app.Animate_CenteredStimulus.Text = 'Centered Stimulus';
-            app.Animate_CenteredStimulus.Position = [177 259 121 22];
+            app.Animate_CenteredStimulus.Position = [216 265 121 22];
 
             % Create Animate_AlternateSide
             app.Animate_AlternateSide = uicheckbox(app.AnimateStimulusPanel);
             app.Animate_AlternateSide.Tag = 'Animate_AlternateSide';
             app.Animate_AlternateSide.Text = 'Alternate Side';
-            app.Animate_AlternateSide.Position = [177 238 98 22];
+            app.Animate_AlternateSide.Position = [216 244 98 22];
 
             % Create WhichStimulusButtonGroup
             app.WhichStimulusButtonGroup = uibuttongroup(app.AnimateStimulusPanel);
@@ -3009,17 +3015,6 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Timekeeper = uidropdown(app.AnimateStimulusPanel);
             app.Timekeeper.Tag = 'Timekeeper';
             app.Timekeeper.Position = [230 157 100 22];
-
-            % Create AngleEditFieldLabel
-            app.AngleEditFieldLabel = uilabel(app.AnimateStimulusPanel);
-            app.AngleEditFieldLabel.HorizontalAlignment = 'right';
-            app.AngleEditFieldLabel.Position = [192 215 36 22];
-            app.AngleEditFieldLabel.Text = 'Angle';
-
-            % Create Animation_Angle
-            app.Animation_Angle = uieditfield(app.AnimateStimulusPanel, 'numeric');
-            app.Animation_Angle.Tag = 'Animation_Angle';
-            app.Animation_Angle.Position = [239 213 29 22];
 
             % Create NotesTab
             app.NotesTab = uitab(app.TabGroup);
