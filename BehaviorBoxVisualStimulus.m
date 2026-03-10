@@ -75,6 +75,15 @@ classdef BehaviorBoxVisualStimulus < handle
         % to "data-units translation" for hgtransform.
         MotionScaleR double = NaN;
         MotionScaleL double = NaN;
+
+        % Mapping scene (full-screen axis + pooled objects)
+        MapAx;
+        MapGroup;
+        FixGroup;
+        MapContourLine;
+        MapRandomLine;
+        MapSweepLine;
+        FixDotPatch;
     end
     
     methods % methods, including the constructor are defined in this block
@@ -345,7 +354,15 @@ classdef BehaviorBoxVisualStimulus < handle
                 options.OnlyCorrect logical = false
                 options.StartHidden logical = false
             end
+            stimType = string(options.StimType);
+            switch stimType
+                case "Sweeping Bar"
+                    stimType = "Bar";
+                case "Flash Stimulus"
+                    stimType = "Stimulus";
+            end
             this = findfigs(this);
+            this.hideMappingScene_();
 
             % --- Fast clear: delete cached handles rather than repeated findobj() calls
             try
@@ -390,8 +407,12 @@ classdef BehaviorBoxVisualStimulus < handle
             else
                 this.isLeftTrial = 0;
             end
-            if options.AnimateMode & options.StimType ~= "Stimulus"
-                switch options.StimType
+            if options.AnimateMode && startsWith(stimType, "Map-")
+                this.setupMappingScene(char(stimType), "InitialVisible", ~options.StartHidden);
+                return
+            end
+            if options.AnimateMode && stimType ~= "Stimulus"
+                switch stimType
                     case "Y-Line"
                         this.PlotYLine();
                     case "X-Line"
@@ -525,6 +546,10 @@ classdef BehaviorBoxVisualStimulus < handle
                         findobj(this.fig, 'Type', 'Patch', 'Tag', 'FinishLineTri') ...
                         ];
                 end
+                this.MapAx = findobj(this.fig, 'Type', 'axes', 'Tag', 'MappingAx');
+                if ~isempty(this.MapAx)
+                    this.MapAx = this.MapAx(1);
+                end
             end
         end
 
@@ -545,6 +570,83 @@ classdef BehaviorBoxVisualStimulus < handle
 
             this.MotionScaleR = scaleR;
             this.MotionScaleL = scaleL;
+        end
+        function targets = setupMappingScene(this, mode, options)
+            arguments
+                this
+                mode
+                options.AngleDeg double = 90
+                options.LoomVariant string = "Correct"
+                options.FixEnabled logical = false
+                options.FixRadius double = 0.03
+                options.FixX double = 0
+                options.FixY double = 0
+                options.InitialVisible logical = true
+            end
+            if isempty(this.fig) || ~isgraphics(this.fig)
+                this.setUpFigure();
+            end
+            this.ensureMappingAxis_();
+            this.ensureMappingPools_();
+            this.hideClassicStimuli_();
+            this.hideMappingScene_();
+
+            mode = string(mode);
+            [contourX, contourY] = this.buildContourPolyline_();
+            [randomX, randomY] = this.buildRandomSegmentsPolyline_(max(3, round(this.ContLength)));
+            [lineX, lineY] = this.buildLongLine_();
+
+            this.MapContourLine.XData = contourX;
+            this.MapContourLine.YData = contourY;
+            this.MapRandomLine.XData = randomX;
+            this.MapRandomLine.YData = randomY;
+            this.MapSweepLine.XData = lineX;
+            this.MapSweepLine.YData = lineY;
+
+            dotTheta = linspace(0, 2*pi, 40);
+            this.FixDotPatch.XData = options.FixRadius * cos(dotTheta);
+            this.FixDotPatch.YData = options.FixRadius * sin(dotTheta);
+
+            this.MapGroup.Matrix = eye(4);
+            this.FixGroup.Matrix = makehgtform('translate', [options.FixX options.FixY 0]);
+            this.fig.Color = this.BackgroundColor;
+            this.MapAx.Color = 'none';
+            this.MapAx.Visible = 'off';
+
+            switch mode
+                case "Map-FlashContourX"
+                    this.MapContourLine.Visible = this.onOff_(options.InitialVisible);
+                case {"Map-SweepLine", "Map-SweepVerticalLine", "Map-SweepOrientedLine"}
+                    this.MapSweepLine.Visible = this.onOff_(options.InitialVisible);
+                    this.MapGroup.Matrix = makehgtform('zrotate', deg2rad(options.AngleDeg));
+                case "Map-LoomingStimulus"
+                    variant = upper(strtrim(options.LoomVariant));
+                    if variant == "INCORRECT"
+                        this.MapRandomLine.Visible = this.onOff_(options.InitialVisible);
+                    else
+                        this.MapContourLine.Visible = this.onOff_(options.InitialVisible);
+                    end
+                otherwise
+                    this.MapContourLine.Visible = this.onOff_(options.InitialVisible);
+            end
+
+            if options.FixEnabled
+                this.FixDotPatch.Visible = this.onOff_(options.InitialVisible);
+            end
+
+            targets = this.getMappingTargets();
+        end
+        function targets = getMappingTargets(this)
+            this.ensureMappingAxis_();
+            this.ensureMappingPools_();
+            targets = struct( ...
+                'MapAx', this.MapAx, ...
+                'MapGroup', this.MapGroup, ...
+                'FixGroup', this.FixGroup, ...
+                'MapContourLine', this.MapContourLine, ...
+                'MapRandomLine', this.MapRandomLine, ...
+                'MapSweepLine', this.MapSweepLine, ...
+                'FixDotPatch', this.FixDotPatch);
         end
         function ensurePools_(this)
             % Create/recreate pooled objects if needed.
@@ -610,6 +712,231 @@ classdef BehaviorBoxVisualStimulus < handle
             end
 
             this.resetWheelOffset_();
+        end
+        function ensureMappingAxis_(this)
+            if isempty(this.fig) || ~isgraphics(this.fig)
+                return
+            end
+            if isempty(this.MapAx) || ~isgraphics(this.MapAx)
+                this.MapAx = findobj(this.fig, 'Type', 'axes', 'Tag', 'MappingAx');
+                if ~isempty(this.MapAx)
+                    this.MapAx = this.MapAx(1);
+                else
+                    this.MapAx = axes('Parent', this.fig, ...
+                        'Color', 'none', ...
+                        'Position', [0 0 1 1], ...
+                        'XTick', [], 'YTick', [], ...
+                        'Tag', 'MappingAx', ...
+                        'Visible', 'off', ...
+                        'PickableParts', 'none', ...
+                        'HitTest', 'off');
+                end
+            end
+            try
+                this.MapAx.Toolbar = [];
+            catch
+            end
+            this.MapAx.Color = 'none';
+            try
+                disableDefaultInteractivity(this.MapAx);
+            catch
+            end
+            axis(this.MapAx, 'off');
+            axis(this.MapAx, 'manual');
+            axis(this.MapAx, 'image');
+            hold(this.MapAx, 'on');
+            xlim(this.MapAx, [-1 1]);
+            ylim(this.MapAx, [-1 1]);
+            this.MapAx.XLimMode = 'manual';
+            this.MapAx.YLimMode = 'manual';
+        end
+        function ensureMappingPools_(this)
+            this.ensureMappingAxis_();
+            if isempty(this.MapAx) || ~isgraphics(this.MapAx)
+                return
+            end
+
+            if isempty(this.MapGroup) || ~isgraphics(this.MapGroup)
+                this.MapGroup = findobj(this.MapAx, 'Tag', 'MappingTransform');
+                if ~isempty(this.MapGroup)
+                    this.MapGroup = this.MapGroup(1);
+                else
+                    this.MapGroup = hgtransform('Parent', this.MapAx, 'Tag', 'MappingTransform');
+                end
+            end
+            if isempty(this.FixGroup) || ~isgraphics(this.FixGroup)
+                this.FixGroup = findobj(this.MapAx, 'Tag', 'FixationTransform');
+                if ~isempty(this.FixGroup)
+                    this.FixGroup = this.FixGroup(1);
+                else
+                    this.FixGroup = hgtransform('Parent', this.MapAx, 'Tag', 'FixationTransform');
+                end
+            end
+
+            if isempty(this.MapRandomLine) || ~isgraphics(this.MapRandomLine)
+                this.MapRandomLine = findobj(this.MapGroup, 'Type', 'line', 'Tag', 'MapRandom');
+                if ~isempty(this.MapRandomLine)
+                    this.MapRandomLine = this.MapRandomLine(1);
+                else
+                    this.MapRandomLine = line('Parent', this.MapGroup, ...
+                        'XData', nan, 'YData', nan, ...
+                        'Color', this.LineColor, ...
+                        'LineWidth', max(2, this.SegThick), ...
+                        'Tag', 'MapRandom', ...
+                        'Visible', 'off', ...
+                        'Clipping', 'off', ...
+                        'PickableParts', 'none', ...
+                        'HitTest', 'off');
+                end
+            end
+            if isempty(this.MapContourLine) || ~isgraphics(this.MapContourLine)
+                this.MapContourLine = findobj(this.MapGroup, 'Type', 'line', 'Tag', 'MapContour');
+                if ~isempty(this.MapContourLine)
+                    this.MapContourLine = this.MapContourLine(1);
+                else
+                    this.MapContourLine = line('Parent', this.MapGroup, ...
+                        'XData', nan, 'YData', nan, ...
+                        'Color', this.LineColor, ...
+                        'LineWidth', max(2, this.SegThick), ...
+                        'Tag', 'MapContour', ...
+                        'Visible', 'off', ...
+                        'Clipping', 'off', ...
+                        'PickableParts', 'none', ...
+                        'HitTest', 'off');
+                end
+            end
+            if isempty(this.MapSweepLine) || ~isgraphics(this.MapSweepLine)
+                this.MapSweepLine = findobj(this.MapGroup, 'Type', 'line', 'Tag', 'MapSweep');
+                if ~isempty(this.MapSweepLine)
+                    this.MapSweepLine = this.MapSweepLine(1);
+                else
+                    this.MapSweepLine = line('Parent', this.MapGroup, ...
+                        'XData', nan, 'YData', nan, ...
+                        'Color', this.LineColor, ...
+                        'LineWidth', max(2, this.SegThick), ...
+                        'Tag', 'MapSweep', ...
+                        'Visible', 'off', ...
+                        'Clipping', 'off', ...
+                        'PickableParts', 'none', ...
+                        'HitTest', 'off');
+                end
+            end
+            if isempty(this.FixDotPatch) || ~isgraphics(this.FixDotPatch)
+                this.FixDotPatch = findobj(this.FixGroup, 'Type', 'patch', 'Tag', 'MapFixDot');
+                if ~isempty(this.FixDotPatch)
+                    this.FixDotPatch = this.FixDotPatch(1);
+                else
+                    this.FixDotPatch = patch('Parent', this.FixGroup, ...
+                        'XData', nan, 'YData', nan, ...
+                        'FaceColor', [0 0 0], ...
+                        'EdgeColor', 'none', ...
+                        'Tag', 'MapFixDot', ...
+                        'Visible', 'off', ...
+                        'Clipping', 'off', ...
+                        'PickableParts', 'none', ...
+                        'HitTest', 'off');
+                end
+            end
+            this.applyMappingStyle_();
+        end
+        function applyMappingStyle_(this)
+            mapLines = [this.MapContourLine this.MapRandomLine this.MapSweepLine];
+            mapLines = mapLines(isgraphics(mapLines));
+            for h = mapLines
+                h.Color = this.LineColor;
+                h.LineWidth = max(2, this.SegThick);
+            end
+            if ~isempty(this.FixDotPatch) && isgraphics(this.FixDotPatch)
+                this.FixDotPatch.FaceColor = [0 0 0];
+            end
+        end
+        function hideMappingScene_(this)
+            objs = [this.MapContourLine this.MapRandomLine this.MapSweepLine this.FixDotPatch];
+            objs = objs(isgraphics(objs));
+            for h = objs
+                if isprop(h, 'Visible')
+                    h.Visible = 'off';
+                end
+            end
+            try
+                if ~isempty(this.MapGroup) && isgraphics(this.MapGroup)
+                    this.MapGroup.Matrix = eye(4);
+                end
+                if ~isempty(this.FixGroup) && isgraphics(this.FixGroup)
+                    this.FixGroup.Matrix = eye(4);
+                end
+            catch
+            end
+        end
+        function hideClassicStimuli_(this)
+            hideList = [ ...
+                findobj(this.LStimAx, '-depth', 1); ...
+                findobj(this.RStimAx, '-depth', 1); ...
+                this.FLAx(:)];
+            hideList = hideList(isgraphics(hideList));
+            for h = hideList'
+                if isprop(h, 'Visible')
+                    h.Visible = 'off';
+                end
+            end
+        end
+        function [xData, yData] = buildContourPolyline_(this)
+            segLength = 0.22;
+            segSpacing = 0.11;
+            nSeg = max(1, round(this.ContLength));
+            centers = ((0:nSeg-1) - (nSeg-1)/2) * (segLength + segSpacing);
+            xData = nan(1, 3*nSeg);
+            yData = nan(1, 3*nSeg);
+            halfSeg = segLength / 2;
+            for idx = 1:nSeg
+                ii = (idx-1)*3 + 1;
+                xData(ii:ii+2) = [0 0 nan];
+                yData(ii:ii+2) = [centers(idx)-halfSeg centers(idx)+halfSeg nan];
+            end
+        end
+        function [xData, yData] = buildRandomSegmentsPolyline_(this, nSeg)
+            segLength = 0.20;
+            halfSeg = segLength / 2;
+            nodes = this.ContourNodes;
+            if isempty(nodes)
+                nodes = this.SetupHexGrid();
+            end
+            nodes = nodes(abs(nodes(:,1)) > 0,:);
+            if ~isempty(nodes)
+                takeN = min(size(nodes,1), nSeg);
+                idx = randperm(size(nodes,1), takeN);
+                pos = nodes(idx,1:2);
+                pos(:,1) = pos(:,1) / max(max(abs(pos(:,1))), eps) * 0.45;
+                pos(:,2) = pos(:,2) / max(max(abs(pos(:,2))), eps) * 0.70;
+            else
+                pos = [linspace(-0.4, 0.4, nSeg)' linspace(-0.6, 0.6, nSeg)'];
+            end
+            if size(pos,1) < nSeg
+                extra = nSeg - size(pos,1);
+                pos = [pos; (rand(extra, 2) - 0.5) .* [0.9 1.4]];
+            end
+            ang = mod(linspace(15, 165, nSeg)' + 25*randn(nSeg,1), 180);
+            xData = nan(1, 3*nSeg);
+            yData = nan(1, 3*nSeg);
+            for idx = 1:nSeg
+                ii = (idx-1)*3 + 1;
+                [dx1, dy1] = pol2cart(deg2rad(ang(idx)), halfSeg);
+                [dx2, dy2] = pol2cart(deg2rad(ang(idx)+180), halfSeg);
+                xData(ii:ii+2) = [pos(idx,1)+dx1 pos(idx,1)+dx2 nan];
+                yData(ii:ii+2) = [pos(idx,2)+dy1 pos(idx,2)+dy2 nan];
+            end
+        end
+        function [xData, yData] = buildLongLine_(this)
+            halfLen = 1.7;
+            xData = [-halfLen halfLen];
+            yData = [0 0];
+        end
+        function out = onOff_(~, tf)
+            if tf
+                out = 'on';
+            else
+                out = 'off';
+            end
         end
         function applyLineStyle_(this)
             % Keep pooled lines consistent with current StimStruct fields.

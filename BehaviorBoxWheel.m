@@ -98,6 +98,8 @@ classdef BehaviorBoxWheel < handle
         Sound_Object = struct();
         Sound_Struct = struct(); %This is only used to make the sounds, which are not used anymore since mice are trained concurrently.
         textdiary
+        MappingAnimationLog = table();
+        MappingMetadata = struct();
 
     end
     methods
@@ -656,7 +658,6 @@ classdef BehaviorBoxWheel < handle
 
             [this.Level] = this.Setting_Struct.Starting_opacity;
         end
-
         %Choose if Left or Right will be correct
         function isLeftTrial = PickSideForCorrect(this, isLeftTrial, ~)
             % ATTENTION!!!
@@ -1924,6 +1925,9 @@ classdef BehaviorBoxWheel < handle
                 this
                 options.Activity = "Training"
                 options.PosRecord = [];
+                options.TimeLog = []
+                options.MapLog = []
+                options.MapMeta = struct()
             end
             fakeNames = {'w', 'W'};
             if any(strcmp(num2str(this.Setting_Struct.Subject), fakeNames)) || any(strcmp(this.Setting_Struct.Strain, fakeNames)) %do not save if I use a fake name for fake data
@@ -2029,8 +2033,21 @@ classdef BehaviorBoxWheel < handle
                 end
             elseif options.Activity == "Animate"
                 Position_Record = options.PosRecord;
+                TimeLog = options.TimeLog;
+                MapLog = options.MapLog;
+                MapMeta = options.MapMeta;
                 saveFile = fullfile(savefolder, char(saveasname + ".mat"));
-                save(saveFile, 'Settings', 'Position_Record', 'Notes')
+                try
+                    save(saveFile, 'Settings', 'Position_Record', 'Notes', 'TimeLog', 'MapLog', 'MapMeta')
+                catch err
+                    this.unwrapError(err)
+                    [file,path] = uiputfile(pwd , 'Choose folder to save animation data' , saveasname);
+                    if isequal(file, 0) || isequal(path, 0)
+                        set(this.message_handle,'Text', 'Save canceled.');
+                        return
+                    end
+                    save(fullfile(path, file), 'Settings', 'Position_Record', 'Notes', 'TimeLog', 'MapLog', 'MapMeta')
+                end
                 dispstring = 'Data saved as: '+saveasname;
                 fprintf(dispstring+'\n');
                 set(this.message_handle,'Text',dispstring);
@@ -2174,6 +2191,7 @@ classdef BehaviorBoxWheel < handle
                 options.AnimateMode logical = 0
                 options.StimType char = 'Stimulus'
             end
+            stimType = char(this.canonicalAnimateStyle_(options.StimType));
             tic
             this.app.ShowStim.Enable = 0; %Disable this when debugging...
             this.app.Stimulus_FinishLine.Value = true;
@@ -2198,20 +2216,27 @@ classdef BehaviorBoxWheel < handle
                     otherwise
                 end
                 [~,~] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, ...
-                    this.Setting_Struct.Starting_opacity, "AnimateMode", true, "StimType", options.StimType);
+                    this.Setting_Struct.Starting_opacity, "AnimateMode", true, "StimType", stimType);
             else
                 [~,~] = this.Stimulus_Object.DisplayOnScreen(this.PickSideForCorrect(0, 0), ...
                     this.Setting_Struct.Starting_opacity);
             end
             this.fig = this.Stimulus_Object.fig;
-            [this.fig.findobj('Tag','Spotlight').Visible] = deal(1);
+            if this.isMappingStyle_(stimType)
+                set(this.fig.findobj('Tag','Spotlight'), 'Visible', false)
+            else
+                [this.fig.findobj('Tag','Spotlight').Visible] = deal(1);
+            end
             toc
             drawnow
-            if contains(options.StimType, "-Line")
+            if this.isMappingStyle_(stimType)
+                this.app.Animate_XPosition.Value = 0.5;
+                this.app.Animate_YPosition.Value = 0.5;
+            elseif contains(stimType, "-Line")
                 this.app.Animate_XPosition.Value = 0.5;
                 this.app.Animate_YPosition.Value = 0.5;
                 %this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'ConstantLine'), "NewStim")
-            elseif contains(options.StimType, "Dot")
+            elseif contains(stimType, "Dot")
                 this.app.Animate_XPosition.Value = 0.5;
                 this.app.Animate_YPosition.Value = 0.5;
                 %this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Dot'), "NewStim")
@@ -2233,6 +2258,593 @@ classdef BehaviorBoxWheel < handle
             end
             this.app.ShowStim.Enable = 1;
         end
+        function style = canonicalAnimateStyle_(~, styleIn)
+            style = string(styleIn);
+            switch style
+                case "Sweeping Bar"
+                    style = "Bar";
+                case "Flash Stimulus"
+                    style = "Stimulus";
+                case {"Map-SweepVerticalLine", "Map-SweepOrientedLine"}
+                    style = "Map-SweepLine";
+                otherwise
+            end
+        end
+        function tf = isMappingStyle_(this, styleIn)
+            tf = startsWith(this.canonicalAnimateStyle_(styleIn), "Map-");
+        end
+        function previewMappingStimulus_(this, style)
+            style = this.canonicalAnimateStyle_(style);
+            opts = this.buildMappingOptions_(style);
+            this.TestStimulus("AnimateMode", true, "StimType", char(style));
+            if isempty(this.Stimulus_Object) || ~ismethod(this.Stimulus_Object, 'setupMappingScene')
+                return
+            end
+            this.Stimulus_Object.setupMappingScene(char(style), ...
+                "AngleDeg", opts.OrientedLineAngleDeg, ...
+                "LoomVariant", opts.LoomVariant, ...
+                "FixEnabled", opts.FixEnabled, ...
+                "FixRadius", opts.FixRadius, ...
+                "FixX", opts.FixX, ...
+                "FixY", opts.FixY, ...
+                "InitialVisible", true);
+            this.fig = this.Stimulus_Object.fig;
+            drawnow
+        end
+        function flashVisibleMappingObjects_(this)
+            if isempty(this.Stimulus_Object) || ~ismethod(this.Stimulus_Object, 'getMappingTargets')
+                return
+            end
+            targets = this.Stimulus_Object.getMappingTargets();
+            h = [targets.MapContourLine; targets.MapRandomLine; targets.MapSweepLine];
+            h = h(isgraphics(h));
+            if isempty(h)
+                return
+            end
+            h = h(arrayfun(@(obj) strcmp(obj.Visible, 'on'), h));
+            if isempty(h)
+                return
+            end
+            this.BasicFlash("Lines", h, "NewColor", this.StimulusStruct.FlashColor, ...
+                "steps", max(2, this.StimulusStruct.FreqAnimation));
+        end
+        function opts = buildMappingOptions_(this, style)
+            style = this.canonicalAnimateStyle_(style);
+            opts = struct();
+            opts.Style = style;
+            opts.Mode = erase(style, "Map-");
+            opts.SettlePauseSec = this.getAppNumericValue_("Map_SettlePauseSec", 5.0);
+            opts.FlashDurationSec = this.getAppNumericValue_("Map_FlashDurationSec", 0.5);
+            opts.InterFlashIntervalSec = this.getAppNumericValue_("Map_InterFlashIntervalSec", 2.0);
+            opts.FlashCount = max(1, round(this.getAppNumericValue_("Map_FlashCount", 5)));
+            opts.FlashXMin = this.getAppNumericValue_("Map_FlashXMin", -0.8);
+            opts.FlashXMax = this.getAppNumericValue_("Map_FlashXMax", 0.8);
+            opts.SweepXMin = this.getAppNumericValue_("Map_SweepXMin", -1.2);
+            opts.SweepXMax = this.getAppNumericValue_("Map_SweepXMax", 1.2);
+            opts.SweepSpeed = this.getAppNumericValue_("Map_SweepSpeed", max(0.2, this.getAppNumericValue_("Animate_Speed", 0.6)));
+            opts.OrientedLineAngleDeg = this.getAppNumericValue_("Map_OrientedLineAngleDeg", this.getAppNumericValue_("Animate_LineAngle", 90));
+
+            xSlider = this.getAppNumericValue_("Animate_XPosition", 0.5);
+            ySlider = this.getAppNumericValue_("Animate_YPosition", 0.5);
+            opts.LoomX = this.getAppNumericValue_("Map_LoomX", this.sliderToMapCoord_(xSlider));
+            opts.LoomY = this.getAppNumericValue_("Map_LoomY", this.sliderToMapCoord_(ySlider));
+            opts.LoomMinScale = this.getAppNumericValue_("Map_LoomMinScale", 0.5);
+            opts.LoomMaxScale = this.getAppNumericValue_("Map_LoomMaxScale", 1.5);
+            opts.LoomPeriodSec = this.getAppNumericValue_("Map_LoomPeriodSec", 2.0);
+            opts.LoomVariant = string(this.getAppControlValue_("Map_LoomVariant", "Correct"));
+
+            opts.FixEnabled = this.getAppLogicalValue_("Fix_Enable", false);
+            opts.FixX = this.getAppNumericValue_("Fix_X", this.sliderToMapCoord_(xSlider));
+            opts.FixY = this.getAppNumericValue_("Fix_Y", this.sliderToMapCoord_(ySlider));
+            opts.FixRadius = this.getAppNumericValue_("Fix_Radius", 0.03);
+            opts.FixPeriodSec = this.getAppNumericValue_("Fix_PeriodSec", 2.0);
+            opts.FixPeakThreshold = this.getAppNumericValue_("Fix_PeakThreshold", 0.98);
+            opts.FixRewardCooldownSec = this.getAppNumericValue_("Fix_RewardCooldownSec", 2.0);
+            opts.FixRewardSide = string(this.getAppControlValue_("Fix_RewardSide", "Right"));
+            opts.FixRewardEnabled = this.getAppLogicalValue_("Fix_RewardEnable", this.getAppLogicalValue_("Animate_MimicTrial", false));
+            opts.DrawHz = max(15, min(120, round(this.getAppNumericValue_("Map_DrawHz", 60))));
+        end
+        function value = getAppControlValue_(this, propName, defaultValue)
+            value = defaultValue;
+            name = char(propName);
+            if ~isprop(this.app, name)
+                return
+            end
+            try
+                obj = this.app.(name);
+                if isprop(obj, 'Value')
+                    value = obj.Value;
+                else
+                    value = obj;
+                end
+            catch
+                value = defaultValue;
+            end
+        end
+        function value = getAppNumericValue_(this, propName, defaultValue)
+            raw = this.getAppControlValue_(propName, defaultValue);
+            value = str2double(string(raw));
+            if isnan(value)
+                value = defaultValue;
+            end
+        end
+        function value = getAppLogicalValue_(this, propName, defaultValue)
+            raw = this.getAppControlValue_(propName, defaultValue);
+            try
+                value = logical(raw);
+            catch
+                value = defaultValue;
+            end
+        end
+        function coord = sliderToMapCoord_(~, value)
+            coord = 2 * (double(value) - 0.5);
+        end
+        function tf = mappingShouldAbort_(this)
+            tf = false;
+            try
+                tf = tf || logical(this.stop_handle.Value);
+            catch
+            end
+            try
+                tf = tf || logical(this.app.Stop.Value);
+            catch
+            end
+            try
+                tf = tf || logical(this.app.Animate_End.Value);
+            catch
+            end
+        end
+        function matrix = makeMappingTransform_(~, x, y, angleDeg, scaleValue)
+            if nargin < 5 || isempty(scaleValue)
+                scaleValue = 1;
+            end
+            T = makehgtform('translate', [double(x) double(y) 0]);
+            R = makehgtform('zrotate', deg2rad(double(angleDeg)));
+            S = makehgtform('scale', [double(scaleValue) double(scaleValue) 1]);
+            matrix = T * R * S;
+        end
+        function rows = appendMappingState_(this, rows, t0, modeName, extra)
+            t_us = round(1e6 * toc(t0));
+            row = this.makeMappingRow_(t_us, "State", modeName, extra);
+            rows(end+1,1) = row;
+        end
+        function [rows, t_us] = appendMappingEvent_(this, rows, t0, modeName, eventName, extra)
+            t_us = round(1e6 * toc(t0));
+            tokens = ["MAP", "event="+this.encodeMappingValue_(eventName), ...
+                "mode="+this.encodeMappingValue_(modeName), "t_us="+string(t_us)];
+            if nargin >= 6 && ~isempty(extra)
+                f = fieldnames(extra);
+                for iField = 1:numel(f)
+                    val = extra.(f{iField});
+                    if isempty(val)
+                        continue
+                    end
+                    tokens(end+1) = string(f{iField}) + "=" + this.encodeMappingValue_(val);
+                end
+            end
+            try
+                this.Time.Log(end+1,1) = strjoin(tokens, " ");
+            catch
+            end
+            row = this.makeMappingRow_(t_us, eventName, modeName, extra);
+            rows(end+1,1) = row;
+        end
+        function value = encodeMappingValue_(~, raw)
+            if islogical(raw)
+                value = string(mat2str(raw));
+            elseif isnumeric(raw)
+                if isempty(raw)
+                    value = "";
+                elseif isscalar(raw)
+                    value = string(raw);
+                else
+                    value = strjoin(string(raw(:))', ",");
+                end
+            else
+                value = string(raw);
+            end
+            value = regexprep(value, '\s+', '_');
+        end
+        function row = makeMappingRow_(~, t_us, eventName, modeName, extra)
+            row = struct( ...
+                't_us', double(t_us), ...
+                'event', string(eventName), ...
+                'mode', string(modeName), ...
+                'x', NaN, ...
+                'y', NaN, ...
+                'angleDeg', NaN, ...
+                'scale', NaN, ...
+                'brightness', NaN, ...
+                'variant', "", ...
+                'notes', "");
+            if nargin < 5 || isempty(extra)
+                return
+            end
+            fields = fieldnames(extra);
+            extraNotes = strings(0,1);
+            for iField = 1:numel(fields)
+                fieldName = fields{iField};
+                val = extra.(fieldName);
+                switch fieldName
+                    case 'x'
+                        row.x = double(val);
+                    case 'y'
+                        row.y = double(val);
+                    case 'angleDeg'
+                        row.angleDeg = double(val);
+                    case 'scale'
+                        row.scale = double(val);
+                    case 'brightness'
+                        row.brightness = double(val);
+                    case 'variant'
+                        row.variant = string(val);
+                    case 'notes'
+                        row.notes = string(val);
+                    otherwise
+                        extraNotes(end+1,1) = string(fieldName) + "=" + string(val);
+                end
+            end
+            if ~isempty(extraNotes)
+                extraText = strjoin(extraNotes, " ");
+                if strlength(row.notes) == 0
+                    row.notes = extraText;
+                else
+                    row.notes = strjoin([row.notes extraText], " ");
+                end
+            end
+        end
+        function tableOut = mappingRowsToTable_(this, rows)
+            if isempty(rows)
+                tableOut = table('Size', [0 9], ...
+                    'VariableTypes', {'double','string','string','double','double','double','double','double','string'}, ...
+                    'VariableNames', {'t_us','event','mode','x','y','angleDeg','scale','brightness','variant'});
+                tableOut = addvars(tableOut, strings(0,1), 'NewVariableNames', 'notes');
+                return
+            end
+            tableOut = struct2table(rows);
+        end
+        function side = normalizeRewardSide_(~, inSide)
+            side = upper(extractBefore(string(inSide), 2));
+            if isempty(side)
+                side = "R";
+            end
+            switch side
+                case {"L","LEFT"}
+                    side = "L";
+                otherwise
+                    side = "R";
+            end
+        end
+        function out = boolToOnOff_(~, tf)
+            if tf
+                out = 'on';
+            else
+                out = 'off';
+            end
+        end
+        function [rows, fixState, brightness] = updateFixationOverlay_(this, rows, t0, modeName, targets, fixState)
+            brightness = NaN;
+            if ~fixState.Enabled || isempty(targets.FixDotPatch) || ~isgraphics(targets.FixDotPatch)
+                return
+            end
+            tSec = toc(t0);
+            brightness = 0.5 * (1 + sin((2*pi*tSec / max(fixState.PeriodSec, eps)) - (pi/2)));
+            targets.FixDotPatch.Visible = 'on';
+            targets.FixDotPatch.FaceColor = brightness .* [1 1 1];
+            if isnan(fixState.LastBrightness)
+                fixState.LastBrightness = brightness;
+            end
+            t_us = round(1e6 * tSec);
+            crossed = brightness >= fixState.PeakThreshold && fixState.LastBrightness < fixState.PeakThreshold;
+            if crossed && fixState.RewardEnabled && (t_us - fixState.LastRewardUs) >= fixState.CooldownUs
+                try
+                    this.a.GiveReward("Side", char(fixState.RewardSide));
+                catch
+                end
+                [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "RewardGiven", ...
+                    struct('brightness', brightness, 'notes', "side="+fixState.RewardSide));
+                fixState.LastRewardUs = t_us;
+            end
+            fixState.LastBrightness = brightness;
+        end
+        function [rows, fixState, aborted] = waitMappingInterval_(this, durationSec, rows, t0, modeName, targets, fixState, state)
+            aborted = false;
+            startWait = tic;
+            lastSampleSec = -inf;
+            while toc(startWait) < durationSec
+                if this.mappingShouldAbort_()
+                    aborted = true;
+                    return
+                end
+                [rows, fixState, brightness] = this.updateFixationOverlay_(rows, t0, modeName, targets, fixState);
+                tNowSec = toc(t0);
+                if (tNowSec - lastSampleSec) >= (1 / max(fixState.DrawHz, 1))
+                    stateNow = state;
+                    stateNow.brightness = brightness;
+                    rows = this.appendMappingState_(rows, t0, modeName, stateNow);
+                    lastSampleSec = tNowSec;
+                end
+                drawnow
+                pause(0.005);
+            end
+        end
+        function [rows, fixState, aborted] = runMappingFlashContour_(this, rows, t0, modeName, targets, opts, fixState)
+            aborted = false;
+            xPositions = linspace(opts.FlashXMin, opts.FlashXMax, opts.FlashCount);
+            for idx = 1:numel(xPositions)
+                if this.mappingShouldAbort_()
+                    aborted = true;
+                    return
+                end
+                xPos = xPositions(idx);
+                targets.MapGroup.Matrix = this.makeMappingTransform_(xPos, 0, 0, 1);
+                targets.MapContourLine.Visible = 'on';
+                [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "FlashOn", struct('x', xPos, 'y', 0));
+                [rows, fixState, aborted] = this.waitMappingInterval_(opts.FlashDurationSec, rows, t0, modeName, targets, fixState, ...
+                    struct('x', xPos, 'y', 0, 'scale', 1));
+                if aborted
+                    return
+                end
+                targets.MapContourLine.Visible = 'off';
+                [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "FlashOff", struct('x', xPos, 'y', 0));
+                [rows, fixState, aborted] = this.waitMappingInterval_(opts.InterFlashIntervalSec, rows, t0, modeName, targets, fixState, ...
+                    struct('x', xPos, 'y', 0, 'scale', 1, 'notes', "hidden"));
+                if aborted
+                    return
+                end
+            end
+        end
+        function [rows, fixState, aborted] = runMappingSweep_(this, rows, t0, modeName, targets, opts, fixState, angleDeg)
+            aborted = false;
+            startOffset = opts.SweepXMin;
+            endOffset = opts.SweepXMax;
+            sweepSpeed = max(abs(opts.SweepSpeed), eps);
+            directionSign = sign(endOffset - startOffset);
+            if directionSign == 0
+                directionSign = 1;
+            end
+            motionDir = [-sind(angleDeg) cosd(angleDeg)];
+            [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "SweepStart", struct('angleDeg', angleDeg));
+            sweepClock = tic;
+            lastSampleSec = -inf;
+            while true
+                if this.mappingShouldAbort_()
+                    aborted = true;
+                    return
+                end
+                elapsed = toc(sweepClock);
+                offset = startOffset + directionSign * sweepSpeed * elapsed;
+                if directionSign > 0
+                    offset = min(offset, endOffset);
+                else
+                    offset = max(offset, endOffset);
+                end
+                pos = motionDir .* offset;
+                targets.MapSweepLine.Visible = 'on';
+                targets.MapGroup.Matrix = this.makeMappingTransform_(pos(1), pos(2), angleDeg, 1);
+                [rows, fixState, brightness] = this.updateFixationOverlay_(rows, t0, modeName, targets, fixState);
+                tNowSec = toc(t0);
+                if (tNowSec - lastSampleSec) >= (1 / max(fixState.DrawHz, 1))
+                    rows = this.appendMappingState_(rows, t0, modeName, ...
+                        struct('x', pos(1), 'y', pos(2), 'angleDeg', angleDeg, 'scale', 1, 'brightness', brightness));
+                    lastSampleSec = tNowSec;
+                end
+                drawnow
+                pause(0.005);
+                if offset == endOffset
+                    break
+                end
+            end
+            [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "SweepEnd", struct('angleDeg', angleDeg));
+        end
+        function [rows, fixState, aborted] = runMappingLoom_(this, rows, t0, modeName, targets, opts, fixState)
+            aborted = false;
+            loomVariants = string(opts.LoomVariant);
+            if any(strcmpi(loomVariants, "Alternate"))
+                loomVariants = ["Correct"; "Incorrect"];
+            end
+            for idxVariant = 1:numel(loomVariants)
+                variant = string(loomVariants(idxVariant));
+                useRandom = strcmpi(variant, "Incorrect");
+                targets.MapContourLine.Visible = this.boolToOnOff_(~useRandom);
+                targets.MapRandomLine.Visible = this.boolToOnOff_(useRandom);
+                [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "LoomStart", ...
+                    struct('x', opts.LoomX, 'y', opts.LoomY, 'variant', variant));
+                cycleClock = tic;
+                lastSampleSec = -inf;
+                peakLogged = false;
+                while toc(cycleClock) < opts.LoomPeriodSec
+                    if this.mappingShouldAbort_()
+                        aborted = true;
+                        return
+                    end
+                    cycleT = toc(cycleClock);
+                    scaleNorm = 0.5 * (1 + sin((2*pi*cycleT / max(opts.LoomPeriodSec, eps)) - (pi/2)));
+                    scaleNow = opts.LoomMinScale + (opts.LoomMaxScale - opts.LoomMinScale) * scaleNorm;
+                    targets.MapGroup.Matrix = this.makeMappingTransform_(opts.LoomX, opts.LoomY, 0, scaleNow);
+                    [rows, fixState, brightness] = this.updateFixationOverlay_(rows, t0, modeName, targets, fixState);
+                    tNowSec = toc(t0);
+                    if ~peakLogged && scaleNorm >= 0.98
+                        [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "LoomPeak", ...
+                            struct('x', opts.LoomX, 'y', opts.LoomY, 'scale', scaleNow, 'variant', variant));
+                        peakLogged = true;
+                    end
+                    if (tNowSec - lastSampleSec) >= (1 / max(fixState.DrawHz, 1))
+                        rows = this.appendMappingState_(rows, t0, modeName, ...
+                            struct('x', opts.LoomX, 'y', opts.LoomY, 'scale', scaleNow, ...
+                            'brightness', brightness, 'variant', variant));
+                        lastSampleSec = tNowSec;
+                    end
+                    drawnow
+                    pause(0.005);
+                end
+                [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "LoomEnd", ...
+                    struct('x', opts.LoomX, 'y', opts.LoomY, 'variant', variant));
+            end
+        end
+        function RunMappingStimulus(this, style, options)
+            arguments
+                this
+                style
+                options = struct()
+            end
+            style = this.canonicalAnimateStyle_(style);
+            opts = this.buildMappingOptions_(style);
+            modeName = erase(style, "Map-");
+            if ~isempty(fieldnames(options))
+                names = fieldnames(options);
+                for iField = 1:numel(names)
+                    opts.(names{iField}) = options.(names{iField});
+                end
+            end
+
+            this.MappingAnimationLog = table();
+            this.MappingMetadata = struct();
+            this.StimulusStruct.FinishLine = false;
+            this.Setting_Struct.Stimulus_FinishLine = false;
+            this.Stimulus_Object = BehaviorBoxVisualStimulus(this.StimulusStruct, Preview=1);
+            this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
+            [this.fig, this.LStimAx, this.RStimAx, this.FLAx, ~] = this.Stimulus_Object.setUpFigure();
+
+            targets = this.Stimulus_Object.setupMappingScene(char(style), ...
+                "AngleDeg", opts.OrientedLineAngleDeg, ...
+                "LoomVariant", opts.LoomVariant, ...
+                "FixEnabled", opts.FixEnabled, ...
+                "FixRadius", opts.FixRadius, ...
+                "FixX", opts.FixX, ...
+                "FixY", opts.FixY, ...
+                "InitialVisible", false);
+
+            try
+                set(this.fig.findobj('Tag', 'Spotlight'), 'Visible', false)
+            catch
+            end
+
+            try
+                this.a.TimeStamp('Off');
+            catch
+            end
+            try
+                this.Time.Reset();
+                pause(0.05)
+            catch
+            end
+
+            this.Data_Object.start_time = datetime("now");
+            try
+                set(this.message_handle, 'Text', "Starting acquisition (ScanImage)...");
+            catch
+            end
+            try
+                this.a.Acquisition('Start');
+            catch
+            end
+            t0 = tic;
+            rows = struct('t_us', {}, 'event', {}, 'mode', {}, 'x', {}, 'y', {}, ...
+                'angleDeg', {}, 'scale', {}, 'brightness', {}, 'variant', {}, 'notes', {});
+            fixState = struct( ...
+                'Enabled', logical(opts.FixEnabled), ...
+                'RewardEnabled', logical(opts.FixRewardEnabled), ...
+                'PeriodSec', double(opts.FixPeriodSec), ...
+                'PeakThreshold', double(opts.FixPeakThreshold), ...
+                'CooldownUs', double(opts.FixRewardCooldownSec) * 1e6, ...
+                'LastBrightness', NaN, ...
+                'LastRewardUs', -inf, ...
+                'RewardSide', this.normalizeRewardSide_(opts.FixRewardSide), ...
+                'DrawHz', double(opts.DrawHz));
+
+            if ~isa(this.Data_Object, 'BehaviorBoxData')
+                try
+                    this.Data_Object = BehaviorBoxData( ...
+                        Inv=this.app.Inv.Value, ...
+                        Inp=this.app.Box_Input_type.Value, ...
+                        Str=this.app.Strain.Value, ...
+                        Sub={this.app.Subject.Value}, ...
+                        find=1);
+                catch
+                end
+            end
+            [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "AcquisitionStart", struct());
+            [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "DisplayOn", struct());
+            [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "SettleStart", struct());
+            [rows, fixState, aborted] = this.waitMappingInterval_(opts.SettlePauseSec, rows, t0, modeName, targets, fixState, struct('notes', "settle"));
+            cycleIdx = 0;
+            if ~aborted
+                [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "SettleEnd", struct());
+                [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "SequenceStart", struct());
+                while ~this.mappingShouldAbort_()
+                    cycleIdx = cycleIdx + 1;
+                    [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "CycleStart", struct('notes', "cycle="+string(cycleIdx)));
+                    switch style
+                        case "Map-FlashContourX"
+                            [rows, fixState, aborted] = this.runMappingFlashContour_(rows, t0, modeName, targets, opts, fixState);
+                        case "Map-SweepLine"
+                            [rows, fixState, aborted] = this.runMappingSweep_(rows, t0, modeName, targets, opts, fixState, opts.OrientedLineAngleDeg);
+                        case "Map-LoomingStimulus"
+                            [rows, fixState, aborted] = this.runMappingLoom_(rows, t0, modeName, targets, opts, fixState);
+                        otherwise
+                            aborted = true;
+                    end
+                    if aborted || this.mappingShouldAbort_()
+                        break
+                    end
+                    [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "CycleEnd", struct('notes', "cycle="+string(cycleIdx)));
+                end
+            end
+
+            if aborted
+                [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "SequenceEnd", struct('notes', "aborted"));
+            else
+                [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "SequenceEnd", struct('notes', "userStop"));
+            end
+
+            try
+                if ismethod(this.Stimulus_Object, 'setupMappingScene')
+                    this.Stimulus_Object.setupMappingScene(char(style), ...
+                        "AngleDeg", opts.OrientedLineAngleDeg, ...
+                        "LoomVariant", opts.LoomVariant, ...
+                        "FixEnabled", opts.FixEnabled, ...
+                        "FixRadius", opts.FixRadius, ...
+                        "FixX", opts.FixX, ...
+                        "FixY", opts.FixY, ...
+                        "InitialVisible", false);
+                end
+            catch
+            end
+
+            try
+                this.a.Acquisition('End');
+            catch
+            end
+            [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "AcquisitionEnd", struct());
+
+            this.MappingAnimationLog = this.mappingRowsToTable_(rows);
+            this.MappingMetadata = struct( ...
+                'Style', style, ...
+                'Mode', modeName, ...
+                'TimeOrigin', "tic after Acquisition('Start') returned", ...
+                'EventFormat', "MAP key=value v1", ...
+                'CoordinateSystem', struct('XLim', [-1 1], 'YLim', [-1 1], 'Units', 'normalized'), ...
+                'Options', opts, ...
+                'StartedAt', this.Data_Object.start_time);
+
+            timeLog = string.empty(0,1);
+            try
+                if ~isempty(this.Time) && isobject(this.Time) && isprop(this.Time, 'Log')
+                    timeLog = this.Time.Log;
+                elseif isstruct(this.Time) && isfield(this.Time, 'Log')
+                    timeLog = this.Time.Log;
+                end
+            catch
+            end
+            this.SaveAllData("Activity", "Animate", "PosRecord", [], ...
+                "TimeLog", timeLog, "MapLog", this.MappingAnimationLog, "MapMeta", this.MappingMetadata);
+
+            try
+                close(this.fig)
+            catch
+            end
+        end
         function AnimateReward(this)
             COUNT = 0;
             while ~this.app.Auto_Stop.Value
@@ -2248,22 +2860,53 @@ classdef BehaviorBoxWheel < handle
                 options.Mode char = 'Create'
                 options.Value double = 0
             end
-            this.SetupBeforeLoop();
-            STYLE = this.app.Animate_Style.Value;
+            STYLE = this.canonicalAnimateStyle_(this.app.Animate_Style.Value);
+            try
+                if any(matches(this.app.Animate_Style.Items, STYLE))
+                    this.app.Animate_Style.Value = STYLE;
+                end
+            catch
+            end
             if options.Mode == "Show"
-                %Remove everything that isn't the spotlights or the finish line
-                this.TestStimulus("AnimateMode",true, "StimType", STYLE);
+                if this.isMappingStyle_(STYLE)
+                    this.getGUI();
+                    this.previewMappingStimulus_(STYLE);
+                else
+                    this.getGUI();
+                    this.TestStimulus("AnimateMode",true, "StimType", char(STYLE));
+                end
+                return
             end
             if options.Mode == "Go"
-                this.TestStimulus("AnimateMode",true, "StimType", STYLE);
-                this.MoveStimuli();
+                if this.isMappingStyle_(STYLE)
+                    this.getGUI();
+                    this.RunMappingStimulus(STYLE);
+                else
+                    this.SetupBeforeLoop();
+                    this.TestStimulus("AnimateMode",true, "StimType", char(STYLE));
+                    this.MoveStimuli();
+                end
                 return
             end
             if options.Mode == "Rec"
+                this.SetupBeforeLoop();
                 this.RecordStimuli();
                 return
             end
+            if isempty(this.fig) || ~isgraphics(this.fig)
+                if this.isMappingStyle_(STYLE)
+                    this.getGUI();
+                    this.previewMappingStimulus_(STYLE);
+                else
+                    this.getGUI();
+                    this.TestStimulus("AnimateMode",true, "StimType", char(STYLE));
+                end
+            end
             if options.Mode == "XMove"
+                if this.isMappingStyle_(STYLE)
+                    this.previewMappingStimulus_(STYLE);
+                    return
+                end
                 switch STYLE
                     case "Dot"
                         VAL = -0.5+options.Value;
@@ -2284,6 +2927,10 @@ classdef BehaviorBoxWheel < handle
                 end
             end
             if options.Mode == "YMove"
+                if this.isMappingStyle_(STYLE)
+                    this.previewMappingStimulus_(STYLE);
+                    return
+                end
                 switch STYLE
                     case "Dot"
                         VAL = -0.5+options.Value;
@@ -2304,9 +2951,11 @@ classdef BehaviorBoxWheel < handle
                 end
             end
             if options.Mode == "Flash"
-                if contains(this.app.Animate_Style.Value, "-Line")
+                if this.isMappingStyle_(STYLE)
+                    this.flashVisibleMappingObjects_();
+                elseif contains(STYLE, "-Line")
                     this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'ConstantLine'), "NewStim")
-                elseif contains(this.app.Animate_Style.Value, "Dot")
+                elseif contains(STYLE, "Dot")
                     this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Tag', 'Dot'), "NewStim")
                 else % Bar or Stimulus
                     this.FlashNew(this.StimulusStruct, this.Box,  findobj(this.fig.Children, 'Type', 'Line'), "NewStim")
@@ -2320,6 +2969,7 @@ classdef BehaviorBoxWheel < handle
                 options.Record logical = false; % Make sure to turn this off after
             end
             set(this.fig, 'Renderer', 'OpenGL'); % openGL is the default but this may help
+            style = this.canonicalAnimateStyle_(this.app.Animate_Style.Value);
             if options.Record
                 folderName = 'RecordedFrames';
                 if ~exist(folderName, 'dir') % Check if the folder exists in the current working directory
@@ -2330,7 +2980,7 @@ classdef BehaviorBoxWheel < handle
                 end
             end
             Center = 0;
-            switch this.app.Animate_Style.Value
+            switch style
                 case "Dot"
                     AX = this.fig.Children(1);
                     BX.Position(1) = NaN;
@@ -2403,7 +3053,7 @@ classdef BehaviorBoxWheel < handle
             I = 1;
             Pos_Record(I,1) = toc;
             Pos_Record(I,2) = AX.Position(X_or_Y); % Record initial position
-            if this.app.Animate_Style.Value ~= "Dot"
+            if style ~= "Dot"
                 % All other stimuli translate across the screen and the timestamp is
                 % matched to their position
                 while all([~this.app.Animate_End.Value ~this.app.Stop.Value])
@@ -2435,7 +3085,7 @@ classdef BehaviorBoxWheel < handle
                     Pos_Record(I,1) = toc;
                     Pos_Record(I,2) = AX.Position(X_or_Y);
                 end
-            elseif this.app.Animate_Style.Value == "Dot"
+            elseif style == "Dot"
                 % The Dot mode oscillates brighter and dimmer and shows a Lv 20 stimulus
                 % when at maximum brightness, and the timestamp is matched to the
                 % brightness
