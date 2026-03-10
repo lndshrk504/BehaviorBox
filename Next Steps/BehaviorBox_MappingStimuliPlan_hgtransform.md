@@ -23,6 +23,7 @@
 - The mapping runner must start ScanImage acquisition **before any stimulus becomes visible**.
 - After acquisition begins, enforce a **5 s settling pause** before any stimulus is shown.
 - The screen may be on during the settling pause, but mapping stimuli must remain invisible.
+- Once the sequence begins, the selected mapping mode should **loop continuously until the user presses Stop/Abort**.
 - The mapping runner must clearly mark at least these events:
   - acquisition start
   - display on / mapping scene ready
@@ -219,6 +220,9 @@ Below are the mapping modes you requested, expressed as concrete modes that will
 - `SweepSpeed` should be GUI-controlled.
 - `SweepDirection` optional.
 
+**Implementation note:**
+- This mode should use the shared `Map-SweepLine` code path with `angleDeg = 90`, rather than a separate vertical-line runner.
+
 **Logging:**
 - `SweepStart`
 - optional sampled state rows in the mapping animation log during the sweep
@@ -243,6 +247,9 @@ Below are the mapping modes you requested, expressed as concrete modes that will
 **Control variables:**
 - `OrientedLineAngleDeg` (GUI: existing `Animate_LineAngle`)
 - `SweepSpeed`
+
+**Implementation note:**
+- This mode should also use the shared `Map-SweepLine` path; the oriented case differs only by `angleDeg`.
 
 **Logging:**
 - store `AngleDeg` in event rows and metadata
@@ -385,6 +392,7 @@ Below are the mapping modes you requested, expressed as concrete modes that will
 7) Hold the black screen for `Map_SettlePauseSec`.
 8) Append `SettleEnd` and `SequenceStart`.
 9) Run the selected mapping mode sequence, updating `hgtransform.Matrix` and logging event rows as needed.
+   - Repeat the selected mode continuously until the user presses Stop/Abort.
 10) At sequence end:
    - append `SequenceEnd`
    - hide all mapping objects
@@ -566,6 +574,7 @@ Fixation dot is an overlay toggle, not necessarily its own mode.
 ### 8.2 Timing correctness
 - Confirm acquisition start command is issued before any stimulus becomes visible.
 - Confirm for `Map_SettlePauseSec = 5`, stimuli remain invisible for 5 seconds after acquisition begins.
+- Confirm that after `SequenceStart`, the selected mode repeats continuously until the user stops or aborts the run.
 - Confirm event order in `this.Time.Log` is sensible:
   - `AcquisitionStart`
   - `DisplayOn`
@@ -620,6 +629,8 @@ Fixation dot is an overlay toggle, not necessarily its own mode.
 - Add a dedicated mapping runner.
 - Add structured direct event appends into `this.Time.Log`.
 - Add mapping animation log creation and saving.
+- Use a shared `Map-SweepLine` implementation for both vertical and oriented sweeps.
+- Keep mapping runs alive until Stop/Abort rather than ending after one pass.
 
 ### `BB_App.m`
 - Add GUI items and numeric fields for mapping parameters (or reuse existing controls where appropriate).
