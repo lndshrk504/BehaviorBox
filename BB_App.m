@@ -2921,7 +2921,7 @@ classdef BehaviorBox_App < matlab.apps.AppBase
 
             % Create Animate_Style
             app.Animate_Style = uidropdown(app.AnimateStimulusPanel);
-            app.Animate_Style.Items = {'Y-Line', 'X-Line', 'Bar', 'Stimulus', 'Dot', 'Map-FlashContourX', 'Map-SweepLine', 'Map-LoomingStimulus'};
+            app.Animate_Style.Items = {'Y-Line', 'X-Line', 'Bar', 'Stimulus', 'Dot', 'Map-FlashContourX', 'Map-SweepVerticalLine', 'Map-SweepOrientedLine', 'Map-LoomingStimulus'};
             app.Animate_Style.Tag = 'Animate_Style';
             app.Animate_Style.Position = [79 259 106 22];
             app.Animate_Style.Value = 'Y-Line';
