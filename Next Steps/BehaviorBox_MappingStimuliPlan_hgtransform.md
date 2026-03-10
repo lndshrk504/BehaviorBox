@@ -247,8 +247,8 @@ Below are the mapping modes you requested, expressed as concrete “modes” tha
 - Optionally include temporal envelope (e.g., ramp in, hold, ramp out).
 
 **Control variables:**
-- `LoomX` (default 0)
-- `LoomY` (default 0)
+- `LoomX` (default 0.5 or the center of the figure)
+- `LoomY` (default 0.5 or the center of the figure)
 - `LoomMinScale`, `LoomMaxScale`
 - `LoomPeriodSec`
 - `LoomVariant`
