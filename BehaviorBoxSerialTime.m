@@ -1,20 +1,10 @@
 classdef BehaviorBoxSerialTime < handle
     %
-    % WBS May - 27 - 2025
+    % WBS Mar - 10 - 2026
     %
     % ScanImage frame clocks are recorded by an Arduino (Timekeeper.ino).
     %
-    % =======================
-    % REVISED (speed-first)
-    % =======================
-    % Key changes:
-    %   - Store timestamps in numeric arrays (uint64/uint32) instead of a
-    %     growing string array (Log), which is costly for long imaging runs.
-    %   - Parse lines without regex; ignore non-data banner lines.
-    %
-    % NOTE: Provided as *_Revised for diff/merge. In MATLAB, class name and
-    % file name must match; to run it, merge changes into the original file.
-
+    
     properties
         Ard = serialport.empty
         DispOutput logical = false % This helps to debug

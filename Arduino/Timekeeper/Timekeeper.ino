@@ -41,14 +41,6 @@ void RecordStimulus() {
     unsigned int totalMinutes = totalSeconds / 60;
     unsigned int minutes = totalMinutes % 60;
     unsigned int hours = totalMinutes / 60;
-
-    // Print formatted time
-    //Serial.print(hours);
-    //Serial.print(" hours ");
-    //Serial.print(minutes);
-    //Serial.print(" minutes ");
-    //Serial.print(seconds);
-    //Serial.print(" seconds of Total Run Time,");
     Serial.print("S On-Frame reset ");
     Serial.println(adjustedMicros);
 
