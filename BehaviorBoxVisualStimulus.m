@@ -577,6 +577,7 @@ classdef BehaviorBoxVisualStimulus < handle
                 mode
                 options.AngleDeg double = 90
                 options.LoomVariant string = "Correct"
+                options.LoomLevel double = NaN
                 options.FixEnabled logical = false
                 options.FixRadius double = 0.03
                 options.FixX double = 0
@@ -592,8 +593,12 @@ classdef BehaviorBoxVisualStimulus < handle
             this.hideMappingScene_();
 
             mode = string(mode);
-            [contourX, contourY] = this.buildContourPolyline_();
-            [randomX, randomY] = this.buildRandomSegmentsPolyline_(max(3, round(this.ContLength)));
+            contourSegCount = max(1, round(this.ContLength));
+            if mode == "Map-LoomingStimulus" && ~isnan(options.LoomLevel)
+                contourSegCount = max(1, round(options.LoomLevel));
+            end
+            [contourX, contourY] = this.buildContourPolyline_(contourSegCount);
+            [randomX, randomY] = this.buildRandomSegmentsPolyline_(max(3, contourSegCount));
             [lineX, lineY] = this.buildLongLine_();
 
             this.MapContourLine.XData = contourX;
@@ -880,10 +885,20 @@ classdef BehaviorBoxVisualStimulus < handle
                 end
             end
         end
-        function [xData, yData] = buildContourPolyline_(this)
+        function [xData, yData] = buildContourPolyline_(this, nSeg)
+            defaultSegCount = max(1, round(this.ContLength));
+            if nargin < 2 || isempty(nSeg)
+                nSeg = defaultSegCount;
+            end
+            nSeg = max(1, round(nSeg));
             segLength = 0.22;
             segSpacing = 0.11;
-            nSeg = max(1, round(this.ContLength));
+            if nSeg ~= defaultSegCount
+                totalSpan = max(defaultSegCount, 1) * (segLength + segSpacing);
+                step = totalSpan / max(nSeg, 1);
+                segLength = 0.67 * step;
+                segSpacing = max(step - segLength, 0.02);
+            end
             centers = ((0:nSeg-1) - (nSeg-1)/2) * (segLength + segSpacing);
             xData = nan(1, 3*nSeg);
             yData = nan(1, 3*nSeg);
@@ -895,7 +910,12 @@ classdef BehaviorBoxVisualStimulus < handle
             end
         end
         function [xData, yData] = buildRandomSegmentsPolyline_(this, nSeg)
+            defaultSegCount = max(1, round(this.ContLength));
+            nSeg = max(1, round(nSeg));
             segLength = 0.20;
+            if nSeg ~= defaultSegCount
+                segLength = max(0.06, (defaultSegCount * segLength) / max(nSeg, 1));
+            end
             halfSeg = segLength / 2;
             nodes = this.ContourNodes;
             if isempty(nodes)
@@ -927,7 +947,18 @@ classdef BehaviorBoxVisualStimulus < handle
             end
         end
         function [xData, yData] = buildLongLine_(this)
-            halfLen = 1.7;
+            halfLen = 2.5;
+            try
+                if ~isempty(this.MapAx) && isgraphics(this.MapAx)
+                    oldUnits = this.MapAx.Units;
+                    this.MapAx.Units = 'pixels';
+                    axPos = this.MapAx.Position;
+                    this.MapAx.Units = oldUnits;
+                    aspect = max(axPos(3), axPos(4)) / max(min(axPos(3), axPos(4)), eps);
+                    halfLen = max(halfLen, 2.2 * aspect);
+                end
+            catch
+            end
             xData = [-halfLen halfLen];
             yData = [0 0];
         end

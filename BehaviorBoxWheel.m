@@ -85,7 +85,11 @@ classdef BehaviorBoxWheel < handle
         wheelchoicetime = cell(1,1e6);
         timestamps = cell(1,1e6);
         wheelchoice_record = cell(400,3); %All wheel choice processes with what_decision
-        timestamps_record = cell(400,1); %All wheel choice processes with what_decision
+        timestamps_record = cell(0,1); % Timestamp log segments saved as structs
+        TimeSegmentKind string = ""
+        TimeSegmentTrial double = NaN
+        TimeSegmentTic = []
+        TimeScanImageFileIndex double = 0
         %Timers during each trial:
         start_time; %Clock time at initiation of first trial
         t1; %Used to record times between different functions
@@ -490,23 +494,26 @@ classdef BehaviorBoxWheel < handle
             this.i = 0;
             this.timeout_counter = 0;
             this.Temp_Active = false;
+            this.timestamps_record = cell(0,1);
+            this.TimeSegmentKind = "";
+            this.TimeSegmentTrial = NaN;
+            this.TimeSegmentTic = [];
+            this.TimeScanImageFileIndex = 0;
             try
                 this.a.TimeStamp('Off')
             catch
             end
-            try % Clear timestamp log
-                set(this.message_handle, 'Text', "Clearing timestamp log ...");
-                this.Time.Reset();
-                pause(0.1)
-                this.Time.Log(end+1,1) = "Before Trial Loop";
+            try
+                set(this.message_handle, 'Text', "Preparing timestamp log ...");
+                this.TimeScanImageFileIndex = 1;
+                this.beginTimeSegment_("setup", 0);
             catch
             end
             % Send Start Acquisition signal to ScanImage
             try
-                this.Time.Reset();
-                pause(0.1)
                 set(this.message_handle, 'Text', "Starting acquisition (ScanImage)...");
                 this.a.Acquisition('Start');
+                this.logTimeEvent_("acq_start", struct('trial', 0, 'scanImageFile', this.TimeScanImageFileIndex));
             catch
             end
         end
@@ -791,13 +798,16 @@ classdef BehaviorBoxWheel < handle
             end
         end
         function WaitForInput(this)
-            if this.i == 1 && ~this.Setting_Struct.One_ScanImage_File
-                % Stop acquisition and save those timestamps to the record
-                this.a.Acquisition('End')
-                try
-                    this.timestamps_record{this.i} = this.Time.Log;
+            if this.i == 1
+                if ~this.Setting_Struct.One_ScanImage_File
+                    this.a.Acquisition('End')
+                    this.logTimeEvent_("acq_end", struct('trial', 0, 'scanImageFile', this.TimeScanImageFileIndex));
+                    pause(0.1)
                 end
-                pause(0.1)
+                try
+                    this.storeCurrentTimeSegment_();
+                catch
+                end
             end
             this.TrialStartTime = 0;
             set(this.message_handle,'Text','Waiting for Trial initialization');
@@ -806,18 +816,19 @@ classdef BehaviorBoxWheel < handle
             this.a.Reset();
             pause(0.2); % The nextfile acquisition signal has a builtin 200 ms delay
             % Display stimulus
-            try % Clear timestamp log
-                set(this.message_handle, 'Text', "Clearing timestamp log ...");
-                this.Time.Reset();
-                pause(0.1)
-                this.Time.Log(end+1,1) = "Trial "+this.i;
-                this.Time.Log(end+1,1) = "Hold still";
+            try
+                set(this.message_handle, 'Text', "Preparing trial timestamp log ...");
+                this.beginTimeSegment_("trial", this.i);
+                this.logTrialStartEvent_();
+                this.logTimeEvent_("hold_still_start", struct('trial', this.i, 'side', this.trialSideName_(), 'level', this.Level));
             catch
             end
             try % Send Next File signal to ScanImage
                 if ~this.Setting_Struct.One_ScanImage_File
+                    this.TimeScanImageFileIndex = this.TimeScanImageFileIndex + 1;
                     set(this.message_handle, 'Text', "Next file (ScanImage)...");
                     this.a.Acquisition('Next');
+                    this.logTimeEvent_("acq_nextfile", struct('trial', this.i, 'scanImageFile', this.TimeScanImageFileIndex));
                 end
             catch
             end
@@ -1525,10 +1536,7 @@ classdef BehaviorBoxWheel < handle
             catch
             end
 
-            try
-                this.Time.Log(end+1,1) = "Choice made";
-            catch
-            end
+            this.logChoiceEvent_();
 
             % Publish trace
             if I == 0
@@ -1746,10 +1754,7 @@ classdef BehaviorBoxWheel < handle
             else
                 return
             end
-            try
-                this.Time.Log(end+1,1) = "Reward";
-            catch
-            end
+            this.logRewardEvent_(1);
             % Give first drop only once
             this.a.GiveReward();
             % then flash
@@ -1757,10 +1762,7 @@ classdef BehaviorBoxWheel < handle
             this.FlashNew(this.StimulusStruct, this.Box,  lines, "Correct_Confirmation");
             for i = 2:PulseNum
                 pause(this.Box.SecBwPulse)
-                try
-                    this.Time.Log(end+1,1) = "Reward";
-                catch
-                end
+                this.logRewardEvent_(i);
                 this.a.GiveReward();
                 this.FlashNew(this.StimulusStruct, this.Box,  lines, "Correct_Confirmation");
             end
@@ -1819,10 +1821,13 @@ classdef BehaviorBoxWheel < handle
                 return
             end
             this.ReadyCue(true)
-            try
-                this.Time.Log(end+1,1) = "Stim off";
-            catch
-            end
+            this.logTimeEvent_("trial_end", struct( ...
+                'trial', this.i, ...
+                'side', this.trialSideName_(), ...
+                'level', this.Level, ...
+                'decision', this.WhatDecision, ...
+                'correct', this.choiceWasCorrect_(), ...
+                'responseTime', this.ResponseTime));
             %Wait for interval
             this.UpdatePause(interval_time)
             this.updateMessageBox();
@@ -1831,10 +1836,9 @@ classdef BehaviorBoxWheel < handle
             end
             if ~this.Setting_Struct.One_ScanImage_File
                 this.a.Acquisition('End')
-                try
-                    this.timestamps_record{(this.i+1)} = this.Time.Log; % +1 Offset to account for the frames that are recorded before trial 1 begins (setup period)
-                end
+                this.logTimeEvent_("acq_end", struct('trial', this.i, 'scanImageFile', this.TimeScanImageFileIndex));
             end
+            this.storeCurrentTimeSegment_();
         end
         function updateMessageBox(this)
             try
@@ -1971,8 +1975,11 @@ classdef BehaviorBoxWheel < handle
                 if this.Box.Input_type == 6
                     newData.wheel_record = this.wheelchoice_record;
                     newData.wheel_record(any(cellfun(@isempty, newData.wheel_record)'),:) = [];
-                    this.timestamps_record(any(cellfun(@isempty, this.timestamps_record)'),:) = [];
-                    newData.TtimestampRecord = this.timestamps_record;
+                    timeSegments = this.timestamps_record;
+                    if ~isempty(timeSegments)
+                        timeSegments = timeSegments(~cellfun(@isempty, timeSegments));
+                    end
+                    newData.TtimestampRecord = timeSegments;
 
                 end
                 if isscalar(this.SetUpdate) % Settings never changed during the session.
@@ -2230,8 +2237,13 @@ classdef BehaviorBoxWheel < handle
             toc
             drawnow
             if this.isMappingStyle_(stimType)
-                this.app.Animate_XPosition.Value = 0.5;
-                this.app.Animate_YPosition.Value = 0.5;
+                try
+                    this.app.Animate_XPosition.Value = min(max(double(this.app.Animate_XPosition.Value), 0), 1);
+                    this.app.Animate_YPosition.Value = min(max(double(this.app.Animate_YPosition.Value), 0), 1);
+                catch
+                    this.app.Animate_XPosition.Value = 0.5;
+                    this.app.Animate_YPosition.Value = 0.5;
+                end
             elseif contains(stimType, "-Line")
                 this.app.Animate_XPosition.Value = 0.5;
                 this.app.Animate_YPosition.Value = 0.5;
@@ -2283,6 +2295,7 @@ classdef BehaviorBoxWheel < handle
             this.Stimulus_Object.setupMappingScene(char(style), ...
                 "AngleDeg", opts.OrientedLineAngleDeg, ...
                 "LoomVariant", opts.LoomVariant, ...
+                "LoomLevel", opts.LoomLevel, ...
                 "FixEnabled", opts.FixEnabled, ...
                 "FixRadius", opts.FixRadius, ...
                 "FixX", opts.FixX, ...
@@ -2326,12 +2339,15 @@ classdef BehaviorBoxWheel < handle
 
             xSlider = this.getAppNumericValue_("Animate_XPosition", 0.5);
             ySlider = this.getAppNumericValue_("Animate_YPosition", 0.5);
-            opts.LoomX = this.getAppNumericValue_("Map_LoomX", this.sliderToMapCoord_(xSlider));
-            opts.LoomY = this.getAppNumericValue_("Map_LoomY", this.sliderToMapCoord_(ySlider));
+            opts.LoomX = this.sliderToMapCoord_(xSlider);
+            opts.LoomY = this.sliderToMapCoord_(ySlider);
             opts.LoomMinScale = this.getAppNumericValue_("Map_LoomMinScale", 0.5);
             opts.LoomMaxScale = this.getAppNumericValue_("Map_LoomMaxScale", 1.5);
             opts.LoomPeriodSec = this.getAppNumericValue_("Map_LoomPeriodSec", 2.0);
             opts.LoomVariant = string(this.getAppControlValue_("Map_LoomVariant", "Correct"));
+            opts.LoomLevel = max(1, round(this.getAppNumericValue_("Starting_opacity_Temp", ...
+                this.getStructNumericValue_(this.Setting_Struct, "Starting_opacity_Temp", ...
+                this.getStructNumericValue_(this.Setting_Struct, "Starting_opacity", 1)))));
 
             opts.FixEnabled = this.getAppLogicalValue_("Fix_Enable", false);
             opts.FixX = this.getAppNumericValue_("Fix_X", this.sliderToMapCoord_(xSlider));
@@ -2372,6 +2388,23 @@ classdef BehaviorBoxWheel < handle
             raw = this.getAppControlValue_(propName, defaultValue);
             try
                 value = logical(raw);
+            catch
+                value = defaultValue;
+            end
+        end
+        function value = getStructNumericValue_(~, dataStruct, fieldName, defaultValue)
+            value = defaultValue;
+            try
+                if isstruct(dataStruct) && isfield(dataStruct, fieldName)
+                    raw = dataStruct.(fieldName);
+                    if iscell(raw)
+                        raw = raw{1};
+                    end
+                    parsed = str2double(string(raw));
+                    if ~isnan(parsed)
+                        value = parsed;
+                    end
+                end
             catch
                 value = defaultValue;
             end
@@ -2709,6 +2742,7 @@ classdef BehaviorBoxWheel < handle
             targets = this.Stimulus_Object.setupMappingScene(char(style), ...
                 "AngleDeg", opts.OrientedLineAngleDeg, ...
                 "LoomVariant", opts.LoomVariant, ...
+                "LoomLevel", opts.LoomLevel, ...
                 "FixEnabled", opts.FixEnabled, ...
                 "FixRadius", opts.FixRadius, ...
                 "FixX", opts.FixX, ...
@@ -2774,7 +2808,8 @@ classdef BehaviorBoxWheel < handle
                 [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "SequenceStart", struct());
                 while ~this.mappingShouldAbort_()
                     cycleIdx = cycleIdx + 1;
-                    [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "CycleStart", struct('notes', "cycle="+string(cycleIdx)));
+                    [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "CycleStart", ...
+                        struct('notes', "cycle="+string(cycleIdx), 'level', opts.LoomLevel));
                     switch style
                         case "Map-FlashContourX"
                             [rows, fixState, aborted] = this.runMappingFlashContour_(rows, t0, modeName, targets, opts, fixState);
@@ -2803,6 +2838,7 @@ classdef BehaviorBoxWheel < handle
                     this.Stimulus_Object.setupMappingScene(char(style), ...
                         "AngleDeg", opts.OrientedLineAngleDeg, ...
                         "LoomVariant", opts.LoomVariant, ...
+                        "LoomLevel", opts.LoomLevel, ...
                         "FixEnabled", opts.FixEnabled, ...
                         "FixRadius", opts.FixRadius, ...
                         "FixX", opts.FixX, ...
@@ -3322,6 +3358,152 @@ classdef BehaviorBoxWheel < handle
                 interrupted = true;
             end
             drawnow;
+        end
+    end
+    methods (Access = private)
+        function beginTimeSegment_(this, kind, trialNumber)
+            if isempty(this.Time) || ~isobject(this.Time)
+                return
+            end
+            this.Time.Reset();
+            pause(0.1)
+            this.TimeSegmentKind = string(kind);
+            this.TimeSegmentTrial = double(trialNumber);
+            this.TimeSegmentTic = tic;
+        end
+
+        function storeCurrentTimeSegment_(this)
+            if isempty(this.Time) || ~isobject(this.Time)
+                return
+            end
+
+            try
+                rawLog = this.Time.RawLog;
+                parsedLog = this.Time.ParsedLog;
+            catch
+                rawLog = this.Time.Log;
+                parsedLog = table();
+            end
+
+            if isempty(rawLog) && (isempty(parsedLog) || height(parsedLog) == 0)
+                return
+            end
+
+            segment = struct();
+            segment.trial = this.TimeSegmentTrial;
+            segment.kind = this.TimeSegmentKind;
+            segment.scanImageFile = this.TimeScanImageFileIndex;
+            segment.raw = rawLog;
+            segment.parsed = parsedLog;
+
+            this.timestamps_record{end+1,1} = segment;
+            this.TimeSegmentKind = "";
+            this.TimeSegmentTrial = NaN;
+            this.TimeSegmentTic = [];
+        end
+
+        function logTimeEvent_(this, eventName, fields)
+            arguments
+                this
+                eventName string
+                fields struct = struct()
+            end
+            if isempty(this.Time) || ~isobject(this.Time)
+                return
+            end
+            if ~isfield(fields, 't_us') || isempty(fields.t_us)
+                fields.t_us = this.currentTimeMicros_();
+            end
+            this.Time.LogEvent(eventName, fields);
+        end
+
+        function logTrialStartEvent_(this)
+            fields = struct( ...
+                'trial', this.i, ...
+                'side', this.trialSideName_(), ...
+                'level', this.Level, ...
+                'scanImageFile', this.TimeScanImageFileIndex);
+            this.logTimeEvent_("trial_start", fields);
+        end
+
+        function logChoiceEvent_(this)
+            fields = struct( ...
+                'trial', this.i, ...
+                'side', this.trialSideName_(), ...
+                'level', this.Level, ...
+                'decision', this.WhatDecision, ...
+                'trialStartTime', this.TrialStartTime, ...
+                'responseTime', this.ResponseTime, ...
+                'correct', this.choiceWasCorrect_());
+            this.logTimeEvent_(this.choiceEventName_(), fields);
+        end
+
+        function logRewardEvent_(this, rewardPulse)
+            fields = struct( ...
+                'trial', this.i, ...
+                'side', this.trialSideName_(), ...
+                'rewardPulse', rewardPulse, ...
+                'correct', this.choiceWasCorrect_(), ...
+                'responseTime', this.ResponseTime);
+            this.logTimeEvent_("reward_" + rewardPulse, fields);
+        end
+
+        function t_us = currentTimeMicros_(this)
+            t_us = NaN;
+            if isempty(this.TimeSegmentTic)
+                return
+            end
+            try
+                t_us = round(toc(this.TimeSegmentTic) * 1e6);
+            catch
+            end
+        end
+
+        function side = trialSideName_(this)
+            if this.isLeftTrial
+                side = "left";
+            else
+                side = "right";
+            end
+        end
+
+        function correct = choiceWasCorrect_(this)
+            decision = lower(string(this.WhatDecision));
+            if contains(decision, 'correct')
+                correct = 1;
+            elseif contains(decision, 'wrong') || contains(decision, 'time out')
+                correct = 0;
+            else
+                correct = NaN;
+            end
+        end
+
+        function eventName = choiceEventName_(this)
+            decision = lower(string(this.WhatDecision));
+            if contains(decision, 'time out')
+                eventName = "choice_timeout";
+                return
+            end
+
+            if contains(decision, 'left')
+                side = "left";
+            elseif contains(decision, 'right')
+                side = "right";
+            else
+                side = "unknown";
+            end
+
+            if contains(decision, 'correct') && contains(decision, 'oc')
+                outcome = "correct_oc";
+            elseif contains(decision, 'correct')
+                outcome = "correct";
+            elseif contains(decision, 'wrong')
+                outcome = "wrong";
+            else
+                outcome = "unknown";
+            end
+
+            eventName = "choice_" + side + "_" + outcome;
         end
     end
     %STATIC FUNCTIONS====

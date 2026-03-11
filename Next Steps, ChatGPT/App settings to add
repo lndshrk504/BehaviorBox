@@ -1,0 +1,54 @@
+Use these exact component variable names in App Designer. The code looks them up by property name on app, so the names must match exactly.
+
+Minimum
+
+ Update Animate_Style.Items to:
+{'Y-Line', 'X-Line', 'Bar', 'Stimulus', 'Dot', 'Map-FlashContourX', 'Map-SweepVerticalLine', 'Map-SweepOrientedLine', 'Map-LoomingStimulus'}
+ Keep these existing controls in place: Animate_Speed, Animate_LineAngle, Animate_XPosition, Animate_YPosition, Animate_End, Animate_MimicTrial
+Mapping Controls
+
+ Add Map_SettlePauseSec as a Numeric Edit Field, label Settle (s), default 5.0
+ Add Map_FlashDurationSec as a Numeric Edit Field, label Flash Dur (s), default 0.5
+ Add Map_InterFlashIntervalSec as a Numeric Edit Field, label Interflash (s), default 2.0
+ Add Map_FlashCount as a Numeric Edit Field, label Flash Count, default 5
+ Add Map_FlashXMin as a Numeric Edit Field, label Flash X Min, default -0.8
+ 
+ Add Map_FlashXMax as a Numeric Edit Field, label Flash X Max, default 0.8
+ 
+ Add Map_SweepXMin as a Numeric Edit Field, label Sweep X Min, default -1.2
+ Add Map_SweepXMax as a Numeric Edit Field, label Sweep X Max, default 1.2
+ Add Map_SweepSpeed as a Numeric Edit Field, label Sweep Speed, default 0.6
+ 
+ 
+ Add Map_OrientedLineAngleDeg as a Numeric Edit Field, label Angle (deg), default 90
+ 
+ Add Map_LoomX as a Numeric Edit Field, label Loom X, default 0
+ Add Map_LoomY as a Numeric Edit Field, label Loom Y, default 0
+ Add Map_LoomMinScale as a Numeric Edit Field, label Loom Min Scale, default 0.5
+ Add Map_LoomMaxScale as a Numeric Edit Field, label Loom Max Scale, default 1.5
+ Add Map_LoomPeriodSec as a Numeric Edit Field, label Loom Period (s), default 2.0
+ Add Map_LoomVariant as a DropDown, label Loom Variant, items:
+{'Correct', 'Incorrect', 'Alternate'}
+
+ Add Map_DrawHz as a Numeric Edit Field, label Draw Hz, default 60
+Fixation / Reward Controls
+
+ Add Fix_Enable as a CheckBox, text Enable Fixation, default unchecked
+ 
+ Add Fix_X as a Numeric Edit Field, label Fix X, default 0
+ Add Fix_Y as a Numeric Edit Field, label Fix Y, default 0
+ Add Fix_Radius as a Numeric Edit Field, label Fix Radius, default 0.03
+ Add Fix_PeriodSec as a Numeric Edit Field, label Fix Period (s), default 2.0
+ Add Fix_PeakThreshold as a Numeric Edit Field, label Peak Threshold, default 0.98
+ Add Fix_RewardCooldownSec as a Numeric Edit Field, label Reward Cooldown (s), default 2.0
+ Add Fix_RewardSide as a DropDown, label Reward Side, items:
+{'Right', 'Left'}
+ Add Fix_RewardEnable as a CheckBox, text Enable Fix Reward, default unchecked
+Fastest Layout
+
+ Put all Map_* controls in a new “Mapping” panel inside the animate area
+ Put all Fix_* controls in a new “Fixation / Reward” panel below it
+ Keep Animate_Style, Animate_Speed, Animate_LineAngle, Animate_XPosition, and Animate_YPosition where they already are
+One important note: Map-SweepVerticalLine currently shares the same Map-SweepLine backend as the oriented sweep, so for a truly vertical line you should leave Map_OrientedLineAngleDeg or Animate_LineAngle at 90. If you want, I can patch that next so vertical mode forces 90 automatically.
+
+

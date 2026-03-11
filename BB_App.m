@@ -131,33 +131,6 @@ classdef BehaviorBox_App < matlab.apps.AppBase
         text89                          matlab.ui.control.Label
         text66                          matlab.ui.control.Label
         TemporaryTab                    matlab.ui.container.Tab
-        AnimateStimulusPanel            matlab.ui.container.Panel
-        Timekeeper                      matlab.ui.control.DropDown
-        TimeDropDownLabel               matlab.ui.control.Label
-        Animate_LineAngle               matlab.ui.control.NumericEditField
-        LineAngleEditFieldLabel         matlab.ui.control.Label
-        WhichStimulusButtonGroup        matlab.ui.container.ButtonGroup
-        Animate_OnlyCorrectButton       matlab.ui.control.RadioButton
-        Animate_BothButton              matlab.ui.control.RadioButton
-        Animate_OnlyIncorrectButton     matlab.ui.control.RadioButton
-        Animate_AlternateSide           matlab.ui.control.CheckBox
-        Animate_CenteredStimulus        matlab.ui.control.CheckBox
-        Animate_Rec                     matlab.ui.control.StateButton
-        Animate_Flash                   matlab.ui.control.StateButton
-        Animate_YPosition               matlab.ui.control.Slider
-        YPositionSliderLabel            matlab.ui.control.Label
-        Animate_Style                   matlab.ui.control.DropDown
-        StyleDropDownLabel              matlab.ui.control.Label
-        Animate_Show                    matlab.ui.control.StateButton
-        Animate_XPosition               matlab.ui.control.Slider
-        XPositionLabel                  matlab.ui.control.Label
-        Animate_MimicTrial              matlab.ui.control.CheckBox
-        Animate_Speed                   matlab.ui.control.NumericEditField
-        SpeedEditFieldLabel             matlab.ui.control.Label
-        Animate_End                     matlab.ui.control.StateButton
-        Animate_Go                      matlab.ui.control.StateButton
-        Animate_Side                    matlab.ui.control.DropDown
-        SideDropDownLabel               matlab.ui.control.Label
         AutomaticDropWheelPanel         matlab.ui.container.Panel
         Auto_Msg                        matlab.ui.control.Label
         Auto_Animate                    matlab.ui.control.CheckBox
@@ -240,6 +213,82 @@ classdef BehaviorBox_App < matlab.apps.AppBase
         text82                          matlab.ui.control.Label
         text81                          matlab.ui.control.Label
         text79                          matlab.ui.control.Label
+        MapTab                          matlab.ui.container.Tab
+        AnimateStimulusPanel            matlab.ui.container.Panel
+        Timekeeper                      matlab.ui.control.DropDown
+        TimeDropDownLabel               matlab.ui.control.Label
+        Animate_LineAngle               matlab.ui.control.NumericEditField
+        LineAngleEditFieldLabel         matlab.ui.control.Label
+        WhichStimulusButtonGroup        matlab.ui.container.ButtonGroup
+        Animate_OnlyCorrectButton       matlab.ui.control.RadioButton
+        Animate_BothButton              matlab.ui.control.RadioButton
+        Animate_OnlyIncorrectButton     matlab.ui.control.RadioButton
+        Animate_AlternateSide           matlab.ui.control.CheckBox
+        Animate_CenteredStimulus        matlab.ui.control.CheckBox
+        Animate_Rec                     matlab.ui.control.StateButton
+        Animate_Flash                   matlab.ui.control.StateButton
+        Animate_YPosition               matlab.ui.control.Slider
+        YPositionSliderLabel            matlab.ui.control.Label
+        Animate_Style                   matlab.ui.control.DropDown
+        StyleDropDownLabel              matlab.ui.control.Label
+        Animate_Show                    matlab.ui.control.StateButton
+        Animate_XPosition               matlab.ui.control.Slider
+        XPositionLabel                  matlab.ui.control.Label
+        Animate_MimicTrial              matlab.ui.control.CheckBox
+        Animate_Speed                   matlab.ui.control.NumericEditField
+        SpeedEditFieldLabel             matlab.ui.control.Label
+        Animate_End                     matlab.ui.control.StateButton
+        Animate_Go                      matlab.ui.control.StateButton
+        Animate_Side                    matlab.ui.control.DropDown
+        SideDropDownLabel               matlab.ui.control.Label
+        Fix_RewardEnable                matlab.ui.control.CheckBox
+        Fix_RewardCooldownSec           matlab.ui.control.NumericEditField
+        RewardCooldownSecLabel          matlab.ui.control.Label
+        Fix_PeakThreshold               matlab.ui.control.NumericEditField
+        PeakThresholdLabel              matlab.ui.control.Label
+        Fix_PeriodSec                   matlab.ui.control.NumericEditField
+        PeriodSecLabel                  matlab.ui.control.Label
+        Fix_Radius                      matlab.ui.control.NumericEditField
+        RadiusLabel                     matlab.ui.control.Label
+        Fix_Y                           matlab.ui.control.NumericEditField
+        Fix_YEditFieldLabel             matlab.ui.control.Label
+        Fix_X                           matlab.ui.control.NumericEditField
+        Fix_XEditFieldLabel             matlab.ui.control.Label
+        Fix_Enable                      matlab.ui.control.CheckBox
+        Map_LoomVariant                 matlab.ui.control.DropDown
+        LoomVariantLabel                matlab.ui.control.Label
+        Map_LoomPeriodSec               matlab.ui.control.NumericEditField
+        EditField_6Label_6              matlab.ui.control.Label
+        Map_LoomMaxScale                matlab.ui.control.NumericEditField
+        EditField_6Label_5              matlab.ui.control.Label
+        Map_LoomMinScale                matlab.ui.control.NumericEditField
+        LoomMinScaleLabel               matlab.ui.control.Label
+        Map_LoomY                       matlab.ui.control.NumericEditField
+        LoomYLabel                      matlab.ui.control.Label
+        Map_LoomX                       matlab.ui.control.NumericEditField
+        EditField_6Label_4              matlab.ui.control.Label
+        Map_OrientedLineAngleDeg        matlab.ui.control.NumericEditField
+        EditField_5Label_5              matlab.ui.control.Label
+        Map_SweepXMax                   matlab.ui.control.NumericEditField
+        SweepXMaxLabel                  matlab.ui.control.Label
+        Map_SweepSpeed                  matlab.ui.control.NumericEditField
+        EditField_6Label_3              matlab.ui.control.Label
+        Map_SweepXMin                   matlab.ui.control.NumericEditField
+        EditField_5Label_4              matlab.ui.control.Label
+        Map_FlashXMax                   matlab.ui.control.NumericEditField
+        FlashXMaxLabel                  matlab.ui.control.Label
+        Map_FlashXMin                   matlab.ui.control.NumericEditField
+        FlashXMinEditFieldLabel         matlab.ui.control.Label
+        Map_FlashCount                  matlab.ui.control.NumericEditField
+        FlashCountLabel                 matlab.ui.control.Label
+        Map_InterFlashIntervalSec       matlab.ui.control.NumericEditField
+        FlashIntEditFieldLabel          matlab.ui.control.Label
+        Map_FlashDurationSec            matlab.ui.control.NumericEditField
+        FlashDurEditFieldLabel          matlab.ui.control.Label
+        Map_SettlePauseSec              matlab.ui.control.NumericEditField
+        SettlesEditFieldLabel           matlab.ui.control.Label
+        FixationPanel                   matlab.ui.container.Panel
+        MappingPanel                    matlab.ui.container.Panel
         DataViewerTab                   matlab.ui.container.Tab
         GridLayout7                     matlab.ui.container.GridLayout
         PerfHistPanel_Data              matlab.ui.container.Panel
@@ -2837,185 +2886,6 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Auto_Msg.Position = [10 11 125 51];
             app.Auto_Msg.Text = '__ Rewards given';
 
-            % Create AnimateStimulusPanel
-            app.AnimateStimulusPanel = uipanel(app.TemporaryTab);
-            app.AnimateStimulusPanel.Title = 'Animate Stimulus';
-            app.AnimateStimulusPanel.Position = [531 7 343 314];
-
-            % Create SideDropDownLabel
-            app.SideDropDownLabel = uilabel(app.AnimateStimulusPanel);
-            app.SideDropDownLabel.HorizontalAlignment = 'right';
-            app.SideDropDownLabel.Position = [30 226 29 22];
-            app.SideDropDownLabel.Text = 'Side';
-
-            % Create Animate_Side
-            app.Animate_Side = uidropdown(app.AnimateStimulusPanel);
-            app.Animate_Side.Items = {'Left', 'Random', 'Right'};
-            app.Animate_Side.Tag = 'Animate_Side';
-            app.Animate_Side.Position = [74 226 79 22];
-            app.Animate_Side.Value = 'Left';
-
-            % Create Animate_Go
-            app.Animate_Go = uibutton(app.AnimateStimulusPanel, 'state');
-            app.Animate_Go.ValueChangedFcn = createCallbackFcn(app, @Animate_GoValueChanged, true);
-            app.Animate_Go.Tag = 'Animate_Go';
-            app.Animate_Go.Text = 'Go';
-            app.Animate_Go.BackgroundColor = [0 1 0];
-            app.Animate_Go.FontWeight = 'bold';
-            app.Animate_Go.Position = [6 193 28 23];
-
-            % Create Animate_End
-            app.Animate_End = uibutton(app.AnimateStimulusPanel, 'state');
-            app.Animate_End.Tag = 'Animate_End';
-            app.Animate_End.Enable = 'off';
-            app.Animate_End.Text = 'End';
-            app.Animate_End.BackgroundColor = [1 0.4118 0.1608];
-            app.Animate_End.FontWeight = 'bold';
-            app.Animate_End.Position = [140 193 33 23];
-
-            % Create SpeedEditFieldLabel
-            app.SpeedEditFieldLabel = uilabel(app.AnimateStimulusPanel);
-            app.SpeedEditFieldLabel.HorizontalAlignment = 'right';
-            app.SpeedEditFieldLabel.Position = [4 159 40 22];
-            app.SpeedEditFieldLabel.Text = 'Speed';
-
-            % Create Animate_Speed
-            app.Animate_Speed = uieditfield(app.AnimateStimulusPanel, 'numeric');
-            app.Animate_Speed.Tag = 'Animate_Speed';
-            app.Animate_Speed.Position = [53 159 35 22];
-            app.Animate_Speed.Value = 0.01;
-
-            % Create Animate_MimicTrial
-            app.Animate_MimicTrial = uicheckbox(app.AnimateStimulusPanel);
-            app.Animate_MimicTrial.Tag = 'Animate_MimicTrial';
-            app.Animate_MimicTrial.Text = 'Mimic trial';
-            app.Animate_MimicTrial.Position = [17 132 77 22];
-
-            % Create XPositionLabel
-            app.XPositionLabel = uilabel(app.AnimateStimulusPanel);
-            app.XPositionLabel.HorizontalAlignment = 'right';
-            app.XPositionLabel.FontSize = 10;
-            app.XPositionLabel.Position = [66 103 51 22];
-            app.XPositionLabel.Text = 'X-Position';
-
-            % Create Animate_XPosition
-            app.Animate_XPosition = uislider(app.AnimateStimulusPanel);
-            app.Animate_XPosition.Limits = [0 1];
-            app.Animate_XPosition.ValueChangedFcn = createCallbackFcn(app, @Animate_PositionValueChanged, true);
-            app.Animate_XPosition.FontSize = 10;
-            app.Animate_XPosition.Tag = 'Animate_XPosition';
-            app.Animate_XPosition.Position = [12 101 158 3];
-
-            % Create Animate_Show
-            app.Animate_Show = uibutton(app.AnimateStimulusPanel, 'state');
-            app.Animate_Show.ValueChangedFcn = createCallbackFcn(app, @Animate_ShowValueChanged, true);
-            app.Animate_Show.Tag = 'Animate_Show';
-            app.Animate_Show.Text = 'Show';
-            app.Animate_Show.Position = [44 193 39 23];
-
-            % Create StyleDropDownLabel
-            app.StyleDropDownLabel = uilabel(app.AnimateStimulusPanel);
-            app.StyleDropDownLabel.HorizontalAlignment = 'right';
-            app.StyleDropDownLabel.Position = [33 259 32 22];
-            app.StyleDropDownLabel.Text = 'Style';
-
-            % Create Animate_Style
-            app.Animate_Style = uidropdown(app.AnimateStimulusPanel);
-            app.Animate_Style.Items = {'Y-Line', 'X-Line', 'Bar', 'Stimulus', 'Dot', 'Map-FlashContourX', 'Map-SweepVerticalLine', 'Map-SweepOrientedLine', 'Map-LoomingStimulus'};
-            app.Animate_Style.Tag = 'Animate_Style';
-            app.Animate_Style.Position = [79 259 106 22];
-            app.Animate_Style.Value = 'Y-Line';
-
-            % Create YPositionSliderLabel
-            app.YPositionSliderLabel = uilabel(app.AnimateStimulusPanel);
-            app.YPositionSliderLabel.HorizontalAlignment = 'right';
-            app.YPositionSliderLabel.FontSize = 10;
-            app.YPositionSliderLabel.Position = [66 52 50 22];
-            app.YPositionSliderLabel.Text = 'Y-Position';
-
-            % Create Animate_YPosition
-            app.Animate_YPosition = uislider(app.AnimateStimulusPanel);
-            app.Animate_YPosition.Limits = [0 1];
-            app.Animate_YPosition.ValueChangedFcn = createCallbackFcn(app, @Animate_PositionValueChanged, true);
-            app.Animate_YPosition.FontSize = 10;
-            app.Animate_YPosition.Tag = 'Animate_YPosition';
-            app.Animate_YPosition.Position = [12 50 158 3];
-
-            % Create Animate_Flash
-            app.Animate_Flash = uibutton(app.AnimateStimulusPanel, 'state');
-            app.Animate_Flash.ValueChangedFcn = createCallbackFcn(app, @Animate_FlashValueChanged, true);
-            app.Animate_Flash.Tag = 'Animate_Flash';
-            app.Animate_Flash.Text = 'Flash';
-            app.Animate_Flash.Position = [93 193 37 23];
-
-            % Create Animate_Rec
-            app.Animate_Rec = uibutton(app.AnimateStimulusPanel, 'state');
-            app.Animate_Rec.ValueChangedFcn = createCallbackFcn(app, @Animate_GoValueChanged, true);
-            app.Animate_Rec.Tag = 'Animate_Rec';
-            app.Animate_Rec.Text = 'Rec';
-            app.Animate_Rec.BackgroundColor = [0 1 0];
-            app.Animate_Rec.FontWeight = 'bold';
-            app.Animate_Rec.FontColor = [1 1 1];
-            app.Animate_Rec.Position = [117 157 39 23];
-
-            % Create Animate_CenteredStimulus
-            app.Animate_CenteredStimulus = uicheckbox(app.AnimateStimulusPanel);
-            app.Animate_CenteredStimulus.Tag = 'Animate_CenteredStimulus';
-            app.Animate_CenteredStimulus.Text = 'Centered Stimulus';
-            app.Animate_CenteredStimulus.Position = [216 265 121 22];
-
-            % Create Animate_AlternateSide
-            app.Animate_AlternateSide = uicheckbox(app.AnimateStimulusPanel);
-            app.Animate_AlternateSide.Tag = 'Animate_AlternateSide';
-            app.Animate_AlternateSide.Text = 'Alternate Side';
-            app.Animate_AlternateSide.Position = [216 244 98 22];
-
-            % Create WhichStimulusButtonGroup
-            app.WhichStimulusButtonGroup = uibuttongroup(app.AnimateStimulusPanel);
-            app.WhichStimulusButtonGroup.Title = 'Which Stimulus';
-            app.WhichStimulusButtonGroup.Position = [207 11 123 106];
-
-            % Create Animate_OnlyIncorrectButton
-            app.Animate_OnlyIncorrectButton = uiradiobutton(app.WhichStimulusButtonGroup);
-            app.Animate_OnlyIncorrectButton.Tag = 'Animate_OnlyIncorrectButton';
-            app.Animate_OnlyIncorrectButton.Text = 'Only Incorrect';
-            app.Animate_OnlyIncorrectButton.Position = [11 60 97 22];
-            app.Animate_OnlyIncorrectButton.Value = true;
-
-            % Create Animate_BothButton
-            app.Animate_BothButton = uiradiobutton(app.WhichStimulusButtonGroup);
-            app.Animate_BothButton.Tag = 'Animate_BothButton';
-            app.Animate_BothButton.Text = 'Both';
-            app.Animate_BothButton.Position = [11 38 48 22];
-
-            % Create Animate_OnlyCorrectButton
-            app.Animate_OnlyCorrectButton = uiradiobutton(app.WhichStimulusButtonGroup);
-            app.Animate_OnlyCorrectButton.Tag = 'Animate_OnlyCorrectButton';
-            app.Animate_OnlyCorrectButton.Text = 'Only Correct';
-            app.Animate_OnlyCorrectButton.Position = [11 16 90 22];
-
-            % Create LineAngleEditFieldLabel
-            app.LineAngleEditFieldLabel = uilabel(app.AnimateStimulusPanel);
-            app.LineAngleEditFieldLabel.HorizontalAlignment = 'right';
-            app.LineAngleEditFieldLabel.Position = [209 124 61 22];
-            app.LineAngleEditFieldLabel.Text = 'Line Angle';
-
-            % Create Animate_LineAngle
-            app.Animate_LineAngle = uieditfield(app.AnimateStimulusPanel, 'numeric');
-            app.Animate_LineAngle.Tag = 'Animate_LineAngle';
-            app.Animate_LineAngle.Position = [279 124 44 22];
-
-            % Create TimeDropDownLabel
-            app.TimeDropDownLabel = uilabel(app.AnimateStimulusPanel);
-            app.TimeDropDownLabel.HorizontalAlignment = 'right';
-            app.TimeDropDownLabel.Position = [184 157 31 22];
-            app.TimeDropDownLabel.Text = 'Time';
-
-            % Create Timekeeper
-            app.Timekeeper = uidropdown(app.AnimateStimulusPanel);
-            app.Timekeeper.Tag = 'Timekeeper';
-            app.Timekeeper.Position = [230 157 100 22];
-
             % Create NotesTab
             app.NotesTab = uitab(app.TabGroup);
             app.NotesTab.Tooltip = {'Write notes from today''s training session to be saved in the data file.'};
@@ -3346,6 +3216,469 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.ArduinosDropDown = uidropdown(app.OtherUnusedTab);
             app.ArduinosDropDown.Tag = 'ArduinosDropDown';
             app.ArduinosDropDown.Position = [583 193 100 22];
+
+            % Create MapTab
+            app.MapTab = uitab(app.TabGroup);
+            app.MapTab.Title = 'Map';
+
+            % Create MappingPanel
+            app.MappingPanel = uipanel(app.MapTab);
+            app.MappingPanel.Title = 'Mapping';
+            app.MappingPanel.Position = [10 94 314 224];
+
+            % Create FixationPanel
+            app.FixationPanel = uipanel(app.MapTab);
+            app.FixationPanel.Title = 'Fixation';
+            app.FixationPanel.Position = [334 96 179 221];
+
+            % Create SettlesEditFieldLabel
+            app.SettlesEditFieldLabel = uilabel(app.MapTab);
+            app.SettlesEditFieldLabel.HorizontalAlignment = 'right';
+            app.SettlesEditFieldLabel.Position = [14 268 53 22];
+            app.SettlesEditFieldLabel.Text = 'Settle (s)';
+
+            % Create Map_SettlePauseSec
+            app.Map_SettlePauseSec = uieditfield(app.MapTab, 'numeric');
+            app.Map_SettlePauseSec.Tag = 'Map_SettlePauseSec';
+            app.Map_SettlePauseSec.Position = [103 268 34 22];
+            app.Map_SettlePauseSec.Value = 5;
+
+            % Create FlashDurEditFieldLabel
+            app.FlashDurEditFieldLabel = uilabel(app.MapTab);
+            app.FlashDurEditFieldLabel.HorizontalAlignment = 'right';
+            app.FlashDurEditFieldLabel.Position = [14 243 57 22];
+            app.FlashDurEditFieldLabel.Text = 'Flash Dur';
+
+            % Create Map_FlashDurationSec
+            app.Map_FlashDurationSec = uieditfield(app.MapTab, 'numeric');
+            app.Map_FlashDurationSec.Tag = 'Map_FlashDurationSec';
+            app.Map_FlashDurationSec.Position = [103 244 34 22];
+            app.Map_FlashDurationSec.Value = 0.5;
+
+            % Create FlashIntEditFieldLabel
+            app.FlashIntEditFieldLabel = uilabel(app.MapTab);
+            app.FlashIntEditFieldLabel.HorizontalAlignment = 'right';
+            app.FlashIntEditFieldLabel.Position = [14 219 51 22];
+            app.FlashIntEditFieldLabel.Text = 'Flash Int';
+
+            % Create Map_InterFlashIntervalSec
+            app.Map_InterFlashIntervalSec = uieditfield(app.MapTab, 'numeric');
+            app.Map_InterFlashIntervalSec.Tag = 'Map_InterFlashIntervalSec';
+            app.Map_InterFlashIntervalSec.Position = [103 219 34 22];
+            app.Map_InterFlashIntervalSec.Value = 2;
+
+            % Create FlashCountLabel
+            app.FlashCountLabel = uilabel(app.MapTab);
+            app.FlashCountLabel.HorizontalAlignment = 'right';
+            app.FlashCountLabel.Position = [14 195 70 22];
+            app.FlashCountLabel.Text = 'Flash Count';
+
+            % Create Map_FlashCount
+            app.Map_FlashCount = uieditfield(app.MapTab, 'numeric');
+            app.Map_FlashCount.Tag = 'Map_FlashCount';
+            app.Map_FlashCount.Position = [103 195 34 22];
+            app.Map_FlashCount.Value = 5;
+
+            % Create FlashXMinEditFieldLabel
+            app.FlashXMinEditFieldLabel = uilabel(app.MapTab);
+            app.FlashXMinEditFieldLabel.HorizontalAlignment = 'right';
+            app.FlashXMinEditFieldLabel.Position = [14 171 68 22];
+            app.FlashXMinEditFieldLabel.Text = 'Flash X Min';
+
+            % Create Map_FlashXMin
+            app.Map_FlashXMin = uieditfield(app.MapTab, 'numeric');
+            app.Map_FlashXMin.Tag = 'Map_FlashXMin';
+            app.Map_FlashXMin.Position = [103 171 34 22];
+            app.Map_FlashXMin.Value = -0.8;
+
+            % Create FlashXMaxLabel
+            app.FlashXMaxLabel = uilabel(app.MapTab);
+            app.FlashXMaxLabel.HorizontalAlignment = 'right';
+            app.FlashXMaxLabel.Position = [14 147 65 22];
+            app.FlashXMaxLabel.Text = 'FlashXMax';
+
+            % Create Map_FlashXMax
+            app.Map_FlashXMax = uieditfield(app.MapTab, 'numeric');
+            app.Map_FlashXMax.Tag = 'Map_FlashXMax';
+            app.Map_FlashXMax.Position = [103 147 34 22];
+            app.Map_FlashXMax.Value = 0.8;
+
+            % Create EditField_5Label_4
+            app.EditField_5Label_4 = uilabel(app.MapTab);
+            app.EditField_5Label_4.HorizontalAlignment = 'right';
+            app.EditField_5Label_4.Position = [14 123 76 22];
+            app.EditField_5Label_4.Text = 'Sweep X Min';
+
+            % Create Map_SweepXMin
+            app.Map_SweepXMin = uieditfield(app.MapTab, 'numeric');
+            app.Map_SweepXMin.Tag = 'Map_SweepXMin';
+            app.Map_SweepXMin.Position = [103 123 34 22];
+            app.Map_SweepXMin.Value = -1.2;
+
+            % Create EditField_6Label_3
+            app.EditField_6Label_3 = uilabel(app.MapTab);
+            app.EditField_6Label_3.HorizontalAlignment = 'right';
+            app.EditField_6Label_3.Position = [190 267 80 22];
+            app.EditField_6Label_3.Text = 'Sweep Speed';
+
+            % Create Map_SweepSpeed
+            app.Map_SweepSpeed = uieditfield(app.MapTab, 'numeric');
+            app.Map_SweepSpeed.Tag = 'Map_SweepSpeed';
+            app.Map_SweepSpeed.Position = [279 267 34 22];
+            app.Map_SweepSpeed.Value = 0.6;
+
+            % Create SweepXMaxLabel
+            app.SweepXMaxLabel = uilabel(app.MapTab);
+            app.SweepXMaxLabel.HorizontalAlignment = 'right';
+            app.SweepXMaxLabel.Position = [14 99 79 22];
+            app.SweepXMaxLabel.Text = 'Sweep X Max';
+
+            % Create Map_SweepXMax
+            app.Map_SweepXMax = uieditfield(app.MapTab, 'numeric');
+            app.Map_SweepXMax.Tag = 'Map_SweepXMax';
+            app.Map_SweepXMax.Position = [103 99 34 22];
+            app.Map_SweepXMax.Value = 1.2;
+
+            % Create EditField_5Label_5
+            app.EditField_5Label_5 = uilabel(app.MapTab);
+            app.EditField_5Label_5.HorizontalAlignment = 'right';
+            app.EditField_5Label_5.Position = [197 243 67 22];
+            app.EditField_5Label_5.Text = 'Angle (deg)';
+
+            % Create Map_OrientedLineAngleDeg
+            app.Map_OrientedLineAngleDeg = uieditfield(app.MapTab, 'numeric');
+            app.Map_OrientedLineAngleDeg.Tag = 'Map_OrientedLineAngleDeg';
+            app.Map_OrientedLineAngleDeg.Position = [279 243 34 22];
+            app.Map_OrientedLineAngleDeg.Value = 90;
+
+            % Create EditField_6Label_4
+            app.EditField_6Label_4 = uilabel(app.MapTab);
+            app.EditField_6Label_4.HorizontalAlignment = 'right';
+            app.EditField_6Label_4.Position = [218 219 46 22];
+            app.EditField_6Label_4.Text = 'Loom X';
+
+            % Create Map_LoomX
+            app.Map_LoomX = uieditfield(app.MapTab, 'numeric');
+            app.Map_LoomX.Tag = 'Map_LoomX';
+            app.Map_LoomX.Position = [279 219 34 22];
+
+            % Create LoomYLabel
+            app.LoomYLabel = uilabel(app.MapTab);
+            app.LoomYLabel.HorizontalAlignment = 'right';
+            app.LoomYLabel.Position = [218 195 46 22];
+            app.LoomYLabel.Text = 'Loom Y';
+
+            % Create Map_LoomY
+            app.Map_LoomY = uieditfield(app.MapTab, 'numeric');
+            app.Map_LoomY.Tag = 'Map_LoomY';
+            app.Map_LoomY.Position = [279 195 34 22];
+
+            % Create LoomMinScaleLabel
+            app.LoomMinScaleLabel = uilabel(app.MapTab);
+            app.LoomMinScaleLabel.HorizontalAlignment = 'right';
+            app.LoomMinScaleLabel.Position = [173 171 91 22];
+            app.LoomMinScaleLabel.Text = 'Loom Min Scale';
+
+            % Create Map_LoomMinScale
+            app.Map_LoomMinScale = uieditfield(app.MapTab, 'numeric');
+            app.Map_LoomMinScale.Tag = 'Map_LoomMinScale';
+            app.Map_LoomMinScale.Position = [279 171 34 22];
+            app.Map_LoomMinScale.Value = 0.5;
+
+            % Create EditField_6Label_5
+            app.EditField_6Label_5 = uilabel(app.MapTab);
+            app.EditField_6Label_5.HorizontalAlignment = 'right';
+            app.EditField_6Label_5.Position = [176 147 88 22];
+            app.EditField_6Label_5.Text = 'LoomMaxScale';
+
+            % Create Map_LoomMaxScale
+            app.Map_LoomMaxScale = uieditfield(app.MapTab, 'numeric');
+            app.Map_LoomMaxScale.Tag = 'Map_LoomMaxScale';
+            app.Map_LoomMaxScale.Position = [279 147 34 22];
+            app.Map_LoomMaxScale.Value = 1.5;
+
+            % Create EditField_6Label_6
+            app.EditField_6Label_6 = uilabel(app.MapTab);
+            app.EditField_6Label_6.HorizontalAlignment = 'right';
+            app.EditField_6Label_6.Position = [174 123 90 22];
+            app.EditField_6Label_6.Text = 'LoomPeriodSec';
+
+            % Create Map_LoomPeriodSec
+            app.Map_LoomPeriodSec = uieditfield(app.MapTab, 'numeric');
+            app.Map_LoomPeriodSec.Tag = 'Map_LoomPeriodSec';
+            app.Map_LoomPeriodSec.Position = [279 123 34 22];
+
+            % Create LoomVariantLabel
+            app.LoomVariantLabel = uilabel(app.MapTab);
+            app.LoomVariantLabel.HorizontalAlignment = 'right';
+            app.LoomVariantLabel.Position = [139 99 72 22];
+            app.LoomVariantLabel.Text = 'LoomVariant';
+
+            % Create Map_LoomVariant
+            app.Map_LoomVariant = uidropdown(app.MapTab);
+            app.Map_LoomVariant.Items = {'Correct', 'Incorrect'};
+            app.Map_LoomVariant.Tag = 'Map_LoomVariant';
+            app.Map_LoomVariant.Position = [226 99 87 22];
+            app.Map_LoomVariant.Value = 'Correct';
+
+            % Create Fix_Enable
+            app.Fix_Enable = uicheckbox(app.MapTab);
+            app.Fix_Enable.Tag = 'Fix_Enable';
+            app.Fix_Enable.Text = 'Enable Fixation';
+            app.Fix_Enable.Position = [401 269 105 22];
+
+            % Create Fix_XEditFieldLabel
+            app.Fix_XEditFieldLabel = uilabel(app.MapTab);
+            app.Fix_XEditFieldLabel.HorizontalAlignment = 'right';
+            app.Fix_XEditFieldLabel.Position = [421 245 36 22];
+            app.Fix_XEditFieldLabel.Text = 'Fix_X';
+
+            % Create Fix_X
+            app.Fix_X = uieditfield(app.MapTab, 'numeric');
+            app.Fix_X.Tag = 'Fix_X';
+            app.Fix_X.Position = [472 245 34 22];
+
+            % Create Fix_YEditFieldLabel
+            app.Fix_YEditFieldLabel = uilabel(app.MapTab);
+            app.Fix_YEditFieldLabel.HorizontalAlignment = 'right';
+            app.Fix_YEditFieldLabel.Position = [421 221 36 22];
+            app.Fix_YEditFieldLabel.Text = 'Fix_Y';
+
+            % Create Fix_Y
+            app.Fix_Y = uieditfield(app.MapTab, 'numeric');
+            app.Fix_Y.Tag = 'Fix_Y';
+            app.Fix_Y.Position = [472 221 34 22];
+
+            % Create RadiusLabel
+            app.RadiusLabel = uilabel(app.MapTab);
+            app.RadiusLabel.HorizontalAlignment = 'right';
+            app.RadiusLabel.Position = [415 197 42 22];
+            app.RadiusLabel.Text = 'Radius';
+
+            % Create Fix_Radius
+            app.Fix_Radius = uieditfield(app.MapTab, 'numeric');
+            app.Fix_Radius.Tag = 'Fix_Radius';
+            app.Fix_Radius.Position = [472 197 34 22];
+            app.Fix_Radius.Value = 0.03;
+
+            % Create PeriodSecLabel
+            app.PeriodSecLabel = uilabel(app.MapTab);
+            app.PeriodSecLabel.HorizontalAlignment = 'right';
+            app.PeriodSecLabel.Position = [397 173 60 22];
+            app.PeriodSecLabel.Text = 'PeriodSec';
+
+            % Create Fix_PeriodSec
+            app.Fix_PeriodSec = uieditfield(app.MapTab, 'numeric');
+            app.Fix_PeriodSec.Tag = 'Fix_PeriodSec';
+            app.Fix_PeriodSec.Position = [472 173 34 22];
+            app.Fix_PeriodSec.Value = 2;
+
+            % Create PeakThresholdLabel
+            app.PeakThresholdLabel = uilabel(app.MapTab);
+            app.PeakThresholdLabel.HorizontalAlignment = 'right';
+            app.PeakThresholdLabel.Position = [371 149 86 22];
+            app.PeakThresholdLabel.Text = 'PeakThreshold';
+
+            % Create Fix_PeakThreshold
+            app.Fix_PeakThreshold = uieditfield(app.MapTab, 'numeric');
+            app.Fix_PeakThreshold.Tag = 'Fix_PeakThreshold';
+            app.Fix_PeakThreshold.Position = [472 149 34 22];
+
+            % Create RewardCooldownSecLabel
+            app.RewardCooldownSecLabel = uilabel(app.MapTab);
+            app.RewardCooldownSecLabel.HorizontalAlignment = 'right';
+            app.RewardCooldownSecLabel.Position = [337 125 120 22];
+            app.RewardCooldownSecLabel.Text = 'RewardCooldownSec';
+
+            % Create Fix_RewardCooldownSec
+            app.Fix_RewardCooldownSec = uieditfield(app.MapTab, 'numeric');
+            app.Fix_RewardCooldownSec.Tag = 'Fix_RewardCooldownSec';
+            app.Fix_RewardCooldownSec.Position = [472 125 34 22];
+
+            % Create Fix_RewardEnable
+            app.Fix_RewardEnable = uicheckbox(app.MapTab);
+            app.Fix_RewardEnable.Tag = 'Fix_RewardEnable';
+            app.Fix_RewardEnable.Text = 'Fix_RewardEnable';
+            app.Fix_RewardEnable.Position = [383 101 123 22];
+
+            % Create AnimateStimulusPanel
+            app.AnimateStimulusPanel = uipanel(app.MapTab);
+            app.AnimateStimulusPanel.Title = 'Animate Stimulus';
+            app.AnimateStimulusPanel.Position = [533 7 343 314];
+
+            % Create SideDropDownLabel
+            app.SideDropDownLabel = uilabel(app.AnimateStimulusPanel);
+            app.SideDropDownLabel.HorizontalAlignment = 'right';
+            app.SideDropDownLabel.Position = [6 235 29 22];
+            app.SideDropDownLabel.Text = 'Side';
+
+            % Create Animate_Side
+            app.Animate_Side = uidropdown(app.AnimateStimulusPanel);
+            app.Animate_Side.Items = {'Left', 'Random', 'Right'};
+            app.Animate_Side.Tag = 'Animate_Side';
+            app.Animate_Side.Position = [50 235 79 22];
+            app.Animate_Side.Value = 'Left';
+
+            % Create Animate_Go
+            app.Animate_Go = uibutton(app.AnimateStimulusPanel, 'state');
+            app.Animate_Go.ValueChangedFcn = createCallbackFcn(app, @Animate_GoValueChanged, true);
+            app.Animate_Go.Tag = 'Animate_Go';
+            app.Animate_Go.Text = 'Go';
+            app.Animate_Go.BackgroundColor = [0 1 0];
+            app.Animate_Go.FontWeight = 'bold';
+            app.Animate_Go.Position = [6 210 28 23];
+
+            % Create Animate_End
+            app.Animate_End = uibutton(app.AnimateStimulusPanel, 'state');
+            app.Animate_End.Tag = 'Animate_End';
+            app.Animate_End.Enable = 'off';
+            app.Animate_End.Text = 'End';
+            app.Animate_End.BackgroundColor = [1 0.4118 0.1608];
+            app.Animate_End.FontWeight = 'bold';
+            app.Animate_End.Position = [140 210 33 23];
+
+            % Create SpeedEditFieldLabel
+            app.SpeedEditFieldLabel = uilabel(app.AnimateStimulusPanel);
+            app.SpeedEditFieldLabel.HorizontalAlignment = 'right';
+            app.SpeedEditFieldLabel.Position = [6 186 40 22];
+            app.SpeedEditFieldLabel.Text = 'Speed';
+
+            % Create Animate_Speed
+            app.Animate_Speed = uieditfield(app.AnimateStimulusPanel, 'numeric');
+            app.Animate_Speed.Tag = 'Animate_Speed';
+            app.Animate_Speed.Position = [55 186 35 22];
+            app.Animate_Speed.Value = 0.01;
+
+            % Create Animate_MimicTrial
+            app.Animate_MimicTrial = uicheckbox(app.AnimateStimulusPanel);
+            app.Animate_MimicTrial.Tag = 'Animate_MimicTrial';
+            app.Animate_MimicTrial.Text = 'Mimic trial';
+            app.Animate_MimicTrial.Position = [17 162 77 22];
+
+            % Create XPositionLabel
+            app.XPositionLabel = uilabel(app.AnimateStimulusPanel);
+            app.XPositionLabel.HorizontalAlignment = 'right';
+            app.XPositionLabel.FontSize = 10;
+            app.XPositionLabel.Position = [66 138 51 22];
+            app.XPositionLabel.Text = 'X-Position';
+
+            % Create Animate_XPosition
+            app.Animate_XPosition = uislider(app.AnimateStimulusPanel);
+            app.Animate_XPosition.Limits = [0 1];
+            app.Animate_XPosition.ValueChangedFcn = createCallbackFcn(app, @Animate_PositionValueChanged, true);
+            app.Animate_XPosition.FontSize = 10;
+            app.Animate_XPosition.Tag = 'Animate_XPosition';
+            app.Animate_XPosition.Position = [12 136 158 3];
+
+            % Create Animate_Show
+            app.Animate_Show = uibutton(app.AnimateStimulusPanel, 'state');
+            app.Animate_Show.ValueChangedFcn = createCallbackFcn(app, @Animate_ShowValueChanged, true);
+            app.Animate_Show.Tag = 'Animate_Show';
+            app.Animate_Show.Text = 'Show';
+            app.Animate_Show.Position = [44 210 39 23];
+
+            % Create StyleDropDownLabel
+            app.StyleDropDownLabel = uilabel(app.AnimateStimulusPanel);
+            app.StyleDropDownLabel.HorizontalAlignment = 'right';
+            app.StyleDropDownLabel.Position = [6 259 32 22];
+            app.StyleDropDownLabel.Text = 'Style';
+
+            % Create Animate_Style
+            app.Animate_Style = uidropdown(app.AnimateStimulusPanel);
+            app.Animate_Style.Items = {'Y-Line', 'X-Line', 'Bar', 'Stimulus', 'Dot', 'Map-FlashContourX', 'Map-SweepVerticalLine', 'Map-SweepOrientedLine', 'Map-LoomingStimulus'};
+            app.Animate_Style.Tag = 'Animate_Style';
+            app.Animate_Style.Position = [52 259 106 22];
+            app.Animate_Style.Value = 'Y-Line';
+
+            % Create YPositionSliderLabel
+            app.YPositionSliderLabel = uilabel(app.AnimateStimulusPanel);
+            app.YPositionSliderLabel.HorizontalAlignment = 'right';
+            app.YPositionSliderLabel.FontSize = 10;
+            app.YPositionSliderLabel.Position = [66 85 50 22];
+            app.YPositionSliderLabel.Text = 'Y-Position';
+
+            % Create Animate_YPosition
+            app.Animate_YPosition = uislider(app.AnimateStimulusPanel);
+            app.Animate_YPosition.Limits = [0 1];
+            app.Animate_YPosition.ValueChangedFcn = createCallbackFcn(app, @Animate_PositionValueChanged, true);
+            app.Animate_YPosition.FontSize = 10;
+            app.Animate_YPosition.Tag = 'Animate_YPosition';
+            app.Animate_YPosition.Position = [12 83 158 3];
+
+            % Create Animate_Flash
+            app.Animate_Flash = uibutton(app.AnimateStimulusPanel, 'state');
+            app.Animate_Flash.ValueChangedFcn = createCallbackFcn(app, @Animate_FlashValueChanged, true);
+            app.Animate_Flash.Tag = 'Animate_Flash';
+            app.Animate_Flash.Text = 'Flash';
+            app.Animate_Flash.Position = [93 210 37 23];
+
+            % Create Animate_Rec
+            app.Animate_Rec = uibutton(app.AnimateStimulusPanel, 'state');
+            app.Animate_Rec.ValueChangedFcn = createCallbackFcn(app, @Animate_GoValueChanged, true);
+            app.Animate_Rec.Tag = 'Animate_Rec';
+            app.Animate_Rec.Text = 'Rec';
+            app.Animate_Rec.BackgroundColor = [0 1 0];
+            app.Animate_Rec.FontWeight = 'bold';
+            app.Animate_Rec.FontColor = [1 1 1];
+            app.Animate_Rec.Position = [92 159 39 23];
+
+            % Create Animate_CenteredStimulus
+            app.Animate_CenteredStimulus = uicheckbox(app.AnimateStimulusPanel);
+            app.Animate_CenteredStimulus.Tag = 'Animate_CenteredStimulus';
+            app.Animate_CenteredStimulus.Text = 'Centered Stimulus';
+            app.Animate_CenteredStimulus.Position = [20 28 121 22];
+
+            % Create Animate_AlternateSide
+            app.Animate_AlternateSide = uicheckbox(app.AnimateStimulusPanel);
+            app.Animate_AlternateSide.Tag = 'Animate_AlternateSide';
+            app.Animate_AlternateSide.Text = 'Alternate Side';
+            app.Animate_AlternateSide.Position = [20 7 98 22];
+
+            % Create WhichStimulusButtonGroup
+            app.WhichStimulusButtonGroup = uibuttongroup(app.AnimateStimulusPanel);
+            app.WhichStimulusButtonGroup.Title = 'Which Stimulus';
+            app.WhichStimulusButtonGroup.Position = [214 178 123 106];
+
+            % Create Animate_OnlyIncorrectButton
+            app.Animate_OnlyIncorrectButton = uiradiobutton(app.WhichStimulusButtonGroup);
+            app.Animate_OnlyIncorrectButton.Tag = 'Animate_OnlyIncorrectButton';
+            app.Animate_OnlyIncorrectButton.Text = 'Only Incorrect';
+            app.Animate_OnlyIncorrectButton.Position = [11 60 97 22];
+            app.Animate_OnlyIncorrectButton.Value = true;
+
+            % Create Animate_BothButton
+            app.Animate_BothButton = uiradiobutton(app.WhichStimulusButtonGroup);
+            app.Animate_BothButton.Tag = 'Animate_BothButton';
+            app.Animate_BothButton.Text = 'Both';
+            app.Animate_BothButton.Position = [11 38 48 22];
+
+            % Create Animate_OnlyCorrectButton
+            app.Animate_OnlyCorrectButton = uiradiobutton(app.WhichStimulusButtonGroup);
+            app.Animate_OnlyCorrectButton.Tag = 'Animate_OnlyCorrectButton';
+            app.Animate_OnlyCorrectButton.Text = 'Only Correct';
+            app.Animate_OnlyCorrectButton.Position = [11 16 90 22];
+
+            % Create LineAngleEditFieldLabel
+            app.LineAngleEditFieldLabel = uilabel(app.AnimateStimulusPanel);
+            app.LineAngleEditFieldLabel.HorizontalAlignment = 'right';
+            app.LineAngleEditFieldLabel.Position = [209 130 61 22];
+            app.LineAngleEditFieldLabel.Text = 'Line Angle';
+
+            % Create Animate_LineAngle
+            app.Animate_LineAngle = uieditfield(app.AnimateStimulusPanel, 'numeric');
+            app.Animate_LineAngle.Tag = 'Animate_LineAngle';
+            app.Animate_LineAngle.Position = [279 130 44 22];
+
+            % Create TimeDropDownLabel
+            app.TimeDropDownLabel = uilabel(app.AnimateStimulusPanel);
+            app.TimeDropDownLabel.HorizontalAlignment = 'right';
+            app.TimeDropDownLabel.Position = [184 154 31 22];
+            app.TimeDropDownLabel.Text = 'Time';
+
+            % Create Timekeeper
+            app.Timekeeper = uidropdown(app.AnimateStimulusPanel);
+            app.Timekeeper.Tag = 'Timekeeper';
+            app.Timekeeper.Position = [230 154 100 22];
 
             % Create DataViewerTab
             app.DataViewerTab = uitab(app.TabGroup);
