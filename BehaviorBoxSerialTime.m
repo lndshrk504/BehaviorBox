@@ -6,7 +6,7 @@ classdef BehaviorBoxSerialTime < handle
     %
     
     properties
-        Ard = serialport.empty
+        Ard %= serialport().empty
         DispOutput logical = false % This helps to debug
         Log string = string.empty(0,1)
         RawLog string = string.empty(0,1)
@@ -131,7 +131,7 @@ classdef BehaviorBoxSerialTime < handle
                 end
             catch
             end
-            this.Ard = serialport.empty;
+            this.Ard = serialport().empty;
             disp('Timestamp Serial port is closed');
         end
     end

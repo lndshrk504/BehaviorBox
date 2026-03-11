@@ -362,6 +362,7 @@ classdef BehaviorBoxData < handle
                 allData(:,i) = cellfun(@(x) x{i}, aD, 'UniformOutput', false);
             end
             this.loadedData = allData;
+            hasTrainingStruct = cellfun(@isstruct, allData(:,3));
             % for i = 2:size(allData,1)
             %     fields1 = fieldnames(allData{i,3});
             %     fields2 = fieldnames(allData{i-1,3});
@@ -372,7 +373,7 @@ classdef BehaviorBoxData < handle
             %         1;
             %     end
             % end
-            if ~isempty([allData{:,3}]) % An error happens right here because of the Weight field. It is either missing (older mice in inactive folder) or an empty character vector (recent mice) when usually it is a double.
+            if any(hasTrainingStruct) % Ignore animate-only files that do not contain newData.
                 this.CombineDays();
             end
             if nargout >= 1
@@ -422,13 +423,18 @@ classdef BehaviorBoxData < handle
                     c = c+1;
                     dayData.((mouse)){c,2} = d;
                     wD = vertcat(allData{:,2}) == d;
+                    dayMask = wD & w;
+                    sessionMask = cellfun(@isstruct, allData(:,3)) & dayMask;
+                    if ~any(sessionMask)
+                        continue
+                    end
                     try
-                        StimHist = allData{wD & w, 4};
-                        sessions = [allData{wD & w ,3}];
+                        StimHist = allData{sessionMask, 4};
+                        sessions = [allData{sessionMask ,3}];
                         %sessions.StimHist = StimHist;
                     catch %Fails for only one day, when include wasn't added correctly.
-                        StimHist = allData{wD & w, 4};
-                        data = allData(wD & w ,3);
+                        StimHist = allData{sessionMask, 4};
+                        data = allData(sessionMask ,3);
                         % bigSesh = cellfun(@(x) ...
                         %     [{x.Score} {x.Level} {x.isLeftTrial} {x.CodedChoice} {x.SetIdx}], ...
                         %     allData(:,3), 'UniformOutput', true)

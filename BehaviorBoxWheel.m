@@ -104,7 +104,6 @@ classdef BehaviorBoxWheel < handle
         textdiary
         MappingAnimationLog = table();
         MappingMetadata = struct();
-
     end
     methods
         function this = BehaviorBoxWheel(GUI_handles, app)
@@ -475,6 +474,7 @@ classdef BehaviorBoxWheel < handle
                 end
             end
             [this.fig, this.LStimAx, this.RStimAx, this.FLAx, ~] = this.Stimulus_Object.setUpFigure();
+            this.ensureStimulusFullscreen_();
             if ~any([this.app.Animate_Go.Value this.app.Animate_Show.Value this.app.Animate_Flash.Value this.app.Animate_Rec.Value]) % Don't show finish line for animation
                 this.ReadyCue('Create')
                 if isempty(this.ReadyCueAx) || ~isgraphics(this.ReadyCueAx)
@@ -547,6 +547,8 @@ classdef BehaviorBoxWheel < handle
                 [this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.Stimulus_Object.setUpFigure();
                 [this.StimHistory{this.i,1},this.StimHistory{this.i,2}] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, this.Level); %Plot new stimulus as hidden objects, record positions and angles of the segments
             end
+            this.fig = this.Stimulus_Object.fig;
+            this.ensureStimulusFullscreen_();
             %Update GUI window numbers
             this.updateGUIbeforeIteration(); %Update again, in case the level changed
             [this.fig.Children.findobj('Type','Line').Visible] = deal(0);
@@ -653,6 +655,8 @@ classdef BehaviorBoxWheel < handle
                 if needsStim
                     try
                         this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
+                        this.fig = this.Stimulus_Object.fig;
+                        this.ensureStimulusFullscreen_();
                     catch
                     end
                 end
@@ -680,7 +684,14 @@ classdef BehaviorBoxWheel < handle
                 choice = [0 1];
                 isLeftTrial = choice(randperm(2,1));
             elseif this.Setting_Struct.Repeat_wrong
-                if isprop(this.Data_Object, 'current_data_struct') & this.Data_Object.current_data_struct.Score(end) == 0
+                lastScore = [];
+                try
+                    if isprop(this.Data_Object, 'current_data_struct') && isfield(this.Data_Object.current_data_struct, 'Score')
+                        lastScore = this.Data_Object.current_data_struct.Score;
+                    end
+                catch
+                end
+                if ~isempty(lastScore) && lastScore(end) == 0
                     return
                 else
                     choice = [0 1];
@@ -766,7 +777,14 @@ classdef BehaviorBoxWheel < handle
                             end
                         end
                     case 5 % Repeat Wrong basic mode
-                        if this.Data_Object.current_data_struct.Score(end) == 0
+                        lastScore = [];
+                        try
+                            if isprop(this.Data_Object, 'current_data_struct') && isfield(this.Data_Object.current_data_struct, 'Score')
+                                lastScore = this.Data_Object.current_data_struct.Score;
+                            end
+                        catch
+                        end
+                        if ~isempty(lastScore) && lastScore(end) == 0
                             return
                         else
                             choice = [0 1];
@@ -814,7 +832,6 @@ classdef BehaviorBoxWheel < handle
             this.t1 = datetime("now"); t2 = this.t1; %In case of crash
             this.a.DispOutput = false;
             this.a.Reset();
-            pause(0.2); % The nextfile acquisition signal has a builtin 200 ms delay
             % Display stimulus
             try
                 set(this.message_handle, 'Text', "Preparing trial timestamp log ...");
@@ -828,6 +845,7 @@ classdef BehaviorBoxWheel < handle
                     this.TimeScanImageFileIndex = this.TimeScanImageFileIndex + 1;
                     set(this.message_handle, 'Text', "Next file (ScanImage)...");
                     this.a.Acquisition('Next');
+                    spause(0.2); % The nextfile acquisition signal has a builtin 200 ms delay
                     this.logTimeEvent_("acq_nextfile", struct('trial', this.i, 'scanImageFile', this.TimeScanImageFileIndex));
                 end
             catch
@@ -1932,6 +1950,7 @@ classdef BehaviorBoxWheel < handle
                 options.TimeLog = []
                 options.MapLog = []
                 options.MapMeta = struct()
+                options.TimestampRecord = []
             end
             fakeNames = {'w', 'W'};
             if any(strcmp(num2str(this.Setting_Struct.Subject), fakeNames)) || any(strcmp(this.Setting_Struct.Strain, fakeNames)) %do not save if I use a fake name for fake data
@@ -1979,7 +1998,7 @@ classdef BehaviorBoxWheel < handle
                     if ~isempty(timeSegments)
                         timeSegments = timeSegments(~cellfun(@isempty, timeSegments));
                     end
-                    newData.TtimestampRecord = timeSegments;
+                    newData.TimestampRecord = timeSegments;
 
                 end
                 if isscalar(this.SetUpdate) % Settings never changed during the session.
@@ -2043,9 +2062,10 @@ classdef BehaviorBoxWheel < handle
                 TimeLog = options.TimeLog;
                 MapLog = options.MapLog;
                 MapMeta = options.MapMeta;
+                TimestampRecord = options.TimestampRecord;
                 saveFile = fullfile(savefolder, char(saveasname + ".mat"));
                 try
-                    save(saveFile, 'Settings', 'Position_Record', 'Notes', 'TimeLog', 'MapLog', 'MapMeta')
+                    save(saveFile, 'Settings', 'Position_Record', 'Notes', 'TimeLog', 'MapLog', 'MapMeta', 'TimestampRecord')
                 catch err
                     this.unwrapError(err)
                     [file,path] = uiputfile(pwd , 'Choose folder to save animation data' , saveasname);
@@ -2053,7 +2073,7 @@ classdef BehaviorBoxWheel < handle
                         set(this.message_handle,'Text', 'Save canceled.');
                         return
                     end
-                    save(fullfile(path, file), 'Settings', 'Position_Record', 'Notes', 'TimeLog', 'MapLog', 'MapMeta')
+                    save(fullfile(path, file), 'Settings', 'Position_Record', 'Notes', 'TimeLog', 'MapLog', 'MapMeta', 'TimestampRecord')
                 end
                 dispstring = 'Data saved as: '+saveasname;
                 fprintf(dispstring+'\n');
@@ -2116,10 +2136,25 @@ classdef BehaviorBoxWheel < handle
         end
         function cleanUP(this)
             % Send Stop Acquisition signal to ScanImage
+            if this.Setting_Struct.One_ScanImage_File
+                try
+                    this.beginTimeSegment_("cleanup", this.i);
+                catch
+                end
+            end
             try
                 set(this.message_handle, 'Text', "Stopping acquisition (ScanImage)...");
                 this.a.Acquisition('End');
+                if this.Setting_Struct.One_ScanImage_File
+                    this.logTimeEvent_("acq_end", struct('trial', this.i, 'scanImageFile', this.TimeScanImageFileIndex));
+                end
             catch
+            end
+            if this.Setting_Struct.One_ScanImage_File
+                try
+                    this.storeCurrentTimeSegment_();
+                catch
+                end
             end
             %switch on all buttons
             this.toggleButtonsOnOff(this.Buttons,1);
@@ -2229,6 +2264,7 @@ classdef BehaviorBoxWheel < handle
                     this.Setting_Struct.Starting_opacity);
             end
             this.fig = this.Stimulus_Object.fig;
+            this.ensureStimulusFullscreen_();
             if this.isMappingStyle_(stimType)
                 set(this.fig.findobj('Tag','Spotlight'), 'Visible', false)
             else
@@ -2302,6 +2338,7 @@ classdef BehaviorBoxWheel < handle
                 "FixY", opts.FixY, ...
                 "InitialVisible", true);
             this.fig = this.Stimulus_Object.fig;
+            this.ensureStimulusFullscreen_();
             drawnow
         end
         function flashVisibleMappingObjects_(this)
@@ -2443,20 +2480,20 @@ classdef BehaviorBoxWheel < handle
         end
         function [rows, t_us] = appendMappingEvent_(this, rows, t0, modeName, eventName, extra)
             t_us = round(1e6 * toc(t0));
-            tokens = ["MAP", "event="+this.encodeMappingValue_(eventName), ...
-                "mode="+this.encodeMappingValue_(modeName), "t_us="+string(t_us)];
+            fields = struct( ...
+                'kind', "mapping", ...
+                'mode', string(modeName), ...
+                'trial', 0, ...
+                'scanImageFile', this.TimeScanImageFileIndex, ...
+                't_us', t_us);
             if nargin >= 6 && ~isempty(extra)
                 f = fieldnames(extra);
                 for iField = 1:numel(f)
-                    val = extra.(f{iField});
-                    if isempty(val)
-                        continue
-                    end
-                    tokens(end+1) = string(f{iField}) + "=" + this.encodeMappingValue_(val);
+                    fields.(f{iField}) = extra.(f{iField});
                 end
             end
             try
-                this.Time.Log(end+1,1) = strjoin(tokens, " ");
+                this.logTimeEvent_(string(eventName), fields);
             catch
             end
             row = this.makeMappingRow_(t_us, eventName, modeName, extra);
@@ -2738,6 +2775,7 @@ classdef BehaviorBoxWheel < handle
             this.Stimulus_Object = BehaviorBoxVisualStimulus(this.StimulusStruct, Preview=1);
             this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
             [this.fig, this.LStimAx, this.RStimAx, this.FLAx, ~] = this.Stimulus_Object.setUpFigure();
+            this.ensureStimulusFullscreen_();
 
             targets = this.Stimulus_Object.setupMappingScene(char(style), ...
                 "AngleDeg", opts.OrientedLineAngleDeg, ...
@@ -2754,13 +2792,17 @@ classdef BehaviorBoxWheel < handle
             catch
             end
 
+            this.timestamps_record = cell(0,1);
+            this.TimeSegmentKind = "";
+            this.TimeSegmentTrial = NaN;
+            this.TimeSegmentTic = [];
+            this.TimeScanImageFileIndex = 1;
             try
                 this.a.TimeStamp('Off');
             catch
             end
             try
-                this.Time.Reset();
-                pause(0.05)
+                this.beginTimeSegment_("mapping", 0);
             catch
             end
 
@@ -2773,9 +2815,17 @@ classdef BehaviorBoxWheel < handle
                 this.a.Acquisition('Start');
             catch
             end
-            t0 = tic;
+            try
+                this.logTimeEvent_("acq_start", struct('trial', 0, 'scanImageFile', this.TimeScanImageFileIndex));
+            catch
+            end
+            t0 = this.TimeSegmentTic;
+            if isempty(t0)
+                t0 = tic;
+            end
             rows = struct('t_us', {}, 'event', {}, 'mode', {}, 'x', {}, 'y', {}, ...
                 'angleDeg', {}, 'scale', {}, 'brightness', {}, 'variant', {}, 'notes', {});
+            sequenceTimestampOn = false;
             fixState = struct( ...
                 'Enabled', logical(opts.FixEnabled), ...
                 'RewardEnabled', logical(opts.FixRewardEnabled), ...
@@ -2805,6 +2855,11 @@ classdef BehaviorBoxWheel < handle
             cycleIdx = 0;
             if ~aborted
                 [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "SettleEnd", struct());
+                try
+                    this.a.TimeStamp('On');
+                    sequenceTimestampOn = true;
+                catch
+                end
                 [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "SequenceStart", struct());
                 while ~this.mappingShouldAbort_()
                     cycleIdx = cycleIdx + 1;
@@ -2827,6 +2882,12 @@ classdef BehaviorBoxWheel < handle
                 end
             end
 
+            if sequenceTimestampOn
+                try
+                    this.a.TimeStamp('Off');
+                catch
+                end
+            end
             if aborted
                 [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "SequenceEnd", struct('notes', "aborted"));
             else
@@ -2853,28 +2914,45 @@ classdef BehaviorBoxWheel < handle
             catch
             end
             [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "AcquisitionEnd", struct());
+            try
+                this.logTimeEvent_("acq_end", struct('trial', 0, 'scanImageFile', this.TimeScanImageFileIndex, 't_us', round(1e6 * toc(t0))));
+            catch
+            end
+            try
+                this.storeCurrentTimeSegment_();
+            catch
+            end
 
             this.MappingAnimationLog = this.mappingRowsToTable_(rows);
             this.MappingMetadata = struct( ...
                 'Style', style, ...
                 'Mode', modeName, ...
-                'TimeOrigin', "tic after Acquisition('Start') returned", ...
-                'EventFormat', "MAP key=value v1", ...
+                'TimeOrigin', "tic after beginTimeSegment_('mapping', 0)", ...
+                'EventFormat', "BehaviorBoxSerialTime raw lines + parsed frame/signal/annotation rows", ...
                 'CoordinateSystem', struct('XLim', [-1 1], 'YLim', [-1 1], 'Units', 'normalized'), ...
                 'Options', opts, ...
                 'StartedAt', this.Data_Object.start_time);
 
             timeLog = string.empty(0,1);
+            timestampRecord = this.timestamps_record;
             try
-                if ~isempty(this.Time) && isobject(this.Time) && isprop(this.Time, 'Log')
+                if ~isempty(timestampRecord)
+                    timestampRecord = timestampRecord(~cellfun(@isempty, timestampRecord));
+                    if ~isempty(timestampRecord)
+                        rawCells = cellfun(@(seg) seg.raw, timestampRecord, 'UniformOutput', false);
+                        timeLog = vertcat(rawCells{:});
+                    end
+                end
+                if isempty(timeLog) && ~isempty(this.Time) && isobject(this.Time) && isprop(this.Time, 'Log')
                     timeLog = this.Time.Log;
-                elseif isstruct(this.Time) && isfield(this.Time, 'Log')
+                elseif isempty(timeLog) && isstruct(this.Time) && isfield(this.Time, 'Log')
                     timeLog = this.Time.Log;
                 end
             catch
             end
             this.SaveAllData("Activity", "Animate", "PosRecord", [], ...
-                "TimeLog", timeLog, "MapLog", this.MappingAnimationLog, "MapMeta", this.MappingMetadata);
+                "TimeLog", timeLog, "MapLog", this.MappingAnimationLog, ...
+                "MapMeta", this.MappingMetadata, "TimestampRecord", timestampRecord);
 
             try
                 close(this.fig)
@@ -3361,6 +3439,38 @@ classdef BehaviorBoxWheel < handle
         end
     end
     methods (Access = private)
+        function ensureStimulusFullscreen_(this, figHandle)
+            if nargin < 2 || isempty(figHandle)
+                figHandle = this.fig;
+            end
+            if isempty(figHandle) || ~isgraphics(figHandle, 'figure')
+                return
+            end
+
+            try
+                figHandle.WindowState = 'fullscreen';
+                return
+            catch
+            end
+
+            try
+                figHandle.Units = 'normalized';
+            catch
+            end
+            try
+                figHandle.OuterPosition = [0 0 1 1];
+            catch
+            end
+            try
+                figHandle.Position = [0 0 1 1];
+            catch
+            end
+            try
+                figHandle.WindowState = 'maximized';
+            catch
+            end
+        end
+
         function beginTimeSegment_(this, kind, trialNumber)
             if isempty(this.Time) || ~isobject(this.Time)
                 return

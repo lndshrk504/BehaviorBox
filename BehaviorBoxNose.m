@@ -653,7 +653,14 @@ classdef BehaviorBoxNose < handle
                 choice = [0 1];
                 isLeftTrial = choice(randperm(2,1));
             elseif all(this.StimulusStruct.side ~= [2 3]) && this.Setting_Struct.Repeat_wrong
-                if isprop(this.Data_Object, 'current_data_struct') & this.Data_Object.current_data_struct.Score(end) == 0
+                lastScore = [];
+                try
+                    if isprop(this.Data_Object, 'current_data_struct') && isfield(this.Data_Object.current_data_struct, 'Score')
+                        lastScore = this.Data_Object.current_data_struct.Score;
+                    end
+                catch
+                end
+                if ~isempty(lastScore) && lastScore(end) == 0
                     return
                 else
                     choice = [0 1];
@@ -739,7 +746,14 @@ classdef BehaviorBoxNose < handle
                             end
                         end
                     case 5 % Repeat Wrong basic mode
-                        if this.Data_Object.current_data_struct.Score(end) == 0
+                        lastScore = [];
+                        try
+                            if isprop(this.Data_Object, 'current_data_struct') && isfield(this.Data_Object.current_data_struct, 'Score')
+                                lastScore = this.Data_Object.current_data_struct.Score;
+                            end
+                        catch
+                        end
+                        if ~isempty(lastScore) && lastScore(end) == 0
                             return
                         else
                             choice = [0 1];

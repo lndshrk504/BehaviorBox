@@ -9,6 +9,11 @@
 - Use run_matlab_file for scripts
 - Use check_matlab_code before suggesting changes
 
+## Nose vs Wheel Boundary
+`BehaviorBoxWheel.m` is the only root MATLAB workflow file that should contain microscopy- or imaging-related logic, including microscope integration, imaging metadata, and imaging timestamps. `BehaviorBoxNose.m` must remain free of microscopy-specific code and should never be required to integrate wheel-only imaging behavior.
+
+This separation is intentional and is the reason the project keeps distinct Nose and Wheel files. If logic is genuinely shared, extract only the microscope-agnostic portion into a helper or shared data path; do not copy microscopy assumptions into `BehaviorBoxNose.m`.
+
 ## Build, Test, and Development Commands
 Run MATLAB from the repository root so local scripts resolve correctly.
 

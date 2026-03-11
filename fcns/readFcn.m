@@ -68,8 +68,11 @@ try
     if ~isfield(t.newData, 'wheel_record')
         t.newData.wheel_record = [];
     end
-    if ~isfield(t.newData, 'TtimestampRecord')
-        t.newData.TtimestampRecord = [];
+    if isfield(t.newData, 'TtimestampRecord') && ~isfield(t.newData, 'TimestampRecord')
+        t.newData.TimestampRecord = t.newData.TtimestampRecord;
+    end
+    if ~isfield(t.newData, 'TimestampRecord')
+        t.newData.TimestampRecord = [];
     end
     if isfield(t.newData, 'Weight')
         if isnumeric(t.newData.Weight)
