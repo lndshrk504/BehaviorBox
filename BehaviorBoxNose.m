@@ -2150,6 +2150,12 @@ classdef BehaviorBoxNose < handle
             this.stop_handle.Value = 0;%Turn off Stop button
             %close stimulus if still open
             delete(findobj("Type", "figure", "Name", "Stimulus"))
+            this.fig = [];
+            this.ReadyCueAx = [];
+            this.LStimAx = [];
+            this.RStimAx = [];
+            this.FLAx = [];
+            this.Stimulus_Object = struct();
             disp_string = ['Stopped training Mouse ',num2str(this.Setting_Struct.Subject), ' at ',datestr(now)];
             disp(disp_string);
             disp('- - - - -');

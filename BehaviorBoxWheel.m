@@ -474,7 +474,6 @@ classdef BehaviorBoxWheel < handle
                 end
             end
             [this.fig, this.LStimAx, this.RStimAx, this.FLAx, ~] = this.Stimulus_Object.setUpFigure();
-            this.ensureStimulusFullscreen_();
             if ~any([this.app.Animate_Go.Value this.app.Animate_Show.Value this.app.Animate_Flash.Value this.app.Animate_Rec.Value]) % Don't show finish line for animation
                 this.ReadyCue('Create')
                 if isempty(this.ReadyCueAx) || ~isgraphics(this.ReadyCueAx)
@@ -514,6 +513,7 @@ classdef BehaviorBoxWheel < handle
                 set(this.message_handle, 'Text', "Starting acquisition (ScanImage)...");
                 this.a.Acquisition('Start');
                 this.logTimeEvent_("acq_start", struct('trial', 0, 'scanImageFile', this.TimeScanImageFileIndex));
+                pause(5) % Let the mouse react to the screen turning on
             catch
             end
         end
@@ -548,7 +548,6 @@ classdef BehaviorBoxWheel < handle
                 [this.StimHistory{this.i,1},this.StimHistory{this.i,2}] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, this.Level); %Plot new stimulus as hidden objects, record positions and angles of the segments
             end
             this.fig = this.Stimulus_Object.fig;
-            this.ensureStimulusFullscreen_();
             %Update GUI window numbers
             this.updateGUIbeforeIteration(); %Update again, in case the level changed
             [this.fig.Children.findobj('Type','Line').Visible] = deal(0);
@@ -656,7 +655,6 @@ classdef BehaviorBoxWheel < handle
                     try
                         this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
                         this.fig = this.Stimulus_Object.fig;
-                        this.ensureStimulusFullscreen_();
                     catch
                     end
                 end
@@ -2161,6 +2159,12 @@ classdef BehaviorBoxWheel < handle
             this.stop_handle.Value = 0;%Turn off Stop button
             %close stimulus if still open
             delete(findobj("Type", "figure", "Name", "Stimulus"))
+            this.fig = [];
+            this.ReadyCueAx = [];
+            this.LStimAx = [];
+            this.RStimAx = [];
+            this.FLAx = [];
+            this.Stimulus_Object = struct();
             disp_string = ['Stopped training Mouse ',num2str(this.Setting_Struct.Subject), ' at ',string(datetime("now"))];
             disp(disp_string);
             disp('- - - - -');
@@ -2264,7 +2268,6 @@ classdef BehaviorBoxWheel < handle
                     this.Setting_Struct.Starting_opacity);
             end
             this.fig = this.Stimulus_Object.fig;
-            this.ensureStimulusFullscreen_();
             if this.isMappingStyle_(stimType)
                 set(this.fig.findobj('Tag','Spotlight'), 'Visible', false)
             else
@@ -2338,7 +2341,6 @@ classdef BehaviorBoxWheel < handle
                 "FixY", opts.FixY, ...
                 "InitialVisible", true);
             this.fig = this.Stimulus_Object.fig;
-            this.ensureStimulusFullscreen_();
             drawnow
         end
         function flashVisibleMappingObjects_(this)
@@ -2775,7 +2777,6 @@ classdef BehaviorBoxWheel < handle
             this.Stimulus_Object = BehaviorBoxVisualStimulus(this.StimulusStruct, Preview=1);
             this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
             [this.fig, this.LStimAx, this.RStimAx, this.FLAx, ~] = this.Stimulus_Object.setUpFigure();
-            this.ensureStimulusFullscreen_();
 
             targets = this.Stimulus_Object.setupMappingScene(char(style), ...
                 "AngleDeg", opts.OrientedLineAngleDeg, ...
@@ -3439,38 +3440,6 @@ classdef BehaviorBoxWheel < handle
         end
     end
     methods (Access = private)
-        function ensureStimulusFullscreen_(this, figHandle)
-            if nargin < 2 || isempty(figHandle)
-                figHandle = this.fig;
-            end
-            if isempty(figHandle) || ~isgraphics(figHandle, 'figure')
-                return
-            end
-
-            try
-                figHandle.WindowState = 'fullscreen';
-                return
-            catch
-            end
-
-            try
-                figHandle.Units = 'normalized';
-            catch
-            end
-            try
-                figHandle.OuterPosition = [0 0 1 1];
-            catch
-            end
-            try
-                figHandle.Position = [0 0 1 1];
-            catch
-            end
-            try
-                figHandle.WindowState = 'maximized';
-            catch
-            end
-        end
-
         function beginTimeSegment_(this, kind, trialNumber)
             if isempty(this.Time) || ~isobject(this.Time)
                 return
