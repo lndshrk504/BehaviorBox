@@ -87,23 +87,28 @@ fi
 # colored GCC warnings and errors
 #export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
 
-# Uncomment this for MATLAB to override default opengl behavior, unnecessary as this issue has been resolved
-#
+# ---- MATLAB compatibility ----
 #export JAVA_TOOL_OPTIONS="-Djogl.disable.openglarbcontext=1"
-# some more ls aliases
+
+# ---- Shell aliases ----
 alias ll='ls -alF'
 alias la='ls -A'
 alias l='ls -CAF'
+
+# ---- Exit shortcuts ----
 alias :q='exit'
 alias bye='exit'
-alias Up='sudo apt update && sudo apt upgrade -y && sudo apt autoremove -y'
-alias BB='matlab -nosplash -nodesktop -r "BehaviorBox_App"'
-alias BBwheel='matlab -nosplash -nodesktop -r "BehaviorBox_App Wheel"'
-alias BBnose='matlab -nosplash -nodesktop -r "BehaviorBox_App Nose"'
-#alias cam='matlab -nosplash -nodesktop -r "viewDualCameras"'
-#alias cam='/home/will/Desktop/BehaviorBox/usbcamv4l-inteln100'
-alias FixSet='chmod guo+rw ComputerSettingsACM*.mat'
-alias GLtest="matlab -batch 'rendererinfo'"
+
+# ---- System maintenance ----
+alias up='sudo apt update && sudo apt upgrade -y && sudo apt autoremove -y'
+
+# ---- BehaviorBox / MATLAB ----
+alias bb='matlab -nosplash -nodesktop -r "BehaviorBox_App"'
+alias bbwheel='matlab -nosplash -nodesktop -r "BehaviorBox_App Wheel"'
+alias bbnose='matlab -nosplash -nodesktop -r "BehaviorBox_App Nose"'
+alias fixset='chmod guo+rw ComputerSettingsACM*.mat'
+alias gltest="matlab -batch 'rendererinfo'"
+
 # Add an "alert" alias for long running commands.  Use like so:
 #   sleep 10; alert
 alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
@@ -126,6 +131,11 @@ if ! shopt -oq posix; then
   elif [ -f /etc/bash_completion ]; then
     . /etc/bash_completion
   fi
+fi
+
+# Load machine-specific shell customizations that should not live in the shared repo copy.
+if [ -f ~/.bash_local ]; then
+    . ~/.bash_local
 fi
 
 eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)"

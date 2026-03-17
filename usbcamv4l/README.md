@@ -103,6 +103,7 @@ Runtime control examples (in another terminal while app is running):
 - `-mjpeg` mode prefers **MJPEG** capture, with fallback to NV12/YUYV.
 - `-mjpeg` defaults to low-latency decode policy (skip CUDA/CUVID, prefer **Intel QSV** on Intel renderers and **VAAPI** on AMD renderers, then **libturbojpeg** fallback).
 - `-mjpeg-hw` enables full hardware backend list; on AMD systems it prioritizes **VAAPI** (and skips CUDA/QSV probes when those devices are not active).
+- Default startup capture resolution is **1280x720** unless a per-camera saved resolution or interactive selection overrides it.
 - Overlay text is disabled by default for maximum throughput. Use `-fps` to enable the live resolution/FPS overlay.
 - Startup capture-path benchmark is enabled by default (`-bench-ms` controls the time budget, `-no-bench` disables it).
 - Runtime control socket defaults to `/tmp/usbcamv4l-control.sock` (override with `USBCAMV4L_CONTROL_SOCKET`).

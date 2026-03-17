@@ -59,8 +59,8 @@ namespace fs = std::filesystem;
 static constexpr int MAX_CAMERAS = 4;
 static constexpr int DEFAULT_WINDOW_W = 320;
 static constexpr int DEFAULT_WINDOW_H = 240;
-static constexpr int DEFAULT_FRAME_W = 640;
-static constexpr int DEFAULT_FRAME_H = 480;
+static constexpr int DEFAULT_FRAME_W = 1280;
+static constexpr int DEFAULT_FRAME_H = 720;
 
 enum class CapturePreference {
   Auto,     // Try NV12 then YUYV (existing behavior).
@@ -3643,8 +3643,10 @@ int main(int argc, char** argv) {
   int reconnectingIndicatorTexW = 0;
   int reconnectingIndicatorTexH = 0;
   std::vector<uint8_t> reconnectingIndicatorRgba;
-  static constexpr int kRecordBlinkPeriodMs = 500;
-  static constexpr int kReconnectBlinkPeriodMs = 320;
+  static constexpr int kRecordBlinkCycleMs = 1800;
+  static constexpr int kRecordBlinkVisibleMs = 550;
+  static constexpr int kReconnectBlinkCycleMs = 2200;
+  static constexpr int kReconnectBlinkVisibleMs = 700;
 
   auto upload_static_overlay = [&](const std::string& text,
                                    int scale,
@@ -3709,11 +3711,12 @@ int main(int argc, char** argv) {
   const int reconnectRetryMs = 1200;
   const int watchdogNoFrameMs = 1500;
 
-  auto blink_visible = [](int periodMs) -> bool {
-    const int safePeriod = std::max(120, periodMs);
+  auto blink_visible = [](int cycleMs, int visibleMs) -> bool {
+    const int safeCycle = std::max(250, cycleMs);
+    const int safeVisible = std::clamp(visibleMs, 80, safeCycle);
     const auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now().time_since_epoch()).count();
-    return ((nowMs / safePeriod) % 2) == 0;
+    return (nowMs % safeCycle) < safeVisible;
   };
 
   auto draw_overlay_texture = [&](GLuint tex,
@@ -3749,7 +3752,7 @@ int main(int argc, char** argv) {
     glClearColor(0.06f, 0.02f, 0.02f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    if (blink_visible(kReconnectBlinkPeriodMs)) {
+    if (blink_visible(kReconnectBlinkCycleMs, kReconnectBlinkVisibleMs)) {
       const int overlayX = std::max(0, (viewW - reconnectingIndicatorTexW) / 2);
       const int overlayY = std::max(0, (viewH - reconnectingIndicatorTexH) / 2);
       draw_overlay_texture(reconnectingIndicatorTex,
@@ -4608,12 +4611,14 @@ int main(int argc, char** argv) {
           draw_overlay_texture(cam.overlayTex, cam.overlayTexW, cam.overlayTexH,
                                viewW, viewH, 8, 8);
         }
-        if (cam.record && cam.recorder.enabled && blink_visible(kRecordBlinkPeriodMs)) {
+        if (cam.record && cam.recorder.enabled &&
+            blink_visible(kRecordBlinkCycleMs, kRecordBlinkVisibleMs)) {
           const int recordX = std::max(0, viewW - recordingIndicatorTexW - 10);
           draw_overlay_texture(recordingIndicatorTex, recordingIndicatorTexW, recordingIndicatorTexH,
                                viewW, viewH, recordX, 8);
         }
-        if (cam.reconnectPending && blink_visible(kReconnectBlinkPeriodMs)) {
+        if (cam.reconnectPending &&
+            blink_visible(kReconnectBlinkCycleMs, kReconnectBlinkVisibleMs)) {
           const int reconnectX = std::max(0, (viewW - reconnectingIndicatorTexW) / 2);
           const int reconnectY = std::max(0, (viewH - reconnectingIndicatorTexH) / 2);
           draw_overlay_texture(reconnectingIndicatorTex, reconnectingIndicatorTexW, reconnectingIndicatorTexH,
