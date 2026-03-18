@@ -1,0 +1,69 @@
+# ~/.bash_local: machine-specific shell customizations for this computer.
+
+# ---- MATLAB compatibility ----
+#export JAVA_TOOL_OPTIONS="-Djogl.disable.openglarbcontext=1"
+
+# ---- Shell aliases ----
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CAF'
+
+# ---- Exit shortcuts ----
+alias :q='exit'
+alias bye='exit'
+
+# ---- System maintenance ----
+alias Up='sudo apt update && sudo apt upgrade -y && sudo apt autoremove -y'
+
+# ---- BehaviorBox / MATLAB ----
+alias BB='matlab -nosplash -nodesktop -r "BehaviorBox_App"'
+alias BBwheel='matlab -nosplash -nodesktop -r "BehaviorBox_App Wheel"'
+alias BBnose='matlab -nosplash -nodesktop -r "BehaviorBox_App Nose"'
+alias FixSet='chmod guo+rw ComputerSettingsACM*.mat'
+alias GLtest="matlab -batch 'rendererinfo'"
+
+# ---- Notifications ----
+# Add an "alert" alias for long running commands.  Use like so:
+#   sleep 10; alert
+alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
+
+# ---- Local toolchains ----
+if [ -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
+    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)"
+fi
+
+append_unique_path_if_exists() {
+    local var_name="$1"
+    local path_value="$2"
+    local current_value="${!var_name-}"
+
+    [ -z "$path_value" ] && return 0
+    [ -d "$path_value" ] || return 0
+
+    path_value="${path_value%/}"
+
+    case ":${current_value}:" in
+        *":${path_value}:"*)
+            ;;
+        *)
+            if [ -n "${current_value}" ]; then
+                printf -v "$var_name" '%s:%s' "$current_value" "$path_value"
+            else
+                printf -v "$var_name" '%s' "$path_value"
+            fi
+            export "$var_name"
+            ;;
+    esac
+}
+
+if [ -f /home/wbs/miniforge3/etc/profile.d/conda.sh ]; then
+    . /home/wbs/miniforge3/etc/profile.d/conda.sh
+fi
+
+CUDA_HOME=/usr/local/cuda-11.1
+append_unique_path_if_exists PATH "${CUDA_HOME}/bin"
+append_unique_path_if_exists LD_LIBRARY_PATH "${CUDA_HOME}/lib64"
+
+TENSORRT_HOME=/home/wbs/DLC/TensorRT-7.2.3.4.Ubuntu-18.04.x86_64-gnu.cuda-11.1.cudnn8.1/TensorRT-7.2.3.4
+append_unique_path_if_exists LD_LIBRARY_PATH "${TENSORRT_HOME}/lib"
+append_unique_path_if_exists PATH "${TENSORRT_HOME}/bin"
