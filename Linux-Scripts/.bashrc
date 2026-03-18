@@ -10,14 +10,16 @@ esac
 
 # don't put duplicate lines or lines starting with space in the history.
 # See bash(1) for more options
-HISTCONTROL=ignoreboth
+HISTCONTROL=ignoreboth:erasedups
 
 # append to the history file, don't overwrite it
 shopt -s histappend
+shopt -s cmdhist
 
 # for setting history length see HISTSIZE and HISTFILESIZE in bash(1)
-HISTSIZE=1000
-HISTFILESIZE=2000
+HISTSIZE=5000
+HISTFILESIZE=10000
+export PROMPT_COMMAND='history -a; history -n'
 
 # check the window size after each command and, if necessary,
 # update the values of LINES and COLUMNS.
@@ -56,10 +58,17 @@ if [ -n "$force_color_prompt" ]; then
     fi
 fi
 
+parse_git_branch() {
+  local branch
+  branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)" || return
+  [ -n "$branch" ] || return
+  printf ' (%s)' "$branch"
+}
+
 if [ "$color_prompt" = yes ]; then
-    PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+    PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]$(parse_git_branch)\$ '
 else
-    PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\$ '
+    PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w$(parse_git_branch)\$ '
 fi
 unset color_prompt force_color_prompt
 
@@ -87,9 +96,6 @@ fi
 # colored GCC warnings and errors
 export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
 
-# ---- MATLAB compatibility ----
-#export JAVA_TOOL_OPTIONS="-Djogl.disable.openglarbcontext=1"
-
 # Alias definitions.
 # You may want to put all your additions into a separate file like
 # ~/.bash_aliases, instead of adding them here directly.
@@ -98,6 +104,15 @@ export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quo
 if [ -f ~/.bash_aliases ]; then
     . ~/.bash_aliases
 fi
+
+# quick directory navigation
+alias ..='cd ..'
+alias ...='cd ../..'
+alias croot='cd "$HOME/Desktop/BehaviorBox"'
+alias clscripts='cd "$HOME/Desktop/BehaviorBox/Linux-Scripts"'
+
+# display elapsed time for commands that exceed this threshold (seconds)
+export REPORTTIME=10
 
 # enable programmable completion features (you don't need to enable
 # this, if it's already enabled in /etc/bash.bashrc and /etc/profile
@@ -110,13 +125,9 @@ if ! shopt -oq posix; then
   fi
 fi
 
-# Load machine-specific shell customizations that should not live in the shared repo copy.
 if [ -f ~/.bash_local ]; then
     . ~/.bash_local
 fi
 
-if [ -f ~/.bash_local_CUDA ]; then
-    . ~/.bash_local_CUDA
-fi
-
-eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)"
+# ---- MATLAB compatibility ----
+#export JAVA_TOOL_OPTIONS="-Djogl.disable.openglarbcontext=1"

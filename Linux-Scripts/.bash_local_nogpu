@@ -1,4 +1,4 @@
-# ~/.bash_local: machine-specific shell customizations for this computer.
+# ~/.bash_local_nogpu: non-CUDA machine-specific shell customizations for this computer.
 
 # ---- Local toolchains ----
 if [ -x "${HOME}/.linuxbrew/bin/brew" ]; then
@@ -34,11 +34,3 @@ append_unique_path_if_exists() {
 if [ -f "${HOME}/miniforge3/etc/profile.d/conda.sh" ]; then
     . "${HOME}/miniforge3/etc/profile.d/conda.sh"
 fi
-
-CUDA_HOME=/usr/local/cuda-11.1
-append_unique_path_if_exists PATH "${CUDA_HOME}/bin"
-append_unique_path_if_exists LD_LIBRARY_PATH "${CUDA_HOME}/lib64"
-
-TENSORRT_HOME="${HOME}/DLC/TensorRT-7.2.3.4.Ubuntu-18.04.x86_64-gnu.cuda-11.1.cudnn8.1/TensorRT-7.2.3.4"
-append_unique_path_if_exists LD_LIBRARY_PATH "${TENSORRT_HOME}/lib"
-append_unique_path_if_exists PATH "${TENSORRT_HOME}/bin"
