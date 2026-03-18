@@ -7,20 +7,18 @@
 alias ll='ls -alF'
 alias la='ls -A'
 alias l='ls -CAF'
+alias up='sudo apt update && sudo apt upgrade -y && sudo apt autoremove -y'
 
 # ---- Exit shortcuts ----
-alias :q='exit'
+alias q='exit'
 alias bye='exit'
 
-# ---- System maintenance ----
-alias Up='sudo apt update && sudo apt upgrade -y && sudo apt autoremove -y'
-
 # ---- BehaviorBox / MATLAB ----
-alias BB='matlab -nosplash -nodesktop -r "BehaviorBox_App"'
-alias BBwheel='matlab -nosplash -nodesktop -r "BehaviorBox_App Wheel"'
-alias BBnose='matlab -nosplash -nodesktop -r "BehaviorBox_App Nose"'
-alias FixSet='chmod guo+rw ComputerSettingsACM*.mat'
-alias GLtest="matlab -batch 'rendererinfo'"
+alias bb='matlab -nosplash -nodesktop -r "BehaviorBox_App"'
+alias bbwheel='matlab -nosplash -nodesktop -r "BehaviorBox_App Wheel"'
+alias bbnose='matlab -nosplash -nodesktop -r "BehaviorBox_App Nose"'
+alias fixset='chmod guo+rw ComputerSettingsACM*.mat'
+alias gltest="matlab -batch 'rendererinfo'"
 
 # ---- Notifications ----
 # Add an "alert" alias for long running commands.  Use like so:

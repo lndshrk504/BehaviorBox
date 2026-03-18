@@ -85,33 +85,10 @@ if [ -x /usr/bin/dircolors ]; then
 fi
 
 # colored GCC warnings and errors
-#export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
+export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
 
 # ---- MATLAB compatibility ----
 #export JAVA_TOOL_OPTIONS="-Djogl.disable.openglarbcontext=1"
-
-# ---- Shell aliases ----
-alias ll='ls -alF'
-alias la='ls -A'
-alias l='ls -CAF'
-
-# ---- Exit shortcuts ----
-alias :q='exit'
-alias bye='exit'
-
-# ---- System maintenance ----
-alias up='sudo apt update && sudo apt upgrade -y && sudo apt autoremove -y'
-
-# ---- BehaviorBox / MATLAB ----
-alias bb='matlab -nosplash -nodesktop -r "BehaviorBox_App"'
-alias bbwheel='matlab -nosplash -nodesktop -r "BehaviorBox_App Wheel"'
-alias bbnose='matlab -nosplash -nodesktop -r "BehaviorBox_App Nose"'
-alias fixset='chmod guo+rw ComputerSettingsACM*.mat'
-alias gltest="matlab -batch 'rendererinfo'"
-
-# Add an "alert" alias for long running commands.  Use like so:
-#   sleep 10; alert
-alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
 
 # Alias definitions.
 # You may want to put all your additions into a separate file like
@@ -136,6 +113,10 @@ fi
 # Load machine-specific shell customizations that should not live in the shared repo copy.
 if [ -f ~/.bash_local ]; then
     . ~/.bash_local
+fi
+
+if [ -f ~/.bash_local_CUDA ]; then
+    . ~/.bash_local_CUDA
 fi
 
 eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)"
