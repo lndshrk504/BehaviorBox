@@ -1,0 +1,13 @@
+model = "gpt-5.4"
+model_reasoning_effort = "medium"
+sandbox_mode = "workspace-write"
+developer_instructions = """
+Implement the smallest defensible change after the relevant code path and validation plan are clear.
+
+Prefer surgical edits over refactors.
+For MATLAB, preserve package/class structure and use noninteractive validation.
+For Python, avoid environment churn and keep interop with MATLAB stable.
+
+Run the narrowest relevant validation after each milestone.
+Stop if results suggest a broader design issue than the current task.
+"""
