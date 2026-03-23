@@ -508,6 +508,8 @@ classdef BehaviorBoxWheel < handle
                 this.beginTimeSegment_("setup", 0);
             catch
             end
+            this.start_time = datetime("now");
+            this.Data_Object.GetStartTime;
             % Send Start Acquisition signal to ScanImage
             try
                 set(this.message_handle, 'Text', "Starting acquisition (ScanImage)...");
@@ -947,10 +949,6 @@ classdef BehaviorBoxWheel < handle
             elseif get(this.stop_handle, 'Value')
                 this.TrialStartTime = 0;
             end
-            if this.i == 1 %start the timer after the first trial has begun. Maybe this should be put somewhere else but I don't want the timer to start until the mouse begins the first trial so where else?
-                this.start_time = datetime("now");
-                this.Data_Object.GetStartTime;
-            end
         end
         function WaitForInputAndGiveReward(this, options)
             arguments
@@ -1155,9 +1153,9 @@ classdef BehaviorBoxWheel < handle
             % ---- Reset encoder at loop start ----
             this.a.Reset();
 
-            if this.app.Animate_MimicTrial.Value
-                this.SimulateTrial()
-            end
+            % if this.app.Animate_MimicTrial.Value
+            %     this.SimulateTrial()
+            % end
 
             % ---- Preallocate trace buffers (fast, grows in chunks) ----
             cap = 200000;
@@ -1221,7 +1219,7 @@ classdef BehaviorBoxWheel < handle
             % Phase 1: free choice loop
             % =========================
             tLoop = tic;
-            while (timeout_value == 0 | toc(tLoop) <= timeout_value) && ~this.app.Animate_MimicTrial.Value % do NOT replace | with || or the expression is changed.
+            while (timeout_value == 0 | toc(tLoop) <= timeout_value) % do NOT replace | with || or the expression is changed.
                 % Fast read if available
                 if ismethod(this.a,'ReadWheel')
                     dist = this.a.ReadWheel();

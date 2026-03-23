@@ -4,7 +4,7 @@
 alias ll='ls -alF'
 alias la='ls -A'
 alias l='ls -CAF'
-alias up='sudo apt update && sudo apt upgrade -y && sudo apt autoremove -y'
+alias up='sudo apt update && sudo apt upgrade -y && sudo apt autoremove -y && brew update && brew upgrade'
 alias rm='rm -I'
 alias cp='cp -i'
 alias mv='mv -i'
