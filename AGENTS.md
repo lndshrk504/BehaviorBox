@@ -36,10 +36,11 @@ For MATLAB work, also inspect any `+pkg`, `@Class`, `private/`, `startup.m`, and
 
 ## MATLAB Operating Rules
 - MATLAB owns MATLAB behavior. Validate `.m` changes in MATLAB, not only by static inspection.
-- Use the MATLAB MCP server for execution and linting when available.
+- Use the MATLAB MCP server as the default path for execution and linting when available.
 - Prefer MCP tools instead of guessing MATLAB syntax.
-- Use `run_matlab_file` for scripts and `check_matlab_code` before suggesting or landing MATLAB changes.
-- Prefer noninteractive MATLAB runs with `matlab -batch ...` over GUI actions.
+- Use `check_matlab_code` for static checks and `run_matlab_file` or MATLAB MCP execution for narrow script runs before suggesting or landing MATLAB changes.
+- Use noninteractive `matlab -batch ...` runs for reproducible headless validation, repo-documented smoke tests, startup-dependent flows, and any result you need to report as an exact terminal command.
+- If choosing between MCP and `matlab -batch`, prefer MCP for iteration and `matlab -batch` for validation and handoff-ready verification.
 - Keep paths deterministic. Do not add `addpath(genpath(...))` unless the repo already depends on it.
 - Do not rename outputs, move data directories, or change saved-file schema without an explicit note in the handoff.
 - If MATLAB and Python disagree on shapes, dtypes, indexing, or file schema, stop and explain the mismatch before forcing a fix.
