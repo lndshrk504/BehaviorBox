@@ -1557,6 +1557,8 @@ classdef BehaviorBoxWheel < handle
             catch
             end
 
+            this.WhatDecision = WhatDecision;
+            this.ResponseTime = response_time;
             this.logChoiceEvent_();
 
             % Publish trace
