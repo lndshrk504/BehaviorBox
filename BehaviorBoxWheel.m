@@ -503,6 +503,13 @@ classdef BehaviorBoxWheel < handle
             catch
             end
             try
+                if ~isempty(this.Time) && isobject(this.Time) && ~isempty(this.Time.Ard)
+                    write(this.Time.Ard, '0', "char");
+                    pause(0.05)
+                end
+            catch
+            end
+            try
                 set(this.message_handle, 'Text', "Preparing timestamp log ...");
                 this.TimeScanImageFileIndex = 1;
                 this.beginTimeSegment_("setup", 0);

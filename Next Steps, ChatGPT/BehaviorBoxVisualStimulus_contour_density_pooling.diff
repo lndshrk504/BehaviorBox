@@ -1,0 +1,163 @@
+Instructions:
+When you want to revisit it, I can either apply this diff selectively to BehaviorBoxVisualStimulus.m or turn it into a more implementation-ready patch after checking the current live file again.
+
+diff --git a/BehaviorBoxVisualStimulus.m b/BehaviorBoxVisualStimulus.m
+--- a/BehaviorBoxVisualStimulus.m
++++ b/BehaviorBoxVisualStimulus.m
+@@ -1039,12 +1039,23 @@
+         function [L,R,Lrej,Rrej] = ShowStimulusContour_Density(this, options)
+             arguments
+                 this
+                 options.SH
+             end
+             % in this stimulus instead of training by gradual increase between line
+             % segments contrast with background we use gradual increase of line quantity
+             if ~isfield(options,'SH')
+-                [Ldist, LTags, Lrej] = this.CheckDistractors(1);
+-                [Rdist, RTags, Rrej] = this.CheckDistractors(0);
++                [Ldist, Lcont, isLCorrect] = this.chooseSegments_(true);
++                [Rdist, Rcont, isRCorrect] = this.chooseSegments_(false);
++                this.setAxisTags_(true, isLCorrect);
++                this.setAxisTags_(false, isRCorrect);
++                this.ensurePools_();
++                this.updatePooledLines_(true, Ldist, Lcont);
++                this.updatePooledLines_(false, Rdist, Rcont);
++                Lrej = {};
++                Rrej = {};
++                L = [Ldist; Lcont];
++                R = [Rdist; Rcont];
++                view(-this.Orient,90)
++                return
+             else
+                 % 1 TrialNum
+                 % 2 Level
+                 % 3 Left Stim
+                 % 4 Right Stim
+@@ -1082,6 +1093,101 @@
+             end
+             L = Ldist; R = Rdist;
+         end
++
++        function setAxisTags_(this, isLeftStim, isCorrect)
++            if isLeftStim
++                side = "Left";
++                ax = this.LStimAx;
++            else
++                side = "Right";
++                ax = this.RStimAx;
++            end
++            if isempty(ax) || ~isgraphics(ax)
++                return
++            end
++            if isCorrect
++                ax.Tag = side + " Correct";
++            else
++                ax.Tag = side + " Incorrect";
++            end
++        end
++
++        function [DistSeg, ContSeg, isCorrect] = chooseSegments_(this, isLeftStim)
++            if (this.isLeftTrial && isLeftStim) || (~this.isLeftTrial && ~isLeftStim)
++                isCorrect = true;
++            else
++                isCorrect = false;
++            end
++
++            W = 1 + isCorrect;
++            numDs = this.numDistractorsTable(this.Level, W);
++
++            if isempty(this.ContourNodes)
++                this.ContourNodes = this.SetupHexGrid();
++            end
++
++            if isCorrect
++                contourIdx = (this.ContourNodes(:,1) == 0);
++                contNodes = this.ContourNodes(contourIdx, :);
++                nonCont = this.ContourNodes(~contourIdx, :);
++            else
++                contNodes = zeros(0,2);
++                nonCont = this.ContourNodes;
++            end
++
++            if numDs > 0
++                idx = randperm(size(nonCont,1), numDs);
++                DistSeg = [nonCont(idx,:) randi(180, numDs, 1)];
++            else
++                DistSeg = zeros(0,3);
++            end
++
++            if isCorrect
++                ContSeg = [contNodes repmat(90, size(contNodes,1), 1)];
++            else
++                ContSeg = zeros(0,3);
++            end
++
++            AllSeg = [DistSeg; ContSeg];
++            if ~isempty(AllSeg)
++                [ok, newAngles] = this.SerialcheckAllDistractors(AllSeg, this.ContTol);
++                if ~ok
++                    AllSeg(:,3) = newAngles;
++                    DistSeg = AllSeg(1:size(DistSeg,1), :);
++                    ContSeg = AllSeg(size(DistSeg,1)+1:end, :);
++                end
++            end
++        end
++
++        function updatePooledLines_(this, isLeftStim, DistSeg, ContSeg)
++            if isLeftStim
++                hD = this.LDistractorLine;
++                hC = this.LContourLine;
++            else
++                hD = this.RDistractorLine;
++                hC = this.RContourLine;
++            end
++
++            if isempty(DistSeg)
++                hD.XData = [];
++                hD.YData = [];
++                hD.Visible = 'off';
++            else
++                [xD, yD] = this.segmentsToXY_(DistSeg);
++                hD.XData = xD;
++                hD.YData = yD;
++                hD.Visible = 'on';
++            end
++
++            if isempty(ContSeg)
++                hC.XData = [];
++                hC.YData = [];
++                hC.Visible = 'off';
++            else
++                [xC, yC] = this.segmentsToXY_(ContSeg);
++                hC.XData = xC;
++                hC.YData = yC;
++                hC.Visible = 'on';
++            end
++        end
++
++        function [x, y] = segmentsToXY_(this, Seg)
++            n = size(Seg,1);
++            if n == 0
++                x = [];
++                y = [];
++                return
++            end
++
++            theta = Seg(:,3) * (pi/180);
++            halfL = this.SegLength / 2;
++            dx = cos(theta) * halfL;
++            dy = sin(theta) * halfL;
++
++            x = nan(3*n,1);
++            y = nan(3*n,1);
++            x(1:3:end) = Seg(:,1) + dx;
++            x(2:3:end) = Seg(:,1) - dx;
++            y(1:3:end) = Seg(:,2) + dy;
++            y(2:3:end) = Seg(:,2) - dy;
++        end
++
+         function [DISTS, Tags, REJ] = CheckDistractors(this, isLeftStim)
+             REJ = {};
+             [DISTS, Tags, isCorrect] = this.chooseDistractors(isLeftStim);
+             [approve, newAngles] = this.SerialcheckAllDistractors(DISTS);
+             if ~approve

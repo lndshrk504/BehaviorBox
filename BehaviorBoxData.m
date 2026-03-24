@@ -3649,6 +3649,56 @@ classdef BehaviorBoxData < handle
 
         end
 
+        function T = TrialsToCriterion80(this, Tbl, options)
+            % Compute trials-to-criterion per level using a sliding window
+            % or a beta-binomial posterior threshold.
+            arguments
+                this
+                Tbl table
+                options.Window (1,1) double = 20
+                options.Criterion (1,1) double = 0.8
+                options.IgnoreTimeout (1,1) logical = true
+                options.Method char {mustBeMember(options.Method, {'sliding','bayes'})} = 'sliding'
+                options.BayesPrior (1,2) double = [1 1]
+                options.BayesProb (1,1) double = 0.95
+                options.MinTrials (1,1) double = NaN
+            end
+
+            if isnan(options.MinTrials)
+                options.MinTrials = options.Window;
+            end
+
+            rows = true(height(Tbl),1);
+            if options.IgnoreTimeout && any(strcmpi(Tbl.Properties.VariableNames, 'Score'))
+                rows = rows & Tbl.Score ~= 2;
+            end
+            if any(strcmpi(Tbl.Properties.VariableNames, 'Include'))
+                rows = rows & logical(Tbl.Include);
+            end
+            Tbl = Tbl(rows,:);
+
+            Levels = unique(Tbl.Level);
+            TTC = nan(numel(Levels),1);
+            N = zeros(numel(Levels),1);
+            for iL = 1:numel(Levels)
+                L = Levels(iL);
+                levelRows = Tbl.Level == L;
+                y = double(Tbl.Score(levelRows) == 1);
+                N(iL) = numel(y);
+
+                switch options.Method
+                    case 'sliding'
+                        TTC(iL) = BehaviorBoxData.trialsToCriterionSliding(y, options.Criterion, options.Window, options.MinTrials);
+                    case 'bayes'
+                        a0 = options.BayesPrior(1);
+                        b0 = options.BayesPrior(2);
+                        TTC(iL) = BehaviorBoxData.trialsToCriterionBayes(y, options.Criterion, a0, b0, options.BayesProb, options.MinTrials);
+                end
+            end
+
+            T = table(Levels, N, TTC, 'VariableNames', {'Level','NTrials','TrialsTo80'});
+        end
+
     end %end methods
     methods(Static)
         function setGUI(Data, GUINums)
@@ -3715,6 +3765,48 @@ classdef BehaviorBoxData < handle
             figProps.Resolution = '600';
             set(fig, 'PaperUnits', 'inches', 'PaperPositionMode', 'auto', 'PaperSize', ...
                 [str2double(figProps.Width) str2double(figProps.Height)]);
+        end
+        function idx = trialsToCriterionSliding(y, criterion, window, minTrials)
+            % Return the first trial index where the trailing window
+            % average reaches the requested criterion.
+            n = numel(y);
+            if n < max(window, minTrials) || window <= 1
+                idx = NaN;
+                return
+            end
+            ma = filter(ones(1,window,'double')/window, 1, y(:));
+            k = (1:n)';
+            ok = (k >= window) & (k >= minTrials) & (ma >= criterion);
+            f = find(ok, 1, 'first');
+            if isempty(f)
+                idx = NaN;
+            else
+                idx = f;
+            end
+        end
+        function idx = trialsToCriterionBayes(y, criterion, a0, b0, probThr, minTrials)
+            % Return the first trial index where the posterior probability
+            % of exceeding criterion reaches probThr.
+            n = numel(y);
+            if n < minTrials
+                idx = NaN;
+                return
+            end
+            y = y(:);
+            cs = cumsum(y);
+            k = (1:n)';
+            a = a0 + cs;
+            b = b0 + (k - cs);
+            % Equivalent Statistics Toolbox form:
+            % p = 1 - betacdf(criterion, a, b);
+            p = 1 - betainc(criterion, a, b);
+            ok = (k >= minTrials) & (p >= probThr);
+            f = find(ok, 1, 'first');
+            if isempty(f)
+                idx = NaN;
+            else
+                idx = f;
+            end
         end
         function unwrapError(err)
             getReport(err, "extended")

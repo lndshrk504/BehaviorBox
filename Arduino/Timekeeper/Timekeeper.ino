@@ -74,6 +74,28 @@ static bool dequeueRecord(EventRecord &record) {
   return true;
 }
 
+static inline void resetFrameCounter() {
+  noInterrupts();
+  frameCount = 0;
+  eventHead = 0;
+  eventTail = 0;
+  droppedEvents = 0;
+  interrupts();
+}
+
+static inline void handleSerialCommands() {
+  while (Serial.available() > 0) {
+    const char cmd = static_cast<char>(Serial.read());
+    switch (cmd) {
+      case '0':
+        resetFrameCounter();
+        break;
+      default:
+        break;
+    }
+  }
+}
+
 static void printUint64(uint64_t value) {
   char buffer[21];
   uint8_t idx = sizeof(buffer) - 1;
@@ -124,6 +146,8 @@ void setup() {
 }
 
 void loop() {
+  handleSerialCommands();
+
   EventRecord record;
   while (dequeueRecord(record)) {
     if (record.type == RECORD_STIMULUS) {
