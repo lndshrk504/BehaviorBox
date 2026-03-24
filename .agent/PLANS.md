@@ -106,3 +106,57 @@
 8. Handoff notes
 - Report whether buffered events are cleared or retained on reset.
 - Call out that frame numbering after reset will restart from zero/one depending on whether the first emitted frame is counted post-edge.
+
+## 2026-03-24 Extend Wheel/Stimulus Logging For Imaging Sync
+
+1. Goal
+- Add additive logging in `BehaviorBoxWheel.m` so saved wheel trials include:
+- the raw `ReadWheel()` value
+- the existing derived `wheelchoice` value
+- the actual drawn display values needed to reconstruct what the mouse saw
+- a frame-aligned derived table built from `TimestampRecord.parsed`
+
+2. Non-goals
+- Do not repurpose or redefine existing `wheel_record`, `StimHist`, or `TimestampRecord`.
+- Do not move trial-metric logging into `BehaviorBoxSerialInput.m`.
+- Do not add explicit wheel reset-event logging.
+- Do not change the Timekeeper/annotation clock strategy in this pass.
+- Do not add a new stimulus event stream beyond the existing `Time.Log`.
+
+3. Current-state summary
+- `BehaviorBoxWheel.readLeverLoopAnalogWheel()` reads `this.a.ReadWheel()` but saves only the derived/clipped `wheelchoice` trace and trial-relative `wheelchoicetime`.
+- `BehaviorBoxWheel` already saves `wheel_record`, `StimHist`, and `TimestampRecord`.
+- `TimestampRecord.parsed` already exposes structured frame/signal/annotation rows, but the current imaging analysis script still reparses raw strings.
+- The user prefers to keep logging responsibilities inside `BehaviorBoxWheel.m`.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxWheel.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxData.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/Imaging Analysis scripts/MatchFramesToTimestamps.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/Next Steps, ChatGPT/Wheel_Stimulus_ImagingSync_Plan.md`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- MATLAB lint:
+  `matlab -batch "checkcode('BehaviorBoxWheel.m'); checkcode('BehaviorBoxData.m');"`
+- Conflict-marker scan:
+  `rg -n "^<<<<<<<|^=======|^>>>>>>>" /Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxWheel.m /Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxData.m /Users/willsnyder/Desktop/BehaviorBox/Imaging\ Analysis\ scripts/MatchFramesToTimestamps.m`
+- Manual wheel-session smoke test after implementation:
+  run one short wheel trial and inspect the saved `.mat` for existing `wheel_record`, new additive wheel/display fields, and `TimestampRecord`
+
+6. Milestones
+- Define additive field names and save schema without changing existing fields.
+- Capture raw wheel values plus actual drawn display values in `BehaviorBoxWheel.readLeverLoopAnalogWheel()`.
+- Save the new fields into training output.
+- Update or replace the imaging analysis step so it uses `TimestampRecord.parsed`.
+- Build the frame-aligned table and verify it reconstructs one known trial sensibly.
+
+7. Risks and stop conditions
+- Stop if the new fields require redefining existing saved-field semantics instead of adding new ones.
+- Stop if the proposed frame-aligned table cannot be built cleanly from current `TimestampRecord.parsed` plus saved wheel/display traces.
+- Stop if a change would silently alter existing saved `.mat` schema beyond explicit additive fields.
+
+8. Handoff notes
+- Preserve backward compatibility of `wheel_record`, `StimHist`, and `TimestampRecord`.
+- Call out exactly which new fields are additive.
+- Report whether the frame-aligned table is saved during acquisition or generated only during analysis.
