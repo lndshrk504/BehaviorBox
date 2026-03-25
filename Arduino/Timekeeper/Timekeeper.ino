@@ -1,4 +1,4 @@
-// WBS 2026 - 03 - 10
+// WBS 2026 - 03 - 25
 // Timekeeper records:
 //   - Pin 2 stimulus edges
 //   - Pin 3 frame clocks
@@ -194,7 +194,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(INPUT_PIN_2), RecordStimulus, CHANGE);
   attachInterrupt(digitalPinToInterrupt(INPUT_PIN_3), RecordFrame, RISING);
 
-  Serial.println(F("Box ID: Time1"));
+  Serial.println(F("Box ID: Time2"));
   Serial.println(F("Timestamp on rise:"));
   Serial.println(F("Pin 2 Stimulus"));
   Serial.println(F("Pin 3 Frame"));

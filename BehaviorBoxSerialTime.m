@@ -100,6 +100,36 @@ classdef BehaviorBoxSerialTime < handle
             this.DispOutput = false;
         end
 
+        function response = CheckFrame(this, timeoutSeconds)
+            arguments
+                this
+                timeoutSeconds double = 1
+            end
+            if isempty(this.Ard)
+                error('BehaviorBoxSerialTime:NotConnected', ...
+                    'Timestamp serial port is not connected.');
+            end
+            startCount = numel(this.RawLog);
+            write(this.Ard, 'F', "char");
+            response = "";
+            tStart = tic;
+            while toc(tStart) < timeoutSeconds
+                drawnow limitrate
+                if numel(this.RawLog) > startCount
+                    newLines = this.RawLog(startCount+1:end);
+                    idx = find(contains(newLines, "Debug Frame count:"), 1, 'last');
+                    if ~isempty(idx)
+                        response = newLines(idx);
+                        disp(response);
+                        return
+                    end
+                end
+                pause(0.02)
+            end
+            warning('BehaviorBoxSerialTime:CheckFrameTimeout', ...
+                'No frame-count response was received within %.2f seconds.', timeoutSeconds);
+        end
+
         function UpdateProps(this, BoxStruct)
             arguments
                 this

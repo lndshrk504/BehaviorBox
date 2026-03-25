@@ -95,7 +95,7 @@ static inline void setupPins() {
 
 static inline void displayID() {
   Serial.print(F("Box ID: "));
-  Serial.println(F("Wheel1")); // Change this for every board, identifies the board to ArduinoServer.m
+  Serial.println(F("Wheel2")); // Change this for every board, identifies the board to ArduinoServer.m
 }
 
 void loop() {
