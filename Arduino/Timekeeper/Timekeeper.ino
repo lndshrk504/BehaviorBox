@@ -10,11 +10,15 @@
 //   4) loop() handles all serial formatting/printing.
 
 #include <Arduino.h>
+#if defined(ARDUINO_ARCH_AVR)
+#include <util/atomic.h>
+#endif
 
 constexpr uint8_t INPUT_PIN_2 = 2;  // Stimulus signal (BB)
 constexpr uint8_t INPUT_PIN_3 = 3;  // Frame clock signal (SI)
 constexpr uint8_t EVENT_BUFFER_SIZE = 64;
 constexpr uint64_t MICROS_WRAP_US = (1ULL << 32);
+constexpr unsigned long SERIAL_WAIT_TIMEOUT_MS = 2000;
 
 enum RecordType : uint8_t {
   RECORD_STIMULUS = 1,
@@ -25,6 +29,11 @@ struct __attribute__((packed)) EventRecord {
   uint64_t t_us;   // Session-relative microseconds
   uint32_t data;   // Stimulus state (0/1) or frame count
   uint8_t type;    // RecordType
+};
+
+struct CounterSnapshot {
+  uint32_t frameCount;
+  uint32_t droppedEvents;
 };
 
 volatile EventRecord eventBuffer[EVENT_BUFFER_SIZE];
@@ -60,27 +69,63 @@ static inline void enqueueRecordISR(uint8_t type, uint32_t data, uint64_t t_us) 
 }
 
 static bool dequeueRecord(EventRecord &record) {
-  noInterrupts();
-  if (eventTail == eventHead) {
-    interrupts();
-    return false;
+  bool hasRecord = false;
+#if defined(ARDUINO_ARCH_AVR)
+  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+    if (eventTail != eventHead) {
+      record.type = eventBuffer[eventTail].type;
+      record.data = eventBuffer[eventTail].data;
+      record.t_us = eventBuffer[eventTail].t_us;
+      eventTail = static_cast<uint8_t>((eventTail + 1) % EVENT_BUFFER_SIZE);
+      hasRecord = true;
+    }
   }
-
-  record.type = eventBuffer[eventTail].type;
-  record.data = eventBuffer[eventTail].data;
-  record.t_us = eventBuffer[eventTail].t_us;
-  eventTail = static_cast<uint8_t>((eventTail + 1) % EVENT_BUFFER_SIZE);
+#else
+  noInterrupts();
+  if (eventTail != eventHead) {
+    record.type = eventBuffer[eventTail].type;
+    record.data = eventBuffer[eventTail].data;
+    record.t_us = eventBuffer[eventTail].t_us;
+    eventTail = static_cast<uint8_t>((eventTail + 1) % EVENT_BUFFER_SIZE);
+    hasRecord = true;
+  }
   interrupts();
-  return true;
+#endif
+  return hasRecord;
 }
 
 static inline void resetFrameCounter() {
+#if defined(ARDUINO_ARCH_AVR)
+  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+    frameCount = 0;
+    eventHead = 0;
+    eventTail = 0;
+    droppedEvents = 0;
+  }
+#else
   noInterrupts();
   frameCount = 0;
   eventHead = 0;
   eventTail = 0;
   droppedEvents = 0;
   interrupts();
+#endif
+}
+
+static inline CounterSnapshot readCounterSnapshot() {
+  CounterSnapshot snapshot{};
+#if defined(ARDUINO_ARCH_AVR)
+  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+    snapshot.frameCount = frameCount;
+    snapshot.droppedEvents = droppedEvents;
+  }
+#else
+  noInterrupts();
+  snapshot.frameCount = frameCount;
+  snapshot.droppedEvents = droppedEvents;
+  interrupts();
+#endif
+  return snapshot;
 }
 
 static inline void handleSerialCommands() {
@@ -89,6 +134,15 @@ static inline void handleSerialCommands() {
     switch (cmd) {
       case '0':
         resetFrameCounter();
+        break;
+      case 'F':
+        {
+          const CounterSnapshot snapshot = readCounterSnapshot();
+          Serial.print(F("Debug Frame count: "));
+          Serial.print(snapshot.frameCount);
+          Serial.print(F(" Dropped events: "));
+          Serial.println(snapshot.droppedEvents);
+        }
         break;
       default:
         break;
@@ -125,7 +179,8 @@ void RecordFrame() {
 
 void setup() {
   Serial.begin(115200);
-  while (!Serial) { }  // Needed for native USB boards.
+  const unsigned long serialWaitStartMs = millis();
+  while (!Serial && (millis() - serialWaitStartMs) < SERIAL_WAIT_TIMEOUT_MS) { }
 
   const uint32_t startupMicros = micros();
   lastMicrosLow = startupMicros;
