@@ -104,6 +104,14 @@ classdef BehaviorBoxWheel < handle
         textdiary
         MappingAnimationLog = table();
         MappingMetadata = struct();
+        WheelDisplayRecord = table();
+        FrameAlignedRecord = table();
+        CurrentTrialFrameAlignedRecord = table();
+        CurrentWheelPhase string = "intertrial"
+        CurrentRawWheel double = 0
+        CurrentDelta double = 0
+        CurrentStimColor double = NaN
+        hold_still_start = []
     end
     methods
         function this = BehaviorBoxWheel(GUI_handles, app)
@@ -845,6 +853,7 @@ classdef BehaviorBoxWheel < handle
                 this.beginTimeSegment_("trial", this.i);
                 this.logTrialStartEvent_();
                 this.logTimeEvent_("hold_still_start", struct('trial', this.i, 'side', this.trialSideName_(), 'level', this.Level));
+                this.beginWheelDisplayTrial_();
             catch
             end
             try % Send Next File signal to ScanImage
@@ -875,7 +884,11 @@ classdef BehaviorBoxWheel < handle
                         tic;
                         while toc<=timelimit
                             this.message_handle.Text = "Keep the wheel still for "+num2str(round(timelimit - toc,1))+" seconds."; drawnow limitrate
-                            if this.a.ReadWheel() ~= 0
+                            holdStillWheel = this.a.ReadWheel();
+                            if holdStillWheel ~= 0
+                                this.CurrentRawWheel = double(holdStillWheel);
+                                this.CurrentDelta = 0;
+                                this.recordScreenEventPoint_("Hold Still interval reset", "ResetToZero", true);
                                 if ~isempty(this.FLAx) && all(isgraphics(this.FLAx))
                                     this.Flash(this.StimulusStruct, this.Box, this.FLAx, 'Wheel');
                                 end
@@ -974,6 +987,7 @@ classdef BehaviorBoxWheel < handle
             this.setVisibleChildren(this.fig.Children, true);
             Lines = [findobj('Tag', 'Contour') ; findobj('Tag', 'Distractor')];
             drawnow
+            this.setWheelDisplayPhase_("response");
             % Ignore input for a defined duration
             startTime = tic;
             % Moved the file handling to wait for input function
@@ -985,12 +999,24 @@ classdef BehaviorBoxWheel < handle
             %this.flashStimulus(); % Do not flash when imaging
             this.Data_Object.addStimEvent(this.isLeftTrial);  % Record stimulus event
             if this.Setting_Struct.Input_ignored
+                this.CurrentRawWheel = 0;
+                this.CurrentDelta = 0;
+                this.CurrentStimColor = this.colorScalar_(this.StimulusStruct.LineColor);
+                this.recordScreenEventPoint_("Input Ignored interval", "ResetToZero", true);
+                this.recordScreenEventPoint_("Flash - input ignore interval", "ResetToZero", true);
                 this.FlashNew(this.StimulusStruct, this.Box,  Lines, 'NewStim')
+                this.recordScreenEventPoint_("Flash over - input ignore interval", "ResetToZero", true);
                 set(this.message_handle, 'Text', sprintf('Input ignored for %s sec...', num2str(this.Setting_Struct.Pokes_ignored_time)));
                 pause(this.Setting_Struct.Pokes_ignored_time)
+                this.recordScreenEventPoint_("Ignore interval over", "ResetToZero", true);
             end
             for rep = 1:this.Setting_Struct.Stimulus_RepFlashInitial
+                this.CurrentRawWheel = 0;
+                this.CurrentDelta = 0;
+                this.CurrentStimColor = this.colorScalar_(this.StimulusStruct.LineColor);
+                this.recordScreenEventPoint_("Flash", "ResetToZero", true);
                 this.FlashNew(this.StimulusStruct, this.Box, Lines, 'Correct_Confirmation')
+                this.recordScreenEventPoint_("Flash over", "ResetToZero", true);
             end
             % Enhanced decision-making loop based on inputType
             set(this.message_handle, 'Text', sprintf('Waiting for %s choice...', this.current_side));
@@ -1219,6 +1245,8 @@ classdef BehaviorBoxWheel < handle
             Lines = [findobj('Tag', 'Contour') ; findobj('Tag', 'Distractor')];
             baseColor = this.StimulusStruct.LineColor;
             dimColor  = this.StimulusStruct.DimColor;
+            pendingScreenEvent = "";
+            this.CurrentStimColor = this.colorScalar_(baseColor);
 
             prevDelta = NaN;
 
@@ -1253,6 +1281,8 @@ classdef BehaviorBoxWheel < handle
                             set(Lines,'Color',baseColor);
                         end
                         blinkActive = false;
+                        pendingScreenEvent = "stallblink_end";
+                        this.CurrentStimColor = this.colorScalar_(baseColor);
                     end
                 elseif ~blinkActive && (tNow - tLastMove) >= stallSec
                     if isempty(Lines) || any(~isgraphics(Lines))
@@ -1266,6 +1296,8 @@ classdef BehaviorBoxWheel < handle
                     blinkActive = true;
                     blinkT0 = tNow;
                     didStallBlink = true;
+                    pendingScreenEvent = "stallblink_start";
+                    this.CurrentStimColor = this.colorScalar_(dimColor);
                 end
 
                 if blinkActive && (tNow - blinkT0) >= blinkDur
@@ -1279,6 +1311,8 @@ classdef BehaviorBoxWheel < handle
                     end
                     blinkActive = false;
                     tLastMove = tNow;
+                    pendingScreenEvent = "stallblink_end";
+                    this.CurrentStimColor = this.colorScalar_(baseColor);
                 end
 
                 % dist -> delta
@@ -1293,6 +1327,8 @@ classdef BehaviorBoxWheel < handle
                 elseif ~this.isLeftTrial & delta > thresh
                     delta = thresh;
                 end
+                this.CurrentRawWheel = double(dist);
+                this.CurrentDelta = double(delta);
 
                 % Trace
                 I = I+1;
@@ -1324,11 +1360,17 @@ classdef BehaviorBoxWheel < handle
                 end
 
                 % Render/UI pump at target Hz (avoid 20 Hz cap of drawnow limitrate)
-                % if (tNow - tLastDraw) >= drawInterval
-                %     drawnow %nocallbacks
-                %     tLastDraw = tNow;
-                % end
-                drawnow
+                if (tNow - tLastDraw) >= drawInterval || strlength(pendingScreenEvent) > 0
+                    drawnow %nocallbacks
+                    if strlength(pendingScreenEvent) > 0
+                        this.recordScreenEventPoint_(pendingScreenEvent);
+                    else
+                        this.recordWheelDisplayState_();
+                    end
+                    pendingScreenEvent = "";
+                    tLastDraw = tNow;
+                end
+                %drawnow
 
                 % Decision logic
                 if this.isLeftTrial & delta <= -thresh
@@ -1353,6 +1395,11 @@ classdef BehaviorBoxWheel < handle
                 end
             end
             drawnow
+            if strlength(pendingScreenEvent) > 0
+                this.recordScreenEventPoint_(pendingScreenEvent);
+            else
+                this.recordWheelDisplayState_();
+            end
 
             response_time = toc(tLoop);
 
@@ -1397,6 +1444,8 @@ classdef BehaviorBoxWheel < handle
                 blinkActive = false;
                 blinkT0 = 0;
                 tLastDraw = -Inf;
+                pendingScreenEvent = "";
+                this.CurrentStimColor = this.colorScalar_(baseColor);
 
                 % Acceptance thresholds (match legacy 0.24/0.26 with a ratio)
                 accept = 0.96 * thresh;
@@ -1429,6 +1478,8 @@ classdef BehaviorBoxWheel < handle
                                 set(Lines,'Color',baseColor);
                             end
                             blinkActive = false;
+                            pendingScreenEvent = "stallblink_end";
+                            this.CurrentStimColor = this.colorScalar_(baseColor);
                         end
                     elseif ~didStallBlink && (tNowOC - tLastMove) >= stallSec
                         if isempty(Lines) || any(~isgraphics(Lines))
@@ -1442,6 +1493,8 @@ classdef BehaviorBoxWheel < handle
                         blinkActive = true;
                         blinkT0 = tNowOC;
                         didStallBlink = true;
+                        pendingScreenEvent = "stallblink_start";
+                        this.CurrentStimColor = this.colorScalar_(dimColor);
                     end
                     if blinkActive && (tNowOC - blinkT0) >= blinkDur
                         if isempty(Lines) || any(~isgraphics(Lines))
@@ -1453,12 +1506,16 @@ classdef BehaviorBoxWheel < handle
                             set(Lines,'Color',baseColor);
                         end
                         blinkActive = false;
+                        pendingScreenEvent = "stallblink_end";
+                        this.CurrentStimColor = this.colorScalar_(baseColor);
                     end
 
                     delta = dist * k;
                     if abs(delta) > thresh
                         delta = sign(delta) * thresh;
                     end
+                    this.CurrentRawWheel = double(dist);
+                    this.CurrentDelta = double(delta);
 
                     I = I+1;
                     if I > cap
@@ -1487,8 +1544,14 @@ classdef BehaviorBoxWheel < handle
                         prevDelta = delta;
                     end
 
-                    if (tNowOC - tLastDraw) >= drawInterval
+                    if (tNowOC - tLastDraw) >= drawInterval || strlength(pendingScreenEvent) > 0
                         drawnow nocallbacks
+                        if strlength(pendingScreenEvent) > 0
+                            this.recordScreenEventPoint_(pendingScreenEvent);
+                        else
+                            this.recordWheelDisplayState_();
+                        end
+                        pendingScreenEvent = "";
                         tLastDraw = tNowOC;
                     end
 
@@ -1517,6 +1580,12 @@ classdef BehaviorBoxWheel < handle
                         set(this.Skip,'Value',0)
                         break
                     end
+                end
+                drawnow
+                if strlength(pendingScreenEvent) > 0
+                    this.recordScreenEventPoint_(pendingScreenEvent);
+                else
+                    this.recordWheelDisplayState_();
                 end
 
                 response_time = Old_response_time + toc(tLoopOC);
@@ -1778,6 +1847,7 @@ classdef BehaviorBoxWheel < handle
                 return
             end
             this.logRewardEvent_(1);
+            this.setWheelDisplayPhase_("reward");
             % Give first drop only once
             this.a.GiveReward();
             % then flash
@@ -1786,6 +1856,7 @@ classdef BehaviorBoxWheel < handle
             for i = 2:PulseNum
                 pause(this.Box.SecBwPulse)
                 this.logRewardEvent_(i);
+                this.setWheelDisplayPhase_("reward");
                 this.a.GiveReward();
                 this.FlashNew(this.StimulusStruct, this.Box,  lines, "Correct_Confirmation");
             end
@@ -1844,6 +1915,7 @@ classdef BehaviorBoxWheel < handle
                 return
             end
             this.ReadyCue(true)
+            this.setWheelDisplayPhase_("intertrial");
             this.logTimeEvent_("trial_end", struct( ...
                 'trial', this.i, ...
                 'side', this.trialSideName_(), ...
@@ -1862,6 +1934,7 @@ classdef BehaviorBoxWheel < handle
                 this.logTimeEvent_("acq_end", struct('trial', this.i, 'scanImageFile', this.TimeScanImageFileIndex));
             end
             this.storeCurrentTimeSegment_();
+            this.buildCurrentTrialFrameAlignedRecord_();
         end
         function updateMessageBox(this)
             try
@@ -2004,6 +2077,10 @@ classdef BehaviorBoxWheel < handle
                         timeSegments = timeSegments(~cellfun(@isempty, timeSegments));
                     end
                     newData.TimestampRecord = timeSegments;
+                    if ~isempty(this.Time) && isobject(this.Time)
+                        newData.WheelDisplayRecord = this.WheelDisplayRecord;
+                        newData.FrameAlignedRecord = this.FrameAlignedRecord;
+                    end
 
                 end
                 if isscalar(this.SetUpdate) % Settings never changed during the session.
@@ -3543,6 +3620,248 @@ classdef BehaviorBoxWheel < handle
                 t_us = round(toc(this.TimeSegmentTic) * 1e6);
             catch
             end
+        end
+
+        function beginWheelDisplayTrial_(this)
+            if isempty(this.Time) || ~isobject(this.Time)
+                return
+            end
+            this.ensureWheelDisplayTables_();
+            this.CurrentTrialFrameAlignedRecord = this.emptyFrameAlignedRecord_();
+            this.hold_still_start = tic;
+            this.CurrentWheelPhase = "hold_still";
+            this.CurrentRawWheel = 0;
+            this.CurrentDelta = 0;
+            this.CurrentStimColor = this.colorScalar_(this.StimulusStruct.LineColor);
+            this.recordWheelDisplayState_("Force", true);
+        end
+
+        function setWheelDisplayPhase_(this, phaseName)
+            if isempty(this.Time) || ~isobject(this.Time)
+                return
+            end
+            this.CurrentWheelPhase = string(phaseName);
+            if isnan(this.CurrentStimColor)
+                this.CurrentStimColor = this.colorScalar_(this.StimulusStruct.LineColor);
+            end
+            this.recordWheelDisplayState_("Force", true);
+        end
+
+        function recordWheelDisplayState_(this, options)
+            arguments
+                this
+                options.ScreenEvent string = ""
+                options.Force logical = false
+            end
+            if isempty(this.Time) || ~isobject(this.Time)
+                return
+            end
+            this.ensureWheelDisplayTables_();
+
+            row = table( ...
+                double(this.i), ...
+                string(this.CurrentWheelPhase), ...
+                this.currentHoldStillSeconds_(), ...
+                double(this.CurrentRawWheel), ...
+                double(this.CurrentDelta), ...
+                double(this.CurrentStimColor), ...
+                string(options.ScreenEvent), ...
+                this.numericOrNaN_(this.Level), ...
+                logical(this.isLeftTrial), ...
+                'VariableNames', {'trial','phase','tTrial','rawWheel','delta','StimColor','screenEvent','level','isLeftTrial'});
+
+            if ~options.Force && height(this.WheelDisplayRecord) > 0
+                prev = this.WheelDisplayRecord(end,:);
+                changed = ~strcmp(prev.phase, row.phase) || ...
+                    ~isequaln(prev.rawWheel, row.rawWheel) || ...
+                    ~isequaln(prev.delta, row.delta) || ...
+                    ~isequaln(prev.StimColor, row.StimColor) || ...
+                    ~isequaln(prev.level, row.level) || ...
+                    ~isequaln(prev.isLeftTrial, row.isLeftTrial) || ...
+                    ~strcmp(prev.screenEvent, row.screenEvent);
+                if ~changed
+                    return
+                end
+            end
+
+            this.WheelDisplayRecord = [this.WheelDisplayRecord; row];
+        end
+
+        function recordScreenEventPoint_(this, eventName, options)
+            arguments
+                this
+                eventName string
+                options.ResetToZero logical = false
+            end
+            if isempty(this.Time) || ~isobject(this.Time)
+                return
+            end
+            this.recordWheelDisplayState_("ScreenEvent", string(eventName), "Force", true);
+            if options.ResetToZero
+                this.CurrentRawWheel = 0;
+                this.CurrentDelta = 0;
+            end
+            this.recordWheelDisplayState_("Force", true);
+        end
+
+        function buildCurrentTrialFrameAlignedRecord_(this)
+            this.ensureWheelDisplayTables_();
+            this.CurrentTrialFrameAlignedRecord = this.emptyFrameAlignedRecord_();
+            if isempty(this.Time) || ~isobject(this.Time)
+                return
+            end
+            if isempty(this.timestamps_record)
+                return
+            end
+
+            segment = this.timestamps_record{end};
+            if isempty(segment) || ~isstruct(segment) || ~isfield(segment, 'parsed')
+                return
+            end
+            if ~isfield(segment, 'trial') || double(segment.trial) ~= double(this.i)
+                return
+            end
+
+            parsed = segment.parsed;
+            if isempty(parsed) || height(parsed) == 0
+                return
+            end
+            frameRows = parsed(parsed.kind == "frame", :);
+            if isempty(frameRows) || height(frameRows) == 0
+                return
+            end
+
+            trialRows = this.WheelDisplayRecord(this.WheelDisplayRecord.trial == double(this.i), :);
+            if isempty(trialRows) || height(trialRows) == 0
+                return
+            end
+
+            holdIdx = find(parsed.event == "hold_still_start", 1, 'first');
+            holdStillUs = NaN;
+            if ~isempty(holdIdx)
+                holdStillUs = double(parsed.t_us(holdIdx));
+            end
+
+            displayUs = NaN(height(trialRows), 1);
+            if ~isnan(holdStillUs)
+                displayUs = holdStillUs + (1e6 .* double(trialRows.tTrial));
+            end
+
+            rows = this.emptyFrameAlignedRecord_();
+            finalDecision = string(this.WhatDecision);
+            finalCorrect = double(this.choiceWasCorrect_());
+            prevFrameUs = -Inf;
+            for iFrame = 1:height(frameRows)
+                frameUs = double(frameRows.t_us(iFrame));
+                sourceIdx = find(displayUs <= frameUs, 1, 'last');
+                if isempty(sourceIdx)
+                    sourceIdx = 1;
+                end
+                sourceRow = trialRows(sourceIdx, :);
+                frameScreenEvent = "";
+                eventIdx = find( ...
+                    trialRows.screenEvent ~= "" & ...
+                    ~isnan(displayUs) & ...
+                    displayUs <= frameUs & ...
+                    displayUs > prevFrameUs);
+                if ~isempty(eventIdx)
+                    frameScreenEvent = strjoin(string(trialRows.screenEvent(eventIdx)), " | ");
+                end
+
+                frameTTrial = sourceRow.tTrial;
+                if ~isnan(holdStillUs)
+                    frameTTrial = (frameUs - holdStillUs) / 1e6;
+                end
+
+                row = table( ...
+                    double(this.i), ...
+                    double(frameRows.frame(iFrame)), ...
+                    frameUs, ...
+                    string(sourceRow.phase), ...
+                    double(frameTTrial), ...
+                    double(sourceRow.rawWheel), ...
+                    double(sourceRow.delta), ...
+                    double(sourceRow.StimColor), ...
+                    frameScreenEvent, ...
+                    double(sourceRow.level), ...
+                    logical(sourceRow.isLeftTrial), ...
+                    "", ...
+                    NaN, ...
+                    'VariableNames', {'trial','frame','t_us','phase','tTrial','rawWheel','delta','StimColor','screenEvent','level','isLeftTrial','decision','correct'});
+                rows = [rows; row];
+                prevFrameUs = frameUs;
+            end
+
+            if isempty(rows) || height(rows) == 0
+                return
+            end
+            rows.decision(:) = finalDecision;
+            rows.correct(:) = finalCorrect;
+            this.CurrentTrialFrameAlignedRecord = rows;
+            this.FrameAlignedRecord = [this.FrameAlignedRecord; rows];
+        end
+
+        function ensureWheelDisplayTables_(this)
+            if isempty(this.WheelDisplayRecord) || ~istable(this.WheelDisplayRecord)
+                this.WheelDisplayRecord = this.emptyWheelDisplayRecord_();
+            end
+            if isempty(this.FrameAlignedRecord) || ~istable(this.FrameAlignedRecord)
+                this.FrameAlignedRecord = this.emptyFrameAlignedRecord_();
+            end
+            if isempty(this.CurrentTrialFrameAlignedRecord) || ~istable(this.CurrentTrialFrameAlignedRecord)
+                this.CurrentTrialFrameAlignedRecord = this.emptyFrameAlignedRecord_();
+            end
+        end
+
+        function tTrial = currentHoldStillSeconds_(this)
+            tTrial = NaN;
+            if isempty(this.hold_still_start)
+                return
+            end
+            try
+                tTrial = toc(this.hold_still_start);
+            catch
+            end
+        end
+
+        function value = colorScalar_(this, colorValue)
+            value = NaN;
+            try
+                colorValue = double(colorValue);
+                if isempty(colorValue)
+                    return
+                end
+                value = colorValue(1);
+            catch
+            end
+        end
+
+        function value = numericOrNaN_(this, numericValue)
+            value = NaN;
+            try
+                if isempty(numericValue)
+                    return
+                end
+                value = double(numericValue);
+                if numel(value) > 1
+                    value = value(1);
+                end
+            catch
+            end
+        end
+
+        function tbl = emptyWheelDisplayRecord_(this)
+            tbl = table( ...
+                'Size', [0 9], ...
+                'VariableTypes', {'double','string','double','double','double','double','string','double','logical'}, ...
+                'VariableNames', {'trial','phase','tTrial','rawWheel','delta','StimColor','screenEvent','level','isLeftTrial'});
+        end
+
+        function tbl = emptyFrameAlignedRecord_(this)
+            tbl = table( ...
+                'Size', [0 13], ...
+                'VariableTypes', {'double','double','double','string','double','double','double','double','string','double','logical','string','double'}, ...
+                'VariableNames', {'trial','frame','t_us','phase','tTrial','rawWheel','delta','StimColor','screenEvent','level','isLeftTrial','decision','correct'});
         end
 
         function side = trialSideName_(this)

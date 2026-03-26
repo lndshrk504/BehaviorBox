@@ -160,3 +160,45 @@
 - Preserve backward compatibility of `wheel_record`, `StimHist`, and `TimestampRecord`.
 - Call out exactly which new fields are additive.
 - Report whether the frame-aligned table is saved during acquisition or generated only during analysis.
+
+## 2026-03-25 Implement WheelDisplayRecord And FrameAlignedRecord In BehaviorBoxWheel
+
+1. Goal
+- Implement the committed additive wheel/imaging sync schema directly in `BehaviorBoxWheel.m`.
+- Save `WheelDisplayRecord` and `FrameAlignedRecord` into training output without redefining existing saved fields.
+
+2. Non-goals
+- Do not change `BehaviorBoxData.m`, imaging analysis scripts, or Arduino firmware in this pass.
+- Do not redefine `wheel_record`, `StimHist`, or `TimestampRecord`.
+- Do not run MATLAB validation unless the user explicitly asks for it.
+
+3. Current-state summary
+- `BehaviorBoxWheel.readLeverLoopAnalogWheel()` already has the needed source variables `dist`, `delta`, `baseColor`, and the idle-blink logic that drives `stallblink`.
+- `BehaviorBoxWheel.WaitForInput()` already logs `hold_still_start`, which is the chosen `tTrial` anchor.
+- `BehaviorBoxWheel.AfterTrial()` already stores the current timestamp segment into `timestamps_record`.
+- Training save already writes `newData.TimestampRecord` for wheel sessions.
+
+4. Files likely touched
+- `/home/wbs/Desktop/BehaviorBox/BehaviorBoxWheel.m`
+- `/home/wbs/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- No validation commands will be run in this pass unless the user explicitly requests them.
+- Smallest proposed MATLAB follow-up if requested:
+  `matlab -batch "checkcode('BehaviorBoxWheel.m')"`
+
+6. Milestones
+- Add additive properties and table helpers for `WheelDisplayRecord` and `FrameAlignedRecord`.
+- Capture wheel/display rows and `stallblink_start`/`stallblink_end` events at draw time in `readLeverLoopAnalogWheel()`.
+- Add phase-anchor rows for `hold_still`, `response`, `reward`, and `intertrial`.
+- Build `CurrentTrialFrameAlignedRecord` and append session-wide `FrameAlignedRecord` after each trial.
+- Save both additive tables into `newData` for wheel sessions when `this.Time` exists.
+
+7. Risks and stop conditions
+- Stop if implementing the new tables would require changing the meaning of existing saved fields.
+- Stop if the current timestamp segment lacks enough information to build `FrameAlignedRecord` without inventing a new clocking rule.
+- Stop if a needed change would force edits outside `BehaviorBoxWheel.m` in this pass.
+
+8. Handoff notes
+- Call out that saved `.mat` output intentionally gains additive `WheelDisplayRecord` and `FrameAlignedRecord` fields.
+- Report that implementation was not MATLAB-validated in this pass unless the user later requests validation.
