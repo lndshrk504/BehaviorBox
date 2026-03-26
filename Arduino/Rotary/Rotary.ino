@@ -1,4 +1,5 @@
 // Rotary.ino
+// Target board: Arduino Uno.
 // REVISED for BehaviorBox latency/robustness:
 //   - In normal POSITION mode, emit ONLY numeric degrees lines.
 //   - Emit 0 when the wheel returns to 0 (fixes stale-reading issue).

@@ -46,6 +46,20 @@ For MATLAB work, also inspect any `+pkg`, `@Class`, `private/`, `startup.m`, and
 - If MATLAB and Python disagree on shapes, dtypes, indexing, or file schema, stop and explain the mismatch before forcing a fix.
 - Do not install Python packages or MATLAB toolboxes unless explicitly asked.
 
+## Arduino Operating Rules
+- Arduino firmware owns Arduino timing, pin state, interrupts, and serial protocol behavior. Do not treat a sketch change as safe without at least a compile check, and use bench validation when the change affects pulses, edge timing, or connected hardware.
+- Before editing a sketch, map the full signal path: sketch name, board target if known, pin numbers, pin direction, active level, pulse width, baud rate, serial command strings, downstream consumer, and the narrowest validation path.
+- Preserve existing pin assignments, baud rates, pulse polarity, pulse widths, line endings, and serial message formats unless the requested change explicitly calls for breaking that contract. Call out every such contract change in the handoff.
+- Keep pins and timing constants explicit near the top of the sketch using `constexpr` or `#define`. Do not scatter magic pin numbers or timing literals through `loop()` and helper functions.
+- Prefer nonblocking timing with `millis()` or `micros()` for periodic signals, fake hardware clocks, and multi-signal coordination. Use `delay()` only when the blocking behavior is itself the required device behavior.
+- Keep interrupt handlers minimal: capture timestamps, increment counters, or set flags only. Do not print to `Serial`, allocate memory, call long-running functions, or perform blocking waits inside an ISR.
+- Mark ISR-shared state `volatile`, and protect multibyte reads or writes on AVR using `ATOMIC_BLOCK` or a brief interrupt disable/enable region.
+- Set every input and output mode explicitly in `setup()`, and establish safe startup levels so attached devices do not see spurious start, reward, trigger, or acquisition pulses during boot.
+- For board-to-board links, document the exact wiring assumptions in the handoff: source pin, destination pin, shared ground, expected idle state, active edge or level, and any voltage-level assumptions.
+- When emulating external hardware such as a microscope, camera, or stimulus source, match the receiving system's real edge semantics and tolerance, not just the nominal rate. If the consumer counts rising edges, document that and design the fake signal accordingly.
+- Do not change upload ports, board package assumptions, or programmer settings unless explicitly asked. Never install `arduino-cli`, board packages, or drivers as part of a normal code task.
+- Treat hardware safety as part of correctness. Flag uncertain voltage compatibility, current draw, pull-up or pull-down assumptions, relay or valve transients, and any missing resistor, transistor, or optoisolator requirements before landing the change.
+
 ## Nose vs Wheel Boundary
 `BehaviorBoxWheel.m` is the only root MATLAB workflow file that should contain microscopy- or imaging-related logic, including microscope integration, imaging metadata, and imaging timestamps. `BehaviorBoxNose.m` must remain free of microscopy-specific code and should never be required to integrate wheel-only imaging behavior.
 
@@ -56,14 +70,17 @@ Run the narrowest matching checks, in this order when relevant:
 
 1. Initialize MATLAB from the repo root when a session setup step is needed:
    `matlab -batch "run('startup.m')"`
-2. For Arduino-facing work, use the focused smoke test:
+2. For Arduino sketch changes, compile the narrowest affected sketch with `arduino-cli` when it is already installed and the board target is known. Report the exact fully qualified board name and sketch path, for example:
+   `arduino-cli compile --fqbn arduino:avr:uno Arduino/Rotary`
+3. For Arduino-facing work that depends on BehaviorBox MATLAB integration, use the focused smoke test:
    `matlab -batch "run('fcns/testArduinoVolts.m')"`
-3. For iRec integration work, use the focused test entrypoint after Opticka is installed:
+4. For Arduino timing, serial-protocol, or inter-device signaling changes, also run the narrowest hardware-in-the-loop bench check you can and report the board, connected pins, baud rate, expected pulse width or frequency, and what you observed. If no bench hardware is available, say so explicitly.
+5. For iRec integration work, use the focused test entrypoint after Opticka is installed:
    `matlab -batch "run('iRecHS2/iRecTests/iRecTest1.m')"`
-4. If a MATLAB test suite is added or available for the changed area, prefer the narrowest `runtests` target. Use repo-wide `runtests` only when justified:
+6. If a MATLAB test suite is added or available for the changed area, prefer the narrowest `runtests` target. Use repo-wide `runtests` only when justified:
    `matlab -batch "results = runtests; assertSuccess(results);"`
-5. If Python under `iRecHS2/scripts/` is changed and there is no formal test suite, run the smallest reproducible script or analysis entrypoint and report exactly what you ran.
-6. For `usbcamv4l/`, validate with the native build from that directory:
+7. If Python under `iRecHS2/scripts/` is changed and there is no formal test suite, run the smallest reproducible script or analysis entrypoint and report exactly what you ran.
+8. For `usbcamv4l/`, validate with the native build from that directory:
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -105,10 +122,12 @@ Do not commit generated `.mat`, `.txt`, `.asv`, recordings, or `build/` outputs;
 ## Definition of Done
 A task is done only when:
 - the diff is scoped
-- the target behavior is validated with MATLAB and/or Python as appropriate
+- the target behavior is validated with MATLAB, Python, and/or Arduino as appropriate
 - schema, tolerance, and output changes are called out explicitly
+- pin maps, serial protocol changes, and timing changes are called out explicitly for hardware-facing work
 - follow-up work is listed if anything remains unresolved
 
 ## Review Guidelines
 - Flag numerical regressions, silent shape changes, path brittleness, hidden environment coupling, and saved-file schema drift as high priority.
 - Treat missing validation for changed analysis code as a real issue, not a paperwork issue.
+- For Arduino and hardware-facing reviews, flag pin-map drift, pulse-width or polarity changes, baud-rate or serial-protocol drift, ISR misuse, blocking timing paths, unsafe startup states, and unverified voltage-level assumptions as high priority.

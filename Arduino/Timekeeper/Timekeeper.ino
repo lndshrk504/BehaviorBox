@@ -1,4 +1,5 @@
 // WBS 2026 - 03 - 25
+// Target board: Arduino Uno.
 // Timekeeper records:
 //   - Pin 2 stimulus edges
 //   - Pin 3 frame clocks

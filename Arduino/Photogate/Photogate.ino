@@ -1,4 +1,5 @@
 // Photogate_Revised.ino
+// Target board: Arduino Uno.
 // REVISED for BehaviorBox latency/robustness:
 //   - In normal READING mode, emit ONLY single-character tokens: L/M/R/-
 //   - Remove verbose Serial.println() spam during reward/setup commands.
