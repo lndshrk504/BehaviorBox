@@ -22,6 +22,30 @@ bool previousStartState = LOW;
 bool previousNextFileState = LOW;
 bool previousEndState = LOW;
 
+static inline void printUsageAndStatus() {
+  Serial.println(F("FakeRoscope usage"));
+  Serial.println(F("Serial commands:"));
+  Serial.println(F("  ? : print this help and current status"));
+  Serial.println(F("  S : toggle the frame clock on or off"));
+  Serial.println(F("Pins:"));
+  Serial.println(F("  Pin 4 output: 17 Hz frame clock to Timekeeper pin 3"));
+  Serial.println(F("  Pin 5 input : start acquisition from Rotary"));
+  Serial.println(F("  Pin 6 input : next file from Rotary"));
+  Serial.println(F("  Pin 7 input : end acquisition from Rotary"));
+  Serial.println(F("Behavior:"));
+  Serial.println(F("  Starts stopped at boot"));
+  Serial.println(F("  Start input begins the frame clock"));
+  Serial.println(F("  Next file input logs a message only"));
+  Serial.println(F("  End input stops the frame clock and forces pin 4 LOW"));
+  Serial.println(F("Electrical notes:"));
+  Serial.println(F("  Pins 5, 6, 7 use INPUT_PULLUP"));
+  Serial.println(F("  Use a shared ground between boards"));
+  Serial.print(F("Status: acquisition "));
+  Serial.println(acquisitionRunning ? F("running") : F("stopped"));
+  Serial.print(F("Frame output level: "));
+  Serial.println(frameClockHigh ? F("HIGH") : F("LOW"));
+}
+
 static inline void startFrameClock() {
   acquisitionRunning = true;
   frameClockHigh = false;
@@ -73,6 +97,23 @@ static inline void handleControlInputs() {
   previousEndState = endState;
 }
 
+static inline void handleSerialCommands() {
+  while (Serial.available() > 0) {
+    const char cmd = static_cast<char>(Serial.read());
+    if (cmd == '?') {
+      printUsageAndStatus();
+    } else if (cmd == 'S') {
+      if (acquisitionRunning) {
+        stopFrameClock();
+        Serial.println(F("Frame clock stopped from serial"));
+      } else {
+        startFrameClock();
+        Serial.println(F("Frame clock started from serial"));
+      }
+    }
+  }
+}
+
 void setup() {
   Serial.begin(SERIAL_BAUD);
   const unsigned long serialWaitStartMs = millis();
@@ -96,9 +137,11 @@ void setup() {
   Serial.println(F("Control inputs: pin 5 start, pin 6 next file, pin 7 end"));
   Serial.println(F("Frame clock: 17 Hz, 50% duty cycle"));
   Serial.println(F("Waiting for start signal"));
+  Serial.println(F("Send ? for help and status"));
 }
 
 void loop() {
+  handleSerialCommands();
   handleControlInputs();
   updateFrameClock();
 }
