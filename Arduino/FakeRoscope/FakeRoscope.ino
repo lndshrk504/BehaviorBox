@@ -14,7 +14,7 @@ constexpr unsigned long FRAME_PERIOD_US = 1000000UL / 17UL;
 constexpr unsigned long FRAME_HIGH_US = FRAME_PERIOD_US / 2UL;
 constexpr unsigned long FRAME_LOW_US = FRAME_PERIOD_US - FRAME_HIGH_US;
 
-bool acquisitionRunning = true;
+bool acquisitionRunning = false;
 bool frameClockHigh = false;
 unsigned long lastFrameTransitionUs = 0UL;
 
@@ -81,21 +81,21 @@ void setup() {
   pinMode(PIN_FRAME_CLOCK, OUTPUT);
   digitalWrite(PIN_FRAME_CLOCK, LOW);
 
-  pinMode(PIN_START_ACQ, INPUT);
-  pinMode(PIN_NEXT_FILE, INPUT);
-  pinMode(PIN_END_ACQ, INPUT);
+  pinMode(PIN_START_ACQ, INPUT_PULLUP);
+  pinMode(PIN_NEXT_FILE, INPUT_PULLUP);
+  pinMode(PIN_END_ACQ, INPUT_PULLUP);
 
   previousStartState = (digitalRead(PIN_START_ACQ) == HIGH);
   previousNextFileState = (digitalRead(PIN_NEXT_FILE) == HIGH);
   previousEndState = (digitalRead(PIN_END_ACQ) == HIGH);
 
-  startFrameClock();
+  stopFrameClock();
 
   Serial.println(F("Box ID: FakeRoscope"));
   Serial.println(F("Frame clock output: pin 4"));
   Serial.println(F("Control inputs: pin 5 start, pin 6 next file, pin 7 end"));
   Serial.println(F("Frame clock: 17 Hz, 50% duty cycle"));
-  Serial.println(F("Acquisition running"));
+  Serial.println(F("Waiting for start signal"));
 }
 
 void loop() {
