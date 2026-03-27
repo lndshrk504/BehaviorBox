@@ -4,6 +4,8 @@ Option 3: **GPU-first processing with EGL/GLES** (V4L2 + DMABUF + EGL/GLES).
 
 Executable name: `usbcamv4l`
 
+`usbcamv4l` is Linux-only. It is intended to run on Linux systems with Intel integrated graphics, AMD GPUs, and NVIDIA GPUs.
+
 ## Dependencies (Debian/Ubuntu)
 ```bash
 sudo apt-get update
@@ -15,7 +17,7 @@ Or use the helper script:
 ./deps_install.sh
 ```
 
-Requires a working EGL/GLES stack (Intel, NVIDIA, AMD, etc.).
+Requires a Linux V4L2/DRM/X11/EGL/GLES stack with a working Intel, NVIDIA, or AMD graphics driver.
 
 ## Build & run
 ```bash

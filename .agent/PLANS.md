@@ -202,3 +202,236 @@
 8. Handoff notes
 - Call out that saved `.mat` output intentionally gains additive `WheelDisplayRecord` and `FrameAlignedRecord` fields.
 - Report that implementation was not MATLAB-validated in this pass unless the user later requests validation.
+
+## 2026-03-27 Restore BehaviorBoxData Compatibility With Additive Wheel Tables
+
+1. Goal
+- Reproduce and fix the GUI subject-load failure triggered by the additive `WheelDisplayRecord` and `FrameAlignedRecord` fields now saved by `BehaviorBoxWheel.m`.
+- Keep the new wheel-session outputs additive while restoring `BehaviorBoxData` load compatibility for existing GUI and analysis entrypoints.
+
+2. Non-goals
+- Do not remove the new wheel/imaging sync fields from saved wheel `.mat` files.
+- Do not refactor broader `BehaviorBoxData` analysis logic outside the narrow load-compatibility path unless required by the fix.
+- Do not change Nose-session behavior.
+
+3. Current-state summary
+- `BB_App.loadGuiInputAsStruct()` constructs `BehaviorBoxData("Inv",Invest,"Inp",Inp,"Sub",Sub,find=1)`.
+- `BehaviorBoxData.loadFiles()` reads all matching `.mat` files through `fileDatastore(..., "ReadFcn", @readFcn)`.
+- `fcns/readFcn.m` normalizes `newData` fields by trimming any field with `numel > total`, assuming one-dimensional vector-like indexing.
+- Wheel sessions saved after commit `be34e53` add `newData.WheelDisplayRecord` and `newData.FrameAlignedRecord` as MATLAB tables, and one-subscript table indexing now throws inside `readFcn`.
+
+4. Files likely touched
+- `/home/wbs/Desktop/BehaviorBox/fcns/readFcn.m`
+- `/home/wbs/Desktop/BehaviorBox/.agent/PLANS.md`
+- Possibly `/home/wbs/Desktop/BehaviorBox/BehaviorBoxData.m` only if the narrow `readFcn` fix is insufficient
+
+5. Validation commands
+- Reproduction:
+  `matlab -batch "run('startup.m'); cd('/home/wbs/Desktop/BehaviorBox'); BBData = BehaviorBoxData('Inv','Will','Inp','Wheel','Sub',{'3421911'},'find',1,'analyze',0);"`
+- MATLAB lint:
+  `matlab -batch "run('startup.m'); cd('/home/wbs/Desktop/BehaviorBox'); checkcode('fcns/readFcn.m');"`
+- Focused post-fix smoke check:
+  `matlab -batch "run('startup.m'); cd('/home/wbs/Desktop/BehaviorBox'); BBData = BehaviorBoxData('Inv','Will','Inp','Wheel','Sub',{'3421911'},'find',1,'analyze',0); disp(size(BBData.loadedData));"`
+
+6. Milestones
+- Reproduce the failure on real wheel data through the same `BehaviorBoxData` entrypoint the GUI uses.
+- Inspect one affected saved file to confirm the new table fields and their shape.
+- Patch the narrow load-normalization path so additive table fields are preserved or skipped safely.
+- Run MATLAB lint and rerun the reproduction command to confirm the loader works.
+
+7. Risks and stop conditions
+- Stop if the failure is not limited to table-field normalization and instead reflects broader schema drift in downstream analysis.
+- Stop if the fix would require silently discarding additive saved fields without documenting that compatibility tradeoff.
+- Stop if MATLAB reveals a second incompatible field type after table handling is fixed.
+
+8. Handoff notes
+- Expected invariant behavior: subject lookup, file discovery, and legacy analysis outputs should continue to work on preexisting files.
+- Allowed behavior change: additive wheel-table fields remain present in loaded `newData` without being vector-cropped.
+- Report exact validation commands, whether `WheelDisplayRecord` and `FrameAlignedRecord` remain accessible after load, and any remaining downstream risks.
+
+## 2026-03-27 Preserve Partial Wheel Trials And Clarify Save Status
+
+1. Goal
+- Fix `BehaviorBoxWheel` so active Time-Arduino trial segments are preserved on stop/cleanup.
+- Prevent cleanup segments from being mislabeled as the next trial number.
+- Save explicit committed vs in-progress status for additive wheel/timestamp outputs without removing partial-trial data.
+
+2. Non-goals
+- Do not remove partial trials from `WheelDisplayRecord` or `TimestampRecord`.
+- Do not change Nose behavior in this pass.
+- Do not redefine the meaning of legacy committed-trial arrays such as `Score`, `Level`, or `CodedChoice`.
+
+3. Current-state summary
+- `DoLoop()` increments `this.i` before checking the stop button.
+- `AfterTrial()` commits the behavioral row through `UpdateData()`, then later stores the Time-Arduino segment.
+- `cleanUP()` currently starts a `cleanup` segment using the current `this.i`, which can already be the next trial number.
+- Saved March 26 wheel files show `WheelDisplayRecord` and/or `TimestampRecord` ahead of the committed behavioral arrays, and `cleanup` can appear as the max trial number.
+
+4. Files likely touched
+- `/home/wbs/Desktop/BehaviorBox/BehaviorBoxWheel.m`
+- `/home/wbs/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- MATLAB lint:
+  `matlab -batch "run('startup.m'); cd('/home/wbs/Desktop/BehaviorBox'); checkcode('BehaviorBoxWheel.m');"`
+- Focused saved-file review helper after implementation:
+  inspect March 26 wheel files to confirm the intended save-status annotations and that no frame rows are present.
+
+6. Milestones
+- Preserve any active Time segment before cleanup resets the logger.
+- Make cleanup session-level rather than using the next trial number.
+- Add additive save metadata that explicitly marks `WheelDisplayRecord` rows and `TimestampRecord` segments as `committed`, `in_progress`, or `session`.
+- Keep legacy committed-trial arrays scoped to committed trials only.
+
+7. Risks and stop conditions
+- Stop if the status-annotation change would force loader changes outside the wheel path in this pass.
+- Stop if preserving the active trial segment would duplicate already-stored trial segments on a normal clean end.
+- Stop if the save-status annotations require removing or renaming existing fields instead of adding new ones.
+
+8. Handoff notes
+- Call out the new additive save metadata fields and status labels explicitly.
+- Report that old March 26 files remain unchanged; only future saves receive the clearer status annotations.
+
+## 2026-03-27 Clarify usbcamv4l Linux-Only Support And GPU Targets
+
+1. Goal
+- Make repo instructions explicit that `usbcamv4l` is Linux-only.
+- Make the `usbcamv4l` build/runtime surface that Linux-only constraint directly.
+- Document that `usbcamv4l` is expected to run on Linux systems with Intel integrated graphics, AMD GPUs, and NVIDIA GPUs.
+
+2. Non-goals
+- Do not add macOS or Windows support for `usbcamv4l`.
+- Do not change camera capture, rendering, decode, or recording behavior in this pass.
+- Do not widen the GPU backend matrix beyond clarifying the existing Intel/AMD/NVIDIA intent.
+
+3. Current-state summary
+- Repo-level instructions now describe the overall repo as Linux-first, but they do not yet state that `usbcamv4l` itself is Linux-only.
+- `usbcamv4l` already depends on Linux/X11/V4L2/DRM/EGL/GLES facilities in `main.cpp` and `CMakeLists.txt`.
+- `usbcamv4l/README.md` already references Intel, AMD, and NVIDIA GPU paths, but the Linux-only constraint is implicit rather than enforced at configure time.
+- `print_usbcamv4l_help()` does not currently mention Linux-only support or the intended GPU families.
+
+4. Files likely touched
+- `/home/wbs/Desktop/BehaviorBox/AGENTS.md`
+- `/home/wbs/Desktop/BehaviorBox/usbcamv4l/CMakeLists.txt`
+- `/home/wbs/Desktop/BehaviorBox/usbcamv4l/README.md`
+- `/home/wbs/Desktop/BehaviorBox/usbcamv4l/main.cpp`
+- `/home/wbs/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- Configure:
+  `cmake -S /home/wbs/Desktop/BehaviorBox/usbcamv4l -B /tmp/usbcamv4l-build -DCMAKE_BUILD_TYPE=Release`
+- Build:
+  `cmake --build /tmp/usbcamv4l-build -j`
+- Help smoke check:
+  `/tmp/usbcamv4l-build/usbcamv4l --help`
+
+6. Milestones
+- Add the ExecPlan entry before multi-file edits.
+- Update repo instructions for Linux-first validation and Linux-only `usbcamv4l` expectations.
+- Add a configure-time Linux-only guard and clarify runtime/help text.
+- Run focused Linux configure/build/help validation.
+
+7. Risks and stop conditions
+- Stop if the existing `usbcamv4l` build no longer configures cleanly on Linux after the Linux-only guard is added.
+- Stop if clarifying GPU support would require changing backend-selection logic rather than documentation/enforcement.
+- Stop if validation reveals platform assumptions beyond Linux/X11/V4L2 that need separate design work.
+
+8. Handoff notes
+- Report that `usbcamv4l` remains Linux-only by design.
+- Call out that Intel iGPU, AMD GPU, and NVIDIA GPU support is an intended Linux target matrix, not a promise of identical backend behavior across all drivers.
+- Include exact validation commands and note any GPU-specific behavior that remains unverified on the current machine.
+
+## 2026-03-27 Save MockApp Harness And Debugging Guidance
+
+1. Goal
+- Save the temporary headless mock app and mock hardware classes into a reusable repo folder.
+- Document how to use that harness for future wheel save/load debugging.
+- Record concrete debugging-improvement ideas in `Next Steps, ChatGPT/`.
+
+2. Non-goals
+- Do not refactor the production `BehaviorBox*.m` classes in this pass.
+- Do not change runtime GUI or hardware behavior.
+- Do not add broad path setup changes in `startup.m`.
+
+3. Current-state summary
+- A temporary mock harness under `/tmp` was sufficient to exercise `BehaviorBoxWheel.cleanUP()` and `BehaviorBoxWheel.SaveAllData()` in `matlab -batch` without live GUI or Arduino hardware.
+- The repo does not yet have a persistent `MockApp/` folder or instructions pointing contributors to that workflow.
+- `AGENTS.md` already has MATLAB validation guidance, but it does not mention the new mock harness.
+
+4. Files likely touched
+- `/home/wbs/Desktop/BehaviorBox/MockApp/MockControl.m`
+- `/home/wbs/Desktop/BehaviorBox/MockApp/MockArduino.m`
+- `/home/wbs/Desktop/BehaviorBox/MockApp/MockTime.m`
+- `/home/wbs/Desktop/BehaviorBox/MockApp/MockApp.m`
+- `/home/wbs/Desktop/BehaviorBox/MockApp/testBehaviorBoxWheelSaveStatus.m`
+- `/home/wbs/Desktop/BehaviorBox/MockApp/README.md`
+- `/home/wbs/Desktop/BehaviorBox/AGENTS.md`
+- `/home/wbs/Desktop/BehaviorBox/Next Steps, ChatGPT/BehaviorBox_Debugging_Improvements.md`
+- `/home/wbs/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- MATLAB lint:
+  `matlab -batch "run('startup.m'); cd('/home/wbs/Desktop/BehaviorBox'); checkcode('MockApp/MockControl.m'); checkcode('MockApp/MockArduino.m'); checkcode('MockApp/MockTime.m'); checkcode('MockApp/MockApp.m');"`
+- Headless mock-harness smoke test:
+  `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('MockApp/testBehaviorBoxWheelSaveStatus.m');"`
+
+6. Milestones
+- Save the mock classes and smoke script into `MockApp/`.
+- Add local usage instructions in `MockApp/README.md`.
+- Update repo instructions to point at `MockApp/` for headless wheel debugging when GUI/hardware are blockers.
+- Write the broader debugging-improvement recommendations into `Next Steps, ChatGPT/BehaviorBox_Debugging_Improvements.md`.
+
+7. Risks and stop conditions
+- Stop if the mock harness requires path hacks broader than adding `MockApp/` explicitly inside the smoke script.
+- Stop if moving the temp mock files into the repo changes the behavior of existing MATLAB name resolution.
+- Stop if the smoke script no longer runs in `matlab -batch` from repo root after relocation.
+
+8. Handoff notes
+- Call out that `MockApp/` is for headless debugging only and is not used by production app workflows.
+- Report the exact `matlab -batch` command for the smoke script.
+- Note any remaining gaps where live hardware validation is still required.
+
+## 2026-03-27 Add Saved-File Debug Helper And BehaviorBoxData Loader Smoke Test
+
+1. Goal
+- Add a reusable MATLAB helper that summarizes the integrity of a saved wheel `.mat` file.
+- Add a reproducible headless `BehaviorBoxData` loader smoke test that exercises the GUI-equivalent load path and prints a clear success token.
+
+2. Non-goals
+- Do not change production acquisition, analysis, or save behavior in this pass.
+- Do not refactor `BehaviorBoxData.m` or `BehaviorBoxWheel.m` unless validation reveals a real bug.
+- Do not add global path setup changes in `startup.m`.
+
+3. Current-state summary
+- `MockApp/testBehaviorBoxWheelSaveStatus.m` now provides a headless wheel save-path smoke test.
+- There is not yet a reusable helper for inspecting saved wheel files directly.
+- There is not yet a reusable headless smoke script for the `BehaviorBoxData` loader path that the GUI uses.
+
+4. Files likely touched
+- `/home/wbs/Desktop/BehaviorBox/fcns/bb_debug_saved_file.m`
+- `/home/wbs/Desktop/BehaviorBox/fcns/testBehaviorBoxDataLoad.m`
+- `/home/wbs/Desktop/BehaviorBox/AGENTS.md`
+- `/home/wbs/Desktop/BehaviorBox/MockApp/README.md`
+- `/home/wbs/Desktop/BehaviorBox/Next Steps, ChatGPT/BehaviorBox_Debugging_Improvements.md`
+- `/home/wbs/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- MATLAB lint:
+  `matlab -batch "run('startup.m'); cd('/home/wbs/Desktop/BehaviorBox'); checkcode('fcns/bb_debug_saved_file.m'); checkcode('fcns/testBehaviorBoxDataLoad.m');"`
+- Loader smoke test:
+  `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('fcns/testBehaviorBoxDataLoad.m');"`
+
+6. Milestones
+- Add `bb_debug_saved_file.m` under `fcns/`.
+- Add `testBehaviorBoxDataLoad.m` under `fcns/`.
+- Update repo instructions to mention the loader smoke test.
+- Run MATLAB lint and the new loader smoke test.
+
+7. Risks and stop conditions
+- Stop if the loader smoke script needs machine-specific path assumptions beyond `GetFilePath("Data")` and documented local overrides.
+- Stop if the saved-file helper reveals a new loader or schema bug in the current repo that should be fixed before landing the test.
+- Stop if the new smoke script depends on mutating real saved data rather than read-only inspection.
+
+8. Handoff notes
+- Report the default subject/config used by the loader smoke test and any override mechanism.
+- Call out that the smoke script is still a data-availability-dependent validation, not a pure unit test.

@@ -2874,6 +2874,9 @@ struct XWin {
 static void print_usbcamv4l_help(const char* argv0) {
   std::cout
       << "usbcamv4l - multi USB camera viewer (V4L2 + EGL/GLES)\n\n"
+      << "Platform:\n"
+      << "  Linux only. Intended Linux GPU targets include Intel integrated graphics,\n"
+      << "  AMD GPUs, and NVIDIA GPUs.\n\n"
       << "Usage:\n"
       << "  " << argv0 << " [OPTIONS]\n\n"
       << "Options (alphabetical):\n"

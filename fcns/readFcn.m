@@ -42,26 +42,33 @@ try
     %names = names(~contains(names, omits));
     total = numel(t.newData.Score);
     for n = names(structfun(@numel, t.newData)>total)
-        if any(n{:}==omits)
+        fieldName = n{:};
+        fieldValue = t.newData.(fieldName);
+        % Session-wide tables are additive metadata, not trial-aligned vectors.
+        if any(fieldName==omits) || istable(fieldValue)
             continue
         end
-        t.newData.(n{:}) = t.newData.(n{:})(1:total);
+        t.newData.(fieldName) = fieldValue(1:total);
     end
     if ~contains(filename, 'XXXXXX')
         total = numel(t.newData.TimeStamp);
         for n = names(structfun(@numel, t.newData)>total)
-            if any(n{:}==omits) || isempty(t.newData.(n{:}))
+            fieldName = n{:};
+            fieldValue = t.newData.(fieldName);
+            if any(fieldName==omits) || isempty(fieldValue) || istable(fieldValue)
                 continue
             end
-            t.newData.(n{:}) = t.newData.(n{:})(1:total);
+            t.newData.(fieldName) = fieldValue(1:total);
         end
     elseif contains(filename, 'XXXXXX') % If a data was "rescued" by reconstructing it from a figure, put XXXXXX in its filename
         total = numel(t.newData.Score);
         for n = names(structfun(@numel, t.newData)<total)
-            if any(n{:}==omits)
+            fieldName = n{:};
+            fieldValue = t.newData.(fieldName);
+            if any(fieldName==omits) || istable(fieldValue)
                 continue
             end
-            t.newData.(n{:}) = nan(size(t.newData.Score));
+            t.newData.(fieldName) = nan(size(t.newData.Score));
         end
         t.newData.SetIdx = ones(size(t.newData.Score));
     end

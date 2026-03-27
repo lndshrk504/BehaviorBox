@@ -25,7 +25,7 @@ classdef BehaviorBoxData < handle
     %BehaviorBoxVisualGratingObject.m
     %BehaviorBoxVisualStimulusTraining.m
     %
-    %   Will Snyder 12/2022
+    %   Will Snyder 3/2026
     %
     %====================================================================
     properties
@@ -903,7 +903,7 @@ classdef BehaviorBoxData < handle
             %Arrange the save data for the analysis functions
             dataMatrix = this.current_data_struct;
             names = fieldnames(dataMatrix);
-            for n = names(structfun(@isrow, dataMatrix) & structfun(@length, dataMatrix) > 1)' %Make sure everything is saved as a column
+            for n = names(structfun(@isrow, dataMatrix) & structfun(@numel, dataMatrix) > 1)' %Make sure everything is saved as a column
                 dataMatrix.(n{:}) = dataMatrix.(n{:})';
             end
         end
@@ -915,7 +915,7 @@ classdef BehaviorBoxData < handle
             end
             data = this.current_data_struct;
             names = fieldnames(data);
-            for n = names(structfun(@isrow, this.current_data_struct) & structfun(@length, this.current_data_struct) > 1)'
+            for n = names(structfun(@isrow, this.current_data_struct) & structfun(@numel, this.current_data_struct) > 1)'
                 data.(n{:}) = data.(n{:})';
             end
             data.TrialNum = zeros(size(data.Level));

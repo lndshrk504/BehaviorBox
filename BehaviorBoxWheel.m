@@ -2054,7 +2054,7 @@ classdef BehaviorBoxWheel < handle
                 for n = names(structfun(@isrow, newData) & structfun(@length, newData) > 1)' %Make sure everything is saved as a column
                     newData.(n{:}) = newData.(n{:})';
                 end
-                FullTrials = numel(newData.TimeStamp);
+                FullTrials = this.committedTrialCountForSave_(newData);
                 for n = names(structfun(@length, newData) > FullTrials)'
                     newData.(n{:}) = newData.(n{:})(1:FullTrials);
                 end
@@ -2076,9 +2076,10 @@ classdef BehaviorBoxWheel < handle
                     if ~isempty(timeSegments)
                         timeSegments = timeSegments(~cellfun(@isempty, timeSegments));
                     end
+                    timeSegments = this.annotateTimestampSegmentsForSave_(timeSegments, FullTrials);
                     newData.TimestampRecord = timeSegments;
                     if ~isempty(this.Time) && isobject(this.Time)
-                        newData.WheelDisplayRecord = this.WheelDisplayRecord;
+                        newData.WheelDisplayRecord = this.annotateWheelDisplayRecordForSave_(this.WheelDisplayRecord, FullTrials);
                         newData.FrameAlignedRecord = this.FrameAlignedRecord;
                     end
 
@@ -2217,24 +2218,40 @@ classdef BehaviorBoxWheel < handle
             end
         end
         function cleanUP(this)
-            % Send Stop Acquisition signal to ScanImage
+            hasActiveTimeSegment = this.hasActiveTimeSegment_();
+            activeSegmentTrial = this.TimeSegmentTrial;
+            % Preserve any active trial/setup segment before cleanup resets the logger.
             if this.Setting_Struct.One_ScanImage_File
                 try
-                    this.beginTimeSegment_("cleanup", this.i);
+                    this.storeCurrentTimeSegmentIfActive_();
+                    hasActiveTimeSegment = false;
                 catch
                 end
             end
+            % Send Stop Acquisition signal to ScanImage
             try
                 set(this.message_handle, 'Text', "Stopping acquisition (ScanImage)...");
+            catch
+            end
+            try
                 this.a.Acquisition('End');
-                if this.Setting_Struct.One_ScanImage_File
-                    this.logTimeEvent_("acq_end", struct('trial', this.i, 'scanImageFile', this.TimeScanImageFileIndex));
-                end
             catch
             end
             if this.Setting_Struct.One_ScanImage_File
                 try
-                    this.storeCurrentTimeSegment_();
+                    this.beginTimeSegment_("cleanup", NaN);
+                    this.logTimeEvent_("acq_end", struct('trial', NaN, 'scanImageFile', this.TimeScanImageFileIndex));
+                catch
+                end
+            elseif hasActiveTimeSegment
+                try
+                    this.logTimeEvent_("acq_end", struct('trial', activeSegmentTrial, 'scanImageFile', this.TimeScanImageFileIndex));
+                catch
+                end
+            end
+            if this.Setting_Struct.One_ScanImage_File || hasActiveTimeSegment
+                try
+                    this.storeCurrentTimeSegmentIfActive_();
                 catch
                 end
             end
@@ -3549,6 +3566,7 @@ classdef BehaviorBoxWheel < handle
             end
 
             if isempty(rawLog) && (isempty(parsedLog) || height(parsedLog) == 0)
+                this.clearCurrentTimeSegmentState_();
                 return
             end
 
@@ -3560,9 +3578,106 @@ classdef BehaviorBoxWheel < handle
             segment.parsed = parsedLog;
 
             this.timestamps_record{end+1,1} = segment;
+            this.clearCurrentTimeSegmentState_();
+        end
+
+        function storeCurrentTimeSegmentIfActive_(this)
+            if ~this.hasActiveTimeSegment_()
+                return
+            end
+            this.storeCurrentTimeSegment_();
+        end
+
+        function tf = hasActiveTimeSegment_(this)
+            tf = strlength(this.TimeSegmentKind) > 0 || ...
+                (~isempty(this.TimeSegmentTrial) && any(~isnan(this.TimeSegmentTrial)));
+        end
+
+        function clearCurrentTimeSegmentState_(this)
             this.TimeSegmentKind = "";
             this.TimeSegmentTrial = NaN;
             this.TimeSegmentTic = [];
+        end
+
+        function committedTrials = committedTrialCountForSave_(~, newData)
+            committedTrials = 0;
+            if isfield(newData, 'Score') && ~isempty(newData.Score)
+                committedTrials = numel(newData.Score);
+            elseif isfield(newData, 'TimeStamp') && ~isempty(newData.TimeStamp)
+                committedTrials = numel(newData.TimeStamp);
+            end
+        end
+
+        function wheelDisplayRecord = annotateWheelDisplayRecordForSave_(this, wheelDisplayRecord, committedTrials)
+            if isempty(wheelDisplayRecord) || ~istable(wheelDisplayRecord)
+                wheelDisplayRecord = this.emptyWheelDisplayRecord_();
+            end
+
+            trialCommitted = false(height(wheelDisplayRecord), 1);
+            trialStatus = repmat("session", height(wheelDisplayRecord), 1);
+            if height(wheelDisplayRecord) > 0
+                validRows = ~isnan(wheelDisplayRecord.trial) & wheelDisplayRecord.trial > 0;
+                trialCommitted(validRows) = wheelDisplayRecord.trial(validRows) <= committedTrials;
+                trialStatus(validRows & trialCommitted) = "committed";
+                trialStatus(validRows & ~trialCommitted) = "in_progress";
+            end
+
+            wheelDisplayRecord.trialCommitted = trialCommitted;
+            wheelDisplayRecord.trialStatus = trialStatus;
+        end
+
+        function timeSegments = annotateTimestampSegmentsForSave_(this, timeSegments, committedTrials)
+            if isempty(timeSegments)
+                return
+            end
+
+            for iSeg = 1:numel(timeSegments)
+                segment = timeSegments{iSeg};
+                if isempty(segment) || ~isstruct(segment)
+                    continue
+                end
+
+                segKind = "";
+                if isfield(segment, 'kind')
+                    segKind = string(segment.kind);
+                end
+
+                segTrial = NaN;
+                if isfield(segment, 'trial') && ~isempty(segment.trial)
+                    segTrial = double(segment.trial);
+                    if numel(segTrial) > 1
+                        segTrial = segTrial(1);
+                    end
+                end
+
+                [trialCommitted, trialStatus] = this.timeSegmentSaveStatus_(segKind, segTrial, committedTrials);
+                segment.trialCommitted = logical(trialCommitted);
+                segment.trialStatus = string(trialStatus);
+
+                if isfield(segment, 'parsed') && istable(segment.parsed)
+                    parsed = segment.parsed;
+                    parsed.trialCommitted = repmat(logical(trialCommitted), height(parsed), 1);
+                    parsed.trialStatus = repmat(string(trialStatus), height(parsed), 1);
+                    segment.parsed = parsed;
+                end
+
+                timeSegments{iSeg} = segment;
+            end
+        end
+
+        function [trialCommitted, trialStatus] = timeSegmentSaveStatus_(~, segKind, segTrial, committedTrials)
+            if strcmpi(char(segKind), 'trial')
+                if ~isnan(segTrial) && segTrial > 0 && segTrial <= committedTrials
+                    trialCommitted = true;
+                    trialStatus = "committed";
+                else
+                    trialCommitted = false;
+                    trialStatus = "in_progress";
+                end
+            else
+                trialCommitted = false;
+                trialStatus = "session";
+            end
         end
 
         function logTimeEvent_(this, eventName, fields)

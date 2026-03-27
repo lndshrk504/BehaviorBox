@@ -1,7 +1,7 @@
 # AGENTS.md
 
 ## Repository Profile
-BehaviorBox is a MATLAB-first scientific repository on macOS. The main workflow lives in `BehaviorBox_App.mlapp`, `BB_App.m`, and the root MATLAB classes `BehaviorBoxData*.m`, `BehaviorBoxNose.m`, `BehaviorBoxWheel.m`, and `BehaviorBoxVisualStimulus.m`. Reusable MATLAB helpers live in `fcns/`. Hardware firmware and references live in `Arduino/` and `Equipment/`. Linux automation lives in `Linux-Scripts/`. Eye-tracker code, examples, and tests live in `iRecHS2/`. `usbcamv4l/` is a separate C++ camera utility with its own `CMakeLists.txt`.
+BehaviorBox is a MATLAB-first scientific repository whose programs are primarily run on Linux computers. Development also occurs occasionally on macOS and, more rarely, on Windows. The main workflow lives in `BehaviorBox_App.mlapp`, `BB_App.m`, and the root MATLAB classes `BehaviorBoxData*.m`, `BehaviorBoxNose.m`, `BehaviorBoxWheel.m`, and `BehaviorBoxVisualStimulus.m`. Reusable MATLAB helpers live in `fcns/`. Hardware firmware and references live in `Arduino/` and `Equipment/`. Linux automation lives in `Linux-Scripts/`. Eye-tracker code, examples, and tests live in `iRecHS2/`. `usbcamv4l/` is a separate Linux-only C++ camera utility with its own `CMakeLists.txt`, intended to run on Linux systems with Intel integrated graphics, AMD GPUs, and NVIDIA GPUs.
 
 Python is secondary in this repo. Treat `iRecHS2/scripts/` as the main Python area and `ComputerSettings*.mat`, `Settings/`, and saved MATLAB outputs as configuration and schema-sensitive assets.
 
@@ -26,6 +26,7 @@ If the task is multi-file, cross-language, touches multiple directories, crosses
 Before broad edits, inspect the real equivalents in this repo rather than assuming a template layout:
 - Main MATLAB app and workflow files: `BehaviorBox_App.mlapp`, `BB_App.m`, `BehaviorBoxData*.m`, `BehaviorBoxNose.m`, `BehaviorBoxWheel.m`, `BehaviorBoxVisualStimulus.m`
 - MATLAB helper and analysis folders: `fcns/`, `Imaging Analysis scripts/`, `Stimulus/`
+- Headless debug harness: `MockApp/`
 - Hardware and environment folders: `Arduino/`, `Equipment/`, `Linux-Scripts/`
 - Python helpers and mixed-language areas: `iRecHS2/scripts/`
 - Tests and verification scripts: `fcns/testArduinoVolts.m`, `fcns/TestRecord.m`, `iRecHS2/iRecTests/iRecTest1.m`
@@ -41,6 +42,9 @@ For MATLAB work, also inspect any `+pkg`, `@Class`, `private/`, `startup.m`, and
 - Use `check_matlab_code` for static checks and `run_matlab_file` or MATLAB MCP execution for narrow script runs before suggesting or landing MATLAB changes.
 - Use noninteractive `matlab -batch ...` runs for reproducible headless validation, repo-documented smoke tests, startup-dependent flows, and any result you need to report as an exact terminal command.
 - If choosing between MCP and `matlab -batch`, prefer MCP for iteration and `matlab -batch` for validation and handoff-ready verification.
+- When live App Designer state or hardware is the main blocker, prefer the reusable headless harness under `MockApp/` before reconstructing the full GUI manually.
+- Keep `MockApp/` explicit-path only. Add that folder inside the repro script or command that needs it instead of relying on global path state.
+- Unless the task explicitly targets another OS, treat Linux as the default environment for smoke tests, validation commands, and reported runtime expectations. Call out any macOS- or Windows-specific validation separately.
 - Keep paths deterministic. Do not add `addpath(genpath(...))` unless the repo already depends on it.
 - Do not rename outputs, move data directories, or change saved-file schema without an explicit note in the handoff.
 - If MATLAB and Python disagree on shapes, dtypes, indexing, or file schema, stop and explain the mismatch before forcing a fix.
@@ -68,19 +72,25 @@ This separation is intentional. If logic is genuinely shared, extract only the m
 ## Local Validation
 Run the narrowest matching checks, in this order when relevant:
 
+Unless a task explicitly targets another OS, run and report smoke tests as Linux-first validations. If you validate on macOS or Windows instead, say so explicitly and call out any platform-specific assumptions.
+
 1. Initialize MATLAB from the repo root when a session setup step is needed:
    `matlab -batch "run('startup.m')"`
-2. For Arduino sketch changes, compile the narrowest affected sketch with `arduino-cli` when it is already installed and the board target is known. Report the exact fully qualified board name and sketch path, for example:
+2. When debugging `BehaviorBoxWheel.m` save/cleanup logic without real GUI or hardware, use the headless smoke test:
+   `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('MockApp/testBehaviorBoxWheelSaveStatus.m');"`
+3. When debugging the `BehaviorBoxData` loader path that the GUI uses, run the headless smoke test:
+   `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('fcns/testBehaviorBoxDataLoad.m');"`
+4. For Arduino sketch changes, compile the narrowest affected sketch with `arduino-cli` when it is already installed and the board target is known. Report the exact fully qualified board name and sketch path, for example:
    `arduino-cli compile --fqbn arduino:avr:uno Arduino/Rotary`
-3. For Arduino-facing work that depends on BehaviorBox MATLAB integration, use the focused smoke test:
+5. For Arduino-facing work that depends on BehaviorBox MATLAB integration, use the focused smoke test:
    `matlab -batch "run('fcns/testArduinoVolts.m')"`
-4. For Arduino timing, serial-protocol, or inter-device signaling changes, also run the narrowest hardware-in-the-loop bench check you can and report the board, connected pins, baud rate, expected pulse width or frequency, and what you observed. If no bench hardware is available, say so explicitly.
-5. For iRec integration work, use the focused test entrypoint after Opticka is installed:
+6. For Arduino timing, serial-protocol, or inter-device signaling changes, also run the narrowest hardware-in-the-loop bench check you can and report the board, connected pins, baud rate, expected pulse width or frequency, and what you observed. If no bench hardware is available, say so explicitly.
+7. For iRec integration work, use the focused test entrypoint after Opticka is installed:
    `matlab -batch "run('iRecHS2/iRecTests/iRecTest1.m')"`
-6. If a MATLAB test suite is added or available for the changed area, prefer the narrowest `runtests` target. Use repo-wide `runtests` only when justified:
+8. If a MATLAB test suite is added or available for the changed area, prefer the narrowest `runtests` target. Use repo-wide `runtests` only when justified:
    `matlab -batch "results = runtests; assertSuccess(results);"`
-7. If Python under `iRecHS2/scripts/` is changed and there is no formal test suite, run the smallest reproducible script or analysis entrypoint and report exactly what you ran.
-8. For `usbcamv4l/`, validate with the native build from that directory:
+9. If Python under `iRecHS2/scripts/` is changed and there is no formal test suite, run the smallest reproducible script or analysis entrypoint and report exactly what you ran.
+10. For `usbcamv4l/`, treat it as Linux-only and validate from a Linux environment with the native build from that directory. When relevant, call out whether validation was performed on Intel integrated graphics, AMD GPU, or NVIDIA GPU hardware:
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release

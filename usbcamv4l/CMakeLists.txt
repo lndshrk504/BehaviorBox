@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.16)
 
 project(usbcamv4l LANGUAGES CXX)
 
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  message(FATAL_ERROR "usbcamv4l is Linux-only and requires the Linux V4L2/DRM/EGL/X11 stack.")
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
