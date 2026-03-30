@@ -1662,7 +1662,7 @@ classdef BehaviorBoxWheel < handle
                 this.wheelchoicetime = double(wheelchoicetime(1:I));
             end
         end
-        function FlashNew(this, Stim, Box, Lines, whatdecision, OneWay)
+        function FlashNew(this, Stim, Box, Lines, whatdecision, OneWay, OnFirstDraw)
             arguments
                 this
                 Stim % from Setting structure
@@ -1670,6 +1670,7 @@ classdef BehaviorBoxWheel < handle
                 Lines = findobj('Tag', 'Contour')
                 whatdecision = "time out"
                 OneWay logical = false
+                OnFirstDraw = []
             end
             if isempty(Lines)
                 return
@@ -1700,7 +1701,7 @@ classdef BehaviorBoxWheel < handle
             elseif whatdecision == "center" %Center poke during trial
                 this.BasicFlash("Lines",Lines, "NewColor", Stim.BackgroundColor, "steps", Steps)
             elseif whatdecision == "Correct_Confirmation"
-                this.BasicFlash("Lines",Lines, "NewColor", dark_color, "steps", Steps)
+                this.BasicFlash("Lines",Lines, "NewColor", dark_color, "steps", Steps, "OnFirstDraw", OnFirstDraw)
             else
                 d = findobj('Tag', 'Distractor');
                 if isempty(d)
@@ -1729,6 +1730,7 @@ classdef BehaviorBoxWheel < handle
                 vars.steps double
                 vars.OneWay logical = false
                 vars.Interruptor = []
+                vars.OnFirstDraw = []
             end
             if vars.steps == 1
                 return
@@ -1742,6 +1744,7 @@ classdef BehaviorBoxWheel < handle
             else
                 STEPS = [1:1:steps steps-1:-1:1];
             end
+            loggedFirstDraw = false;
             % This blinks the Obj to the NewColor and back, over a total of
             % 2*steps increments
             if obj(1).Type == "scatter"
@@ -1761,6 +1764,10 @@ classdef BehaviorBoxWheel < handle
             mat = interp1( [1 ; steps], [start_color ; NewColor], STEPS);
             for i = mat'
                 set(obj, COLOR_PROP, i);  drawnow
+                if ~loggedFirstDraw && ~isempty(vars.OnFirstDraw)
+                    vars.OnFirstDraw();
+                    loggedFirstDraw = true;
+                end
                 if ~isempty(vars.Interruptor) && vars.Interruptor() %This is all very slow and will be sped up later
                     set(obj, COLOR_PROP, start_color)
                     break
@@ -1875,13 +1882,13 @@ classdef BehaviorBoxWheel < handle
             this.a.GiveReward();
             % then flash
             lines = findobj(this.fig.Children, 'Tag', 'Contour');
-            this.FlashNew(this.StimulusStruct, this.Box,  lines, "Correct_Confirmation");
-            for i = 2:PulseNum
+            this.FlashNew(this.StimulusStruct, this.Box,  lines, "Correct_Confirmation", false, @() this.logRewardFlashEvent_(1));
+            for pulseIdx = 2:PulseNum
                 pause(this.Box.SecBwPulse)
-                this.logRewardEvent_(i);
+                this.logRewardEvent_(pulseIdx);
                 this.setWheelDisplayPhase_("reward");
                 this.a.GiveReward();
-                this.FlashNew(this.StimulusStruct, this.Box,  lines, "Correct_Confirmation");
+                this.FlashNew(this.StimulusStruct, this.Box,  lines, "Correct_Confirmation", false, @() this.logRewardFlashEvent_(pulseIdx));
             end
         end
         %Use this function instead of pausing, so that buttons are checked and settings are updated during the pause
@@ -3749,6 +3756,16 @@ classdef BehaviorBoxWheel < handle
             this.logTimeEvent_("reward_" + rewardPulse, fields);
         end
 
+        function logRewardFlashEvent_(this, rewardPulse)
+            fields = struct( ...
+                'trial', this.i, ...
+                'side', this.trialSideName_(), ...
+                'rewardPulse', rewardPulse, ...
+                'correct', this.choiceWasCorrect_(), ...
+                'responseTime', this.ResponseTime);
+            this.logTimeEvent_("reward_flash_" + rewardPulse, fields);
+        end
+
         function t_us = currentTimeMicros_(this)
             t_us = NaN;
             if ~isempty(this.TrainStartTime)
@@ -4158,6 +4175,11 @@ classdef BehaviorBoxWheel < handle
             eventNames(eventNames == "stim_on" | eventNames == "stimulus_on") = "Stimulus On";
             eventNames(eventNames == "stim_off" | eventNames == "stimulus_off") = "Stimulus off";
             eventNames(eventNames == "distractors_dimmed") = "Distractors Dimmed";
+            rewardFlashMask = startsWith(eventNames, "reward_flash_");
+            if any(rewardFlashMask)
+                rewardFlashPulse = extractAfter(eventNames(rewardFlashMask), "reward_flash_");
+                eventNames(rewardFlashMask) = "Reward Flash " + rewardFlashPulse;
+            end
         end
 
         function eventNames = dedupeFrameAlignedEventNames_(this, eventNames)

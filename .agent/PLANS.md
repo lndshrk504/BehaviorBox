@@ -280,6 +280,7 @@
 - Rebuild `FrameAlignedRecord` using canonical session time while carrying the audit timing fields through the per-frame table.
 - Merge relevant parsed annotation/signal events into each frame bin without overwriting the wheel/display state projection.
 - Relocate display-event logging to the true post-draw visibility points and emit additive parsed events for `screen_on`, `stimulus_on`, `distractors_dimmed`, and `stimulus_off`.
+- Emit additive post-reward flash events on the first drawn frame of each reward-confirmation flash so reward delivery and reward flash remain distinguishable in `FrameAlignedRecord`.
 - Preserve pre-trial setup timing by appending additive `trial = 0` setup frame rows when a setup segment contains microscope frames, so `Screen On` can align to actual pre-trial frames.
 - Run the narrowest lint/check path available and inspect the final diff for schema drift.
 
@@ -293,6 +294,7 @@
 - Intentionally changed outputs: `TimestampRecord.parsed` and downstream `FrameAlignedRecord` will carry additive audit timing fields and use a canonical hybrid frame time derived from Arduino deltas anchored to the PC session clock.
 - Intentionally changed outputs: `FrameAlignedRecord.screenEvent` will include merged parsed event detail such as reward pulses, `stim_off`, choice, and trial-end annotations in addition to existing wheel-display screen events.
 - Intentionally changed outputs: `TimestampRecord.parsed` and `FrameAlignedRecord.screenEvent` will gain additive human-readable visual event timing for cue onset, stimulus onset, distractor dimming, and stimulus-off.
+- Intentionally changed outputs: `TimestampRecord.parsed` and `FrameAlignedRecord.screenEvent` will gain additive reward-flash timing entries (`Reward Flash N`) after each delivered reward pulse.
 - Intentionally changed outputs: `FrameAlignedRecord` may begin with additive `trial = 0`, `phase = "setup"` rows when setup microscope frames are present, allowing `Screen On` to land on real pre-trial frames.
 - Report validation commands, any MATLAB execution blocker, and remaining timing-jitter risk.
 

@@ -1,9 +1,9 @@
 # AGENTS.md
 
 ## Repository Profile
-BehaviorBox is a MATLAB-first scientific repository whose programs are primarily run on Linux computers. Development also occurs occasionally on macOS and, more rarely, on Windows. The main workflow lives in `BehaviorBox_App.mlapp`, `BB_App.m`, and the root MATLAB classes `BehaviorBoxData*.m`, `BehaviorBoxNose.m`, `BehaviorBoxWheel.m`, and `BehaviorBoxVisualStimulus.m`. Reusable MATLAB helpers live in `fcns/`. Hardware firmware and references live in `Arduino/` and `Equipment/`. Linux automation lives in `Linux-Scripts/`. Eye-tracker code, examples, and tests live in `iRecHS2/`. `usbcamv4l/` is a separate Linux-only C++ camera utility with its own `CMakeLists.txt`, intended to run on Linux systems with Intel integrated graphics, AMD GPUs, and NVIDIA GPUs.
+BehaviorBox is a MATLAB-first scientific repository whose programs are primarily run on Linux computers. Development also occurs occasionally on macOS and, more rarely, on Windows. The main workflow lives in `BehaviorBox_App.mlapp`, `BB_App.m`, and the root MATLAB classes `BehaviorBoxData*.m`, `BehaviorBoxNose.m`, `BehaviorBoxWheel.m`, and `BehaviorBoxVisualStimulus.m`. Reusable MATLAB helpers live in `fcns/`. Hardware firmware and references live in `Arduino/` and `Equipment/`. Linux automation lives in `Linux-Scripts/`. DeepLabCut eye-tracking models, bridge code, and tests live in `DLC/`. `iRecHS2/` remains in the repo as legacy reference material and should not be treated as the active eye-tracking path unless a task explicitly targets it. `usbcamv4l/` is a separate Linux-only C++ camera utility with its own `CMakeLists.txt`, intended to run on Linux systems with Intel integrated graphics, AMD GPUs, and NVIDIA GPUs.
 
-Python is secondary in this repo. Treat `iRecHS2/scripts/` as the main Python area and `ComputerSettings*.mat`, `Settings/`, and saved MATLAB outputs as configuration and schema-sensitive assets.
+Python is secondary in this repo. Treat `DLC/ToMatlab/` and `DLC/Tests/` as the main Python and MATLAB/Python eye-tracking area. Treat `iRecHS2/` as historical reference only unless a task explicitly targets that legacy path. Treat `ComputerSettings*.mat`, `Settings/`, and saved MATLAB outputs as configuration and schema-sensitive assets.
 
 ## Working Agreements
 - Before editing, map the real execution path and name the files, functions, classdefs, scripts, and tests involved.
@@ -28,8 +28,8 @@ Before broad edits, inspect the real equivalents in this repo rather than assumi
 - MATLAB helper and analysis folders: `fcns/`, `Imaging Analysis scripts/`, `Stimulus/`
 - Headless debug harness: `MockApp/`
 - Hardware and environment folders: `Arduino/`, `Equipment/`, `Linux-Scripts/`
-- Python helpers and mixed-language areas: `iRecHS2/scripts/`
-- Tests and verification scripts: `fcns/testArduinoVolts.m`, `fcns/TestRecord.m`, `iRecHS2/iRecTests/iRecTest1.m`
+- Python helpers and mixed-language areas: `DLC/ToMatlab/`, `DLC/Tests/`, `iRecHS2/` (legacy reference only)
+- Tests and verification scripts: `fcns/testArduinoVolts.m`, `fcns/TestRecord.m`, `DLC/ToMatlab/receive_eye_stream_demo.m`, `DLC/Tests/CheckReqs.py`, `DLC/Tests/TestSpin.py`
 - Config and schema-sensitive assets: `ComputerSettings*.mat`, `Settings/`, saved `.mat` outputs, `BBAppOutput.txt`
 - Native camera utility: `usbcamv4l/`
 
@@ -85,11 +85,11 @@ Unless a task explicitly targets another OS, run and report smoke tests as Linux
 5. For Arduino-facing work that depends on BehaviorBox MATLAB integration, use the focused smoke test:
    `matlab -batch "run('fcns/testArduinoVolts.m')"`
 6. For Arduino timing, serial-protocol, or inter-device signaling changes, also run the narrowest hardware-in-the-loop bench check you can and report the board, connected pins, baud rate, expected pulse width or frequency, and what you observed. If no bench hardware is available, say so explicitly.
-7. For iRec integration work, use the focused test entrypoint after Opticka is installed:
-   `matlab -batch "run('iRecHS2/iRecTests/iRecTest1.m')"`
+7. For DLC eye-tracking / MATLAB bridge integration work, use the focused demo entrypoint when the streamer and bridge dependencies are available:
+   `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('DLC/ToMatlab/receive_eye_stream_demo.m');"`
 8. If a MATLAB test suite is added or available for the changed area, prefer the narrowest `runtests` target. Use repo-wide `runtests` only when justified:
    `matlab -batch "results = runtests; assertSuccess(results);"`
-9. If Python under `iRecHS2/scripts/` is changed and there is no formal test suite, run the smallest reproducible script or analysis entrypoint and report exactly what you ran.
+9. If Python under `DLC/ToMatlab/` or `DLC/Tests/` is changed and there is no formal test suite, run the smallest reproducible script or analysis entrypoint and report exactly what you ran.
 10. For `usbcamv4l/`, treat it as Linux-only and validate from a Linux environment with the native build from that directory. When relevant, call out whether validation was performed on Intel integrated graphics, AMD GPU, or NVIDIA GPU hardware:
 
 ```bash
@@ -103,7 +103,7 @@ There is no repo-wide Python test runner or coverage gate today. Do not claim br
 ## Coding Style and Change Scope
 Follow adjacent file style; the repo has an empty `.editorconfig`, so consistency is enforced by convention. MATLAB classes use `PascalCase` filenames such as `BehaviorBoxNose.m`. Helper scripts in `fcns/` use descriptive names like `copytoStruct.m`, `TestRecord.m`, and `testArduinoVolts.m`. Prefer spaces over tabs; MATLAB blocks here are typically 4-space indented. In `usbcamv4l/`, keep C++17 style with `PascalCase` types and `snake_case` helper functions.
 
-Add focused verification scripts near the subsystem you changed, following existing patterns like `TestRecord.m`, `testArduinoVolts.m`, or `iRecTest1.m`. For hardware-facing work, note the device, OS, and expected behavior you validated.
+Add focused verification scripts near the subsystem you changed, following existing patterns like `TestRecord.m`, `testArduinoVolts.m`, or `receive_eye_stream_demo.m`. For hardware-facing work, note the device, OS, and expected behavior you validated.
 
 ## MATLAB SaveData Safety
 `SaveAllData` in `BehaviorBoxNose.m` and `BehaviorBoxWheel.m` is a high-risk path and should be coded defensively.
@@ -120,7 +120,7 @@ When modifying `BehaviorBoxNose.m`, `BehaviorBoxWheel.m`, or `BehaviorBoxData.m`
 - Confirm there are no unresolved conflict markers with `rg -n "^<<<<<<<|^=======|^>>>>>>>" BehaviorBoxNose.m BehaviorBoxWheel.m BehaviorBoxData.m`.
 
 ## Commit and Pull Request Guidelines
-Recent history favors short, imperative commit subjects tied to the changed module, for example `Fix SaveAllData type/path handling for Nose and Wheel`. Keep that style and avoid vague summaries. Pull requests should describe the behavioral change, list the affected hardware path such as nose, wheel, Arduino, iRec, or camera, include manual test steps, and attach screenshots for GUI or display changes.
+Recent history favors short, imperative commit subjects tied to the changed module, for example `Fix SaveAllData type/path handling for Nose and Wheel`. Keep that style and avoid vague summaries. Pull requests should describe the behavioral change, list the affected hardware path such as nose, wheel, Arduino, DLC eye tracking, or camera, include manual test steps, and attach screenshots for GUI or display changes.
 
 ## Branch and Merge Hygiene
 - Keep `master` current before merging long-lived branches such as `patch` to reduce avoidable conflicts.
