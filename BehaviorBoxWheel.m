@@ -90,6 +90,8 @@ classdef BehaviorBoxWheel < handle
         TimeSegmentTrial double = NaN
         TimeSegmentTic = []
         TimeScanImageFileIndex double = 0
+        TrainStartTime = []
+        TrainStartWallClock = NaT
         %Timers during each trial:
         start_time; %Clock time at initiation of first trial
         t1; %Used to record times between different functions
@@ -517,13 +519,22 @@ classdef BehaviorBoxWheel < handle
                 end
             catch
             end
+            this.TrainStartWallClock = datetime("now");
+            this.TrainStartTime = tic;
+            if ~isempty(this.Time) && isobject(this.Time)
+                try
+                    this.Time.TrainStartTime = this.TrainStartTime;
+                    this.Time.TrainStartWallClock = this.TrainStartWallClock;
+                catch
+                end
+            end
             try
                 set(this.message_handle, 'Text', "Preparing timestamp log ...");
                 this.TimeScanImageFileIndex = 1;
                 this.beginTimeSegment_("setup", 0);
             catch
             end
-            this.start_time = datetime("now");
+            this.start_time = this.TrainStartWallClock;
             this.Data_Object.GetStartTime;
             % Send Start Acquisition signal to ScanImage
             try
@@ -3728,6 +3739,13 @@ classdef BehaviorBoxWheel < handle
 
         function t_us = currentTimeMicros_(this)
             t_us = NaN;
+            if ~isempty(this.TrainStartTime)
+                try
+                    t_us = round(toc(this.TrainStartTime) * 1e6);
+                    return
+                catch
+                end
+            end
             if isempty(this.TimeSegmentTic)
                 return
             end
@@ -3775,6 +3793,7 @@ classdef BehaviorBoxWheel < handle
 
             row = table( ...
                 double(this.i), ...
+                this.currentTimeMicros_(), ...
                 string(this.CurrentWheelPhase), ...
                 this.currentHoldStillSeconds_(), ...
                 double(this.CurrentRawWheel), ...
@@ -3783,7 +3802,7 @@ classdef BehaviorBoxWheel < handle
                 string(options.ScreenEvent), ...
                 this.numericOrNaN_(this.Level), ...
                 logical(this.isLeftTrial), ...
-                'VariableNames', {'trial','phase','tTrial','rawWheel','delta','StimColor','screenEvent','level','isLeftTrial'});
+                'VariableNames', {'trial','t_us','phase','tTrial','rawWheel','delta','StimColor','screenEvent','level','isLeftTrial'});
 
             if ~options.Force && height(this.WheelDisplayRecord) > 0
                 prev = this.WheelDisplayRecord(end,:);
@@ -3858,7 +3877,10 @@ classdef BehaviorBoxWheel < handle
             end
 
             displayUs = NaN(height(trialRows), 1);
-            if ~isnan(holdStillUs)
+            if ismember('t_us', trialRows.Properties.VariableNames)
+                displayUs = double(trialRows.t_us);
+            end
+            if all(isnan(displayUs)) && ~isnan(holdStillUs)
                 displayUs = holdStillUs + (1e6 .* double(trialRows.tTrial));
             end
 
@@ -3866,6 +3888,14 @@ classdef BehaviorBoxWheel < handle
             finalDecision = string(this.WhatDecision);
             finalCorrect = double(this.choiceWasCorrect_());
             prevFrameUs = -Inf;
+            frameArduinoUs = NaN(height(frameRows), 1);
+            if ismember('t_arduino_us', frameRows.Properties.VariableNames)
+                frameArduinoUs = double(frameRows.t_arduino_us);
+            end
+            framePcReceiveUs = NaN(height(frameRows), 1);
+            if ismember('t_pc_receive_us', frameRows.Properties.VariableNames)
+                framePcReceiveUs = double(frameRows.t_pc_receive_us);
+            end
             for iFrame = 1:height(frameRows)
                 frameUs = double(frameRows.t_us(iFrame));
                 sourceIdx = find(displayUs <= frameUs, 1, 'last');
@@ -3892,6 +3922,8 @@ classdef BehaviorBoxWheel < handle
                     double(this.i), ...
                     double(frameRows.frame(iFrame)), ...
                     frameUs, ...
+                    double(frameArduinoUs(iFrame)), ...
+                    double(framePcReceiveUs(iFrame)), ...
                     string(sourceRow.phase), ...
                     double(frameTTrial), ...
                     double(sourceRow.rawWheel), ...
@@ -3902,7 +3934,7 @@ classdef BehaviorBoxWheel < handle
                     logical(sourceRow.isLeftTrial), ...
                     "", ...
                     NaN, ...
-                    'VariableNames', {'trial','frame','t_us','phase','tTrial','rawWheel','delta','StimColor','screenEvent','level','isLeftTrial','decision','correct'});
+                    'VariableNames', {'trial','frame','t_us','t_arduino_us','t_pc_receive_us','phase','tTrial','rawWheel','delta','StimColor','screenEvent','level','isLeftTrial','decision','correct'});
                 rows = [rows; row];
                 prevFrameUs = frameUs;
             end
@@ -3967,16 +3999,16 @@ classdef BehaviorBoxWheel < handle
 
         function tbl = emptyWheelDisplayRecord_(this)
             tbl = table( ...
-                'Size', [0 9], ...
-                'VariableTypes', {'double','string','double','double','double','double','string','double','logical'}, ...
-                'VariableNames', {'trial','phase','tTrial','rawWheel','delta','StimColor','screenEvent','level','isLeftTrial'});
+                'Size', [0 10], ...
+                'VariableTypes', {'double','double','string','double','double','double','double','string','double','logical'}, ...
+                'VariableNames', {'trial','t_us','phase','tTrial','rawWheel','delta','StimColor','screenEvent','level','isLeftTrial'});
         end
 
         function tbl = emptyFrameAlignedRecord_(this)
             tbl = table( ...
-                'Size', [0 13], ...
-                'VariableTypes', {'double','double','double','string','double','double','double','double','string','double','logical','string','double'}, ...
-                'VariableNames', {'trial','frame','t_us','phase','tTrial','rawWheel','delta','StimColor','screenEvent','level','isLeftTrial','decision','correct'});
+                'Size', [0 15], ...
+                'VariableTypes', {'double','double','double','double','double','string','double','double','double','double','string','double','logical','string','double'}, ...
+                'VariableNames', {'trial','frame','t_us','t_arduino_us','t_pc_receive_us','phase','tTrial','rawWheel','delta','StimColor','screenEvent','level','isLeftTrial','decision','correct'});
         end
 
         function side = trialSideName_(this)

@@ -65,7 +65,7 @@ matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('startup.m'); report = b
 
 ## Bucket 2: Pending shared save/load work
 
-This bucket is for changes that belong in both `BehaviorBoxWheel.m`, `BehaviorBoxNose.m`, or `BehaviorBoxData.m`, without leaking wheel-only or imaging-only state into nose code.
+This bucket is for changes that belong in both `BehaviorBoxWheel.m`, `BehaviorBoxNose.m`, or `BehaviorBoxData.m`, plus shared debugging work in `BehaviorBoxSerialInput.m`, `BehaviorBoxSerialTime.m`, and `BehaviorBoxVisualStimulus.m`, without leaking wheel-only or imaging-only state into nose code.
 
 ### Priority work
 
@@ -76,6 +76,33 @@ This bucket is for changes that belong in both `BehaviorBoxWheel.m`, `BehaviorBo
 - In `BehaviorBoxNose.m`, reuse existing helpers such as `ensureColumns()` and `alignDataLengths()` instead of creating a second parallel save-normalization path.
 - Reduce overly broad `try/catch` scopes in save/load hot paths so the failing operation and current state are easier to localize.
 - Normalize mixed `char` / `string` / `cell` save-state inputs before save and after load, but do not change saved-file schema casually.
+- Add a shared session-preflight summary helper for `BehaviorBoxWheel.m` and `BehaviorBoxNose.m` that records, before the main loop starts:
+  - subject, strain, input mode, stimulus type, and current level
+  - resolved save folder and diary path
+  - whether `BehaviorBoxData` initialized successfully
+  - whether keyboard fallback was activated
+  - resolved Arduino and Timekeeper identities or ports when applicable
+  - whether `BehaviorBoxVisualStimulus` and its figure were created successfully
+- Add a shared debug snapshot helper for `BehaviorBoxWheel.m` and `BehaviorBoxNose.m` that is safe to call from top-level `catch` blocks and includes the active trial, phase, current decision, and the most recent app-setting snapshot.
+- Add one explicit app-settings schema or manifest for the cached `readSettingsFromApp()` path in wheel and nose. The point is to make it obvious which app control maps to which saved setting and which coercions were applied.
+- Add a per-file `LoadReport` or equivalent in `BehaviorBoxData.m` that stores, for each loaded file:
+  - file path
+  - top-level fields
+  - whether `newData` exists
+  - whether the file was treated as training, animate-only, or skipped
+  - normalization or trimming decisions
+  - any load or schema-validation error
+- Keep `BehaviorBoxData.m` clearly marked as the active loader/analyzer for GUI workflows, and label `BehaviorBoxDataNew.m` clearly as experimental, analysis-only, or legacy if that is still the intended status. The goal is to prevent future feature work from landing in the wrong class.
+- Add a serial command registry in `BehaviorBoxSerialInput.m` and `BehaviorBoxSerialTime.m` so command bytes such as reward setup, timestamp on/off, acquisition start/next/end, frame checks, and resets are named in one place instead of scattered as magic characters.
+- Add lightweight TX/RX history or command counters to the serial classes so future debugging can answer:
+  - which command was sent
+  - when it was sent
+  - which port handled it
+  - whether a matching response or parse event arrived
+- Add a pure parser smoke test for `BehaviorBoxSerialInput.m` and `BehaviorBoxSerialTime.m` that feeds known sample lines or command sequences without requiring hardware.
+- Refactor `BehaviorBoxVisualStimulus.m` so the active method-based stimulus implementation is easier to distinguish from the legacy free-function implementations that still remain below the class definition.
+- Add a non-drawing `buildStimulusSpec_()` or `describeStimulusSpec_()` path in `BehaviorBoxVisualStimulus.m` so future feature work can debug stimulus choice, level interpretation, and left/right assignment without opening figures.
+- Turn known inline uncertainty comments in save/load paths into testable behavior. For example, comments that a helper is "not working correctly" or "causes errors" should become failing smoke tests or explicit temporary assertions instead of remaining as passive notes.
 
 ### Important constraint
 
@@ -101,10 +128,28 @@ Run the existing wheel save-status smoke test to confirm shared save-path change
 matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('MockApp/testBehaviorBoxWheelSaveStatus.m');"
 ```
 
+Run a future shared session-preflight smoke test after it is added:
+
+```bash
+matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('MockApp/testBehaviorBoxSessionPreflight.m');"
+```
+
+Run a future serial-parser smoke test after it is added:
+
+```bash
+matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('fcns/testBehaviorBoxSerialParsers.m');"
+```
+
+Run a future visual-stimulus preview/spec smoke test after it is added:
+
+```bash
+matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('fcns/testBehaviorBoxVisualStimulusPreview.m');"
+```
+
 Check for unresolved merge markers in the save/load classes:
 
 ```bash
-rg -n "^<<<<<<<|^=======|^>>>>>>>" BehaviorBoxNose.m BehaviorBoxWheel.m BehaviorBoxData.m
+rg -n "^<<<<<<<|^=======|^>>>>>>>" BehaviorBoxNose.m BehaviorBoxWheel.m BehaviorBoxData.m BehaviorBoxVisualStimulus.m BehaviorBoxSerialInput.m BehaviorBoxSerialTime.m
 ```
 
 ## Bucket 3: Pending wheel-only debugging work
@@ -116,6 +161,15 @@ This bucket is for debugging improvements that belong only to the wheel workflow
 - Add `fcns/testInterruptedTrialSave.m` as a narrow wheel-only repro for interrupted-session save behavior.
 - Add `fcns/testWheelTimestampIntegrity.m` as a narrow wheel-only repro for timestamp-segment structure and trial-level completeness.
 - Add a wheel-only runtime snapshot helper such as `getDebugSnapshot_()` or `getWheelDebugSnapshot_()` in `BehaviorBoxWheel.m`.
+- Add a wheel-only setup or preflight reporter around `ConfigureBox()` and `SetupBeforeLoop()` so future debugging can see, in one place, whether the wheel Arduino connected, whether the Timekeeper connected, whether keyboard fallback engaged, whether the timestamp segment started, and which ScanImage file index is active.
+- Persist the last wheel-specific fault context from `DoLoop()` when a trial fails, including:
+  - current trial
+  - current phase
+  - current decision
+  - whether acquisition start/end was attempted
+  - current time-segment kind and trial
+  - current `WheelDisplayRecord` and `FrameAlignedRecord` row counts
+- Keep the Timekeeper integration inspectable by logging when frame-check requests, timestamp resets, acquisition start/end calls, and segment stores occur.
 - The wheel snapshot helper should include only wheel-owned runtime state, for example:
   - `i`
   - `WhatDecision`
@@ -155,6 +209,12 @@ Run the new wheel timestamp-integrity smoke test after it is added:
 
 ```bash
 matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('fcns/testWheelTimestampIntegrity.m');"
+```
+
+Run a future wheel-preflight smoke test after it is added:
+
+```bash
+matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('MockApp/testWheelSessionPreflight.m');"
 ```
 
 Run the existing loader smoke test again to verify wheel save-output changes still load cleanly:

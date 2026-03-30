@@ -239,6 +239,53 @@
 - Patch the narrow load-normalization path so additive table fields are preserved or skipped safely.
 - Run MATLAB lint and rerun the reproduction command to confirm the loader works.
 
+## 2026-03-30 Unify Wheel And Frame Timestamps On The PC Session Clock
+
+1. Goal
+- Replace the mixed MATLAB/Arduino timing model for wheel-frame alignment with one PC-owned session clock.
+- Stamp both wheel/screen events and incoming frame-edge lines into the same session-relative time domain so `FrameAlignedRecord` can be built without cross-clock alignment.
+
+2. Non-goals
+- Do not remove existing additive saved outputs such as `TimestampRecord`, `WheelDisplayRecord`, or `FrameAlignedRecord`.
+- Do not redesign Arduino firmware protocol in this pass; keep Timekeeper as the frame-edge detector and frame counter source.
+- Do not broaden the change into BehaviorBoxData load logic, imaging analysis scripts, or unrelated wheel behavior.
+
+3. Current-state summary
+- `BehaviorBoxWheel.beginTimeSegment_()` starts a trial-local MATLAB `tic` and logs annotation rows in that time base.
+- `BehaviorBoxSerialTime` parses Arduino-emitted frame and stimulus lines that carry Arduino session-relative times.
+- `BehaviorBoxWheel.buildCurrentTrialFrameAlignedRecord_()` currently compares those incompatible clocks directly, which breaks screen-event-to-frame alignment.
+- The intended new authority is the Ubuntu/MATLAB session clock created once at training start and shared with `BehaviorBoxSerialTime`.
+- The revised target is a hybrid frame clock: preserve raw Arduino frame times, preserve PC receive times, and derive the canonical alignment time from Arduino deltas anchored into the shared PC session clock.
+
+4. Files likely touched
+- `/home/wbs/Desktop/BehaviorBox/BehaviorBoxWheel.m`
+- `/home/wbs/Desktop/BehaviorBox/BehaviorBoxSerialTime.m`
+- `/home/wbs/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- MATLAB lint:
+  `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); checkcode('BehaviorBoxSerialTime.m'); checkcode('BehaviorBoxWheel.m');"`
+- Conflict-marker scan:
+  `rg -n "^<<<<<<<|^=======|^>>>>>>>" /home/wbs/Desktop/BehaviorBox/BehaviorBoxSerialTime.m /home/wbs/Desktop/BehaviorBox/BehaviorBoxWheel.m`
+- If MATLAB execution remains unavailable in this environment, report that blocker explicitly and provide the exact commands for local rerun.
+
+6. Milestones
+- Add shared session-clock properties and initialization at training start.
+- Make `BehaviorBoxSerialTime` preserve three timing fields for hardware rows: raw Arduino time, PC receive time, and canonical session time.
+- Route wheel/screen annotation logging onto the same canonical session clock.
+- Rebuild `FrameAlignedRecord` using canonical session time while carrying the audit timing fields through the per-frame table.
+- Run the narrowest lint/check path available and inspect the final diff for schema drift.
+
+7. Risks and stop conditions
+- Stop if the change would silently alter saved `.mat` schema beyond the explicit timing-field behavior change.
+- Stop if MATLAB and incoming serial callbacks cannot reliably share the session clock handle.
+- Stop if validation shows callback jitter large enough to exceed the microscope frame interval tolerance.
+
+8. Handoff notes
+- Expected invariant outputs: trial decisions, reward counts, wheel traces, and existing additive field names.
+- Intentionally changed outputs: `TimestampRecord.parsed` and downstream `FrameAlignedRecord` will carry additive audit timing fields and use a canonical hybrid frame time derived from Arduino deltas anchored to the PC session clock.
+- Report validation commands, any MATLAB execution blocker, and remaining timing-jitter risk.
+
 7. Risks and stop conditions
 - Stop if the failure is not limited to table-field normalization and instead reflects broader schema drift in downstream analysis.
 - Stop if the fix would require silently discarding additive saved fields without documenting that compatibility tradeoff.
@@ -435,3 +482,48 @@
 8. Handoff notes
 - Report the default subject/config used by the loader smoke test and any override mechanism.
 - Call out that the smoke script is still a data-availability-dependent validation, not a pure unit test.
+
+## 2026-03-27 Review BehaviorBox Files For Debuggability
+
+1. Goal
+- Review the root `BehaviorBox*.m` files and identify concrete changes that would make future feature work easier to debug.
+- Update `Next Steps, ChatGPT/BehaviorBox_Debugging_Improvements.md` so it reflects those file-specific recommendations instead of only generic debugging guidance.
+
+2. Non-goals
+- Do not change MATLAB runtime behavior in this pass.
+- Do not edit `BehaviorBox*.m` implementation files in this pass.
+- Do not broaden into Arduino or Python changes unless a root-file debugging recommendation depends directly on one of those boundaries.
+
+3. Current-state summary
+- The root debug note already distinguishes implemented utilities from pending work, but it has not yet been refreshed from a direct pass over all current root `BehaviorBox*.m` files.
+- The root MATLAB classes mix GUI state, hardware calls, save/load behavior, analysis hooks, and app wiring.
+- `BehaviorBoxWheel.m` and `BehaviorBoxNose.m` are large stateful workflow classes with many `try/catch` blocks and side effects.
+- `BehaviorBoxData.m` remains the main load/analysis surface and still contains broad implicit schema assumptions.
+
+4. Files likely touched
+- `/home/wbs/Desktop/BehaviorBox/BehaviorBoxData.m`
+- `/home/wbs/Desktop/BehaviorBox/BehaviorBoxDataNew.m`
+- `/home/wbs/Desktop/BehaviorBox/BehaviorBoxNose.m`
+- `/home/wbs/Desktop/BehaviorBox/BehaviorBoxWheel.m`
+- `/home/wbs/Desktop/BehaviorBox/BehaviorBoxVisualStimulus.m`
+- `/home/wbs/Desktop/BehaviorBox/Next Steps, ChatGPT/BehaviorBox_Debugging_Improvements.md`
+- `/home/wbs/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- Read-only inspection only in this pass:
+  `rg -n "classdef|function |catch|try|disp\\(|fprintf\\(|warning\\(|save\\(|load\\(|addpath|uiputfile|questdlg|serial|arduino|scanimage|microscope" BehaviorBox*.m`
+- Read back the updated note:
+  `nl -ba 'Next Steps, ChatGPT/BehaviorBox_Debugging_Improvements.md'`
+
+6. Milestones
+- Map the root `BehaviorBox*.m` files and identify the main debug blockers for future feature work.
+- Distill those blockers into concrete recommendations with file-specific rationale.
+- Update the debug note so the recommended work reflects the live codebase.
+
+7. Risks and stop conditions
+- Stop if a recommendation would require changing saved-file schema or runtime behavior without explicit user approval.
+- Stop if the review reveals a MATLAB/Python or hardware boundary mismatch that cannot be described accurately without broader runtime validation.
+
+8. Handoff notes
+- Report the highest-value debugability findings first, with file references.
+- Call out which recommendations were added to the note and which remain only verbal suggestions if any.

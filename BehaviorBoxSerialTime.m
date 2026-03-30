@@ -11,11 +11,15 @@ classdef BehaviorBoxSerialTime < handle
         Log string = string.empty(0,1)
         RawLog string = string.empty(0,1)
         ParsedLog table = table( ...
-            'Size', [0 8], ...
-            'VariableTypes', {'string', 'double', 'double', 'string', 'double', 'string', 'double', 'double'}, ...
-            'VariableNames', {'kind', 't_us', 'frame', 'event', 'trial', 'side', 'correct', 'rewardPulse'})
+            'Size', [0 10], ...
+            'VariableTypes', {'string', 'double', 'double', 'double', 'double', 'string', 'double', 'string', 'double', 'double'}, ...
+            'VariableNames', {'kind', 't_us', 't_arduino_us', 't_pc_receive_us', 'frame', 'event', 'trial', 'side', 'correct', 'rewardPulse'})
         % Last raw line (debug)
         Reading string = ""
+        TrainStartTime = []
+        TrainStartWallClock = NaT
+        SegmentHardwareAnchorArduinoUs double = NaN
+        SegmentHardwareAnchorPcUs double = NaN
     end
 
     methods
@@ -78,6 +82,9 @@ classdef BehaviorBoxSerialTime < handle
                 eventName string
                 fields struct = struct()
             end
+            if ~isfield(fields, 't_us') || isempty(fields.t_us) || any(isnan(double(fields.t_us)))
+                fields.t_us = this.currentTrainMicros_();
+            end
             line = BehaviorBoxSerialTime.formatEventLine_(eventName, fields);
             this.appendLogLine_(line);
         end
@@ -88,6 +95,8 @@ classdef BehaviorBoxSerialTime < handle
             this.RawLog = string.empty(0,1);
             this.ParsedLog = BehaviorBoxSerialTime.emptyParsedLog_();
             this.Reading = "";
+            this.SegmentHardwareAnchorArduinoUs = NaN;
+            this.SegmentHardwareAnchorPcUs = NaN;
         end
 
         function Who(this)
@@ -167,6 +176,17 @@ classdef BehaviorBoxSerialTime < handle
     end
 
     methods (Access = private)
+        function t_us = currentTrainMicros_(this)
+            t_us = NaN;
+            if isempty(this.TrainStartTime)
+                return
+            end
+            try
+                t_us = round(toc(this.TrainStartTime) * 1e6);
+            catch
+            end
+        end
+
         function appendLogLine_(this, line)
             line = strtrim(string(line));
             if strlength(line) == 0
@@ -175,39 +195,34 @@ classdef BehaviorBoxSerialTime < handle
 
             this.RawLog(end+1,1) = line;
             this.Log = this.RawLog;
-            this.ParsedLog = [this.ParsedLog; BehaviorBoxSerialTime.parseLogLine_(line)];
-        end
-    end
-
-    methods (Static, Access = private)
-        function tbl = emptyParsedLog_()
-            tbl = table( ...
-                'Size', [0 8], ...
-                'VariableTypes', {'string', 'double', 'double', 'string', 'double', 'string', 'double', 'double'}, ...
-                'VariableNames', {'kind', 't_us', 'frame', 'event', 'trial', 'side', 'correct', 'rewardPulse'});
+            receiveT_us = this.currentTrainMicros_();
+            this.ParsedLog = [this.ParsedLog; this.parseLogLine_(line, receiveT_us)];
         end
 
-        function row = parsedRow_(kind, t_us, frame, eventName, trial, side, correct, rewardPulse)
-            row = table( ...
-                string(kind), ...
-                double(t_us), ...
-                double(frame), ...
-                string(eventName), ...
-                double(trial), ...
-                string(side), ...
-                double(correct), ...
-                double(rewardPulse), ...
-                'VariableNames', {'kind', 't_us', 'frame', 'event', 'trial', 'side', 'correct', 'rewardPulse'});
+        function t_us = hybridHardwareMicros_(this, arduinoT_us, pcReceiveT_us)
+            t_us = pcReceiveT_us;
+            if isnan(arduinoT_us)
+                return
+            end
+            if isnan(this.SegmentHardwareAnchorArduinoUs) || isnan(this.SegmentHardwareAnchorPcUs)
+                this.SegmentHardwareAnchorArduinoUs = double(arduinoT_us);
+                this.SegmentHardwareAnchorPcUs = double(pcReceiveT_us);
+                t_us = double(pcReceiveT_us);
+                return
+            end
+            t_us = round(this.SegmentHardwareAnchorPcUs + (double(arduinoT_us) - this.SegmentHardwareAnchorArduinoUs));
         end
 
-        function row = parseLogLine_(line)
+        function row = parseLogLine_(this, line, receiveT_us)
             line = strtrim(string(line));
             txt = char(line);
 
             frameTokens = regexp(txt, '^(\d+),\s*F\s+(\d+)$', 'tokens', 'once');
             if ~isempty(frameTokens)
+                arduinoT_us = str2double(frameTokens{1});
+                canonicalT_us = this.hybridHardwareMicros_(arduinoT_us, receiveT_us);
                 row = BehaviorBoxSerialTime.parsedRow_( ...
-                    "frame", str2double(frameTokens{1}), str2double(frameTokens{2}), "", NaN, "", NaN, NaN);
+                    "frame", canonicalT_us, arduinoT_us, receiveT_us, str2double(frameTokens{2}), "", NaN, "", NaN, NaN);
                 return
             end
 
@@ -218,14 +233,16 @@ classdef BehaviorBoxSerialTime < handle
                 else
                     eventName = "stim_off";
                 end
+                arduinoT_us = str2double(stimTokens{2});
+                canonicalT_us = this.hybridHardwareMicros_(arduinoT_us, receiveT_us);
                 row = BehaviorBoxSerialTime.parsedRow_( ...
-                    "signal", str2double(stimTokens{2}), NaN, eventName, NaN, "", NaN, NaN);
+                    "signal", canonicalT_us, arduinoT_us, receiveT_us, NaN, eventName, NaN, "", NaN, NaN);
                 return
             end
 
             tokenPairs = regexp(txt, '([A-Za-z_][A-Za-z0-9_]*)=([^\s]+)', 'tokens');
             if isempty(tokenPairs)
-                row = BehaviorBoxSerialTime.parsedRow_("raw", NaN, NaN, "", NaN, "", NaN, NaN);
+                row = BehaviorBoxSerialTime.parsedRow_("raw", receiveT_us, NaN, receiveT_us, NaN, "", NaN, "", NaN, NaN);
                 return
             end
 
@@ -237,13 +254,40 @@ classdef BehaviorBoxSerialTime < handle
             kind = BehaviorBoxSerialTime.readStringField_(tokenMap, 'kind', "annotation");
             eventName = BehaviorBoxSerialTime.readStringField_(tokenMap, 'event', "");
             t_us = BehaviorBoxSerialTime.readNumericField_(tokenMap, 't_us');
+            if isnan(t_us)
+                t_us = receiveT_us;
+            end
             frame = BehaviorBoxSerialTime.readNumericField_(tokenMap, 'frame');
             trial = BehaviorBoxSerialTime.readNumericField_(tokenMap, 'trial');
             side = BehaviorBoxSerialTime.readStringField_(tokenMap, 'side', "");
             correct = BehaviorBoxSerialTime.readNumericField_(tokenMap, 'correct');
             rewardPulse = BehaviorBoxSerialTime.readNumericField_(tokenMap, 'rewardPulse');
 
-            row = BehaviorBoxSerialTime.parsedRow_(kind, t_us, frame, eventName, trial, side, correct, rewardPulse);
+            row = BehaviorBoxSerialTime.parsedRow_(kind, t_us, NaN, receiveT_us, frame, eventName, trial, side, correct, rewardPulse);
+        end
+    end
+
+    methods (Static, Access = private)
+        function tbl = emptyParsedLog_()
+            tbl = table( ...
+                'Size', [0 10], ...
+                'VariableTypes', {'string', 'double', 'double', 'double', 'double', 'string', 'double', 'string', 'double', 'double'}, ...
+                'VariableNames', {'kind', 't_us', 't_arduino_us', 't_pc_receive_us', 'frame', 'event', 'trial', 'side', 'correct', 'rewardPulse'});
+        end
+
+        function row = parsedRow_(kind, t_us, t_arduino_us, t_pc_receive_us, frame, eventName, trial, side, correct, rewardPulse)
+            row = table( ...
+                string(kind), ...
+                double(t_us), ...
+                double(t_arduino_us), ...
+                double(t_pc_receive_us), ...
+                double(frame), ...
+                string(eventName), ...
+                double(trial), ...
+                string(side), ...
+                double(correct), ...
+                double(rewardPulse), ...
+                'VariableNames', {'kind', 't_us', 't_arduino_us', 't_pc_receive_us', 'frame', 'event', 'trial', 'side', 'correct', 'rewardPulse'});
         end
 
         function value = readNumericField_(tokenMap, fieldName)

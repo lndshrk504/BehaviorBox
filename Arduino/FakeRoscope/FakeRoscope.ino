@@ -10,7 +10,8 @@ constexpr uint8_t PIN_END_ACQ = 7;
 
 constexpr unsigned long SERIAL_BAUD = 115200;
 constexpr unsigned long SERIAL_WAIT_TIMEOUT_MS = 2000UL;
-constexpr unsigned long FRAME_PERIOD_US = 1000000UL / 17UL;
+//constexpr unsigned long FRAME_PERIOD_US = 1000000UL / 17UL; // 17 hz
+constexpr unsigned long FRAME_PERIOD_US = 2000000UL; // 0.5 hz
 constexpr unsigned long FRAME_HIGH_US = FRAME_PERIOD_US / 2UL;
 constexpr unsigned long FRAME_LOW_US = FRAME_PERIOD_US - FRAME_HIGH_US;
 
@@ -22,13 +23,19 @@ bool previousStartState = LOW;
 bool previousNextFileState = LOW;
 bool previousEndState = LOW;
 
+static inline void printFrameRateHz() {
+  Serial.print(1000000.0 / static_cast<double>(FRAME_PERIOD_US), 3);
+}
+
 static inline void printUsageAndStatus() {
   Serial.println(F("FakeRoscope usage"));
   Serial.println(F("Serial commands:"));
   Serial.println(F("  ? : print this help and current status"));
   Serial.println(F("  S : toggle the frame clock on or off"));
   Serial.println(F("Pins:"));
-  Serial.println(F("  Pin 4 output: 17 Hz frame clock to Timekeeper pin 3"));
+  Serial.print(F("  Pin 4 output: "));
+  printFrameRateHz();
+  Serial.println(F(" Hz frame clock to Timekeeper pin 3"));
   Serial.println(F("  Pin 5 input : start acquisition from Rotary"));
   Serial.println(F("  Pin 6 input : next file from Rotary"));
   Serial.println(F("  Pin 7 input : end acquisition from Rotary"));
@@ -135,7 +142,9 @@ void setup() {
   Serial.println(F("Box ID: FakeRoscope"));
   Serial.println(F("Frame clock output: pin 4"));
   Serial.println(F("Control inputs: pin 5 start, pin 6 next file, pin 7 end"));
-  Serial.println(F("Frame clock: 17 Hz, 50% duty cycle"));
+  Serial.print(F("Frame clock: "));
+  printFrameRateHz();
+  Serial.println(F(" Hz, 50% duty cycle"));
   Serial.println(F("Waiting for start signal"));
   Serial.println(F("Send ? for help and status"));
 }
