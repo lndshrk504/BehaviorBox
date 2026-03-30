@@ -10,8 +10,8 @@ constexpr uint8_t PIN_END_ACQ = 7;
 
 constexpr unsigned long SERIAL_BAUD = 115200;
 constexpr unsigned long SERIAL_WAIT_TIMEOUT_MS = 2000UL;
-//constexpr unsigned long FRAME_PERIOD_US = 1000000UL / 17UL; // 17 hz
-constexpr unsigned long FRAME_PERIOD_US = 2000000UL; // 0.5 hz
+constexpr unsigned long FRAME_PERIOD_US = 1000000UL / 17UL; // 17 hz
+//constexpr unsigned long FRAME_PERIOD_US = 2000000UL; // 0.5 hz
 constexpr unsigned long FRAME_HIGH_US = FRAME_PERIOD_US / 2UL;
 constexpr unsigned long FRAME_LOW_US = FRAME_PERIOD_US - FRAME_HIGH_US;
 
