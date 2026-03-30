@@ -244,6 +244,8 @@
 1. Goal
 - Replace the mixed MATLAB/Arduino timing model for wheel-frame alignment with one PC-owned session clock.
 - Stamp both wheel/screen events and incoming frame-edge lines into the same session-relative time domain so `FrameAlignedRecord` can be built without cross-clock alignment.
+- Merge sparse semantic events from `TimestampRecord.parsed` into `FrameAlignedRecord` so reward pulses, `stim_off`, choice, and trial-end timing are preserved alongside per-frame wheel/display state.
+- Move trial display-event timestamps onto the actual post-draw visibility transitions for the ready cue, stimulus-on, distractor dim, and stimulus-off points.
 
 2. Non-goals
 - Do not remove existing additive saved outputs such as `TimestampRecord`, `WheelDisplayRecord`, or `FrameAlignedRecord`.
@@ -256,6 +258,8 @@
 - `BehaviorBoxWheel.buildCurrentTrialFrameAlignedRecord_()` currently compares those incompatible clocks directly, which breaks screen-event-to-frame alignment.
 - The intended new authority is the Ubuntu/MATLAB session clock created once at training start and shared with `BehaviorBoxSerialTime`.
 - The revised target is a hybrid frame clock: preserve raw Arduino frame times, preserve PC receive times, and derive the canonical alignment time from Arduino deltas anchored into the shared PC session clock.
+- `WheelDisplayRecord` now carries the per-frame-state source for phase, wheel position, and displayed stimulus color, but `FrameAlignedRecord.screenEvent` still only reflects wheel-display event rows and therefore misses richer parsed annotations such as `reward_1`, `reward_2`, `reward_3`, `stim_off`, and `trial_end`.
+- Some display-timing annotations are still logged before the corresponding visual change is drawn, most notably `hold_still_start`, and the requested visual milestones (`Screen On`, stimulus visibility, distractor dimming, stimulus-off) are not yet emitted as explicit trial-aligned events.
 
 4. Files likely touched
 - `/home/wbs/Desktop/BehaviorBox/BehaviorBoxWheel.m`
@@ -274,6 +278,9 @@
 - Make `BehaviorBoxSerialTime` preserve three timing fields for hardware rows: raw Arduino time, PC receive time, and canonical session time.
 - Route wheel/screen annotation logging onto the same canonical session clock.
 - Rebuild `FrameAlignedRecord` using canonical session time while carrying the audit timing fields through the per-frame table.
+- Merge relevant parsed annotation/signal events into each frame bin without overwriting the wheel/display state projection.
+- Relocate display-event logging to the true post-draw visibility points and emit additive parsed events for `screen_on`, `stimulus_on`, `distractors_dimmed`, and `stimulus_off`.
+- Preserve pre-trial setup timing by appending additive `trial = 0` setup frame rows when a setup segment contains microscope frames, so `Screen On` can align to actual pre-trial frames.
 - Run the narrowest lint/check path available and inspect the final diff for schema drift.
 
 7. Risks and stop conditions
@@ -284,6 +291,9 @@
 8. Handoff notes
 - Expected invariant outputs: trial decisions, reward counts, wheel traces, and existing additive field names.
 - Intentionally changed outputs: `TimestampRecord.parsed` and downstream `FrameAlignedRecord` will carry additive audit timing fields and use a canonical hybrid frame time derived from Arduino deltas anchored to the PC session clock.
+- Intentionally changed outputs: `FrameAlignedRecord.screenEvent` will include merged parsed event detail such as reward pulses, `stim_off`, choice, and trial-end annotations in addition to existing wheel-display screen events.
+- Intentionally changed outputs: `TimestampRecord.parsed` and `FrameAlignedRecord.screenEvent` will gain additive human-readable visual event timing for cue onset, stimulus onset, distractor dimming, and stimulus-off.
+- Intentionally changed outputs: `FrameAlignedRecord` may begin with additive `trial = 0`, `phase = "setup"` rows when setup microscope frames are present, allowing `Screen On` to land on real pre-trial frames.
 - Report validation commands, any MATLAB execution blocker, and remaining timing-jitter risk.
 
 7. Risks and stop conditions

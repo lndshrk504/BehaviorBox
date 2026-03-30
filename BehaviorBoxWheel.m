@@ -541,6 +541,7 @@ classdef BehaviorBoxWheel < handle
                 set(this.message_handle, 'Text', "Starting acquisition (ScanImage)...");
                 this.a.Acquisition('Start');
                 this.logTimeEvent_("acq_start", struct('trial', 0, 'scanImageFile', this.TimeScanImageFileIndex));
+                this.logTimeEvent_("screen_on", struct('trial', 0, 'scanImageFile', this.TimeScanImageFileIndex));
                 pause(5) % Let the mouse react to the screen turning on
             catch
             end
@@ -850,6 +851,9 @@ classdef BehaviorBoxWheel < handle
                 end
                 try
                     this.storeCurrentTimeSegment_();
+                    if ~isempty(this.timestamps_record)
+                        this.appendSessionFrameAlignedSegment_(this.timestamps_record{end});
+                    end
                 catch
                 end
             end
@@ -863,8 +867,6 @@ classdef BehaviorBoxWheel < handle
                 set(this.message_handle, 'Text', "Preparing trial timestamp log ...");
                 this.beginTimeSegment_("trial", this.i);
                 this.logTrialStartEvent_();
-                this.logTimeEvent_("hold_still_start", struct('trial', this.i, 'side', this.trialSideName_(), 'level', this.Level));
-                this.beginWheelDisplayTrial_();
             catch
             end
             try % Send Next File signal to ScanImage
@@ -891,6 +893,11 @@ classdef BehaviorBoxWheel < handle
                             set(this.FLAx, 'Visible', true);
                         end
                         drawnow
+                    else
+                        drawnow
+                    end
+                    this.beginHoldStillInterval_();
+                    if this.i ~=1
                         timelimit = this.Setting_Struct.HoldStill;
                         tic;
                         while toc<=timelimit
@@ -921,6 +928,8 @@ classdef BehaviorBoxWheel < handle
                         this.ReadyCue(true);
                     end
                 otherwise % Keyboard inputthis.Box.KeyboardInput==1
+                    drawnow
+                    this.beginHoldStillInterval_();
                     InterTMalInterv = this.Setting_Struct.IntertrialMalSec;
                     text = 'Initialize: Press L for Left, R for Right, C or M for Middle:'; set(this.message_handle,'Text',text); fprintf([text '\n'])
                     prompt = 'L, R, or M/C:   ';
@@ -996,8 +1005,8 @@ classdef BehaviorBoxWheel < handle
             this.DrinkTime = 0;
             % Optimized background and ready cue handling
             this.setVisibleChildren(this.fig.Children, true);
+            this.logTimeEvent_("stimulus_on", struct('trial', this.i, 'side', this.trialSideName_(), 'level', this.Level));
             Lines = [findobj('Tag', 'Contour') ; findobj('Tag', 'Distractor')];
-            drawnow
             this.setWheelDisplayPhase_("response");
             % Ignore input for a defined duration
             startTime = tic;
@@ -1085,6 +1094,8 @@ classdef BehaviorBoxWheel < handle
             d = this.fig.Children.findobj('Tag', 'Distractor');
             DIM = this.StimulusStruct.DimColor;
             set(d, 'Color', DIM)
+            drawnow
+            this.logTimeEvent_("distractors_dimmed", struct('trial', this.i, 'side', this.trialSideName_(), 'level', this.Level));
         end
         function processCorrectDecision(this, keyboardInput, inputType)
             % Handle reward and post-correct responses
@@ -1157,6 +1168,7 @@ classdef BehaviorBoxWheel < handle
             set(this.ReadyCueAx, 'Visible', true)
             set(this.FLAx, 'Visible', false)
             drawnow
+            this.logTimeEvent_("stimulus_off", struct('trial', this.i, 'side', this.trialSideName_(), 'level', this.Level));
         end
         function [WhatDecision, response_time] = readLeverLoopAnalogWheel(this)
             % REVISED v4:
@@ -3769,6 +3781,14 @@ classdef BehaviorBoxWheel < handle
             this.recordWheelDisplayState_("Force", true);
         end
 
+        function beginHoldStillInterval_(this)
+            this.logTimeEvent_("hold_still_start", struct( ...
+                'trial', this.i, ...
+                'side', this.trialSideName_(), ...
+                'level', this.Level));
+            this.beginWheelDisplayTrial_();
+        end
+
         function setWheelDisplayPhase_(this, phaseName)
             if isempty(this.Time) || ~isobject(this.Time)
                 return
@@ -3883,6 +3903,13 @@ classdef BehaviorBoxWheel < handle
             if all(isnan(displayUs)) && ~isnan(holdStillUs)
                 displayUs = holdStillUs + (1e6 .* double(trialRows.tTrial));
             end
+            displayEventMask = trialRows.screenEvent ~= "" & ~isnan(displayUs);
+            displayEventTimes = double(displayUs(displayEventMask));
+            displayEventNames = string(trialRows.screenEvent(displayEventMask));
+
+            parsedEventMask = parsed.kind ~= "frame" & parsed.event ~= "" & ~isnan(parsed.t_us);
+            parsedEventTimes = double(parsed.t_us(parsedEventMask));
+            parsedEventNames = this.frameAlignedEventLabel_(string(parsed.event(parsedEventMask)));
 
             rows = this.emptyFrameAlignedRecord_();
             finalDecision = string(this.WhatDecision);
@@ -3896,7 +3923,8 @@ classdef BehaviorBoxWheel < handle
             if ismember('t_pc_receive_us', frameRows.Properties.VariableNames)
                 framePcReceiveUs = double(frameRows.t_pc_receive_us);
             end
-            for iFrame = 1:height(frameRows)
+            frameCount = height(frameRows);
+            for iFrame = 1:frameCount
                 frameUs = double(frameRows.t_us(iFrame));
                 sourceIdx = find(displayUs <= frameUs, 1, 'last');
                 if isempty(sourceIdx)
@@ -3904,13 +3932,23 @@ classdef BehaviorBoxWheel < handle
                 end
                 sourceRow = trialRows(sourceIdx, :);
                 frameScreenEvent = "";
-                eventIdx = find( ...
-                    trialRows.screenEvent ~= "" & ...
-                    ~isnan(displayUs) & ...
-                    displayUs <= frameUs & ...
-                    displayUs > prevFrameUs);
-                if ~isempty(eventIdx)
-                    frameScreenEvent = strjoin(string(trialRows.screenEvent(eventIdx)), " | ");
+                eventUpperUs = frameUs;
+                if iFrame == frameCount
+                    eventUpperUs = Inf;
+                end
+                displayEventIdx = find( ...
+                    displayEventTimes <= eventUpperUs & ...
+                    displayEventTimes > prevFrameUs);
+                parsedEventIdx = find( ...
+                    parsedEventTimes <= eventUpperUs & ...
+                    parsedEventTimes > prevFrameUs);
+                if ~isempty(displayEventIdx) || ~isempty(parsedEventIdx)
+                    mergedEventTimes = [displayEventTimes(displayEventIdx); parsedEventTimes(parsedEventIdx)];
+                    mergedEventNames = [displayEventNames(displayEventIdx); parsedEventNames(parsedEventIdx)];
+                    mergedEventOrder = (1:numel(mergedEventTimes))';
+                    [~, sortIdx] = sortrows([mergedEventTimes(:), mergedEventOrder], [1 2]);
+                    mergedEventNames = this.dedupeFrameAlignedEventNames_(mergedEventNames(sortIdx));
+                    frameScreenEvent = strjoin(mergedEventNames, " | ");
                 end
 
                 frameTTrial = sourceRow.tTrial;
@@ -3945,6 +3983,109 @@ classdef BehaviorBoxWheel < handle
             rows.decision(:) = finalDecision;
             rows.correct(:) = finalCorrect;
             this.CurrentTrialFrameAlignedRecord = rows;
+            this.FrameAlignedRecord = [this.FrameAlignedRecord; rows];
+        end
+
+        function appendSessionFrameAlignedSegment_(this, segment)
+            this.ensureWheelDisplayTables_();
+            if isempty(this.Time) || ~isobject(this.Time)
+                return
+            end
+            if isempty(segment) || ~isstruct(segment) || ~isfield(segment, 'parsed')
+                return
+            end
+
+            segmentKind = "";
+            if isfield(segment, 'kind')
+                segmentKind = string(segment.kind);
+            end
+            if segmentKind == "trial"
+                return
+            end
+
+            parsed = segment.parsed;
+            if isempty(parsed) || height(parsed) == 0
+                return
+            end
+            frameRows = parsed(parsed.kind == "frame", :);
+            if isempty(frameRows) || height(frameRows) == 0
+                return
+            end
+
+            parsedEventMask = parsed.kind ~= "frame" & parsed.event ~= "" & ~isnan(parsed.t_us);
+            parsedEventTimes = double(parsed.t_us(parsedEventMask));
+            parsedEventNames = this.frameAlignedEventLabel_(string(parsed.event(parsedEventMask)));
+
+            segmentTrial = NaN;
+            if isfield(segment, 'trial') && ~isempty(segment.trial)
+                segmentTrial = double(segment.trial);
+            end
+            if isnan(segmentTrial)
+                segmentTrial = 0;
+            end
+
+            segmentStartUs = NaN;
+            if ~isempty(parsedEventTimes)
+                segmentStartUs = parsedEventTimes(1);
+            elseif height(frameRows) > 0
+                segmentStartUs = double(frameRows.t_us(1));
+            end
+
+            rows = this.emptyFrameAlignedRecord_();
+            prevFrameUs = -Inf;
+            frameArduinoUs = NaN(height(frameRows), 1);
+            if ismember('t_arduino_us', frameRows.Properties.VariableNames)
+                frameArduinoUs = double(frameRows.t_arduino_us);
+            end
+            framePcReceiveUs = NaN(height(frameRows), 1);
+            if ismember('t_pc_receive_us', frameRows.Properties.VariableNames)
+                framePcReceiveUs = double(frameRows.t_pc_receive_us);
+            end
+            frameCount = height(frameRows);
+            for iFrame = 1:frameCount
+                frameUs = double(frameRows.t_us(iFrame));
+                frameScreenEvent = "";
+                eventUpperUs = frameUs;
+                if iFrame == frameCount
+                    eventUpperUs = Inf;
+                end
+                parsedEventIdx = find( ...
+                    parsedEventTimes <= eventUpperUs & ...
+                    parsedEventTimes > prevFrameUs);
+                if ~isempty(parsedEventIdx)
+                    mergedEventNames = this.dedupeFrameAlignedEventNames_(parsedEventNames(parsedEventIdx));
+                    frameScreenEvent = strjoin(mergedEventNames, " | ");
+                end
+
+                frameTTrial = NaN;
+                if ~isnan(segmentStartUs)
+                    frameTTrial = (frameUs - segmentStartUs) / 1e6;
+                end
+
+                row = table( ...
+                    double(segmentTrial), ...
+                    double(frameRows.frame(iFrame)), ...
+                    frameUs, ...
+                    double(frameArduinoUs(iFrame)), ...
+                    double(framePcReceiveUs(iFrame)), ...
+                    segmentKind, ...
+                    double(frameTTrial), ...
+                    NaN, ...
+                    NaN, ...
+                    NaN, ...
+                    frameScreenEvent, ...
+                    NaN, ...
+                    false, ...
+                    "", ...
+                    NaN, ...
+                    'VariableNames', {'trial','frame','t_us','t_arduino_us','t_pc_receive_us','phase','tTrial','rawWheel','delta','StimColor','screenEvent','level','isLeftTrial','decision','correct'});
+                rows = [rows; row];
+                prevFrameUs = frameUs;
+            end
+
+            if isempty(rows) || height(rows) == 0
+                return
+            end
             this.FrameAlignedRecord = [this.FrameAlignedRecord; rows];
         end
 
@@ -4009,6 +4150,32 @@ classdef BehaviorBoxWheel < handle
                 'Size', [0 15], ...
                 'VariableTypes', {'double','double','double','double','double','string','double','double','double','double','string','double','logical','string','double'}, ...
                 'VariableNames', {'trial','frame','t_us','t_arduino_us','t_pc_receive_us','phase','tTrial','rawWheel','delta','StimColor','screenEvent','level','isLeftTrial','decision','correct'});
+        end
+
+        function eventNames = frameAlignedEventLabel_(this, eventNames)
+            eventNames = string(eventNames);
+            eventNames(eventNames == "screen_on" | eventNames == "acq_start") = "Screen On";
+            eventNames(eventNames == "stim_on" | eventNames == "stimulus_on") = "Stimulus On";
+            eventNames(eventNames == "stim_off" | eventNames == "stimulus_off") = "Stimulus off";
+            eventNames(eventNames == "distractors_dimmed") = "Distractors Dimmed";
+        end
+
+        function eventNames = dedupeFrameAlignedEventNames_(this, eventNames)
+            eventNames = string(eventNames);
+            if isempty(eventNames)
+                return
+            end
+            keepMask = false(size(eventNames));
+            seen = strings(0, 1);
+            for idx = 1:numel(eventNames)
+                key = lower(strtrim(eventNames(idx)));
+                if any(seen == key)
+                    continue
+                end
+                seen(end+1,1) = key; %#ok<AGROW>
+                keepMask(idx) = true;
+            end
+            eventNames = eventNames(keepMask);
         end
 
         function side = trialSideName_(this)
