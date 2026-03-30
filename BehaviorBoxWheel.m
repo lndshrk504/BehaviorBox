@@ -1922,9 +1922,6 @@ classdef BehaviorBoxWheel < handle
             %Update data & Plot, update GUI numbers
             this.UpdateData();
             this.updateMessageText(decision, interval, interval_time);
-            if get(this.stop_handle, 'Value')
-                return
-            end
             this.ReadyCue(true)
             this.setWheelDisplayPhase_("intertrial");
             this.logTimeEvent_("trial_end", struct( ...
@@ -1934,9 +1931,6 @@ classdef BehaviorBoxWheel < handle
                 'decision', this.WhatDecision, ...
                 'correct', this.choiceWasCorrect_(), ...
                 'responseTime', this.ResponseTime));
-            %Wait for interval
-            this.UpdatePause(interval_time)
-            this.updateMessageBox();
             if this.Temp_Active
                 this.Setting_Struct = this.Temp_Old_Settings;
             end
@@ -1946,6 +1940,12 @@ classdef BehaviorBoxWheel < handle
             end
             this.storeCurrentTimeSegment_();
             this.buildCurrentTrialFrameAlignedRecord_();
+            if get(this.stop_handle, 'Value')
+                return
+            end
+            %Wait for interval
+            this.UpdatePause(interval_time)
+            this.updateMessageBox();
         end
         function updateMessageBox(this)
             try
