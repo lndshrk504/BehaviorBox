@@ -233,7 +233,9 @@ classdef BehaviorBoxData < handle
                 end
             end
 
-            % If nothing found, create folder(s) for a new subject/strain
+            % If nothing is found, return the would-be save path but do not
+            % create folders during subject lookup. SaveAllData will create
+            % the folder later if this is a legitimate new subject.
             if isempty(dirPath)
                 subfiledir = this.handleNewStrain();
                 return
@@ -303,7 +305,7 @@ classdef BehaviorBoxData < handle
             subList = cellstr(string(this.Sub));
             subList(cellfun(@isempty, subList)) = [];
 
-            % Create subject folder(s)
+            % Compose candidate subject folder(s) without creating them yet.
             newpaths = cellfun(@(s) fullfile(dataRoot, strain, s), subList, 'UniformOutput', false);
 
             this.actionOnFolderPresence(newpaths, subList);
@@ -316,7 +318,7 @@ classdef BehaviorBoxData < handle
             end
         end
 
-        function actionOnFolderPresence(this, newpath, subjects)
+        function actionOnFolderPresence(~, newpath, subjects)
             if nargin < 3
                 subjects = {};
             end
@@ -337,13 +339,13 @@ classdef BehaviorBoxData < handle
                 return
             end
 
-            % Create any missing folders
-            for i = 1:numel(newpath)
-                if ~exists(i)
-                    mkdir(newpath{i});
-                end
+            missingSubjects = subjects(~exists);
+            if isempty(missingSubjects)
+                fprintf("Requested subject folder(s) were not found. New strain/subject folder(s) will be created when saving data...\n");
+            else
+                fprintf("Subject folder(s) not found yet:\n - %s\n", strjoin(missingSubjects, "\n - "));
+                fprintf("New strain/subject folder(s) will be created when saving data...\n");
             end
-            fprintf("New strain/subject folder(s) will be created when saving data...\n");
         end
 
         function [varargout] = loadFiles(this, options)
@@ -380,6 +382,75 @@ classdef BehaviorBoxData < handle
                 varargout{1} = allData;
             end
             fprintf("Loaded... : " + toc + " seconds.\n")
+        end
+        function extras = GetReadExtras(this, idx)
+            if nargin < 2 || isempty(idx)
+                extras = this.loadedData(:,5);
+                return
+            end
+
+            extras = this.loadedData(idx,5);
+            if isscalar(idx)
+                extras = extras{1};
+            end
+        end
+        function out = GetDayBinScalar(~, dayBin, rowName)
+            rowMap = struct('numel', 4, 'mean', 5, 'std', 6, 'sCross', 11, 'bCross', 12);
+            if istable(dayBin)
+                out = dayBin{rowName,1};
+                if iscell(out)
+                    out = out{1};
+                end
+                return
+            end
+            if iscell(dayBin) && isfield(rowMap, rowName)
+                out = dayBin{rowMap.(rowName),1};
+                if iscell(out)
+                    out = out{1};
+                end
+                return
+            end
+            out = NaN;
+        end
+        function [includeBySetting, setStrBySetting] = GetRescuedSettingsFallback(~, bigSession, includeIn, setStrIn)
+            arguments
+                ~
+                bigSession struct
+                includeIn = []
+                setStrIn = {}
+            end
+            nSettings = 1;
+            if isfield(bigSession, 'SetIdx') && ~isempty(bigSession.SetIdx)
+                validIdx = bigSession.SetIdx(isfinite(bigSession.SetIdx) & bigSession.SetIdx >= 1);
+                if ~isempty(validIdx)
+                    nSettings = max(nSettings, max(validIdx));
+                end
+            end
+            if ~isempty(includeIn)
+                nSettings = max(nSettings, numel(includeIn));
+            end
+            if ~isempty(setStrIn)
+                nSettings = max(nSettings, numel(setStrIn));
+            end
+
+            includeBySetting = ones(nSettings, 1);
+            setStrBySetting = repmat({'rescued-missing-settings'}, nSettings, 1);
+
+            if ~isempty(includeIn)
+                includeBySetting(1:numel(includeIn)) = includeIn(:);
+            end
+            if ~isempty(setStrIn)
+                for i = 1:min(numel(setStrIn), nSettings)
+                    candidate = setStrIn{i};
+                    if isempty(candidate)
+                        continue
+                    end
+                    if isnumeric(candidate) && isscalar(candidate) && candidate == 0
+                        continue
+                    end
+                    setStrBySetting{i} = char(string(candidate));
+                end
+            end
         end
         function [varargout] = CombineDays(this, options)
             arguments
@@ -528,8 +599,12 @@ classdef BehaviorBoxData < handle
                     try
                         bigSession.Include = Include(bigSession.SetIdx);
                     catch
-                        warning("Sub: "+cell2mat(S)+" Day "+d+" - Rescued data found, settings info is missing");
-                        bigSession.Include = ones(size(bigSession.Score)); %For any data that was rescued, there are no settings
+                        [includeBySetting, setStrBySetting] = this.GetRescuedSettingsFallback(bigSession, Include, SetStr);
+                        safeSetIdx = bigSession.SetIdx;
+                        safeSetIdx(~isfinite(safeSetIdx) | safeSetIdx < 1) = 1;
+                        warning("Sub: "+string(S)+" Day "+d+" - Rescued data found, settings info is missing; using Include=1 and rescued-missing-settings labels");
+                        bigSession.Include = includeBySetting(safeSetIdx);
+                        SetStr = setStrBySetting;
                     end
                     bigSession.SetStr = SetStr;
                     this.current_data_struct = bigSession;
@@ -621,10 +696,17 @@ classdef BehaviorBoxData < handle
                 % Out.LevelTbls{SC}(cellfun(@(x)size(x,1), Out.LevelTbls{SC}) == 0) This gives indices of empty levels
                 this.LevelHist.LastScores = cellfun(@(x){trialTbl(trialTbl.Level==x,:).Score(end-100:end)}, AllLevels, "ErrorHandler",@errorFuncZeroCell);
                 %this.LevelHist.MM = cellfun(@(x)this.LevelMMAnalysis(x), this.LevelHist.LastScores, "ErrorHandler",@errorFuncNaN);
-                Out.LevelMM{SC} = cell(1, max(Lvs));
+                validLvs = Lvs(isfinite(Lvs) & Lvs >= 1);
+                if isempty(validLvs)
+                    Out.LevelMM{SC} = {};
+                else
+                    Out.LevelMM{SC} = cell(1, max(validLvs));
+                end
                 LMM = splitapply(@(x)this.LevelMMAnalysis(x), [trialTbl.Score allDates' trialTbl.Include, G], G)';
                 for i = 1:numel(LMM)
-                    Out.LevelMM{SC}{Lvs(i)} = LMM{i};
+                    if isfinite(Lvs(i)) && Lvs(i) >= 1
+                        Out.LevelMM{SC}{Lvs(i)} = LMM{i};
+                    end
                 end
             end
             this.AnalyzedData = Out;
@@ -1806,6 +1888,8 @@ classdef BehaviorBoxData < handle
                 Ax.YTick = [];
                 Ax.Title.String = title;
                 numDays = max(cell2mat(this.AnalyzedData.DayMM{this.sc}.DayNums));
+                numDays = max(numDays, 1);
+                highestSeen = max(highestSeen, 1);
                 Ax.XLim = [0 numDays];
                 Ax.YLim = [0 highestSeen];
                 thresh = 0.8;
@@ -1928,7 +2012,7 @@ classdef BehaviorBoxData < handle
                 options.InComposite logical = false
                 options.Text logical = false
                 options.Ax %Axis object
-                options.Sc
+                options.Sc = []
             end
             tic
             %Out = [];
@@ -1970,14 +2054,20 @@ classdef BehaviorBoxData < handle
                 wD = Ddat.DayNums==d;
                 Ld = Ddat.dayBin(wD);
                 LevIdx = Ddat.Ls(wD)';
+                validLevRows = isfinite(LevIdx) & LevIdx >= 1 & LevIdx <= numel(this.Shape_code);
+                if ~any(validLevRows)
+                    continue
+                end
+                Ld = Ld(validLevRows);
+                LevIdx = LevIdx(validLevRows);
                 Xrange = normalize([0 LevIdx LevIdx(end)+1], "range");
                 Xrange = Xrange(2:end-1);
-                NUM = cellfun(@(x)x{4} ,Ld, "UniformOutput", true)';
-                AVG = cellfun(@(x)x{5} ,Ld, "UniformOutput", true)';
-                STD = cellfun(@(x)x{6} ,Ld, "UniformOutput", true)';
+                NUM = cellfun(@(x)this.GetDayBinScalar(x, 'numel'), Ld, "UniformOutput", true)';
+                AVG = cellfun(@(x)this.GetDayBinScalar(x, 'mean'), Ld, "UniformOutput", true)';
+                STD = cellfun(@(x)this.GetDayBinScalar(x, 'std'), Ld, "UniformOutput", true)';
                 try
-                    bCROSS = cellfun(@(x)x{11} ,Ld, "UniformOutput", true, "ErrorHandler", @errorFuncNaN)';
-                    sCROSS = cellfun(@(x)x{10} ,Ld, "UniformOutput", true, "ErrorHandler", @errorFuncNaN)';
+                    bCROSS = cellfun(@(x)this.GetDayBinScalar(x, 'bCross'), Ld, "UniformOutput", true, "ErrorHandler", @errorFuncNaN)';
+                    sCROSS = cellfun(@(x)this.GetDayBinScalar(x, 'sCross'), Ld, "UniformOutput", true, "ErrorHandler", @errorFuncNaN)';
                 catch err
                     unwrapErr(err);
                 end
@@ -1991,6 +2081,9 @@ classdef BehaviorBoxData < handle
                             'SeriesIndex',L(4), 'Parent',Ax);
                         E.MarkerFaceColor = E.Color;
                         E.CapSize = 1;
+                        if options.InComposite
+                            continue
+                        end
                         %Plot bars
                         switch L(4)
                             case 1
@@ -2050,7 +2143,11 @@ classdef BehaviorBoxData < handle
                 end
             end
             %NORMALIZE Level graphs between subjects
-            Out = {f};
+            if options.InComposite
+                Out = {Ax.Parent};
+            else
+                Out = {f};
+            end
             fprintf("Plotted "+SUB+ "... etime: " + toc + " seconds.\n")
             function AxOUT = VertAxes()
                 f = figure;

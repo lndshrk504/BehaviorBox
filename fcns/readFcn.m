@@ -9,6 +9,7 @@ tree = split(filename, filesep);
 data{1} = tree{end}; %filename
 data{2} = str2double(tree{end}(1:6)); %Date of session
 data{6} = char(tree{end-1}); %name of the subfolder, Mouse's name
+data{5} = collectReadExtras_(t);
 if isfield(t, 'Position_Record')
     data{7} = t.Position_Record;
 end
@@ -16,6 +17,7 @@ if isfield(t, 'Settings')
     data{8} = t.Settings;
 end
 if ~isfield(t, 'newData')
+    done = true;
     return
 end
 
@@ -23,18 +25,18 @@ end
 %     1;
 % end
 try
+    t.newData = canonicalizeHistoricalNewDataFields_(t.newData, t);
+    originalNewData = t.newData;
     names = fieldnames(t.newData)';
-    if any(contains(names, 'wheel_record'))
-        data{5} = t.newData.wheel_record;
-    end
-    b = fieldnames(t);
-    if any(contains(b, "StimHist"))
+    if isfield(t, 'StimHist')
         data{4} = t.StimHist;
     elseif isfield(t.newData,'StimHist')
         data{4} = t.newData.StimHist;
     end
     %Make sure everything is a row vector in newData
-    for n = names(structfun(@isrow, t.newData) & structfun(@numel, t.newData)>1)
+    rowMask = structfun(@(x) ~istable(x) && isrow(x), t.newData);
+    numelMask = structfun(@numel, t.newData) > 1;
+    for n = names(rowMask & numelMask)
         t.newData.(n{:}) = t.newData.(n{:})';
     end
     %Make sure every vector is the same length in newData
@@ -90,9 +92,7 @@ try
     else
         t.newData.Weight = [];
     end
-    if isfield(t.newData, 'Text')
-        t.newData = rmfield(t.newData, 'Text');
-    end
+    data{5} = preserveChangedNewDataFields_(data{5}, originalNewData, t.newData);
     data{3} = t.newData; %Get newData
 % Add code to check stimulus for Decoy correct answers?
 catch err
@@ -102,4 +102,68 @@ catch err
     %disp("stop")
 end
 done = true;
+end
+
+function extras = collectReadExtras_(loadedStruct)
+extras = struct();
+extraFields = setdiff(fieldnames(loadedStruct), {'Settings', 'newData', 'StimHist', 'Position_Record'});
+for i = 1:numel(extraFields)
+    fieldName = extraFields{i};
+    extras.(fieldName) = loadedStruct.(fieldName);
+end
+end
+
+function extras = preserveChangedNewDataFields_(extras, originalNewData, normalizedNewData)
+rawChanged = struct();
+rawNames = fieldnames(originalNewData);
+sharedNames = intersect(rawNames, fieldnames(normalizedNewData), 'stable');
+
+for i = 1:numel(sharedNames)
+    fieldName = sharedNames{i};
+    try
+        sameValue = isequaln(originalNewData.(fieldName), normalizedNewData.(fieldName));
+    catch
+        sameValue = false;
+    end
+    if ~sameValue
+        rawChanged.(fieldName) = originalNewData.(fieldName);
+    end
+end
+
+removedNames = setdiff(rawNames, fieldnames(normalizedNewData), 'stable');
+for i = 1:numel(removedNames)
+    fieldName = removedNames{i};
+    rawChanged.(fieldName) = originalNewData.(fieldName);
+end
+
+if ~isempty(fieldnames(rawChanged))
+    extras.OriginalNewDataFields = rawChanged;
+end
+end
+
+function newData = canonicalizeHistoricalNewDataFields_(newData, loadedStruct)
+if isfield(newData, 'BetweenTrialtime') && ~isfield(newData, 'BetweenTrialTime')
+    newData.BetweenTrialTime = newData.BetweenTrialtime;
+end
+if isfield(newData, 'trialstarttime') && ~isfield(newData, 'TrialStartTime')
+    newData.TrialStartTime = newData.trialstarttime;
+end
+if isfield(newData, 'sideBias') && ~isfield(newData, 'SideBias')
+    newData.SideBias = newData.sideBias;
+end
+if isfield(newData, 'SetUpdateRec') && ~isfield(newData, 'SetUpdate')
+    newData.SetUpdate = newData.SetUpdateRec;
+end
+if ~isfield(newData, 'wheel_record') && isfield(loadedStruct, 'wheel_record')
+    newData.wheel_record = loadedStruct.wheel_record;
+end
+if ~isfield(newData, 'TrialNum')
+    if isfield(newData, 'TimeStamp') && ~isempty(newData.TimeStamp)
+        newData.TrialNum = (1:numel(newData.TimeStamp))';
+    elseif isfield(newData, 'Score') && ~isempty(newData.Score)
+        newData.TrialNum = (1:numel(newData.Score))';
+    else
+        newData.TrialNum = [];
+    end
+end
 end

@@ -29,9 +29,19 @@ Before broad edits, inspect the real equivalents in this repo rather than assumi
 - Headless debug harness: `MockApp/`
 - Hardware and environment folders: `Arduino/`, `Equipment/`, `Linux-Scripts/`
 - Python helpers and mixed-language areas: `DLC/ToMatlab/`, `DLC/Tests/`, `iRecHS2/` (legacy reference only)
-- Tests and verification scripts: `fcns/testArduinoVolts.m`, `fcns/TestRecord.m`, `DLC/ToMatlab/receive_eye_stream_demo.m`, `DLC/Tests/CheckReqs.py`, `DLC/Tests/TestSpin.py`
+- Tests and verification scripts: `fcns/testArduinoVolts.m`, `fcns/TestRecord.m`, `fcns/testBehaviorBoxDataLoad.m`, `fcns/testBehaviorBoxDataNoEagerMkdir.m`, `fcns/testBehaviorBoxDataDeferredSaveMkdir.m`, `DLC/ToMatlab/receive_eye_stream_demo.m`, `DLC/Tests/CheckReqs.py`, `DLC/Tests/TestSpin.py`
 - Config and schema-sensitive assets: `ComputerSettings*.mat`, `Settings/`, saved `.mat` outputs, `BBAppOutput.txt`
 - Native camera utility: `usbcamv4l/`
+- `BehaviorBoxData` animal-data root is `fullfile(GetFilePath("Data"), this.Inv, this.Inp)`.
+- On Will's current macOS Dropbox setup, `GetFilePath("Data")` resolves to `/Users/willsnyder/Dropbox @RU Dropbox/William Snyder/Data`.
+- The live `BehaviorBoxData` investigator/input branches currently in use are `Will/NosePoke` and `Will/Wheel`.
+- Nose session data currently lives under `/Users/willsnyder/Dropbox @RU Dropbox/William Snyder/Data/Will/NosePoke/<group>/<mouse_id>/`.
+- Wheel session data currently lives under `/Users/willsnyder/Dropbox @RU Dropbox/William Snyder/Data/Will/Wheel/<group>/<mouse_id>/`.
+- In both trees, the first subfolder is the group/strain and the next subfolder is the mouse ID / cage-number identifier.
+- Use `Inp='NosePoke'` for nose sessions and `Inp='Wheel'` for wheel sessions when constructing `BehaviorBoxData`.
+- Current active Nose work is under `/Users/willsnyder/Dropbox @RU Dropbox/William Snyder/Data/Will/NosePoke/shank/`, with `/Users/willsnyder/Dropbox @RU Dropbox/William Snyder/Data/Will/NosePoke/shank/3246453/` as one active subject folder.
+- The current active Nose cages in training are the `324645*` and `337634*` mice under the `shank` branch.
+- Current reference location for active Wheel data is `/Users/willsnyder/Dropbox @RU Dropbox/William Snyder/Data/Will/Wheel/New/3421911/`.
 
 For MATLAB work, also inspect any `+pkg`, `@Class`, `private/`, `startup.m`, and `addpath` logic before changing behavior. Current `startup.m` is minimal, so do not assume it manages repo paths for you.
 
@@ -69,6 +79,17 @@ For MATLAB work, also inspect any `+pkg`, `@Class`, `private/`, `startup.m`, and
 
 This separation is intentional. If logic is genuinely shared, extract only the microscope-agnostic portion into a helper or shared data path; do not copy microscopy assumptions into `BehaviorBoxNose.m`.
 
+## BehaviorBoxData Loader Contract
+- `BehaviorBoxData.GetFiles()` and `fcns/testBehaviorBoxDataLoad.m` resolve animal data through `fullfile(GetFilePath("Data"), Inv, Inp)`.
+- The live roots are `~/Dropbox @RU Dropbox/William Snyder/Data/Will/NosePoke` for Nose data and `~/Dropbox @RU Dropbox/William Snyder/Data/Will/Wheel` for Wheel data.
+- The current fresh-data locations to keep in mind when validating against active training are `~/Dropbox @RU Dropbox/William Snyder/Data/Will/NosePoke/shank/3246453` for one active Nose subject and `~/Dropbox @RU Dropbox/William Snyder/Data/Will/Wheel/New/3421911` for Wheel.
+- The currently active Nose training cohorts are the `324645*` and `337634*` mice under `~/Dropbox @RU Dropbox/William Snyder/Data/Will/NosePoke/shank/`.
+- The intended folder layout is `Inv/Inp/Str/Sub`, where `Str` is the strain folder and `Sub` is the mouse folder.
+- In practice, subject folders may be bare IDs such as `3169024` or metadata-decorated names such as `2618912 - F - WT`. If `Str` and the exact `Sub` folder name are known, `BehaviorBoxData.GetFiles()` checks that path directly first.
+- If the exact `Str/Sub` path is missing or `Str` is omitted, `BehaviorBoxData.GetFiles()` falls back to a recursive search under `Inv/Inp` and matches directory names containing the requested subject string. It excludes historical folder names containing `time`, `_`, `settings`, `alltime`, or `Rescued`.
+- If no matching subject directory exists, `BehaviorBoxData.handleNewStrain()` returns the would-be `Str/Sub` save path without creating the folder during lookup. The actual folder creation is deferred to save-time code such as `BehaviorBoxWheel.SaveAllData`, `BehaviorBoxNose.SaveAllData`, or `BehaviorBoxData.SaveAllData`. If `Str` is empty or the GUI placeholder `w`, it defaults the strain folder to `New`.
+- Use `fcns/testBehaviorBoxDataLoad.m` for real-data loader coverage, `fcns/testBehaviorBoxDataNoEagerMkdir.m` for the non-destructive missing-subject lookup path that must not touch the real Dropbox tree, and `fcns/testBehaviorBoxDataDeferredSaveMkdir.m` for the broader deferred-save check that proves the folder is created only when `BehaviorBoxData.SaveAllData` runs.
+
 ## Local Validation
 Run the narrowest matching checks, in this order when relevant:
 
@@ -80,17 +101,25 @@ Unless a task explicitly targets another OS, run and report smoke tests as Linux
    `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('MockApp/testBehaviorBoxWheelSaveStatus.m');"`
 3. When debugging the `BehaviorBoxData` loader path that the GUI uses, run the headless smoke test:
    `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('fcns/testBehaviorBoxDataLoad.m');"`
-4. For Arduino sketch changes, compile the narrowest affected sketch with `arduino-cli` when it is already installed and the board target is known. Report the exact fully qualified board name and sketch path, for example:
+   Current loader defaults in that script are `Inv=Will`, `Inp=Wheel`, and `Sub=3421911`; override with `BB_DEBUG_INV`, `BB_DEBUG_INP`, `BB_DEBUG_STR`, and `BB_DEBUG_SUB` when targeting a known Nose or Wheel subject tree.
+   For current fresh-data checks, the relevant Nose branch is `BB_DEBUG_INP=NosePoke`, `BB_DEBUG_STR=shank`, `BB_DEBUG_SUB=3246453`; the active Nose cohorts currently being trained are the `324645*` and `337634*` mice. The current Wheel branch remains `BB_DEBUG_STR=New`, `BB_DEBUG_SUB=3421911`.
+4. When debugging missing-subject handling or typo resistance in `BehaviorBoxData`, run the isolated smoke test that shadows `GetFilePath("Data")` onto a temporary root so the real Dropbox tree is untouched:
+   `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('fcns/testBehaviorBoxDataNoEagerMkdir.m');"`
+   Default test config is `Inv=Will`, `Inp=Wheel`, `Str=New`, `Sub=9999999`; override with `BB_DEBUG_INV`, `BB_DEBUG_INP`, `BB_DEBUG_STR`, and `BB_DEBUG_SUB` when you want to probe a different missing subject path.
+5. When debugging deferred folder creation in `BehaviorBoxData`, run the broader smoke test that first proves lookup is non-destructive and then verifies `BehaviorBoxData.SaveAllData` creates the folder and `.mat` file at save time:
+   `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('fcns/testBehaviorBoxDataDeferredSaveMkdir.m');"`
+   Default test config is `Inv=Will`, `Inp=Wheel`, `Str=New`, `Sub=9999999`, `BB_DEBUG_FILENAME=behaviorbox_save_validation`; override the same `BB_DEBUG_*` variables when you need a different temporary path shape or output filename.
+6. For Arduino sketch changes, compile the narrowest affected sketch with `arduino-cli` when it is already installed and the board target is known. Report the exact fully qualified board name and sketch path, for example:
    `arduino-cli compile --fqbn arduino:avr:uno Arduino/Rotary`
-5. For Arduino-facing work that depends on BehaviorBox MATLAB integration, use the focused smoke test:
+7. For Arduino-facing work that depends on BehaviorBox MATLAB integration, use the focused smoke test:
    `matlab -batch "run('fcns/testArduinoVolts.m')"`
-6. For Arduino timing, serial-protocol, or inter-device signaling changes, also run the narrowest hardware-in-the-loop bench check you can and report the board, connected pins, baud rate, expected pulse width or frequency, and what you observed. If no bench hardware is available, say so explicitly.
-7. For DLC eye-tracking / MATLAB bridge integration work, use the focused demo entrypoint when the streamer and bridge dependencies are available:
+8. For Arduino timing, serial-protocol, or inter-device signaling changes, also run the narrowest hardware-in-the-loop bench check you can and report the board, connected pins, baud rate, expected pulse width or frequency, and what you observed. If no bench hardware is available, say so explicitly.
+9. For DLC eye-tracking / MATLAB bridge integration work, use the focused demo entrypoint when the streamer and bridge dependencies are available:
    `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('DLC/ToMatlab/receive_eye_stream_demo.m');"`
-8. If a MATLAB test suite is added or available for the changed area, prefer the narrowest `runtests` target. Use repo-wide `runtests` only when justified:
+10. If a MATLAB test suite is added or available for the changed area, prefer the narrowest `runtests` target. Use repo-wide `runtests` only when justified:
    `matlab -batch "results = runtests; assertSuccess(results);"`
-9. If Python under `DLC/ToMatlab/` or `DLC/Tests/` is changed and there is no formal test suite, run the smallest reproducible script or analysis entrypoint and report exactly what you ran.
-10. For `usbcamv4l/`, treat it as Linux-only and validate from a Linux environment with the native build from that directory. When relevant, call out whether validation was performed on Intel integrated graphics, AMD GPU, or NVIDIA GPU hardware:
+11. If Python under `DLC/ToMatlab/` or `DLC/Tests/` is changed and there is no formal test suite, run the smallest reproducible script or analysis entrypoint and report exactly what you ran.
+12. For `usbcamv4l/`, treat it as Linux-only and validate from a Linux environment with the native build from that directory. When relevant, call out whether validation was performed on Intel integrated graphics, AMD GPU, or NVIDIA GPU hardware:
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -115,6 +144,9 @@ Add focused verification scripts near the subsystem you changed, following exist
 ## Save Regression Checklist
 When modifying `BehaviorBoxNose.m`, `BehaviorBoxWheel.m`, or `BehaviorBoxData.m`:
 - Run `matlab -batch "checkcode('BehaviorBoxNose.m'); checkcode('BehaviorBoxWheel.m'); checkcode('BehaviorBoxData.m');"`.
+- Run `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('fcns/testBehaviorBoxDataLoad.m');"` when the change touches `BehaviorBoxData` load compatibility or subject discovery.
+- Run `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('fcns/testBehaviorBoxDataNoEagerMkdir.m');"` when the change touches `BehaviorBoxData` folder lookup, typo handling, or deferred folder creation.
+- Run `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('fcns/testBehaviorBoxDataDeferredSaveMkdir.m');"` when the change touches save-time folder creation or the contract that missing subject folders are created only when save runs.
 - Verify one Nose and one Wheel session can start, stop, and save data without callback errors.
 - Verify fallback save-path behavior, including manual file selection, still works if the default folder is unavailable.
 - Confirm there are no unresolved conflict markers with `rg -n "^<<<<<<<|^=======|^>>>>>>>" BehaviorBoxNose.m BehaviorBoxWheel.m BehaviorBoxData.m`.

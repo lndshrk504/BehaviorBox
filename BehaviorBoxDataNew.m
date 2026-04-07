@@ -103,6 +103,99 @@ classdef BehaviorBoxDataNew < handle
             %Make fields
             this.current_data_struct = this.new_init_data_struct();
         end
+        function out = GetDayBinScalar(~, dayBin, rowName)
+            rowMap = struct('numel', 4, 'mean', 5, 'std', 6, 'sCross', 11, 'bCross', 12);
+            if istable(dayBin)
+                if ismember(rowName, dayBin.Properties.RowNames)
+                    out = dayBin{rowName,1};
+                elseif ismember(rowName, dayBin.Properties.VariableNames)
+                    out = dayBin{1,rowName};
+                elseif ismember('Responses', dayBin.Properties.VariableNames)
+                    responses = dayBin{1,'Responses'};
+                    if iscell(responses)
+                        responses = responses{1};
+                    end
+                    responses = responses(:);
+                    these = responses(responses ~= 2);
+                    switch rowName
+                        case 'numel'
+                            out = numel(these);
+                        case 'mean'
+                            out = mean(these, "omitnan");
+                        case 'std'
+                            out = std(these, 0, "omitnan");
+                        case 'sCross'
+                            if ismember('sCross', dayBin.Properties.VariableNames)
+                                out = dayBin{1,'sCross'};
+                            else
+                                out = NaN;
+                            end
+                        case 'bCross'
+                            if ismember('bCross', dayBin.Properties.VariableNames)
+                                out = dayBin{1,'bCross'};
+                            else
+                                out = NaN;
+                            end
+                        otherwise
+                            out = NaN;
+                    end
+                else
+                    out = NaN;
+                end
+                if iscell(out)
+                    out = out{1};
+                end
+                return
+            end
+            if iscell(dayBin) && isfield(rowMap, rowName)
+                out = dayBin{rowMap.(rowName),1};
+                if iscell(out)
+                    out = out{1};
+                end
+                return
+            end
+            out = NaN;
+        end
+        function [includeBySetting, setStrBySetting] = GetRescuedSettingsFallback(~, bigSession, includeIn, setStrIn)
+            arguments
+                ~
+                bigSession struct
+                includeIn = []
+                setStrIn = {}
+            end
+            nSettings = 1;
+            if isfield(bigSession, 'SetIdx') && ~isempty(bigSession.SetIdx)
+                validIdx = bigSession.SetIdx(isfinite(bigSession.SetIdx) & bigSession.SetIdx >= 1);
+                if ~isempty(validIdx)
+                    nSettings = max(nSettings, max(validIdx));
+                end
+            end
+            if ~isempty(includeIn)
+                nSettings = max(nSettings, numel(includeIn));
+            end
+            if ~isempty(setStrIn)
+                nSettings = max(nSettings, numel(setStrIn));
+            end
+
+            includeBySetting = ones(nSettings, 1);
+            setStrBySetting = repmat({'rescued-missing-settings'}, nSettings, 1);
+
+            if ~isempty(includeIn)
+                includeBySetting(1:numel(includeIn)) = includeIn(:);
+            end
+            if ~isempty(setStrIn)
+                for i = 1:min(numel(setStrIn), nSettings)
+                    candidate = setStrIn{i};
+                    if isempty(candidate)
+                        continue
+                    end
+                    if isnumeric(candidate) && isscalar(candidate) && candidate == 0
+                        continue
+                    end
+                    setStrBySetting{i} = char(string(candidate));
+                end
+            end
+        end
         function this = updateBBData(this, varargin)
             for pair = reshape(varargin, 2, [])
                 this.(pair{1}) = pair{2};
@@ -348,6 +441,7 @@ classdef BehaviorBoxDataNew < handle
                 allData(:,i) = cellfun(@(x) x{i}, aD, 'UniformOutput', false);
             end
             this.loadedData = allData;
+            hasTrainingStruct = cellfun(@isstruct, allData(:,3));
             % for i = 2:size(allData,1)
             %     fields1 = fieldnames(allData{i,3});
             %     fields2 = fieldnames(allData{i-1,3});
@@ -358,13 +452,24 @@ classdef BehaviorBoxDataNew < handle
             %         1;
             %     end
             % end
-            if ~isempty([allData{:,3}]) % An error happens right here because of the Weight field. It is either missing (older mice in inactive folder) or an empty character vector (recent mice) when usually it is a double.
+            if any(hasTrainingStruct) % Ignore animate-only files that do not contain newData.
                 this.CombineDays();
             end
             if nargout >= 1
                 varargout{1} = allData;
             end
             fprintf("Loaded... : " + toc + " seconds.\n")
+        end
+        function extras = GetReadExtras(this, idx)
+            if nargin < 2 || isempty(idx)
+                extras = this.loadedData(:,5);
+                return
+            end
+
+            extras = this.loadedData(idx,5);
+            if isscalar(idx)
+                extras = extras{1};
+            end
         end
         function [varargout] = CombineDays(this, options)
             arguments
@@ -508,8 +613,12 @@ classdef BehaviorBoxDataNew < handle
                     try
                         bigSession.Include = Include(bigSession.SetIdx);
                     catch
-                        warning("Sub: "+cell2mat(S)+" Day "+d+" - Rescued data found, settings info is missing");
-                        bigSession.Include = ones(size(bigSession.Score)); %For any data that was rescued, there are no settings
+                        [includeBySetting, setStrBySetting] = this.GetRescuedSettingsFallback(bigSession, Include, SetStr);
+                        safeSetIdx = bigSession.SetIdx;
+                        safeSetIdx(~isfinite(safeSetIdx) | safeSetIdx < 1) = 1;
+                        warning("Sub: "+string(S)+" Day "+d+" - Rescued data found, settings info is missing; using Include=1 and rescued-missing-settings labels");
+                        bigSession.Include = includeBySetting(safeSetIdx);
+                        SetStr = setStrBySetting;
                     end
                     bigSession.SetStr = SetStr;
                     this.current_data_struct = bigSession;
@@ -609,7 +718,9 @@ classdef BehaviorBoxDataNew < handle
                     Types = {'double', 'cell', 'cell', 'cell', 'cell', 'cell', 'cell', 'cell', 'cell', 'cell', 'cell'};
                     Out.LevelMM{SC} = table('Size', [20 size(Names,2)],'VariableNames',Names, 'VariableTypes', Types);
                     for i = 1:size(LMM,1)
-                        Out.LevelMM{SC}(Lvs(i),:) = LMM(i,:);
+                        if isfinite(Lvs(i)) && Lvs(i) >= 1 && Lvs(i) <= height(Out.LevelMM{SC})
+                            Out.LevelMM{SC}(Lvs(i),:) = LMM(i,:);
+                        end
                     end
                 catch err
                     unwrapErr(err)
@@ -1808,6 +1919,9 @@ classdef BehaviorBoxDataNew < handle
                 this.trial_table = this.AnalyzedData.TrialTbls{this.sc};
                 Ldat = this.AnalyzedData.LevelMM{this.sc};
                 highestSeen = find(Ldat.Level ~= 0, 1, 'last');
+                if isempty(highestSeen)
+                    highestSeen = 1;
+                end
                 title = SUB+" All Time Performance";
                 f = figure("Name",title, "Visible", "off");  f.Visible=1;
                 T = tiledlayout(1,1,"Parent",f,"TileSpacing","none","Padding","tight");
@@ -1817,6 +1931,7 @@ classdef BehaviorBoxDataNew < handle
                 Ax.YTick = [];
                 Ax.Title.String = title;
                 numDays = max(cell2mat(this.AnalyzedData.DayMM{this.sc}.DayNums));
+                numDays = max(numDays, 1);
                 Ax.XLim = [0 numDays];
                 Ax.YLim = [0 highestSeen];
                 thresh = 0.5;
@@ -1931,7 +2046,7 @@ classdef BehaviorBoxDataNew < handle
                 options.InComposite logical = false
                 options.Text logical = false
                 options.Ax %Axis object
-                options.Sc
+                options.Sc = []
                 options.Which char = 'Percent' % Percent or Binomial
             end
             tic
@@ -1974,14 +2089,20 @@ classdef BehaviorBoxDataNew < handle
                 wD = Ddat.DayNums==d;
                 Ld = Ddat.dayBin(wD);
                 LevIdx = Ddat.Ls(wD)';
+                validLevRows = isfinite(LevIdx) & LevIdx >= 1 & LevIdx <= numel(this.Shape_code);
+                if ~any(validLevRows)
+                    continue
+                end
+                Ld = Ld(validLevRows);
+                LevIdx = LevIdx(validLevRows);
                 Xrange = normalize([0 LevIdx LevIdx(end)+1], "range");
                 Xrange = Xrange(2:end-1);
-                NUM = cellfun(@(x)x{4} ,Ld, "UniformOutput", true)';
-                AVG = cellfun(@(x)x{5} ,Ld, "UniformOutput", true)';
-                STD = cellfun(@(x)x{6} ,Ld, "UniformOutput", true)';
+                NUM = cellfun(@(x)this.GetDayBinScalar(x, 'numel'), Ld, "UniformOutput", true)';
+                AVG = cellfun(@(x)this.GetDayBinScalar(x, 'mean'), Ld, "UniformOutput", true)';
+                STD = cellfun(@(x)this.GetDayBinScalar(x, 'std'), Ld, "UniformOutput", true)';
                 try
-                    bCROSS = cellfun(@(x)x{11} ,Ld, "UniformOutput", true, "ErrorHandler", @errorFuncNaN)';
-                    sCROSS = cellfun(@(x)x{10} ,Ld, "UniformOutput", true, "ErrorHandler", @errorFuncNaN)';
+                    bCROSS = cellfun(@(x)this.GetDayBinScalar(x, 'bCross'), Ld, "UniformOutput", true, "ErrorHandler", @errorFuncNaN)';
+                    sCROSS = cellfun(@(x)this.GetDayBinScalar(x, 'sCross'), Ld, "UniformOutput", true, "ErrorHandler", @errorFuncNaN)';
                 catch err
                     unwrapErr(err);
                 end
@@ -1995,6 +2116,9 @@ classdef BehaviorBoxDataNew < handle
                             'SeriesIndex',L(4), 'Parent',Ax);
                         E.MarkerFaceColor = E.Color;
                         E.CapSize = 1;
+                        if options.InComposite
+                            continue
+                        end
                         %Plot bars
                         switch L(4)
                             case 1
@@ -2054,7 +2178,11 @@ classdef BehaviorBoxDataNew < handle
                 end
             end
             %NORMALIZE Level graphs between subjects
-            Out = {f};
+            if options.InComposite
+                Out = {Ax.Parent};
+            else
+                Out = {f};
+            end
             fprintf("Plotted "+SUB+ "... etime: " + toc + " seconds.\n")
             function AxOUT = VertAxes()
                 f = figure;
