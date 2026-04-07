@@ -901,3 +901,38 @@
 - Added public helper `GetDayBinScalar` so historical `DayBin` containers can be consumed safely outside nested plotting code.
 - Audited the GUI analysis path in `BB_App.m`; its `AnalyzeAllData` + `plotLvByDayOneAxis` sequence is now covered by the regression smoke test.
 - Audited `fcns/RescueDataFromAGraph.m`; it only uses `BehaviorBoxData(..., find=true)` and the loader contract, so no further change was required in this pass.
+
+## 2026-04-07 Implement Canonical PlotBinomialLevels In BehaviorBoxData
+
+1. Goal
+- Turn `BehaviorBoxData.PlotBinomialLevels` into a working canonical binomial-performance plotting method using the current `BehaviorBoxData` analysis schema.
+
+2. Non-goals
+- Do not change saved `.mat` schema, loader behavior, or `AnalyzeAllData` outputs.
+- Do not retire `BehaviorBoxDataNew.m` in this pass.
+- Do not refactor unrelated plotting methods.
+
+3. Current-state summary
+- `BehaviorBoxData.m` is the canonical class.
+- `PlotBinomialLevels` was just ported from `BehaviorBoxDataNew.m`, but the donor method only builds figure layout and does not plot the binomial analysis.
+- `BehaviorBoxData.m` already has binomial analysis inputs in `LevelMMAnalysis`, `MMCross`, and `PlotLevelGroupsByDay`'s existing `Which` option.
+
+4. Files likely touched
+- /Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxData.m
+- /Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md
+
+5. Validation commands
+- MATLAB lint: `checkcode('BehaviorBoxData.m')`
+- MATLAB smoke check: `run('startup.m'); BB=BehaviorBoxData('Inv','Will','Inp','Wheel','Sub',{'2332101'},'find',0,'analyze',1,'plot',0); f=BB.PlotBinomialLevels('Sc',1,'Ax',[]); close(f);`
+
+6. Milestones
+- Map the current canonical binomial-analysis data available to plotting.
+- Implement the minimal plotting logic in `PlotBinomialLevels`.
+- Run narrow MATLAB validation on the historical Wheel subject.
+
+7. Risks and stop conditions
+- Stop if a useful implementation requires changing the internal analysis schema rather than consuming current outputs.
+- Stop if the plotted quantity cannot be derived unambiguously from current `LevelMM` / `DayMM` data.
+
+8. Handoff notes
+- Call out exactly what binomial quantity is plotted and whether it differs from the old `BehaviorBoxDataNew` intent.

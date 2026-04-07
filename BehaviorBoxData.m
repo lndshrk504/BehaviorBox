@@ -1864,6 +1864,8 @@ classdef BehaviorBoxData < handle
                 options.LevDay logical = true
                 options.Sc = 1
                 options.Training logical = false
+                options.Which char = 'Percent' % Percent or Binomial
+                options.ThresholdIntegrand logical = false
             end
             tic;
             Out = [];
@@ -1879,7 +1881,11 @@ classdef BehaviorBoxData < handle
                 maxPassedL = find(HighScore>=0.8 & ~cellfun('isempty', Ldat), 1, 'last');
                 highestSeen = max(unique(this.trial_table.Level));
                 this.trial_table = this.AnalyzedData.TrialTbls{this.sc};
-                title = SUB+" All Time Performance";
+                if options.Which == "Percent"
+                    title = SUB+" All Time Performance";
+                else
+                    title = SUB+" All Time Binomial Performance";
+                end
                 f = figure("Name",title, "Visible", "off");  f.Visible=1;
                 T = tiledlayout(1,1,"Parent",f,"TileSpacing","none","Padding","tight");
                 Ax = nexttile(T); hold(Ax, "on");
@@ -1892,10 +1898,19 @@ classdef BehaviorBoxData < handle
                 highestSeen = max(highestSeen, 1);
                 Ax.XLim = [0 numDays];
                 Ax.YLim = [0 highestSeen];
-                thresh = 0.8;
+                if options.Which == "Percent"
+                    thresh = 0.8;
+                else
+                    thresh = 0.05;
+                end
                 dayLine = xline(1:numDays, 'LineStyle',':');
                 yline(0:1:highestSeen, '-')
-                TH = yline(thresh:1:(highestSeen+1), ':',(100*thresh)+"%", ...
+                if options.Which == "Percent"
+                    threshLabel = (100*thresh)+"%";
+                else
+                    threshLabel = "p="+string(thresh);
+                end
+                TH = yline(thresh:1:(highestSeen+1), ':',threshLabel, ...
                     "LabelHorizontalAlignment","left", ...
                     "FontSize",6);
                 for L = unique(this.trial_table.Level)' % maxPassedL
@@ -1903,9 +1918,21 @@ classdef BehaviorBoxData < handle
                     wL = this.AnalyzedData.DayMM{this.sc}.Ls==L;
                     Ddat = this.AnalyzedData.DayMM{this.sc}(wL,:);
                     try
-                        y = Ldat{L}{:,1}';
-                        std = Ldat{L}{:,2}';
-                        x = Ldat{L}{:,3}';
+                        if options.Which == "Percent"
+                            y = Ldat{L}{:,1}';
+                            std = Ldat{L}{:,2}';
+                            x = Ldat{L}{:,3}';
+                        else
+                            y = Ldat{L}{:,6}';
+                            x = Ldat{L}{:,3}';
+                            std = [];
+                        end
+                        valid = isfinite(x) & isfinite(y);
+                        x = x(valid);
+                        y = y(valid);
+                        if ~isempty(std)
+                            std = std(valid);
+                        end
                         %Perf
                         dn = "Level "+L+": All Time ";
                         AllTime = plot(x,LO+y, ...
@@ -1913,18 +1940,20 @@ classdef BehaviorBoxData < handle
                             "SeriesIndex",L, ...
                             "LineWidth",1, ...
                             "DisplayName",dn+"Accuracy");
-                        %STD
-                        Y = LO+[y+std fliplr(y-std)];
-                        X = [x fliplr(x)];
-                        P = patch(X,Y,AllTime.Color, ...
-                            "Parent", Ax, ...
-                            "EdgeColor", "none", ...
-                            "FaceAlpha", 0.4);
-                        P.DisplayName = dn+"STD";
+                        if options.Which == "Percent"
+                            %STD
+                            Y = LO+[y+std fliplr(y-std)];
+                            X = [x fliplr(x)];
+                            P = patch(X,Y,AllTime.Color, ...
+                                "Parent", Ax, ...
+                                "EdgeColor", "none", ...
+                                "FaceAlpha", 0.4);
+                            P.DisplayName = dn+"STD";
+                        end
                     catch
                     end
                     try
-                        if any(y>thresh)
+                        if options.Which == "Percent" && any(y>=thresh)
                             %PASSING
                             PassingDayIdx = floor( x( find( y>=thresh,1, 'first') ) )+0.5;
                             TT = this.BB+find(y>=thresh,1, 'first')+" Trials";
@@ -1932,22 +1961,29 @@ classdef BehaviorBoxData < handle
                                 "FontSize",6, ...
                                 "HorizontalAlignment","center", ...
                                 "Color",AllTime.Color);
-                            %Threshold Integrand:
-                            yPatch = LO+[max(y,thresh) max(y-thresh,thresh)];
-                            xPatch = [x fliplr(x)];
-                            threshPatch = patch(xPatch,yPatch,AllTime.Color, ...
-                                "Parent", Ax, ...
-                                "EdgeColor", "none");
-                            firstPass = find(y>=thresh,1, 'first');
-                            yPass = y(firstPass:end);
-                            OverThresh = max(yPass-thresh,0)*100;
-                            TimeOverThresh = sum(OverThresh)/numel(yPass);
-                            UnderThresh = min(yPass-thresh,0)*100;
-                            TimeUnderThresh = sum(UnderThresh)/numel(OverThresh);
-                            TXT = round(TimeOverThresh,2)+"% from Thresh per trial";
-                            ThreshText = text(numDays, LO+0.1,TXT, ...
-                                "FontSize",12, ...
-                                "HorizontalAlignment","right", ...
+                            if options.ThresholdIntegrand
+                                %Threshold Integrand:
+                                yPatch = LO+[max(y,thresh) max(y-thresh,thresh)];
+                                xPatch = [x fliplr(x)];
+                                threshPatch = patch(xPatch,yPatch,AllTime.Color, ...
+                                    "Parent", Ax, ...
+                                    "EdgeColor", "none");
+                                firstPass = find(y>=thresh,1, 'first');
+                                yPass = y(firstPass:end);
+                                OverThresh = max(yPass-thresh,0)*100;
+                                TimeOverThresh = sum(OverThresh)/numel(yPass);
+                                TXT = round(TimeOverThresh,2)+"% from Thresh per trial";
+                                ThreshText = text(numDays, LO+0.1,TXT, ...
+                                    "FontSize",12, ...
+                                    "HorizontalAlignment","right", ...
+                                    "Color",AllTime.Color);
+                            end
+                        elseif options.Which ~= "Percent" && any(y<=thresh)
+                            PassingDayIdx = floor(x(find(y<=thresh,1,'first')))+0.5;
+                            TT = this.BB+find(y<=thresh,1,'first')+" Trials";
+                            TrialText = text(PassingDayIdx, LO+0.2, TT, ...
+                                "FontSize",6, ...
+                                "HorizontalAlignment","center", ...
                                 "Color",AllTime.Color);
                         end
                     catch %They have not passed this level
@@ -1961,7 +1997,11 @@ classdef BehaviorBoxData < handle
                         %Small Bin Moving mean:
                         try
                             x = DO+cell2mat(d{2}{9,1});
-                            y = LO+cell2mat(d{2}{8,1});
+                            if options.Which == "Percent"
+                                y = LO+cell2mat(d{2}{8,1});
+                            else
+                                y = LO+cell2mat(d{2}{13,1});
+                            end
                             SmallPlot = plot(x,y, ...
                                 "Parent",Ax, ...
                                 "SeriesIndex",L, ...
@@ -1991,7 +2031,7 @@ classdef BehaviorBoxData < handle
                         end
                     end
                 end
-                if options.LevDay
+                if options.LevDay && options.Which == "Percent"
                     this.PlotLevelGroupsByDay("Ax",Ax, "InComposite",1)
                 end
                 Ax.XLimitMethod = "tight";
@@ -2166,6 +2206,14 @@ classdef BehaviorBoxData < handle
                 xline(min(Ddat.DayNums):1:max(Ddat.DayNums), '-', 'Color',[0.7 0.7 0.7], 'Parent',AxIn)
                 %hold(AxIn, 'on')
             end
+        end
+        function Out = PlotBinomialLevels(this, options)
+            arguments
+                this
+                options.Ax = []
+                options.Sc = 1
+            end
+            Out = this.plotLvByDayOneAxis('Sc', options.Sc, 'LevDay', false, 'Which', 'Binomial');
         end
         function Out = PlotLevelGroupsByLevel(this, options)
             arguments
