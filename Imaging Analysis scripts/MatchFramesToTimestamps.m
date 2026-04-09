@@ -1,13 +1,16 @@
 % This script is for matching ScanImage timestamps to data saved by BehaviorBox
 % It was written for mouse 3169025's data/images recorded 10-16-2025 in
 % Rockefeller Brain Observatory
+% This script's functionality have been built into the BehaviorBoxWheel
+% file and therefore this script is not useful for new data, only for this
+% mouse's data from this specific day.
 %
 % To reproduce:
 % Open BehaviorBox App and load the mouse's data, then get the timestamp variables
 % from the workspace variable called BBData
 %
 % !!!  For some reason, Trial number 1's timestamps were not saved. There
-% is a bug in the way the timestamps are saved. Not yet fixed.
+% was a bug in the way the timestamps are saved.
 %
 % scanimage Tiff stack #1 is always an artefact, before the program loop begins.
 %
@@ -15,7 +18,8 @@
 %
 % Because of the above, We are starting from the:
 % 2nd trial (of behavior)
-% and the 3rd image (saved from scanimage)
+% and the 3rd image (saved from scanimage) (first image is from setup
+% phase, second image is trial 1 which was not saved, 3rd image is trial 2)
 
 % The below section is commented out, it was to combine Suite2p output back
 % when there were errors from saving to .mat format
