@@ -1,0 +1,4 @@
+[submodule "EyeTrack"]
+	path = EyeTrack
+	url = git@github.com:lndshrk504/EyeTrack.git
+	branch = main
