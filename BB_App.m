@@ -1,4 +1,4 @@
-classdef BehaviorBox_App < matlab.apps.AppBase
+classdef BB_App < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
@@ -184,6 +184,11 @@ classdef BehaviorBox_App < matlab.apps.AppBase
         GridLayout6                     matlab.ui.container.GridLayout
         HistoryPanel                    matlab.ui.container.Panel
         OtherUnusedTab                  matlab.ui.container.Tab
+        DeveloperPanel                  matlab.ui.container.Panel
+        DebugSerialModeButtonGroup      matlab.ui.container.ButtonGroup
+        DebugSerialFailure              matlab.ui.control.RadioButton
+        DebugSerialFile                 matlab.ui.control.RadioButton
+        DebugSerialMemory               matlab.ui.control.RadioButton
         ArduinosDropDown                matlab.ui.control.DropDown
         ArduinosDropDownLabel           matlab.ui.control.Label
         EquipmentPanel                  matlab.ui.container.Panel
@@ -718,7 +723,8 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             names = cellfun(@(x)app.(x).Tag, props, 'UniformOutput', false, 'ErrorHandler', @errorFuncNaN);
             boxstuff = props(contains(names, 'box_','IgnoreCase',true));
             stimstuff = props(contains(names, 'stimulus_','IgnoreCase',true));
-            allstuff = [boxstuff' stimstuff'];
+            debugstuff = props(contains(names, 'debug_','IgnoreCase',true));
+            allstuff = [boxstuff' stimstuff' debugstuff'];
             SavedComputerSpecifics = struct();
             for i = allstuff
                 SavedComputerSpecifics.(i{:}) = app.(i{:}).Value;
@@ -2979,6 +2985,36 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.OtherUnusedTab.AutoResizeChildren = 'off';
             app.OtherUnusedTab.Title = 'Other / Unused';
 
+            % Create DeveloperPanel
+            app.DeveloperPanel = uipanel(app.OtherUnusedTab);
+            app.DeveloperPanel.AutoResizeChildren = 'off';
+            app.DeveloperPanel.Title = 'Developer';
+            app.DeveloperPanel.Position = [4 116 330 127];
+
+            % Create DebugSerialModeButtonGroup
+            app.DebugSerialModeButtonGroup = uibuttongroup(app.DeveloperPanel);
+            app.DebugSerialModeButtonGroup.Title = 'Serial Log Mode';
+            app.DebugSerialModeButtonGroup.Position = [11 12 309 85];
+
+            % Create DebugSerialMemory
+            app.DebugSerialMemory = uiradiobutton(app.DebugSerialModeButtonGroup);
+            app.DebugSerialMemory.Tag = 'Debug_SerialMemory';
+            app.DebugSerialMemory.Text = 'memory';
+            app.DebugSerialMemory.Position = [14 37 76 22];
+            app.DebugSerialMemory.Value = true;
+
+            % Create DebugSerialFile
+            app.DebugSerialFile = uiradiobutton(app.DebugSerialModeButtonGroup);
+            app.DebugSerialFile.Tag = 'Debug_SerialFile';
+            app.DebugSerialFile.Text = 'file';
+            app.DebugSerialFile.Position = [117 37 57 22];
+
+            % Create DebugSerialFailure
+            app.DebugSerialFailure = uiradiobutton(app.DebugSerialModeButtonGroup);
+            app.DebugSerialFailure.Tag = 'Debug_SerialFailure';
+            app.DebugSerialFailure.Text = 'failure';
+            app.DebugSerialFailure.Position = [205 37 72 22];
+
             % Create uipanel11
             app.uipanel11 = uipanel(app.OtherUnusedTab);
             app.uipanel11.AutoResizeChildren = 'off';
@@ -3825,7 +3861,7 @@ classdef BehaviorBox_App < matlab.apps.AppBase
     methods (Access = public)
 
         % Construct app
-        function app = BehaviorBox_App(varargin)
+        function app = BB_App(varargin)
 
             % Create UIFigure and components
             createComponents(app)

@@ -50,6 +50,19 @@ classdef BehaviorBoxSerialInput < handle
 
         % Serial receive buffer for byte-based callback parsing
         RxBuffer char = ''
+
+        % Serial debug logging
+        Debug_SerialLogMode string = "memory"
+        DebugWorkflow string = ""
+        DebugSessionSaveFolder string = ""
+        DebugMaxHistoryRows double = 500
+        DebugMaxHistoryMinutes double = 10
+        DebugHistory table = table( ...
+            'Size', [0 9], ...
+            'VariableTypes', repmat({'string'}, 1, 9), ...
+            'VariableNames', {'timestamp', 'direction', 'port', 'commandName', 'rawValue', 'eventType', 'status', 'matchKey', 'details'})
+        DebugHistoryTime double = zeros(0,1)
+        DebugLogFile string = ""
     end
 
     methods
@@ -87,11 +100,54 @@ classdef BehaviorBoxSerialInput < handle
             end
         end
 
+        function configureDebugLogging(this, opts)
+            arguments
+                this
+                opts.Mode = "memory"
+                opts.Workflow = ""
+                opts.SessionSaveFolder = ""
+                opts.MaxHistoryRows double = 500
+                opts.MaxHistoryMinutes double = 10
+            end
+            this.Debug_SerialLogMode = BehaviorBoxSerialDebug.normalizeMode(opts.Mode);
+            this.DebugWorkflow = string(opts.Workflow);
+            this.DebugSessionSaveFolder = string(opts.SessionSaveFolder);
+            this.DebugMaxHistoryRows = double(opts.MaxHistoryRows);
+            this.DebugMaxHistoryMinutes = double(opts.MaxHistoryMinutes);
+            this.DebugLogFile = "";
+        end
+
+        function setDebugSessionSaveFolder(this, folder)
+            this.DebugSessionSaveFolder = string(folder);
+            this.DebugLogFile = "";
+        end
+
+        function flushDebugFailureArtifact(this, failureContext)
+            arguments
+                this
+                failureContext struct = struct()
+            end
+            if BehaviorBoxSerialDebug.normalizeMode(this.Debug_SerialLogMode) ~= "failure"
+                return
+            end
+            try
+                [jsonFile, csvFile] = BehaviorBoxSerialDebug.failureArtifactPaths(this.DebugSessionSaveFolder, class(this));
+                metadata = this.buildFailureMetadata_(failureContext);
+                BehaviorBoxSerialDebug.writeJson(jsonFile, metadata);
+                BehaviorBoxSerialDebug.writeCsv(csvFile, this.DebugHistory);
+            catch err
+                warning('BehaviorBoxSerialInput:DebugFlushFailed', ...
+                    'Failed to write serial debug failure artifact: %s', err.message);
+            end
+        end
+
         function SerialReadCallback(this, src, evt)
             % Wrapper for serial callback (callbacks should not rely on outputs).
             try
                 this.SerialRead(src, evt);
-            catch
+            catch err
+                this.appendDebugEvent_("", "", "error", "parse_error", "", ...
+                    "SerialReadCallback:" + string(err.message), "parser");
                 % Keep callback alive even if one parse event fails.
             end
         end
@@ -143,6 +199,7 @@ classdef BehaviorBoxSerialInput < handle
                     line(end) = [];
                 end
 
+                this.appendDebugEvent_("", string(line), "raw line receive", "ok", "", "", "rx");
                 this.processReading(string(line));
             end
         end
@@ -172,10 +229,13 @@ classdef BehaviorBoxSerialInput < handle
                     if ~this.IgnoreNonData
                         this.ReadingDouble = NaN;
                     end
+                    this.appendDebugEvent_("WheelReading", newReading, "parsed event", "unmatched", "", ...
+                        "ignored non-numeric wheel line", "parser");
                     return
                 end
                 this.ReadingDouble = double(v);
                 this.ReadingChar = '0'; % not used, but keep defined
+                this.appendDebugEvent_("WheelReading", string(this.ReadingDouble), "parsed event", "ok", "", "", "parser");
             else
                 % Expect single-character tokens: L/M/R/-
                 s = strtrim(char(newReading));
@@ -183,10 +243,16 @@ classdef BehaviorBoxSerialInput < handle
                     if ~this.IgnoreNonData && ~isempty(s)
                         this.ReadingChar = s(1);
                     end
+                    this.appendDebugEvent_("NoseToken", newReading, "parsed event", "unmatched", "", ...
+                        "ignored multi-character nose line", "parser");
                     return
                 end
                 if any(s == ['L','M','R','-'])
                     this.ReadingChar = s;
+                    this.appendDebugEvent_("NoseToken", string(s), "parsed event", "ok", "", "", "parser");
+                else
+                    this.appendDebugEvent_("NoseToken", string(s), "parsed event", "unmatched", "", ...
+                        "unknown nose token", "parser");
                 end
             end
         end
@@ -283,6 +349,7 @@ classdef BehaviorBoxSerialInput < handle
                 return
             end
             writeline(this.Ard, payload);
+            this.appendDebugEvent_(this.commandNameForPayload_(payload), string(payload), "command send", "ok", "", "", "tx");
         end
 
         function TimeStamp(this, Type)
@@ -294,8 +361,10 @@ classdef BehaviorBoxSerialInput < handle
                 switch Type
                     case 'On'
                         write(this.Ard, "T", "char");
+                        this.appendDebugEvent_("TimestampOn", "T", "command send", "ok", "", "", "tx");
                     case 'Off'
                         write(this.Ard, 't', "char");
+                        this.appendDebugEvent_("TimestampOff", "t", "command send", "ok", "", "", "tx");
                 end
             catch
             end
@@ -349,10 +418,13 @@ classdef BehaviorBoxSerialInput < handle
                 switch Type
                     case 'Start'
                         write(this.Ard, 'I', "char");
+                        this.appendDebugEvent_("AcquisitionStart", "I", "command send", "ok", "", "", "tx");
                     case 'Next'
                         write(this.Ard, 'N', "char");
+                        this.appendDebugEvent_("AcquisitionNext", "N", "command send", "ok", "", "", "tx");
                     case 'End'
                         write(this.Ard, 'i', "char");
+                        this.appendDebugEvent_("AcquisitionEnd", "i", "command send", "ok", "", "", "tx");
                 end
             catch
             end
@@ -360,6 +432,7 @@ classdef BehaviorBoxSerialInput < handle
 
         function SwitchMode(this)
             write(this.Ard, 'M', "char");
+            this.appendDebugEvent_("SwitchMode", "M", "command send", "ok", "", "", "tx");
             this.ReadingDouble = 0;
             this.Reading = "0";
         end
@@ -376,6 +449,7 @@ classdef BehaviorBoxSerialInput < handle
                 end
                 try
                     write(this.Ard, '0', 'char');
+                    this.appendDebugEvent_("ResetWheel", "0", "command send", "ok", "", "", "tx");
                 catch
                 end
             else
@@ -407,6 +481,138 @@ classdef BehaviorBoxSerialInput < handle
             end
             this.Ard = serialport().empty;
             disp('Behavior Serial port is closed');
+        end
+    end
+
+    methods (Access = private)
+        function appendDebugEvent_(this, commandName, rawValue, eventType, status, matchKey, details, direction)
+            timestampDt = datetime('now', 'TimeZone', 'local');
+            row = BehaviorBoxSerialDebug.makeRow( ...
+                BehaviorBoxSerialDebug.formatTimestamp(timestampDt), ...
+                string(direction), ...
+                this.currentPort_(), ...
+                string(commandName), ...
+                string(rawValue), ...
+                string(eventType), ...
+                string(status), ...
+                string(matchKey), ...
+                string(details));
+
+            this.DebugHistory = [this.DebugHistory; row];
+            this.DebugHistoryTime(end+1, 1) = posixtime(timestampDt);
+            this.trimDebugHistory_();
+
+            if BehaviorBoxSerialDebug.normalizeMode(this.Debug_SerialLogMode) == "file"
+                try
+                    if strlength(this.DebugLogFile) == 0
+                        [this.DebugLogFile, ~] = BehaviorBoxSerialDebug.continuousCsvPath(this.DebugSessionSaveFolder, class(this));
+                    end
+                    BehaviorBoxSerialDebug.appendCsvRow(this.DebugLogFile, row);
+                catch err
+                    warning('BehaviorBoxSerialInput:DebugLogWriteFailed', ...
+                        'Failed to append serial debug row: %s', err.message);
+                    this.Debug_SerialLogMode = "memory";
+                    this.DebugLogFile = "";
+                end
+            end
+        end
+
+        function trimDebugHistory_(this)
+            if isempty(this.DebugHistoryTime)
+                return
+            end
+
+            maxRows = max(1, round(this.DebugMaxHistoryRows));
+            while height(this.DebugHistory) > maxRows
+                this.DebugHistory(1, :) = [];
+                this.DebugHistoryTime(1, :) = [];
+            end
+
+            cutoff = posixtime(datetime('now', 'TimeZone', 'local') - minutes(this.DebugMaxHistoryMinutes));
+            while ~isempty(this.DebugHistoryTime) && this.DebugHistoryTime(1) < cutoff
+                this.DebugHistory(1, :) = [];
+                this.DebugHistoryTime(1, :) = [];
+            end
+        end
+
+        function portName = currentPort_(this)
+            portName = "";
+            try
+                if ~isempty(this.Ard)
+                    portName = string(this.Ard.Port);
+                end
+            catch
+                portName = "";
+            end
+        end
+
+        function metadata = buildFailureMetadata_(this, failureContext)
+            failureContext = this.normalizeFailureContext_(failureContext);
+            metadata = struct( ...
+                'SchemaVersion', 'v1', ...
+                'GeneratedAt', char(BehaviorBoxSerialDebug.formatTimestamp(datetime('now', 'TimeZone', 'local'))), ...
+                'Workflow', char(this.DebugWorkflow), ...
+                'FailureIdentifier', char(failureContext.FailureIdentifier), ...
+                'FailureMessage', char(failureContext.FailureMessage), ...
+                'SessionSaveFolder', char(this.DebugSessionSaveFolder), ...
+                'LogMode', char(BehaviorBoxSerialDebug.normalizeMode(this.Debug_SerialLogMode)), ...
+                'MaxHistoryRows', double(this.DebugMaxHistoryRows), ...
+                'MaxHistoryMinutes', double(this.DebugMaxHistoryMinutes), ...
+                'EventRowCount', double(height(this.DebugHistory)), ...
+                'ClassName', class(this), ...
+                'FailureSource', char(failureContext.FailureSource), ...
+                'TopStackFrame', char(failureContext.TopStackFrame));
+        end
+
+        function failureContext = normalizeFailureContext_(~, failureContext)
+            defaults = struct( ...
+                'FailureIdentifier', "BehaviorBox:UnknownFailure", ...
+                'FailureMessage', "Unknown failure", ...
+                'FailureSource', "Fallback", ...
+                'TopStackFrame', "");
+            for f = string(fieldnames(defaults))'
+                if ~isfield(failureContext, f) || isempty(failureContext.(f))
+                    failureContext.(f) = defaults.(f);
+                else
+                    failureContext.(f) = string(failureContext.(f));
+                end
+            end
+        end
+
+        function commandName = commandNameForPayload_(~, payload)
+            payload = char(payload);
+            if isempty(payload)
+                commandName = "";
+                return
+            end
+            switch payload(1)
+                case 'W'
+                    commandName = "Who";
+                case 's'
+                    commandName = "SetupRewardRight";
+                case 'S'
+                    commandName = "SetupRewardLeft";
+                case 'R'
+                    commandName = "GiveRewardRight";
+                case 'L'
+                    commandName = "GiveRewardLeft";
+                case 'T'
+                    commandName = "TimestampOn";
+                case 't'
+                    commandName = "TimestampOff";
+                case 'I'
+                    commandName = "AcquisitionStart";
+                case 'N'
+                    commandName = "AcquisitionNext";
+                case 'i'
+                    commandName = "AcquisitionEnd";
+                case 'M'
+                    commandName = "SwitchMode";
+                case '0'
+                    commandName = "ResetWheel";
+                otherwise
+                    commandName = "SerialCommand";
+            end
         end
     end
 end

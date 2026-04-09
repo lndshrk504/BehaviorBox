@@ -542,8 +542,8 @@ This phase covers debugging improvements shared by `BehaviorBoxSerialInput.m`, `
 - The flag should be represented as one app-backed setting, not separate per-class toggles.
 - The app-facing control contract should include:
   - one control/tag that maps to `Debug_SerialLogMode`
-  - placement in a hidden developer panel rather than the normal operator-facing training controls
-  - availability in both Nose and Wheel workflows through that hidden developer panel when debug controls are exposed
+  - placement in a visible `Developer` panel on `OtherUnusedTab` in `BB_App`, rather than mixed into the main operator-facing training controls
+  - availability in both Nose and Wheel workflows through that shared visible developer panel
 - If no dedicated UI control is present, `Debug_SerialLogMode` may still be injected through a normalized settings struct for scripted or smoke-test runs, but the same field name and vocabulary must be used.
 - `Debug_SerialLogMode` must use a small fixed vocabulary:
   - `memory`
@@ -554,6 +554,7 @@ This phase covers debugging improvements shared by `BehaviorBoxSerialInput.m`, `
 - `failure` must mean in-memory capture with file flush only on failure.
 - Missing, empty, or unrecognized values of `Debug_SerialLogMode` must fall back to `memory` and emit at most a warning in the debug outputs, not a hard failure during training.
 - `BehaviorBoxSerialInput` and `BehaviorBoxSerialTime` must consume the same resolved `Debug_SerialLogMode` value for a given session so their outputs stay aligned.
+- The resolved `Debug_SerialLogMode` value must be latched at session configuration/startup time. Changing the app control during an active Nose or Wheel session must not reconfigure serial logging mid-session.
 - The resolved flag value should be recorded in:
   - serial write-on-failure metadata as `LogMode`
   - shared preflight `SettingsSnapshot.Flags.DebugSerialLogMode`

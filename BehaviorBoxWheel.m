@@ -133,6 +133,7 @@ classdef BehaviorBoxWheel < handle
                 this.DoLoop(); %the actual loop
             catch err
                 this.unwrapError(err)
+                this.flushSerialFailureArtifacts_(err);
                 this.cleanUP();
             end
             this.GuiHandles.MsgBox.String = fileread(this.textdiary);
@@ -158,6 +159,9 @@ classdef BehaviorBoxWheel < handle
                 catch err
                     this.unwrapError(err)
                     errorc = errorc + 1;
+                    if errorc >= 5
+                        this.flushSerialFailureArtifacts_(err);
+                    end
                 end
             end
             this.cleanUP();
@@ -248,7 +252,7 @@ classdef BehaviorBoxWheel < handle
             tags  = this.appPropsTags;
 
             if isempty(props) || isempty(tags)
-                Settings = struct();
+                Settings = struct('Debug_SerialLogMode', this.resolveDebugSerialLogMode_());
                 this.dropdowns = struct();
                 return
             end
@@ -293,6 +297,23 @@ classdef BehaviorBoxWheel < handle
                 this.dropdowns = cell2struct(vals(ddMask), tags(ddMask), 2);
             else
                 this.dropdowns = struct();
+            end
+
+            Settings.Debug_SerialLogMode = this.resolveDebugSerialLogMode_();
+        end
+
+        function mode = resolveDebugSerialLogMode_(this)
+            mode = "memory";
+            try
+                if isprop(this.app, 'DebugSerialFile') && logical(this.app.DebugSerialFile.Value)
+                    mode = "file";
+                elseif isprop(this.app, 'DebugSerialFailure') && logical(this.app.DebugSerialFailure.Value)
+                    mode = "failure";
+                elseif isprop(this.app, 'DebugSerialMemory') && logical(this.app.DebugSerialMemory.Value)
+                    mode = "memory";
+                end
+            catch
+                mode = "memory";
             end
         end
 
@@ -403,6 +424,7 @@ classdef BehaviorBoxWheel < handle
                             this.app.LoadComputerSpecifics();
                         end
                         this.a = BehaviorBoxSerialInput(comsnum, 115200, 'Wheel');
+                        this.configureSerialDebug_("");
                         this.Box.KeyboardInput = 0;
                         pause(2)
                         this.a.SetupReward("Which", "Right", "DurationRight", this.Box.Rrewardtime);
@@ -411,6 +433,7 @@ classdef BehaviorBoxWheel < handle
                             disp('- - - Connecting to Timestamp Arduino - - -')
                             [~, comsnum, ~] = arduinoServer('ArduinoInfo', this.app.ArduinoInfo, 'desiredIdentity', 'Time', 'FindExact', true);
                             this.Time = BehaviorBoxSerialTime(comsnum, 115200);
+                            this.configureSerialDebug_("");
                             disp('- - - Success - - -')
                         catch err
                         end
@@ -459,6 +482,7 @@ classdef BehaviorBoxWheel < handle
             end
             this.textdiary = diaryname;
             diary(diaryname)
+            this.configureSerialDebug_(this.debugSessionFolder_());
             this.Data_Object.TrainingNow = 1;
             %create stimulus depending on input device
             [this.Stimulus_Object] = BehaviorBoxVisualStimulus(this.StimulusStruct); drawnow;
@@ -514,7 +538,7 @@ classdef BehaviorBoxWheel < handle
             end
             try
                 if ~isempty(this.Time) && isobject(this.Time) && ~isempty(this.Time.Ard)
-                    write(this.Time.Ard, '0', "char");
+                    this.Time.ResetFrameCounter();
                     pause(0.05)
                 end
             catch
@@ -4556,6 +4580,79 @@ classdef BehaviorBoxWheel < handle
                 [Lines.Color] = deal(Stim.LineColor);
             end
         end
+
+        function configureSerialDebug_(this, sessionSaveFolder)
+            mode = string(this.resolveDebugSerialLogMode_());
+            sessionSaveFolder = string(sessionSaveFolder);
+            if ~isempty(this.a)
+                try
+                    this.a.configureDebugLogging( ...
+                        Mode=mode, ...
+                        Workflow="Wheel", ...
+                        SessionSaveFolder=sessionSaveFolder);
+                catch
+                end
+            end
+            if ~isempty(this.Time)
+                try
+                    this.Time.configureDebugLogging( ...
+                        Mode=mode, ...
+                        Workflow="Wheel", ...
+                        SessionSaveFolder=sessionSaveFolder);
+                catch
+                end
+            end
+        end
+
+        function sessionSaveFolder = debugSessionFolder_(this)
+            sessionSaveFolder = "";
+            try
+                sessionSaveFolder = string(this.Data_Object.filedir);
+            catch
+                sessionSaveFolder = "";
+            end
+        end
+
+        function flushSerialFailureArtifacts_(this, err)
+            failureContext = this.buildFailureContext_(err);
+            if ~isempty(this.a)
+                try
+                    this.a.flushDebugFailureArtifact(failureContext);
+                catch
+                end
+            end
+            if ~isempty(this.Time)
+                try
+                    this.Time.flushDebugFailureArtifact(failureContext);
+                catch
+                end
+            end
+        end
+
+        function failureContext = buildFailureContext_(this, err)
+            failureContext = struct( ...
+                'FailureIdentifier', "BehaviorBox:UnknownFailure", ...
+                'FailureMessage', "Unknown failure", ...
+                'FailureSource', "Fallback", ...
+                'TopStackFrame', "", ...
+                'Workflow', "Wheel");
+            if isa(err, 'MException')
+                failureContext.FailureSource = "MException";
+                if ~isempty(err.identifier)
+                    failureContext.FailureIdentifier = string(err.identifier);
+                end
+                if ~isempty(err.message)
+                    failureContext.FailureMessage = regexprep(string(err.message), '[\r\n]+', ' ');
+                end
+                try
+                    if ~isempty(err.stack)
+                        failureContext.TopStackFrame = string(err.stack(1).file) + ":" + string(err.stack(1).line);
+                    end
+                catch
+                end
+            end
+        end
+
         function saveFigure(fig, folder, name)
             name = erase(name, '.mat');
             figure_property = struct;

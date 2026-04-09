@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Working Identity
+
+- GitHub user: `lndshrk504`
+
 ## Repository Profile
 BehaviorBox is a MATLAB-first scientific repository whose programs are primarily run on Linux computers. Development also occurs occasionally on macOS and, more rarely, on Windows. The main workflow lives in `BehaviorBox_App.mlapp`, `BB_App.m`, and the root MATLAB classes `BehaviorBoxData*.m`, `BehaviorBoxNose.m`, `BehaviorBoxWheel.m`, and `BehaviorBoxVisualStimulus.m`. Reusable MATLAB helpers live in `fcns/`. Hardware firmware and references live in `Arduino/` and `Equipment/`. Linux automation lives in `Linux-Scripts/`. DeepLabCut eye-tracking models, bridge code, and tests live in `DLC/`. `iRecHS2/` remains in the repo as legacy reference material and should not be treated as the active eye-tracking path unless a task explicitly targets it. `usbcamv4l/` is a separate Linux-only C++ camera utility with its own `CMakeLists.txt`, intended to run on Linux systems with Intel integrated graphics, AMD GPUs, and NVIDIA GPUs.
 
@@ -29,7 +33,7 @@ Before broad edits, inspect the real equivalents in this repo rather than assumi
 - Headless debug harness: `MockApp/`
 - Hardware and environment folders: `Arduino/`, `Equipment/`, `Linux-Scripts/`
 - Python helpers and mixed-language areas: `DLC/ToMatlab/`, `DLC/Tests/`, `iRecHS2/` (legacy reference only)
-- Tests and verification scripts: `fcns/testArduinoVolts.m`, `fcns/TestRecord.m`, `fcns/testBehaviorBoxDataLoad.m`, `fcns/testBehaviorBoxDataNoEagerMkdir.m`, `fcns/testBehaviorBoxDataDeferredSaveMkdir.m`, `DLC/ToMatlab/receive_eye_stream_demo.m`, `DLC/Tests/CheckReqs.py`, `DLC/Tests/TestSpin.py`
+- Tests and verification scripts: `fcns/testArduinoVolts.m`, `fcns/TestRecord.m`, `fcns/testBehaviorBoxDataLoad.m`, `fcns/testBehaviorBoxDataNoEagerMkdir.m`, `fcns/testBehaviorBoxDataDeferredSaveMkdir.m`, `fcns/testSerialDebugLogging.m`, `DLC/ToMatlab/receive_eye_stream_demo.m`, `DLC/Tests/CheckReqs.py`, `DLC/Tests/TestSpin.py`
 - Config and schema-sensitive assets: `ComputerSettings*.mat`, `Settings/`, saved `.mat` outputs, `BBAppOutput.txt`
 - Native camera utility: `usbcamv4l/`
 - `BehaviorBoxData` animal-data root is `fullfile(GetFilePath("Data"), this.Inv, this.Inp)`.
@@ -90,6 +94,40 @@ This separation is intentional. If logic is genuinely shared, extract only the m
 - If no matching subject directory exists, `BehaviorBoxData.handleNewStrain()` returns the would-be `Str/Sub` save path without creating the folder during lookup. The actual folder creation is deferred to save-time code such as `BehaviorBoxWheel.SaveAllData`, `BehaviorBoxNose.SaveAllData`, or `BehaviorBoxData.SaveAllData`. If `Str` is empty or the GUI placeholder `w`, it defaults the strain folder to `New`.
 - Use `fcns/testBehaviorBoxDataLoad.m` for real-data loader coverage, `fcns/testBehaviorBoxDataNoEagerMkdir.m` for the non-destructive missing-subject lookup path that must not touch the real Dropbox tree, and `fcns/testBehaviorBoxDataDeferredSaveMkdir.m` for the broader deferred-save check that proves the folder is created only when `BehaviorBoxData.SaveAllData` runs.
 
+## Save And Imaging Sync Contract
+- `BehaviorBoxWheel.SaveAllData` has two distinct save modes that produce different `.mat` schemas. Do not assume every wheel-related `.mat` file has the same top-level fields.
+- Training saves write top-level `Settings`, `newData`, and `Notes`. The microscopy-sync artifacts for wheel sessions live inside `newData`, not as separate top-level variables.
+- Wheel training saves add these sync-critical `newData` fields when `this.Box.Input_type == 6`:
+  `wheel_record`, `TimestampRecord`, `WheelDisplayRecord`, and `FrameAlignedRecord`.
+- `newData.TimestampRecord` is the canonical saved timestamp stream for wheel-session sync work. It is a cell array of segment structs built from `this.timestamps_record`.
+- Each `TimestampRecord` segment can include:
+  `trial`, `kind`, `scanImageFile`, `raw`, `parsed`, `trialCommitted`, and `trialStatus`.
+- `TimestampRecord.raw` is the raw line log captured from the Timekeeper serial stream for that segment.
+- `TimestampRecord.parsed` is the structured parsed table from `BehaviorBoxSerialTime` and is the preferred source for downstream sync logic when present. Its base columns are:
+  `kind`, `t_us`, `t_arduino_us`, `t_pc_receive_us`, `frame`, `event`, `trial`, `side`, `correct`, and `rewardPulse`.
+- Save-time annotation adds `trialCommitted` and `trialStatus` to both the segment struct and `TimestampRecord.parsed` so downstream code can distinguish committed trials, in-progress trials, and session-level cleanup segments.
+- `newData.WheelDisplayRecord` is the wheel/display state log sampled during trial execution. It is saved as a table with columns:
+  `trial`, `t_us`, `phase`, `tTrial`, `rawWheel`, `delta`, `StimColor`, `screenEvent`, `level`, and `isLeftTrial`.
+- Save-time annotation adds `trialCommitted` and `trialStatus` to `WheelDisplayRecord` so downstream code can filter out in-progress rows cleanly.
+- `newData.FrameAlignedRecord` is the matched frame log saved by `BehaviorBoxWheel`. It is the frame-by-frame alignment table that ties imaging frames to behavior state. Its columns are:
+  `trial`, `frame`, `t_us`, `t_arduino_us`, `t_pc_receive_us`, `phase`, `tTrial`, `rawWheel`, `delta`, `StimColor`, `screenEvent`, `level`, `isLeftTrial`, `decision`, and `correct`.
+- For microscopy analysis, treat `newData.TimestampRecord`, `newData.WheelDisplayRecord`, and especially `newData.FrameAlignedRecord` as the primary saved BehaviorBox sync artifacts that explain how ScanImage or other image frames map onto behavior time, trial phase, wheel state, and behavior events.
+- Prefer `newData.FrameAlignedRecord` and `newData.TimestampRecord.parsed` over reparsing raw strings when those saved fields are available.
+- `BehaviorBoxWheel.SaveAllData("Activity","Animate",...)` produces a different animation-oriented file shape with top-level `Settings`, `Position_Record`, `Notes`, `TimeLog`, `MapLog`, `MapMeta`, and `TimestampRecord`.
+- In animation saves, `TimeLog` is the flattened raw timestamp log, `TimestampRecord` carries the segment structs, and `MapLog` / `MapMeta` hold the mapping-animation outputs. These are top-level fields, not nested under `newData`.
+- `BehaviorBoxData.loadFiles()` reads session files through `fileDatastore(..., "ReadFcn", @readFcn)`. `readFcn` returns an 8-column cell row with:
+  filename, session date, `newData`, `StimHist`, extras, subject-folder name, `Position_Record`, and `Settings`.
+- `readFcn` collects top-level fields other than `Settings`, `newData`, `StimHist`, and `Position_Record` into the extras struct. For animation or mapping files, this is where `TimeLog`, `MapLog`, `MapMeta`, `TimestampRecord`, `Notes`, and any preserved raw-field copies remain available.
+- `BehaviorBoxData.GetReadExtras()` is the supported way to access those top-level extras after load.
+- `readFcn` canonicalizes historical wheel timestamp fields by copying `TtimestampRecord` into `newData.TimestampRecord` when needed. Treat `TimestampRecord` as the normalized field name going forward, and treat `TtimestampRecord` as historical compatibility data.
+- `readFcn` preserves additive session-wide tables such as `WheelDisplayRecord` and `FrameAlignedRecord` during normalization; they are not trial vectors and must not be trimmed like per-trial numeric arrays.
+- `BehaviorBoxData.CombineDays()` combines only rows that contain `newData`. Animate-only files that have `Position_Record` / `TimeLog` but no `newData` are read but excluded from the combined training-session analysis path.
+- For microscope or sync work, start by identifying which file type you have:
+  wheel training session file with `newData`, or animation/mapping file with top-level `TimeLog` / `MapLog`.
+- For wheel-image synchronization, use `newData.FrameAlignedRecord` as the first-choice matched frame log, use `newData.TimestampRecord.parsed` as the detailed event/frame timeline, and fall back to `TimestampRecord.raw` or top-level `TimeLog` only when the parsed artifacts are missing.
+- Legacy imaging scripts such as `Imaging Analysis scripts/MatchFramesToTimestamps.m` and downstream `FrameMatched*.mat` outputs are analysis artifacts built after the save. They are not the primary save contract of `BehaviorBoxWheel.SaveAllData`.
+- Any change to the field names, nesting level, segment semantics, timestamp edge semantics, or frame-alignment columns above is a saved-file schema change and must be called out explicitly in the handoff.
+
 ## Local Validation
 Run the narrowest matching checks, in this order when relevant:
 
@@ -109,17 +147,20 @@ Unless a task explicitly targets another OS, run and report smoke tests as Linux
 5. When debugging deferred folder creation in `BehaviorBoxData`, run the broader smoke test that first proves lookup is non-destructive and then verifies `BehaviorBoxData.SaveAllData` creates the folder and `.mat` file at save time:
    `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('fcns/testBehaviorBoxDataDeferredSaveMkdir.m');"`
    Default test config is `Inv=Will`, `Inp=Wheel`, `Str=New`, `Sub=9999999`, `BB_DEBUG_FILENAME=behaviorbox_save_validation`; override the same `BB_DEBUG_*` variables when you need a different temporary path shape or output filename.
-6. For Arduino sketch changes, compile the narrowest affected sketch with `arduino-cli` when it is already installed and the board target is known. Report the exact fully qualified board name and sketch path, for example:
+6. When debugging `Debug_SerialLogMode`, serial TX/RX observability, or serial write-on-failure artifacts, run the focused smoke test:
+   `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('fcns/testSerialDebugLogging.m');"`
+   This smoke test covers the `memory`, `file`, and `failure` modes on temporary roots, verifies the canonical CSV header, and checks that paired JSON/CSV failure artifacts are written only in `failure` mode.
+7. For Arduino sketch changes, compile the narrowest affected sketch with `arduino-cli` when it is already installed and the board target is known. Report the exact fully qualified board name and sketch path, for example:
    `arduino-cli compile --fqbn arduino:avr:uno Arduino/Rotary`
-7. For Arduino-facing work that depends on BehaviorBox MATLAB integration, use the focused smoke test:
+8. For Arduino-facing work that depends on BehaviorBox MATLAB integration, use the focused smoke test:
    `matlab -batch "run('fcns/testArduinoVolts.m')"`
-8. For Arduino timing, serial-protocol, or inter-device signaling changes, also run the narrowest hardware-in-the-loop bench check you can and report the board, connected pins, baud rate, expected pulse width or frequency, and what you observed. If no bench hardware is available, say so explicitly.
-9. For DLC eye-tracking / MATLAB bridge integration work, use the focused demo entrypoint when the streamer and bridge dependencies are available:
+9. For Arduino timing, serial-protocol, or inter-device signaling changes, also run the narrowest hardware-in-the-loop bench check you can and report the board, connected pins, baud rate, expected pulse width or frequency, and what you observed. If no bench hardware is available, say so explicitly.
+10. For DLC eye-tracking / MATLAB bridge integration work, use the focused demo entrypoint when the streamer and bridge dependencies are available:
    `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('DLC/ToMatlab/receive_eye_stream_demo.m');"`
-10. If a MATLAB test suite is added or available for the changed area, prefer the narrowest `runtests` target. Use repo-wide `runtests` only when justified:
+11. If a MATLAB test suite is added or available for the changed area, prefer the narrowest `runtests` target. Use repo-wide `runtests` only when justified:
    `matlab -batch "results = runtests; assertSuccess(results);"`
-11. If Python under `DLC/ToMatlab/` or `DLC/Tests/` is changed and there is no formal test suite, run the smallest reproducible script or analysis entrypoint and report exactly what you ran.
-12. For `usbcamv4l/`, treat it as Linux-only and validate from a Linux environment with the native build from that directory. When relevant, call out whether validation was performed on Intel integrated graphics, AMD GPU, or NVIDIA GPU hardware:
+12. If Python under `DLC/ToMatlab/` or `DLC/Tests/` is changed and there is no formal test suite, run the smallest reproducible script or analysis entrypoint and report exactly what you ran.
+13. For `usbcamv4l/`, treat it as Linux-only and validate from a Linux environment with the native build from that directory. When relevant, call out whether validation was performed on Intel integrated graphics, AMD GPU, or NVIDIA GPU hardware:
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -147,6 +188,7 @@ When modifying `BehaviorBoxNose.m`, `BehaviorBoxWheel.m`, or `BehaviorBoxData.m`
 - Run `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('fcns/testBehaviorBoxDataLoad.m');"` when the change touches `BehaviorBoxData` load compatibility or subject discovery.
 - Run `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('fcns/testBehaviorBoxDataNoEagerMkdir.m');"` when the change touches `BehaviorBoxData` folder lookup, typo handling, or deferred folder creation.
 - Run `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('fcns/testBehaviorBoxDataDeferredSaveMkdir.m');"` when the change touches save-time folder creation or the contract that missing subject folders are created only when save runs.
+- Run `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('fcns/testSerialDebugLogging.m');"` when the change touches `BehaviorBoxSerialInput.m`, `BehaviorBoxSerialTime.m`, `Debug_SerialLogMode`, serial logging retention, or serial write-on-failure artifacts.
 - Verify one Nose and one Wheel session can start, stop, and save data without callback errors.
 - Verify fallback save-path behavior, including manual file selection, still works if the default folder is unavailable.
 - Confirm there are no unresolved conflict markers with `rg -n "^<<<<<<<|^=======|^>>>>>>>" BehaviorBoxNose.m BehaviorBoxWheel.m BehaviorBoxData.m`.

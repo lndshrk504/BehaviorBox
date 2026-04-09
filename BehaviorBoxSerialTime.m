@@ -20,6 +20,17 @@ classdef BehaviorBoxSerialTime < handle
         TrainStartWallClock = NaT
         SegmentHardwareAnchorArduinoUs double = NaN
         SegmentHardwareAnchorPcUs double = NaN
+        Debug_SerialLogMode string = "memory"
+        DebugWorkflow string = ""
+        DebugSessionSaveFolder string = ""
+        DebugMaxHistoryRows double = 500
+        DebugMaxHistoryMinutes double = 10
+        DebugHistory table = table( ...
+            'Size', [0 9], ...
+            'VariableTypes', repmat({'string'}, 1, 9), ...
+            'VariableNames', {'timestamp', 'direction', 'port', 'commandName', 'rawValue', 'eventType', 'status', 'matchKey', 'details'})
+        DebugHistoryTime double = zeros(0,1)
+        DebugLogFile string = ""
     end
 
     methods
@@ -35,6 +46,47 @@ classdef BehaviorBoxSerialTime < handle
                 configureCallback(this.Ard, "terminator", @this.SerialRead);
             catch
                 disp('Serial connection failed.')
+            end
+        end
+
+        function configureDebugLogging(this, opts)
+            arguments
+                this
+                opts.Mode = "memory"
+                opts.Workflow = ""
+                opts.SessionSaveFolder = ""
+                opts.MaxHistoryRows double = 500
+                opts.MaxHistoryMinutes double = 10
+            end
+            this.Debug_SerialLogMode = BehaviorBoxSerialDebug.normalizeMode(opts.Mode);
+            this.DebugWorkflow = string(opts.Workflow);
+            this.DebugSessionSaveFolder = string(opts.SessionSaveFolder);
+            this.DebugMaxHistoryRows = double(opts.MaxHistoryRows);
+            this.DebugMaxHistoryMinutes = double(opts.MaxHistoryMinutes);
+            this.DebugLogFile = "";
+        end
+
+        function setDebugSessionSaveFolder(this, folder)
+            this.DebugSessionSaveFolder = string(folder);
+            this.DebugLogFile = "";
+        end
+
+        function flushDebugFailureArtifact(this, failureContext)
+            arguments
+                this
+                failureContext struct = struct()
+            end
+            if BehaviorBoxSerialDebug.normalizeMode(this.Debug_SerialLogMode) ~= "failure"
+                return
+            end
+            try
+                [jsonFile, csvFile] = BehaviorBoxSerialDebug.failureArtifactPaths(this.DebugSessionSaveFolder, class(this));
+                metadata = this.buildFailureMetadata_(failureContext);
+                BehaviorBoxSerialDebug.writeJson(jsonFile, metadata);
+                BehaviorBoxSerialDebug.writeCsv(csvFile, this.DebugHistory);
+            catch err
+                warning('BehaviorBoxSerialTime:DebugFlushFailed', ...
+                    'Failed to write Timekeeper serial debug failure artifact: %s', err.message);
             end
         end
 
@@ -72,7 +124,7 @@ classdef BehaviorBoxSerialTime < handle
             end
             result = newReading;
             if strlength(strtrim(newReading)) > 0
-                this.appendLogLine_(newReading);
+                this.appendLogLine_(newReading, "rx");
             end
         end
 
@@ -86,7 +138,7 @@ classdef BehaviorBoxSerialTime < handle
                 fields.t_us = this.currentTrainMicros_();
             end
             line = BehaviorBoxSerialTime.formatEventLine_(eventName, fields);
-            this.appendLogLine_(line);
+            this.appendLogLine_(line, "parser");
         end
         
         function Reset(this)
@@ -102,11 +154,20 @@ classdef BehaviorBoxSerialTime < handle
         function Who(this)
             this.DispOutput = true;
             writeline(this.Ard, 'W');
+            this.appendDebugEvent_("Who", "W", "command send", "ok", "", "", "tx");
             pause(1); % Pause for a moment to allow data to be loaded into the buffer
             while this.Ard.NumBytesAvailable > 0
                 disp(readline(this.Ard));
             end
             this.DispOutput = false;
+        end
+
+        function ResetFrameCounter(this)
+            if isempty(this.Ard)
+                return
+            end
+            write(this.Ard, '0', "char");
+            this.appendDebugEvent_("ResetFrameCounter", "0", "command send", "ok", "", "", "tx");
         end
 
         function response = CheckFrame(this, timeoutSeconds)
@@ -120,6 +181,7 @@ classdef BehaviorBoxSerialTime < handle
             end
             startCount = numel(this.RawLog);
             write(this.Ard, 'F', "char");
+            this.appendDebugEvent_("CheckFrame", "F", "command send", "ok", "", "", "tx");
             response = "";
             tStart = tic;
             while toc(tStart) < timeoutSeconds
@@ -137,6 +199,8 @@ classdef BehaviorBoxSerialTime < handle
             end
             warning('BehaviorBoxSerialTime:CheckFrameTimeout', ...
                 'No frame-count response was received within %.2f seconds.', timeoutSeconds);
+            this.appendDebugEvent_("CheckFrame", "", "timeout", "timeout", "", ...
+                sprintf('No frame-count response within %.2f seconds', timeoutSeconds), "parser");
         end
 
         function UpdateProps(this, BoxStruct)
@@ -187,7 +251,10 @@ classdef BehaviorBoxSerialTime < handle
             end
         end
 
-        function appendLogLine_(this, line)
+        function appendLogLine_(this, line, direction)
+            if nargin < 3 || strlength(string(direction)) == 0
+                direction = "rx";
+            end
             line = strtrim(string(line));
             if strlength(line) == 0
                 return
@@ -196,7 +263,14 @@ classdef BehaviorBoxSerialTime < handle
             this.RawLog(end+1,1) = line;
             this.Log = this.RawLog;
             receiveT_us = this.currentTrainMicros_();
-            this.ParsedLog = [this.ParsedLog; this.parseLogLine_(line, receiveT_us)];
+            rawEventType = "raw line receive";
+            if string(direction) == "parser"
+                rawEventType = "parsed event";
+            end
+            this.appendDebugEvent_("", line, rawEventType, "ok", "", "", string(direction));
+            parsedRow = this.parseLogLine_(line, receiveT_us);
+            this.ParsedLog = [this.ParsedLog; parsedRow];
+            this.appendParsedDebugEvent_(parsedRow, line);
         end
 
         function t_us = hybridHardwareMicros_(this, arduinoT_us, pcReceiveT_us)
@@ -264,6 +338,124 @@ classdef BehaviorBoxSerialTime < handle
             rewardPulse = BehaviorBoxSerialTime.readNumericField_(tokenMap, 'rewardPulse');
 
             row = BehaviorBoxSerialTime.parsedRow_(kind, t_us, NaN, receiveT_us, frame, eventName, trial, side, correct, rewardPulse);
+        end
+
+        function appendParsedDebugEvent_(this, parsedRow, rawLine)
+            commandName = this.parsedCommandName_(parsedRow);
+            status = "ok";
+            if parsedRow.kind == "raw"
+                status = "unmatched";
+            end
+            this.appendDebugEvent_(commandName, rawLine, "parsed event", status, "", "", "parser");
+        end
+
+        function commandName = parsedCommandName_(~, parsedRow)
+            commandName = "";
+            try
+                if strlength(strtrim(parsedRow.event(1))) > 0
+                    commandName = parsedRow.event(1);
+                elseif strlength(strtrim(parsedRow.kind(1))) > 0
+                    commandName = parsedRow.kind(1);
+                else
+                    commandName = "TimekeeperEvent";
+                end
+            catch
+                commandName = "TimekeeperEvent";
+            end
+        end
+
+        function appendDebugEvent_(this, commandName, rawValue, eventType, status, matchKey, details, direction)
+            timestampDt = datetime('now', 'TimeZone', 'local');
+            row = BehaviorBoxSerialDebug.makeRow( ...
+                BehaviorBoxSerialDebug.formatTimestamp(timestampDt), ...
+                string(direction), ...
+                this.currentPort_(), ...
+                string(commandName), ...
+                string(rawValue), ...
+                string(eventType), ...
+                string(status), ...
+                string(matchKey), ...
+                string(details));
+
+            this.DebugHistory = [this.DebugHistory; row];
+            this.DebugHistoryTime(end+1, 1) = posixtime(timestampDt);
+            this.trimDebugHistory_();
+
+            if BehaviorBoxSerialDebug.normalizeMode(this.Debug_SerialLogMode) == "file"
+                try
+                    if strlength(this.DebugLogFile) == 0
+                        [this.DebugLogFile, ~] = BehaviorBoxSerialDebug.continuousCsvPath(this.DebugSessionSaveFolder, class(this));
+                    end
+                    BehaviorBoxSerialDebug.appendCsvRow(this.DebugLogFile, row);
+                catch err
+                    warning('BehaviorBoxSerialTime:DebugLogWriteFailed', ...
+                        'Failed to append Timekeeper debug row: %s', err.message);
+                    this.Debug_SerialLogMode = "memory";
+                    this.DebugLogFile = "";
+                end
+            end
+        end
+
+        function trimDebugHistory_(this)
+            if isempty(this.DebugHistoryTime)
+                return
+            end
+
+            maxRows = max(1, round(this.DebugMaxHistoryRows));
+            while height(this.DebugHistory) > maxRows
+                this.DebugHistory(1, :) = [];
+                this.DebugHistoryTime(1, :) = [];
+            end
+
+            cutoff = posixtime(datetime('now', 'TimeZone', 'local') - minutes(this.DebugMaxHistoryMinutes));
+            while ~isempty(this.DebugHistoryTime) && this.DebugHistoryTime(1) < cutoff
+                this.DebugHistory(1, :) = [];
+                this.DebugHistoryTime(1, :) = [];
+            end
+        end
+
+        function portName = currentPort_(this)
+            portName = "";
+            try
+                if ~isempty(this.Ard)
+                    portName = string(this.Ard.Port);
+                end
+            catch
+                portName = "";
+            end
+        end
+
+        function metadata = buildFailureMetadata_(this, failureContext)
+            failureContext = this.normalizeFailureContext_(failureContext);
+            metadata = struct( ...
+                'SchemaVersion', 'v1', ...
+                'GeneratedAt', char(BehaviorBoxSerialDebug.formatTimestamp(datetime('now', 'TimeZone', 'local'))), ...
+                'Workflow', char(this.DebugWorkflow), ...
+                'FailureIdentifier', char(failureContext.FailureIdentifier), ...
+                'FailureMessage', char(failureContext.FailureMessage), ...
+                'SessionSaveFolder', char(this.DebugSessionSaveFolder), ...
+                'LogMode', char(BehaviorBoxSerialDebug.normalizeMode(this.Debug_SerialLogMode)), ...
+                'MaxHistoryRows', double(this.DebugMaxHistoryRows), ...
+                'MaxHistoryMinutes', double(this.DebugMaxHistoryMinutes), ...
+                'EventRowCount', double(height(this.DebugHistory)), ...
+                'ClassName', class(this), ...
+                'FailureSource', char(failureContext.FailureSource), ...
+                'TopStackFrame', char(failureContext.TopStackFrame));
+        end
+
+        function failureContext = normalizeFailureContext_(~, failureContext)
+            defaults = struct( ...
+                'FailureIdentifier', "BehaviorBox:UnknownFailure", ...
+                'FailureMessage', "Unknown failure", ...
+                'FailureSource', "Fallback", ...
+                'TopStackFrame', "");
+            for f = string(fieldnames(defaults))'
+                if ~isfield(failureContext, f) || isempty(failureContext.(f))
+                    failureContext.(f) = defaults.(f);
+                else
+                    failureContext.(f) = string(failureContext.(f));
+                end
+            end
         end
     end
 

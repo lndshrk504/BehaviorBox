@@ -30,6 +30,55 @@
 
 ## 2026-03-23 Add Criterion Analytics To BehaviorBoxData
 
+## 2026-04-08 Sync BehaviorBox Instructions Across Productivity Packs
+
+1. Goal
+- Sync the live BehaviorBox-related Codex instructions from the current macOS machine into the three productivity packs under `/Users/willsnyder/Downloads/codex_productivity_packs 2`.
+- Preserve the same BehaviorBox repository detail across macOS, Linux, and Windows pack variants while adapting only machine-specific path and validation notes.
+
+2. Non-goals
+- Do not change `.codex/config.toml`, `.agent/PLANS.md` templates inside the packs, or any non-AGENTS files in this pass.
+- Do not invent new BehaviorBox process rules that are not already present in the live home or repo AGENTS files.
+- Do not normalize unknown Windows local clone or data paths into fake exact values.
+
+3. Current-state summary
+- The live home-level instructions are in `/Users/willsnyder/.codex/AGENTS.md`.
+- The live repo-level BehaviorBox instructions are in `/Users/willsnyder/Desktop/BehaviorBox/AGENTS.md`.
+- The macOS productivity pack home AGENTS already mirrors the live home AGENTS closely.
+- The Linux and Windows productivity pack home AGENTS are still generic machine templates.
+- All three productivity pack repo AGENTS files are generic starter templates and are missing most of the actual BehaviorBox-specific guidance.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+- `/Users/willsnyder/Downloads/codex_productivity_packs 2/macos-matlab-python/home/.codex/AGENTS.md`
+- `/Users/willsnyder/Downloads/codex_productivity_packs 2/popos-linux-python-dev/home/.codex/AGENTS.md`
+- `/Users/willsnyder/Downloads/codex_productivity_packs 2/windows-python-cuda-microscopy/home/.codex/AGENTS.md`
+- `/Users/willsnyder/Downloads/codex_productivity_packs 2/macos-matlab-python/repo/AGENTS.md`
+- `/Users/willsnyder/Downloads/codex_productivity_packs 2/popos-linux-python-dev/repo/AGENTS.md`
+- `/Users/willsnyder/Downloads/codex_productivity_packs 2/windows-python-cuda-microscopy/repo/AGENTS.md`
+
+5. Validation commands
+- Section-presence check after edits:
+  `for f in '/Users/willsnyder/Downloads/codex_productivity_packs 2'/macos-matlab-python/home/.codex/AGENTS.md '/Users/willsnyder/Downloads/codex_productivity_packs 2'/popos-linux-python-dev/home/.codex/AGENTS.md '/Users/willsnyder/Downloads/codex_productivity_packs 2'/windows-python-cuda-microscopy/home/.codex/AGENTS.md '/Users/willsnyder/Downloads/codex_productivity_packs 2'/macos-matlab-python/repo/AGENTS.md '/Users/willsnyder/Downloads/codex_productivity_packs 2'/popos-linux-python-dev/repo/AGENTS.md '/Users/willsnyder/Downloads/codex_productivity_packs 2'/windows-python-cuda-microscopy/repo/AGENTS.md; do echo "=== $f ==="; rg -n '^## ' "$f"; done`
+- Focused diff review against the live sources:
+  `diff -u /Users/willsnyder/.codex/AGENTS.md '/Users/willsnyder/Downloads/codex_productivity_packs 2/macos-matlab-python/home/.codex/AGENTS.md'`
+  `diff -u /Users/willsnyder/Desktop/BehaviorBox/AGENTS.md '/Users/willsnyder/Downloads/codex_productivity_packs 2/macos-matlab-python/repo/AGENTS.md'`
+
+6. Milestones
+- Build a section inventory that labels live AGENTS content as shared, Linux-adapted, or Windows-adapted.
+- Update the three home AGENTS files with a common BehaviorBox working-agreement baseline plus short machine-role notes.
+- Replace the three repo AGENTS templates with BehaviorBox-aware versions that share the same detail and only vary where OS-specific paths or validation rules require it.
+- Run section and diff validation.
+
+7. Risks and stop conditions
+- Stop if a required machine-specific path for the Windows pack cannot be represented safely as a documented placeholder or adaptation note.
+- Stop if syncing the packs would require changing behavior rules rather than only carrying over existing BehaviorBox guidance.
+- Stop if a proposed adaptation would blur the Linux-first default runtime expectations for the repo instead of clarifying them.
+
+8. Handoff notes
+- Report which sections were copied verbatim versus adapted per OS.
+- Call out any remaining placeholders, especially for unknown Windows repo or data roots.
+
 1. Goal
 - Add the additive `TrialsToCriterion80`, `trialsToCriterionSliding`, and `trialsToCriterionBayes` methods from the reviewed `BehaviorBoxData_Revised.m` into the live `BehaviorBoxData.m`.
 
@@ -218,6 +267,59 @@
 - `BB_App.loadGuiInputAsStruct()` constructs `BehaviorBoxData("Inv",Invest,"Inp",Inp,"Sub",Sub,find=1)`.
 - `BehaviorBoxData.loadFiles()` reads all matching `.mat` files through `fileDatastore(..., "ReadFcn", @readFcn)`.
 - `fcns/readFcn.m` normalizes `newData` fields by trimming any field with `numel > total`, assuming one-dimensional vector-like indexing.
+
+## 2026-04-07 Implement Serial Debug Logging Controls And Failure Artifacts
+
+1. Goal
+- Implement the serial-debug slice of the debugging plan:
+- visible developer-panel control for `Debug_SerialLogMode` in `BB_App` on `OtherUnusedTab`
+- normalized settings propagation through `readSettingsFromApp()`
+- shared serial log mode handling in `BehaviorBoxSerialInput.m` and `BehaviorBoxSerialTime.m`
+- in-memory retention by default, continuous CSV logging in `file` mode, and paired JSON/CSV write-on-failure artifacts in `failure` mode
+- top-level failure flushing from `BehaviorBoxWheel.m` and `BehaviorBoxNose.m`
+
+2. Non-goals
+- Do not implement the full broader debugging plan in this pass.
+- Do not widen into `LoadReport`, preflight manifesting, or GUI-wide debug panels beyond the `Debug_SerialLogMode` control.
+- Do not change training logic, wheel mapping logic, or saved `.mat` session schema apart from additive debug artifacts under `Debug/`.
+
+3. Current-state summary
+- `BB_App.m` owns the UI layout and persists selected app values via `SaveComputerSpecifics()` and `LoadComputerSpecifics()`.
+- `BehaviorBoxWheel.readSettingsFromApp()` and `BehaviorBoxNose.readSettingsFromApp()` normalize app values into `Setting_Struct`.
+- `BehaviorBoxSerialInput.m` owns behavior Arduino TX/RX and currently has no structured serial logging.
+- `BehaviorBoxSerialTime.m` already keeps raw and parsed logs in memory, but has no gated debug-file output or failure artifacts.
+- `BehaviorBoxWheel.RunTrials()` / `DoLoop()` and `BehaviorBoxNose.RunTrials()` / `DoLoop()` are the top-level runtime paths that can flush write-on-failure artifacts.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/BB_App.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxSerialInput.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxSerialTime.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxWheel.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxNose.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- MATLAB lint:
+  `matlab -batch "checkcode('BB_App.m'); checkcode('BehaviorBoxSerialInput.m'); checkcode('BehaviorBoxSerialTime.m'); checkcode('BehaviorBoxWheel.m'); checkcode('BehaviorBoxNose.m');"`
+- Focused serial debug smoke check to be added in this pass, then run via:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('fcns/testSerialDebugLogging.m');"`
+
+6. Milestones
+- Add the visible developer-panel `Debug_SerialLogMode` radio-button control on `OtherUnusedTab` and persist it in computer settings.
+- Implement normalized serial debug mode configuration and in-memory retention in both serial classes.
+- Implement continuous CSV logging in `file` mode and paired JSON/CSV failure artifacts in `failure` mode.
+- Wire failure flushing into the top-level Nose and Wheel runtime paths.
+- Add a focused MATLAB smoke test for mode resolution and failure-artifact output.
+
+7. Risks and stop conditions
+- Stop if adding the developer control requires a user-facing UI decision that is not already specified.
+- Stop if the serial debug implementation would alter reward, timestamp, or training execution semantics beyond additive logging.
+- Stop if a needed change would silently alter saved session `.mat` files instead of only creating additive debug artifacts.
+- `Debug_SerialLogMode` is latched for a session at configuration/startup time; changing the visible radio buttons during a live session must not reconfigure serial logging until the next `ConfigureBox` or session start.
+
+8. Handoff notes
+- Report the final `Debug_SerialLogMode` access path, default, and failure-artifact location.
+- Call out any remaining implementation gaps outside the serial-debug slice.
 
 - Wheel sessions saved after commit `be34e53` add `newData.WheelDisplayRecord` and `newData.FrameAlignedRecord` as MATLAB tables, and one-subscript table indexing now throws inside `readFcn`.
 
@@ -627,6 +729,50 @@
 8. Handoff notes
 - Final handoff should name the proposed extraction boundary, the recommended history-preserving method, the active-tree rename into `EyeTrack/`, the explicit exclusion of heavy model blobs, the legacy-restore requirement under `legacy/`, the separated binary path, the submodule path, the local staging path, the deferred-remote status, the no-deletion transition rule, and the user decisions still required.
 - If implementation proceeds later, update this plan with the chosen repo-creation method and post-move validation commands.
+
+## 2026-04-08 Add EyeTrack As BehaviorBox Submodule
+
+1. Goal
+- Add the standalone `EyeTrack` repository back into `BehaviorBox` as a git submodule mounted at `/Users/willsnyder/Desktop/BehaviorBox/EyeTrack`.
+- Preserve the rest of the current `BehaviorBox` working tree as-is during this integration step.
+
+2. Non-goals
+- Do not delete or rewrite the existing in-repo `DLC/` tree during this pass.
+- Do not add new MATLAB wrapper code or runtime path changes in `BehaviorBox` during this pass.
+- Do not change any MATLAB, Python, or saved-data behavior in this pass.
+
+3. Current-state summary
+- The standalone repo now exists at `/Users/willsnyder/Desktop/EyeTrack` and has a private GitHub remote at `git@github.com:lndshrk504/EyeTrack.git`.
+- `BehaviorBox/EyeTrack/` currently exists only as an empty transition placeholder directory.
+- `BehaviorBox` does not yet have a `.gitmodules` file.
+- The `BehaviorBox` working tree already contains unrelated local edits, so the submodule add must stay isolated.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+- `/Users/willsnyder/Desktop/BehaviorBox/.gitmodules`
+- `/Users/willsnyder/Desktop/BehaviorBox/EyeTrack`
+
+5. Validation commands
+- Repo state before and after integration:
+  `git -C /Users/willsnyder/Desktop/BehaviorBox status --short --branch`
+- Submodule metadata check:
+  `git -C /Users/willsnyder/Desktop/BehaviorBox submodule status`
+- URL check:
+  `git -C /Users/willsnyder/Desktop/BehaviorBox config --file .gitmodules --get-regexp '^submodule\\..*\\.(path|url)$'`
+
+6. Milestones
+- Record the integration step in the exec plan.
+- Replace the empty placeholder directory with a real submodule at `BehaviorBox/EyeTrack`.
+- Verify `.gitmodules`, index state, and submodule commit pinning.
+
+7. Risks and stop conditions
+- Stop if the target path is not empty or contains user content that would be overwritten.
+- Stop if the submodule add would require modifying unrelated `BehaviorBox` files beyond `.gitmodules` and the gitlink entry.
+- Stop if private-remote access fails from the local machine.
+
+8. Handoff notes
+- Report the exact submodule URL and pinned commit.
+- Call out that the superproject will track the submodule commit, not the submodule branch tip.
 1. Goal
 - Ensure fcns/readFcn.m preserves all fields saved by BehaviorBoxWheel.SaveAllData and BehaviorBoxNose.SaveAllData, while keeping the existing BehaviorBoxData datastore contract.
 
