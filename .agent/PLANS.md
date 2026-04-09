@@ -79,6 +79,49 @@
 - Report which sections were copied verbatim versus adapted per OS.
 - Call out any remaining placeholders, especially for unknown Windows repo or data roots.
 
+## 2026-04-09 Sync BehaviorBox Repo Skills Into Linux And Windows Packs
+
+1. Goal
+- Replace the Linux and Windows productivity-pack repo skill folders with the live BehaviorBox repo skills from this machine so all three packs expose the same BehaviorBox-specific skill set.
+
+2. Non-goals
+- Do not change the live repo skills on this machine.
+- Do not alter pack `AGENTS.md`, `config.toml`, or home-level files in this pass.
+- Do not keep the old generic Linux/Python or Windows/CUDA starter skills if they conflict with exact parity.
+
+3. Current-state summary
+- The live BehaviorBox repo skill set is `/Users/willsnyder/Desktop/BehaviorBox/.agents/skills/` and currently contains `analysis-reproducibility-audit`, `matlab-change-verification`, and `matlab-python-interop`.
+- The macOS productivity pack already matches that live skill set.
+- The Linux pack still contains generic `linux-env-and-tooling-triage`, `python-change-verification`, and `python-interface-contract-audit`.
+- The Windows pack still contains generic `cuda-microscopy-change-verification`, `gpu-environment-triage`, and `microscopy-pipeline-audit`.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+- `/Users/willsnyder/Downloads/codex_productivity_packs 2/popos-linux-python-dev/repo/.agents/skills/**`
+- `/Users/willsnyder/Downloads/codex_productivity_packs 2/windows-python-cuda-microscopy/repo/.agents/skills/**`
+
+5. Validation commands
+- Tree comparison:
+  `find '/Users/willsnyder/Desktop/BehaviorBox/.agents/skills' -maxdepth 3 -type f | sort`
+  `find '/Users/willsnyder/Downloads/codex_productivity_packs 2/popos-linux-python-dev/repo/.agents/skills' -maxdepth 3 -type f | sort`
+  `find '/Users/willsnyder/Downloads/codex_productivity_packs 2/windows-python-cuda-microscopy/repo/.agents/skills' -maxdepth 3 -type f | sort`
+- Diff check:
+  `diff -rq '/Users/willsnyder/Desktop/BehaviorBox/.agents/skills' '/Users/willsnyder/Downloads/codex_productivity_packs 2/popos-linux-python-dev/repo/.agents/skills'`
+  `diff -rq '/Users/willsnyder/Desktop/BehaviorBox/.agents/skills' '/Users/willsnyder/Downloads/codex_productivity_packs 2/windows-python-cuda-microscopy/repo/.agents/skills'`
+
+6. Milestones
+- Record the plan update.
+- Replace the Linux pack repo skill tree with the live BehaviorBox tree.
+- Replace the Windows pack repo skill tree with the live BehaviorBox tree.
+- Validate both pack trees against the live repo tree.
+
+7. Risks and stop conditions
+- Stop if the live skill tree contains machine-local artifacts that should not be copied into packs.
+- Stop if replacement would unintentionally modify pack files outside `.agents/skills/`.
+
+8. Handoff notes
+- Report whether the target trees now match exactly or whether any OS-specific remnants remain.
+
 1. Goal
 - Add the additive `TrialsToCriterion80`, `trialsToCriterionSliding`, and `trialsToCriterionBayes` methods from the reviewed `BehaviorBoxData_Revised.m` into the live `BehaviorBoxData.m`.
 
