@@ -3,6 +3,17 @@
 Date: 2026-04-07
 Revised: 2026-04-07 after user decisions
 
+## Status Update
+
+Update: 2026-04-08
+
+Implementation has now started.
+
+- The standalone repo exists at `/Users/willsnyder/Desktop/EyeTrack`.
+- `BehaviorBox` now consumes that repo as a submodule at `BehaviorBox/EyeTrack/`.
+
+The transition-only assumptions below about keeping `BehaviorBox/EyeTrack/` empty and staying plan-only were correct at planning time but are no longer current after the submodule-add step.
+
 ## Review Outcome
 
 The earlier plan still had three wrong assumptions:
