@@ -1,0 +1,35 @@
+* text=auto eol=lf
+
+*.m text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+*.sh text eol=lf
+*.csv text eol=lf
+*.ino text eol=lf
+
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+*.mat binary
+*.fig binary
+*.tif binary
+*.tiff binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.pdf binary
+*.mp4 binary
+*.avi binary
+*.gif binary
+*.zip binary
+*.npy binary
+*.npz binary
+*.pkl binary
+*.h5 binary
+*.hdf5 binary
+*.mlapp binary

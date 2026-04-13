@@ -96,8 +96,8 @@ classdef BehaviorBoxWheel < handle
         start_time; %Clock time at initiation of first trial
         t1; %Used to record times between different functions
         BetweenTrialTime = 0; %Manual mode: time to use keyboard to pick trial, also to watch the mouse and wait for them to calm down between trials
-        TrialStartTime = 0; %Time for mouse to respond to ready cue and begin the next trial
-        ResponseTime = 0; %Time for mouse to answer
+        TrialStartTime = 0; %Elapsed trial-init time before stimulus on, including hold-still resets
+        ResponseTime = 0; %Elapsed time from stimulus on to the final committed choice
         DrinkTime = 0; %Time mouse spent drinking reward
         timers = struct();
         %SoundObjs: (only created if sounds is used)
@@ -862,6 +862,7 @@ classdef BehaviorBoxWheel < handle
             this.t1 = datetime("now"); t2 = this.t1; %In case of crash
             this.a.DispOutput = false;
             this.a.Reset();
+            trialStartTimer = [];
             % Display stimulus
             try
                 set(this.message_handle, 'Text', "Preparing trial timestamp log ...");
@@ -899,9 +900,10 @@ classdef BehaviorBoxWheel < handle
                     this.beginHoldStillInterval_();
                     if this.i ~=1
                         timelimit = this.Setting_Struct.HoldStill;
-                        tic;
-                        while toc<=timelimit
-                            this.message_handle.Text = "Keep the wheel still for "+num2str(round(timelimit - toc,1))+" seconds."; drawnow limitrate
+                        trialStartTimer = tic;
+                        holdStillTimer = tic;
+                        while toc(holdStillTimer)<=timelimit
+                            this.message_handle.Text = "Keep the wheel still for "+num2str(round(timelimit - toc(holdStillTimer),1))+" seconds."; drawnow limitrate
                             holdStillWheel = this.a.ReadWheel();
                             if holdStillWheel ~= 0
                                 this.CurrentRawWheel = double(holdStillWheel);
@@ -911,7 +913,7 @@ classdef BehaviorBoxWheel < handle
                                     this.Flash(this.StimulusStruct, this.Box, this.FLAx, 'Wheel');
                                 end
                                 this.a.Reset();
-                                tic;
+                                holdStillTimer = tic;
                             end
                             if get(this.stop_handle, 'Value')
                                 this.message_handle.Text = 'Ending session...';
@@ -924,12 +926,15 @@ classdef BehaviorBoxWheel < handle
                                 break;
                             end
                         end
-                        t2 = toc;
+                        t2 = toc(holdStillTimer);
                         this.ReadyCue(true);
                     end
                 otherwise % Keyboard inputthis.Box.KeyboardInput==1
                     drawnow
                     this.beginHoldStillInterval_();
+                    if this.i ~= 1
+                        trialStartTimer = tic;
+                    end
                     InterTMalInterv = this.Setting_Struct.IntertrialMalSec;
                     text = 'Initialize: Press L for Left, R for Right, C or M for Middle:'; set(this.message_handle,'Text',text); fprintf([text '\n'])
                     prompt = 'L, R, or M/C:   ';
@@ -956,7 +961,7 @@ classdef BehaviorBoxWheel < handle
                             this.ReadyCueAx.Children.Visible=0;
                             this.fig.Color = 'k';
                             text = 'Only choose Middle to start trial, malingering timeout...'; fprintf([text '\n']); set(this.message_handle,'Text',text);
-                            timerStart = clock;
+                            timerStart = tic;
                             while 1
                                 pause(0.1); drawnow;
                                 if get(this.FF, 'Value')
@@ -970,7 +975,7 @@ classdef BehaviorBoxWheel < handle
                                     drawnow
                                     break;
                                 end
-                                if etime(clock, timerStart) > InterTMalInterv %End when mouse has not poked L or R for the interval
+                                if toc(timerStart) > InterTMalInterv %End when mouse has not poked L or R for the interval
                                     this.ReadyCue(true)
                                     set(this.message_handle,'Text','Waiting for Trial initialization');
                                     break
@@ -984,8 +989,8 @@ classdef BehaviorBoxWheel < handle
                         end
                     end
             end
-            if this.i ~= 1 && ~get(this.stop_handle,'Value')
-                this.TrialStartTime = toc;
+            if this.i ~= 1 && ~get(this.stop_handle,'Value') && ~isempty(trialStartTimer)
+                this.TrialStartTime = toc(trialStartTimer);
             elseif get(this.stop_handle, 'Value')
                 this.TrialStartTime = 0;
             end
@@ -1008,6 +1013,7 @@ classdef BehaviorBoxWheel < handle
             this.logTimeEvent_("stimulus_on", struct('trial', this.i, 'side', this.trialSideName_(), 'level', this.Level));
             Lines = [findobj('Tag', 'Contour') ; findobj('Tag', 'Distractor')];
             this.setWheelDisplayPhase_("response");
+            stimulusOnTimer = tic;
             % Ignore input for a defined duration
             startTime = tic;
             % Moved the file handling to wait for input function
@@ -1040,13 +1046,15 @@ classdef BehaviorBoxWheel < handle
             end
             % Enhanced decision-making loop based on inputType
             set(this.message_handle, 'Text', sprintf('Waiting for %s choice...', this.current_side));
+            responseOffset = toc(stimulusOnTimer);
             if ~keyboardInput && inputType == 6
-                [this.WhatDecision, this.ResponseTime] = this.readLeverLoopAnalogWheel();
+                [this.WhatDecision, this.ResponseTime] = this.readLeverLoopAnalogWheel(responseOffset);
             else
-                [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput();
+                [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial, responseOffset);
             end
             % Retry for only correct answers if necessary
             this.handleOnlyCorrectMode();
+            this.logChoiceEvent_();
             % Minimize redundant flash draws by handling decision directly
             this.processAfterDecision(keyboardInput, inputType);
             % Toggle timestamp
@@ -1075,7 +1083,7 @@ classdef BehaviorBoxWheel < handle
         function handleOnlyCorrectMode(this)
             % Handle retries in 'Only Correct' mode
             if this.Box.KeyboardInput && this.Setting_Struct.OnlyCorrect && contains(this.WhatDecision , 'wrong', 'IgnoreCase', true)
-                [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput();
+                [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial, this.ResponseTime);
             end
         end
         function processAfterDecision(this, keyboardInput, inputType)
@@ -1170,11 +1178,14 @@ classdef BehaviorBoxWheel < handle
             drawnow
             this.logTimeEvent_("stimulus_off", struct('trial', this.i, 'side', this.trialSideName_(), 'level', this.Level));
         end
-        function [WhatDecision, response_time] = readLeverLoopAnalogWheel(this)
+        function [WhatDecision, response_time] = readLeverLoopAnalogWheel(this, initial_elapsed_s)
             % REVISED v4:
             %   1) Uses hgtransform stimulus translation if available (moves objects, not axes)
             %   2) Non-blocking stall blink after 5 seconds of no wheel movement
             %   3) Draw scheduling (avoids drawnow limitrate hard 20 Hz cap)
+            if nargin < 2 || isempty(initial_elapsed_s)
+                initial_elapsed_s = 0;
+            end
 
             event = -1;
             delta = 0;
@@ -1424,7 +1435,8 @@ classdef BehaviorBoxWheel < handle
                 this.recordWheelDisplayState_();
             end
 
-            response_time = toc(tLoop);
+            choiceElapsed = toc(tLoop);
+            response_time = initial_elapsed_s + choiceElapsed;
 
             % Round-up decision if timed out but close
             if event == -1 & abs(delta) >= thresh
@@ -1456,7 +1468,7 @@ classdef BehaviorBoxWheel < handle
             % Phase 2: OnlyCorrect "undo wrong" correction
             % ===========================================
             if contains(WhatDecision,'wrong') && isfield(this.Box,'OnlyCorrect') && this.Box.OnlyCorrect
-                Old_response_time = response_time;
+                Old_response_time = choiceElapsed;
 
                 % Reset OC state
                 event = -1;
@@ -1611,7 +1623,7 @@ classdef BehaviorBoxWheel < handle
                     this.recordWheelDisplayState_();
                 end
 
-                response_time = Old_response_time + toc(tLoopOC);
+                response_time = initial_elapsed_s + Old_response_time + toc(tLoopOC);
                 if event == -1 %If the mouse was close to picking a side, round up their choice:
                     if abs(delta) >= thresh
                         if sign(delta) > 0
@@ -1648,10 +1660,6 @@ classdef BehaviorBoxWheel < handle
                 end
             catch
             end
-
-            this.WhatDecision = WhatDecision;
-            this.ResponseTime = response_time;
-            this.logChoiceEvent_();
 
             % Publish trace
             if I == 0
@@ -4279,14 +4287,17 @@ classdef BehaviorBoxWheel < handle
                 GUI_numbers.handle.(n{:}).Text = num2str(GUI_numbers.(n{:}));
             end
         end
-        function [WhatDecision, response_time] = readKeyboardInput(stop_handle, message_handle, isLeftTrial)
+        function [WhatDecision, response_time] = readKeyboardInput(stop_handle, message_handle, isLeftTrial, initial_elapsed_s)
+            if nargin < 4 || isempty(initial_elapsed_s)
+                initial_elapsed_s = 0;
+            end
             text = 'Respond: Press L for Left, R for Right, C or M for Middle:'; set(message_handle,'Text',text); fprintf([text '\n']); drawnow
             prompt = 'L, R, or M/C:   ';
             keypress = 0; t1 = datetime("now");
             while keypress==0
                 pause(0.01); drawnow;
                 currkey = input(prompt,"s");
-                response_time = seconds(datetime("now") - t1);
+                response_time = initial_elapsed_s + seconds(datetime("now") - t1);
                 switch true
                     case strcmp(currkey, 'l') || strcmp(currkey, 'L')
                         text = 'Left choice...'; fprintf([text '\n']); set(message_handle,'Text',text); drawnow

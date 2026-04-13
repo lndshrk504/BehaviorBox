@@ -936,3 +936,61 @@
 
 8. Handoff notes
 - Call out exactly what binomial quantity is plotted and whether it differs from the old `BehaviorBoxDataNew` intent.
+## Implement wheel trial and response timing tightening
+
+- date/time: 2026-04-10 15:29 -04:00
+- feature_id: behaviorbox-wheel-tighten-timer-semantics
+- scope: C:\Users\MBO-Alpha\Desktop\BehaviorBox timing save semantics and existing timer plots
+- goal: Make wheel TrialStartTime accumulate the full hold-still interval across resets and make wheel ResponseTime measure stimulus-on to the final committed choice for new data.
+- implementation boundary: Edit BehaviorBoxWheel.m timing capture only; keep DrinkTime unchanged; rely on existing BehaviorBoxData timer plots instead of adding a new plotting subsystem.
+- status: in-progress
+- next review date: 2026-04-17
+
+### Assumptions
+- Only new data written after this change needs the tightened semantics.
+- Existing BehaviorBoxData timer plots should reflect the corrected values without schema additions.
+- DrinkTime should remain reward-delivery timing as currently implemented.
+
+### Acceptance Criteria
+- TrialStartTime increases when the hold-still interval resets instead of snapping back to only the final successful hold window.
+- ResponseTime is measured from stimulus-on to the final committed choice in normal and OnlyCorrect wheel trials.
+- BehaviorBox training saves continue to populate TrialStartTime and ResponseTime and the existing timer plots consume the tightened values.
+
+### Changed Files
+- C:\Users\MBO-Alpha\Desktop\BehaviorBox\BehaviorBoxWheel.m
+- C:\Users\MBO-Alpha\.codex\PLAN_LOG.md
+- C:\Users\MBO-Alpha\Desktop\BehaviorBox\.agent\PLANS.md
+
+### Validation Plan
+- MATLAB static check: checkcode('BehaviorBoxWheel.m')
+- Focused MATLAB timing smoke test for hold-still resets and OnlyCorrect response timing using repository code paths or a narrow harness.
+- Inspect BehaviorBoxData timer plot path to confirm it reads TrialStartTime and ResponseTime directly.
+## Complete wheel trial and response timing tightening
+
+- date/time: 2026-04-10 15:33 -04:00
+- feature_id: behaviorbox-wheel-tighten-timer-semantics
+- scope: C:\Users\MBO-Alpha\Desktop\BehaviorBox timing save semantics and existing timer plots
+- goal: Land the wheel timing change so TrialStartTime captures full hold-still initialization across resets and ResponseTime measures stimulus-on to the final committed choice for new data.
+- implementation boundary: BehaviorBoxWheel.m only for runtime behavior; existing BehaviorBoxData timer plots are reused without new schema fields or plotting widgets.
+- status: done
+- next review date: 2026-04-17
+
+### Assumptions
+- Only new data written after this change needs the tightened semantics.
+- Existing BehaviorBoxData timer plots are the intended display surface for the corrected values.
+- DrinkTime remains unchanged by request.
+
+### Acceptance Criteria
+- TrialStartTime is derived from a per-trial timer that does not reset when the hold-still sub-interval resets.
+- ResponseTime includes the full elapsed time from stimulus on to the final committed choice, including keyboard OnlyCorrect retries.
+- BehaviorBoxData timer plots continue to read TrialStartTime and ResponseTime directly for new sessions.
+
+### Changed Files
+- C:\Users\MBO-Alpha\Desktop\BehaviorBox\BehaviorBoxWheel.m
+- C:\Users\MBO-Alpha\.codex\PLAN_LOG.md
+- C:\Users\MBO-Alpha\Desktop\BehaviorBox\.agent\PLANS.md
+
+### Validation Plan
+- MATLAB static check: checkcode('BehaviorBoxWheel.m')
+- MATLAB class parse check via meta.class.fromName('BehaviorBoxWheel').
+- Headless mock save harness attempted via MockApp/testBehaviorBoxWheelSaveStatus.m; blocked by pre-existing mock-environment issues unrelated to this timing patch.
