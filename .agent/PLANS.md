@@ -28,6 +28,48 @@
     - stop if MATLAB and Python disagree on shapes, dtypes, indexing, or file schema
 - stop if a change would silently alter saved `.mat`, `.h5`, `.json`, or `.csv` outputs without an explicit migration note
 
+## 2026-04-15 Fix Nose And Wheel Temporary Settings Expiry
+
+1. Goal
+- Fix temporary settings in `BehaviorBoxNose.m` and `BehaviorBoxWheel.m` so `Correct Resp.` counts correct responses since temporary mode activation, and `Performance` uses `PerfThresh_Temp`.
+
+2. Non-goals
+- Do not change GUI layout, hardware pin/protocol behavior, saved-file schema, or unrelated session logic.
+- Do not refactor the full training loop.
+
+3. Current-state summary
+- Both classes are root-level MATLAB classdefs, not in `+pkg`, `@Class`, or `private/` folders.
+- `BeforeTrial()` calls `UpdateSettings()` and then `CheckTemp()`.
+- Temporary GUI values are copied into `Temp_Settings` by stripping the `_Temp` suffix, then overlaid onto `Setting_Struct` while active.
+- Existing Nose countdown uses total session correct count; existing Wheel countdown decrements every trial before the trial runs; both ignore `PerfThresh_Temp`.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxNose.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxWheel.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/fcns/testTemporarySettings.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- MATLAB static checks:
+  `matlab -batch "checkcode('BehaviorBoxNose.m'); checkcode('BehaviorBoxWheel.m'); checkcode('fcns/testTemporarySettings.m');"`
+- Focused regression:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('fcns/testTemporarySettings.m');"`
+
+6. Milestones
+- Add minimal temp-session baseline state to both workflow classes.
+- Fix Nose countdown/performance mode.
+- Fix Wheel countdown/performance mode.
+- Add a focused headless test for the temp state rules.
+- Run MATLAB validation.
+
+7. Risks and stop conditions
+- Stop if the fix requires changing saved `.mat` schema instead of runtime-only state.
+- Stop if performance metric semantics cannot be derived from existing session data without guessing.
+
+8. Handoff notes
+- Expected invariant outputs: GUI component names, saved field names, and non-temp training behavior.
+- Intentional behavior change: temporary settings expire based on post-activation correct responses or `PerfThresh_Temp`, not session-wide prior scores or started trials.
+
 ## 2026-03-23 Add Criterion Analytics To BehaviorBoxData
 
 1. Goal
