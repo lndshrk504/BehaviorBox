@@ -137,7 +137,13 @@ classdef BehaviorBoxWheel < handle
                 this.unwrapError(err)
                 this.cleanUP();
             end
-            this.GuiHandles.MsgBox.String = fileread(this.textdiary);
+            try
+                if ~isempty(this.textdiary) && exist(char(this.textdiary), 'file') == 2
+                    this.GuiHandles.MsgBox.String = fileread(this.textdiary);
+                end
+            catch err
+                this.unwrapError(err)
+            end
             diary off
         end
         function DoLoop(this)
@@ -444,21 +450,9 @@ classdef BehaviorBoxWheel < handle
                 this.StimulusStruct.FinishLine = false;
             end
             this.setGuiNumbers(this.GUI_numbers); %update gui
-            try
-                this.Data_Object = BehaviorBoxData( ...
-                    Inv=this.app.Inv.Value, ...
-                    Inp=this.app.Box_Input_type.Value, ...
-                    Str=this.app.Strain.Value, ...
-                    Sub={this.app.Subject.Value}, ...
-                    find=1); % Set up data storage object
-            catch
-            end
+            this.Data_Object = this.createSessionDataObject_();
             DATE = sprintf("BBTrialLog_%s.txt", datetime('now', 'Format', 'yyyyMMdd_HHmmss'));
-            try
-                diaryname = fullfile(this.Data_Object.filedir, DATE);
-            catch
-                diaryname = fullfile(this.Data_Object.Sub, DATE);
-            end
+            diaryname = fullfile(this.Data_Object.filedir, DATE);
             this.textdiary = diaryname;
             diary(diaryname)
             this.Data_Object.TrainingNow = 1;
@@ -473,18 +467,6 @@ classdef BehaviorBoxWheel < handle
             this.Data_Object.current_data_struct = this.Data_Object.new_init_data_struct();
             [this.Level] = this.Setting_Struct.Starting_opacity;
             rng('shuffle');
-            if this.Setting_Struct.Ext_trigger %wait for trigger to start experiment
-                txt = "Waiting for trigger to start..";
-                set(this.message_handle,'Text',txt, ...
-                    'BackgroundColor','blue');
-                fprintf(txt+"\n");
-                while 1
-                    pause(0.01); drawnow;
-                    if this.Box.readPin(this.Setting_Struct.TriggerPin) || get(this.stop_handle, 'Value') %check if abort button is pressed
-                        break %abort
-                    end
-                end
-            end
             [this.fig, this.LStimAx, this.RStimAx, this.FLAx, ~] = this.Stimulus_Object.setUpFigure();
             if ~any([this.app.Animate_Go.Value this.app.Animate_Show.Value this.app.Animate_Flash.Value this.app.Animate_Rec.Value]) % Don't show finish line for animation
                 this.ReadyCue('Create')
@@ -502,45 +484,15 @@ classdef BehaviorBoxWheel < handle
             txt = "Start trial Mouse "+this.Setting_Struct.Subject+" at "+string(datetime('now'));
             set(this.message_handle,'Text',txt);
             fprintf(txt+"\n");
-            this.i = 0;
-            this.timeout_counter = 0;
-            this.Temp_Active = false;
-            this.Temp_iStart = false;
-            this.Temp_CorrectStart = 0;
-            this.Temp_TrialStart = 0;
-            this.timestamps_record = cell(0,1);
-            this.TimeSegmentKind = "";
-            this.TimeSegmentTrial = NaN;
-            this.TimeSegmentTic = [];
-            this.TimeScanImageFileIndex = 0;
-            try
-                this.a.TimeStamp('Off')
-            catch
-            end
-            try
-                if ~isempty(this.Time) && isobject(this.Time) && ~isempty(this.Time.Ard)
-                    write(this.Time.Ard, '0', "char");
-                    pause(0.05)
-                end
-            catch
-            end
-            this.TrainStartWallClock = datetime("now");
-            this.TrainStartTime = tic;
-            if ~isempty(this.Time) && isobject(this.Time)
-                try
-                    this.Time.TrainStartTime = this.TrainStartTime;
-                    this.Time.TrainStartWallClock = this.TrainStartWallClock;
-                catch
-                end
-            end
+            this.resetSessionState_();
+            this.resetTimekeeperForSession_();
+            this.setSessionStartTime_();
             try
                 set(this.message_handle, 'Text', "Preparing timestamp log ...");
                 this.TimeScanImageFileIndex = 1;
                 this.beginTimeSegment_("setup", 0);
             catch
             end
-            this.start_time = this.TrainStartWallClock;
-            this.Data_Object.GetStartTime;
             % Send Start Acquisition signal to ScanImage
             try
                 set(this.message_handle, 'Text', "Starting acquisition (ScanImage)...");
@@ -838,144 +790,142 @@ classdef BehaviorBoxWheel < handle
         end
         %Choose if Left or Right will be correct
         function isLeftTrial = PickSideForCorrect(this, isLeftTrial, ~)
-            % ATTENTION!!!
-            % Do NOT double the & and | to && and || just because the Matlab error
-            % warning says it will be "faster." Doubling them will change the logical
-            % meaning of the phrase and will ruin how repeat wrong functions. Keeping
-            % the boolean operators singular (& and | as opposed to && and ||) prevents
-            % short circuiting and keeps the code from erroneourly engaging repeat
-            % wrong. Use debug mode to check the outcomes of all of these commands to
-            % ensure that repeat wrong can be disabled. WBS 3/11/2022
-            %Also do NOT change the order of the if statements.
-            if all(this.StimulusStruct.side ~= [2 3]) && this.i == 1 %%If not left/right only and first trial, no data structure exists yet.
-                choice = [0 1];
-                isLeftTrial = choice(randperm(2,1));
-            elseif this.Setting_Struct.Repeat_wrong
-                lastScore = [];
-                try
-                    if isprop(this.Data_Object, 'current_data_struct') && isfield(this.Data_Object.current_data_struct, 'Score')
-                        lastScore = this.Data_Object.current_data_struct.Score;
+            repeat_wrong = false;
+            if isfield(this.Setting_Struct, 'Repeat_wrong') && ~isempty(this.Setting_Struct.Repeat_wrong)
+                repeat_wrong = logical(this.Setting_Struct.Repeat_wrong);
+            end
+            switch this.StimulusStruct.side
+                case 2 %all left
+                    isLeftTrial = 1;
+                case 3 %all right
+                    isLeftTrial = 0;
+                case 4 % Keyboard / Manual Mode
+                    isLeftTrial = this.pickManualTrialSide_();
+                case 5 % Repeat Wrong basic mode
+                    isLeftTrial = this.pickRepeatWrongSide_(isLeftTrial);
+                otherwise % Random, with optional global repeat-wrong checkbox.
+                    if repeat_wrong && this.i > 1
+                        isLeftTrial = this.pickRepeatWrongSide_(isLeftTrial);
+                    else
+                        isLeftTrial = this.randomTrialSide_();
                     end
-                catch
-                end
-                if ~isempty(lastScore) && lastScore(end) == 0
-                    return
-                else
-                    choice = [0 1];
-                    isLeftTrial = choice(randperm(2,1));
-                end
+            end
+            this.setCurrentSide_(isLeftTrial);
+        end
+        function isLeftTrial = randomTrialSide_(~)
+            isLeftTrial = randi([0 1]);
+        end
+        function isLeftTrial = pickRepeatWrongSide_(this, isLeftTrial)
+            if this.lastScoreWasWrong_()
+                isLeftTrial = double(logical(isLeftTrial));
             else
-                switch this.StimulusStruct.side
-                    case 1 %Random
-                        % Add 0.5 bc values oscillate -0.5 to 0.5
-                        choice = [0 1];
-                        isLeftTrial = choice(randperm(2,1));
-                        % try
-                        %     SB_Ratio = 0.5+this.Data_Object.AnalyzedData.TrialData.SB.Stimulus{:}(end);
-                        %     Delta = this.Setting_Struct.Side_delta;
-                        %     if SB_Ratio > 0.5+Delta % too many Left
-                        %         isLeftTrial = 0;
-                        %     elseif SB_Ratio < 0.5+Delta % too many Right
-                        %         isLeftTrial = 1;
-                        %     end
-                        % catch
-                        %     return
-                        % end
-                    case 2 %all left
-                        isLeftTrial = 1;
-                    case 3 %all right
-                        isLeftTrial = 0;
-                    case 4 % Keyboard / Manual Mode
-                        text = 'Press L for Left, R for Right, ? for Random or S to correct Side-Bias:';
-                        set(this.message_handle,'Text',text);
+                isLeftTrial = this.randomTrialSide_();
+            end
+        end
+        function isLeftTrial = pickManualTrialSide_(this)
+            text = 'Press L for Left, R for Right, ? for Random or S to correct Side-Bias:';
+            set(this.message_handle,'Text',text);
+            fprintf([text '\n'])
+            prompt = 'L, R, ? or S:   ';
+            keypress = 0;
+            isLeftTrial = 0;
+            while keypress==0
+                pause(0.1); drawnow;
+                currkey = input(prompt,"s");
+                switch true
+                    case strcmp(currkey, 'l') || strcmp(currkey, 'L')
+                        text = 'Starting Left trial...';
                         fprintf([text '\n'])
-                        prompt = 'L, R, ? or S:   ';
-                        keypress = 0;
-                        while keypress==0
-                            pause(0.1); drawnow;
-                            currkey = input(prompt,"s");
-                            switch true
-                                case strcmp(currkey, 'l') || strcmp(currkey, 'L')
-                                    text = 'Starting Left trial...';
-                                    fprintf([text '\n'])
-                                    set(this.message_handle,'Text',text);
-                                    isLeftTrial = 1;
-                                    keypress = 1;
-                                case strcmp(currkey, 'r') || strcmp(currkey, 'R')
-                                    text = 'Starting Right trial...';
-                                    fprintf([text '\n'])
-                                    set(this.message_handle,'Text',text);
-                                    isLeftTrial = 0;
-                                    keypress = 1;
-                                case strcmp(currkey, 'slash') || strcmp(currkey, '?')
-                                    text = 'Making random choice';
-                                    fprintf([text '\n'])
-                                    set(this.message_handle,'Text',text);
-                                    choice = [0 1];
-                                    isLeftTrial = choice(randperm(2,1));
-                                    keypress = 1;
-                                case strcmp(currkey, 's') || strcmp(currkey, 'S')
-                                    keypress = 1;
-                                    [SB, ~, ~] = this.SideBias(this);
-                                    if SB == 0 || this.i == 1
-                                        text = 'Making random choice...';
-                                        fprintf([text '\n'])
-                                        set(this.message_handle,'Text',text);
-                                        choice = [0 1];
-                                        isLeftTrial = choice(randperm(2,1));
-                                    else
-                                        if SB>0
-                                            isLeftTrial = 0;
-                                            side = 'Right trial';
-                                            bias = 'Left bias';
-                                        else
-                                            isLeftTrial = 1;
-                                            side = 'Left trial';
-                                            bias = 'Right bias';
-                                        end
-                                        text = ['Correcting Side-Bias (' num2str(SB) ', ' bias ') with ' side ' trial...'];
-                                        fprintf([text '\n'])
-                                        set(this.message_handle,'Text',text);
-                                    end
-                                otherwise
-                                    text = 'Please only press one of the indicated keys...';
-                                    fprintf([text '\n'])
-                                    set(this.message_handle,'Text',text);
-                            end
-                        end
-                    case 5 % Repeat Wrong basic mode
-                        lastScore = [];
-                        try
-                            if isprop(this.Data_Object, 'current_data_struct') && isfield(this.Data_Object.current_data_struct, 'Score')
-                                lastScore = this.Data_Object.current_data_struct.Score;
-                            end
-                        catch
-                        end
-                        if ~isempty(lastScore) && lastScore(end) == 0
-                            return
+                        set(this.message_handle,'Text',text);
+                        isLeftTrial = 1;
+                        keypress = 1;
+                    case strcmp(currkey, 'r') || strcmp(currkey, 'R')
+                        text = 'Starting Right trial...';
+                        fprintf([text '\n'])
+                        set(this.message_handle,'Text',text);
+                        isLeftTrial = 0;
+                        keypress = 1;
+                    case strcmp(currkey, 'slash') || strcmp(currkey, '?')
+                        text = 'Making random choice';
+                        fprintf([text '\n'])
+                        set(this.message_handle,'Text',text);
+                        isLeftTrial = this.randomTrialSide_();
+                        keypress = 1;
+                    case strcmp(currkey, 's') || strcmp(currkey, 'S')
+                        keypress = 1;
+                        SB = this.currentResponseSideBias_();
+                        if SB == 0 || this.i <= 1
+                            text = 'Making random choice...';
+                            fprintf([text '\n'])
+                            set(this.message_handle,'Text',text);
+                            isLeftTrial = this.randomTrialSide_();
                         else
-                            choice = [0 1];
-                            isLeftTrial = choice(randperm(2,1));
+                            [isLeftTrial, side, bias] = this.correctSideForBias_(SB);
+                            text = ['Correcting Side-Bias (' num2str(SB) ', ' bias ') with ' side ' trial...'];
+                            fprintf([text '\n'])
+                            set(this.message_handle,'Text',text);
                         end
+                    otherwise
+                        text = 'Please only press one of the indicated keys...';
+                        fprintf([text '\n'])
+                        set(this.message_handle,'Text',text);
                 end
             end
-            % Check if Responses show side bias, correct that
-            % if this.StimulusStruct.side == 1 & this.i>1 % Correction to Random setting only
-            %     Resp_Ratio = 0.5+this.Data_Object.AnalyzedData.TrialData.SB.Responses{:}(end);
-            %     Delta = this.Setting_Struct.Side_delta;
-            %     if Resp_Ratio >= 0.5+Delta
-            %         isLeftTrial = 0;
-            %         this.Setting_Struct.Repeat_wrong = 1;
-            %         this.app.Repeat_wrong.Value = 1;
-            %     elseif Resp_Ratio <= 0.5+Delta
-            %         isLeftTrial = 1;
-            %         this.Setting_Struct.Repeat_wrong = 1;
-            %         this.app.Repeat_wrong.Value = 1;
-            %     else
-            %         this.Setting_Struct.Repeat_wrong = 0;
-            %         this.app.Repeat_wrong.Value = 0;
-            %     end
-            % end
+        end
+        function [isLeftTrial, side, bias] = correctSideForBias_(~, SB)
+            if SB > 0
+                isLeftTrial = 0;
+                side = 'Right trial';
+                bias = 'Left bias';
+            else
+                isLeftTrial = 1;
+                side = 'Left trial';
+                bias = 'Right bias';
+            end
+        end
+        function tf = lastScoreWasWrong_(this)
+            scores = this.currentDataVector_("Score");
+            tf = ~isempty(scores) && scores(end) == 0;
+        end
+        function SB = currentResponseSideBias_(this)
+            choices = this.currentDataVector_("CodedChoice");
+            choices = choices(choices >= 1 & choices <= 4);
+            if isempty(choices)
+                SB = 0;
+                return
+            end
+            windowSize = min(20, numel(choices));
+            choices = choices((end-windowSize+1):end);
+            left_total = sum(choices == 1 | choices == 3);
+            right_total = sum(choices == 2 | choices == 4);
+            total = left_total + right_total;
+            if total == 0
+                SB = 0;
+            else
+                SB = ((left_total - right_total) / total) * 0.5;
+            end
+        end
+        function values = currentDataVector_(this, fieldName)
+            values = [];
+            try
+                fieldName = char(fieldName);
+                if isstruct(this.Data_Object) && isfield(this.Data_Object, 'current_data_struct')
+                    data = this.Data_Object.current_data_struct;
+                elseif isobject(this.Data_Object) && isprop(this.Data_Object, 'current_data_struct')
+                    data = this.Data_Object.current_data_struct;
+                else
+                    return
+                end
+                if isstruct(data) && isfield(data, fieldName)
+                    values = double(data.(fieldName)(:)');
+                elseif istable(data) && any(strcmp(data.Properties.VariableNames, fieldName))
+                    values = double(data.(fieldName)(:)');
+                end
+            catch
+                values = [];
+            end
+        end
+        function setCurrentSide_(this, isLeftTrial)
             if isLeftTrial %Set properties
                 this.current_side = 'left';
             else
@@ -1015,7 +965,7 @@ classdef BehaviorBoxWheel < handle
                     this.TimeScanImageFileIndex = this.TimeScanImageFileIndex + 1;
                     set(this.message_handle, 'Text', "Next file (ScanImage)...");
                     this.a.Acquisition('Next');
-                    spause(0.2); % The nextfile acquisition signal has a builtin 200 ms delay
+                    pause(0.2); % The nextfile acquisition signal has a builtin 200 ms delay
                     this.logTimeEvent_("acq_nextfile", struct('trial', this.i, 'scanImageFile', this.TimeScanImageFileIndex));
                 end
             catch
@@ -1225,6 +1175,9 @@ classdef BehaviorBoxWheel < handle
             % Handle retries in 'Only Correct' mode
             if this.Box.KeyboardInput && this.Setting_Struct.OnlyCorrect && contains(this.WhatDecision , 'wrong', 'IgnoreCase', true)
                 [this.WhatDecision, this.ResponseTime] = this.readKeyboardInput(this.stop_handle, this.message_handle, this.isLeftTrial, this.ResponseTime);
+                if contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && ~contains(this.WhatDecision, 'OC', 'IgnoreCase', true)
+                    this.WhatDecision = string(this.WhatDecision) + " OC";
+                end
             end
         end
         function processAfterDecision(this, keyboardInput, inputType)
@@ -1608,7 +1561,7 @@ classdef BehaviorBoxWheel < handle
             % ===========================================
             % Phase 2: OnlyCorrect "undo wrong" correction
             % ===========================================
-            if contains(WhatDecision,'wrong') && isfield(this.Box,'OnlyCorrect') && this.Box.OnlyCorrect
+            if contains(WhatDecision,'wrong') && isfield(this.Setting_Struct,'OnlyCorrect') && this.Setting_Struct.OnlyCorrect
                 Old_response_time = choiceElapsed;
 
                 % Reset OC state
@@ -2018,25 +1971,23 @@ classdef BehaviorBoxWheel < handle
         %open reward valves
         function GiveRewardAndFlash(this)
             %Get reward valve, pulse number and time:
-            if contains(this.WhatDecision, 'correct', 'IgnoreCase', true)
-                PulseNum = this.Box.RightPulse;
-            elseif contains(this.WhatDecision, 'OC', 'IgnoreCase', true)
+            if contains(this.WhatDecision, 'OC', 'IgnoreCase', true)
                 PulseNum = this.Box.OCPulse;
+            elseif contains(this.WhatDecision, 'correct', 'IgnoreCase', true)
+                PulseNum = this.Box.RightPulse;
             else
                 return
             end
-            this.logRewardEvent_(1);
-            this.setWheelDisplayPhase_("reward");
-            % Give first drop only once
-            this.a.GiveReward();
-            % then flash
+            PulseNum = max(0, round(double(PulseNum)));
             lines = findobj(this.fig.Children, 'Tag', 'Contour');
-            this.FlashNew(this.StimulusStruct, this.Box,  lines, "Correct_Confirmation", false, @() this.logRewardFlashEvent_(1));
-            for pulseIdx = 2:PulseNum
-                pause(this.Box.SecBwPulse)
+            for pulseIdx = 1:PulseNum
+                if pulseIdx > 1
+                    pause(this.Box.SecBwPulse)
+                end
                 this.logRewardEvent_(pulseIdx);
                 this.setWheelDisplayPhase_("reward");
                 this.a.GiveReward();
+                this.RewardPulses = this.RewardPulses + 1;
                 this.FlashNew(this.StimulusStruct, this.Box,  lines, "Correct_Confirmation", false, @() this.logRewardFlashEvent_(pulseIdx));
             end
         end
@@ -3277,14 +3228,14 @@ classdef BehaviorBoxWheel < handle
                     this.getGUI();
                     this.RunMappingStimulus(STYLE);
                 else
-                    this.SetupBeforeLoop();
+                    this.SetupBeforeAnimation("StartAcquisition", true);
                     this.TestStimulus("AnimateMode",true, "StimType", char(STYLE));
                     this.MoveStimuli();
                 end
                 return
             end
             if options.Mode == "Rec"
-                this.SetupBeforeLoop();
+                this.SetupBeforeAnimation();
                 this.RecordStimuli();
                 return
             end
@@ -3720,6 +3671,114 @@ classdef BehaviorBoxWheel < handle
         end
     end
     methods (Access = private)
+        function dataObject = createSessionDataObject_(this)
+            dataObject = BehaviorBoxData( ...
+                Inv=this.app.Inv.Value, ...
+                Inp=this.app.Box_Input_type.Value, ...
+                Str=this.app.Strain.Value, ...
+                Sub={this.app.Subject.Value}, ...
+                find=1);
+            if ~isa(dataObject, 'BehaviorBoxData')
+                error('BehaviorBoxWheel:InvalidDataObject', ...
+                    'BehaviorBoxData setup did not return a BehaviorBoxData object.');
+            end
+        end
+
+        function SetupBeforeAnimation(this, options)
+            arguments
+                this
+                options.StartAcquisition logical = false
+            end
+            this.setAnimationFinishLine_(false);
+            this.setGuiNumbers(this.GUI_numbers);
+            this.Data_Object = this.createSessionDataObject_();
+            this.Data_Object.StimType = 'Animate';
+            this.Data_Object.SB = this.Setting_Struct.Data_Sbin;
+            this.Data_Object.BB = this.Setting_Struct.Data_Lbin*this.Setting_Struct.Data_Sbin;
+            this.Data_Object.current_data_struct = this.Data_Object.new_init_data_struct();
+            this.Level = this.Setting_Struct.Starting_opacity;
+            this.resetSessionState_();
+            this.resetTimekeeperForSession_();
+            this.setSessionStartTime_();
+            this.TimeScanImageFileIndex = 1;
+            rng('shuffle');
+            if options.StartAcquisition
+                try
+                    set(this.message_handle, 'Text', "Starting acquisition (ScanImage)...");
+                    this.a.Acquisition('Start');
+                catch
+                end
+            end
+        end
+
+        function setAnimationFinishLine_(this, showFinishLine)
+            try
+                this.app.Stimulus_FinishLine.Value = logical(showFinishLine);
+            catch
+            end
+            this.Setting_Struct.Stimulus_FinishLine = logical(showFinishLine);
+            this.StimulusStruct.FinishLine = logical(showFinishLine);
+        end
+
+        function resetSessionState_(this)
+            this.i = 0;
+            this.timeout_counter = 0;
+            this.Temp_Active = false;
+            this.Temp_iStart = false;
+            this.Temp_CorrectStart = 0;
+            this.Temp_TrialStart = 0;
+            this.Old_Setting_Struct = {};
+            this.SetUpdate = {0};
+            this.SetIdx = 1;
+            [this.SetStr, this.Include] = this.structureSettings(this.Setting_Struct);
+            this.StimHistory = cell(400,2);
+            this.wheelchoice = cell(1,1e6);
+            this.wheelchoicetime = cell(1,1e6);
+            this.timestamps = cell(1,1e6);
+            this.wheelchoice_record = cell(400,3);
+            this.timestamps_record = cell(0,1);
+            this.TimeSegmentKind = "";
+            this.TimeSegmentTrial = NaN;
+            this.TimeSegmentTic = [];
+            this.TimeScanImageFileIndex = 0;
+            this.WheelDisplayRecord = table();
+            this.FrameAlignedRecord = table();
+            this.CurrentTrialFrameAlignedRecord = table();
+            this.CurrentWheelPhase = "intertrial";
+            this.CurrentRawWheel = 0;
+            this.CurrentDelta = 0;
+            this.CurrentStimColor = NaN;
+            this.hold_still_start = [];
+        end
+
+        function resetTimekeeperForSession_(this)
+            try
+                this.a.TimeStamp('Off')
+            catch
+            end
+            try
+                if ~isempty(this.Time) && isobject(this.Time) && ~isempty(this.Time.Ard)
+                    write(this.Time.Ard, '0', "char");
+                    pause(0.05)
+                end
+            catch
+            end
+        end
+
+        function setSessionStartTime_(this)
+            this.TrainStartWallClock = datetime("now");
+            this.TrainStartTime = tic;
+            if ~isempty(this.Time) && isobject(this.Time)
+                try
+                    this.Time.TrainStartTime = this.TrainStartTime;
+                    this.Time.TrainStartWallClock = this.TrainStartWallClock;
+                catch
+                end
+            end
+            this.start_time = this.TrainStartWallClock;
+            this.Data_Object.GetStartTime;
+        end
+
         function beginTimeSegment_(this, kind, trialNumber)
             if isempty(this.Time) || ~isobject(this.Time)
                 return

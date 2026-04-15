@@ -28,6 +28,191 @@
     - stop if MATLAB and Python disagree on shapes, dtypes, indexing, or file schema
 - stop if a change would silently alter saved `.mat`, `.h5`, `.json`, or `.csv` outputs without an explicit migration note
 
+## 2026-04-15 Add Nose Reward Hold Gate
+
+1. Goal
+- In `BehaviorBoxNose.GiveRewardAndFlash`, keep the first correct reward pulse behavior and require each later nose reward pulse to wait `Box.SecBwPulse` and then a continuous correct-side hold for `Input_Delay_Respond`.
+- Blink contour stimulus during the qualifying hold and keep distractors dim during reward waits.
+- Add focused MATLAB smoke coverage for the hold gate.
+
+2. Non-goals
+- Do not change Wheel reward behavior, GUI settings, saved field names, Arduino serial commands, pin maps, or reward durations.
+- Do not alter trial-choice qualification in `readLeverLoopDigitalCore`.
+
+3. Current-state summary
+- `WaitForInputAndGiveReward()` calls `processDecision()`, then correct and OnlyCorrect paths call `GiveRewardAndFlash()`.
+- `readLeverLoopDigitalCore()` already gates the initial side choice with `Input_Delay_Respond` and blinks contours during confirmed correct holds.
+- `GiveRewardAndFlash()` currently waits for the reward-side sensor before pulse 1, but later pulses only do `pause(this.Box.SecBwPulse)` and a current-sensor check without a continuous hold requirement.
+- `BehaviorBoxNose.m` is a root-level classdef. No relevant `+pkg`, `@Class`, or `private/` dispatch path is involved, and `startup.m` is minimal.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxNose.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/MockApp/MockArduino.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/fcns/testBehaviorBoxNoseRewardHold.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- Focused smoke test:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('fcns/testBehaviorBoxNoseRewardHold.m');"`
+- Static check:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); checkcode('BehaviorBoxNose.m'); checkcode('MockApp/MockArduino.m'); checkcode('fcns/testBehaviorBoxNoseRewardHold.m');"`
+- Conflict marker scan:
+  `rg -n "^<<<<<<<|^=======|^>>>>>>>" BehaviorBoxNose.m MockApp/MockArduino.m fcns/testBehaviorBoxNoseRewardHold.m`
+
+6. Milestones
+- Patch the Nose reward wait helper to support immediate and continuous-hold modes.
+- Route later Nose reward pulses through the continuous-hold mode after `SecBwPulse`.
+- Add or extend mock support for scripted nose tokens and reward-call assertions.
+- Run focused MATLAB validation and inspect the final diff.
+
+7. Risks and stop conditions
+- Stop if the change requires new GUI settings or Arduino protocol changes.
+- Stop if a reliable smoke test requires real hardware rather than a mockable token sequence.
+
+8. Handoff notes
+- Expected invariant outputs: saved field names, scoring codes, serial reward commands, reward durations, and Wheel behavior.
+- Intentional behavior change: later Nose reward pulses can be delayed until the correct port is held continuously; saved `RewardPulses` and `DrinkTime` may change for sessions where the animal releases or switches ports between pulses.
+
+## 2026-04-15 Normalize OnlyCorrect Reward Semantics
+
+1. Goal
+- Make Nose and Wheel OnlyCorrect trials detect `OC` before generic `correct`.
+- Use `Box_OCPulse`/`this.Box.OCPulse` for OC reward delivery.
+- Preserve saved `WhatDecision` labels as `left correct OC` / `right correct OC`.
+- Increment `RewardPulses` where reward/air-puff pulses are actually delivered.
+
+2. Non-goals
+- Do not change serial command strings, valve pulse durations, input polling thresholds, side-picking logic, saved field names, or the broader trial loop.
+- Do not refactor shared Nose/Wheel code beyond the requested semantic fix.
+
+3. Current-state summary
+- `BehaviorBoxNose.DoLoop()` calls `WaitForInputAndGiveReward()`, which calls `processDecision()` and then `GiveRewardAndFlash()`.
+- `BehaviorBoxWheel.DoLoop()` calls `WaitForInputAndGiveReward()`, which calls `handleOnlyCorrectMode()`, `processAfterDecision()`, and then `GiveRewardAndFlash()` for correct decisions.
+- Both classes save `RewardPulses` through `UpdateData()` into `BehaviorBoxData.AddData()`, but reward delivery currently does not increment that counter.
+- Both classes are root-level MATLAB classdefs. No relevant `+pkg`, `@Class`, or `private/` dispatch path was found; `startup.m` is minimal.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxNose.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxWheel.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- Static checks:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); checkcode('BehaviorBoxNose.m'); checkcode('BehaviorBoxWheel.m');"`
+- Targeted semantic smoke:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); assert(convertEnum('left correct OC') == 4); assert(convertEnum('right correct OC') == 3);"`
+- Conflict marker scan:
+  `rg -n "^<<<<<<<|^=======|^>>>>>>>" BehaviorBoxNose.m BehaviorBoxWheel.m`
+
+6. Milestones
+- Patch Nose OC decision precedence, keep OC labels, and increment `RewardPulses` on each delivered pulse.
+- Patch Wheel OC reward pulse selection and increment `RewardPulses` on each delivered pulse.
+- Run focused validation and inspect diff.
+
+7. Risks and stop conditions
+- Stop if preserving OC labels would require changing `convertEnum` or saved field names.
+- Stop if reward pulse accounting requires guessing whether air-puff pulses should be separated from water pulses.
+
+8. Handoff notes
+- Expected invariant outputs: saved field names, `convertEnum` mappings, serial reward commands, reward durations, side-picking, and non-OC trial labels.
+- Intentional behavior changes: OC trials now use `OCPulse`; saved OC `WhatDecision` remains `left correct OC` / `right correct OC`; `RewardPulses` now records delivered pulses instead of staying at zero.
+
+## 2026-04-15 Fix Nose And Wheel Session Setup Safety
+
+1. Goal
+- Fix `SetupBeforeLoop` in `BehaviorBoxNose.m` and `BehaviorBoxWheel.m` so data-object construction cannot silently reuse stale session paths.
+- Reset per-session saved buffers at session setup in both classes.
+- Remove the unused Wheel external-trigger wait path.
+- Set Nose session start time during setup to match Wheel behavior.
+- Add a Wheel animation-specific setup path so animation no longer uses full training setup.
+
+2. Non-goals
+- Do not change GUI layout, Arduino serial protocols, reward timing, trial scoring, or saved field names.
+- Do not refactor the full Nose/Wheel training loop.
+- Do not touch `BehaviorBox_App.mlapp` or large generated app artifacts.
+
+3. Current-state summary
+- Active runtime path is `BB_App.Start_Callback -> app.BB.RunTrials -> DoLoop -> SetupBeforeLoop`.
+- Wheel animation path is `BB_App.Animate_* -> BehaviorBoxWheel.AnimateStimulus -> SetupBeforeLoop` for non-mapping Go/Rec modes.
+- `BehaviorBoxNose.m` and `BehaviorBoxWheel.m` are root-level MATLAB classdefs. No `+pkg`, `@Class`, or `private/` dispatch path is involved, and `startup.m` is minimal.
+- Setup currently catches `BehaviorBoxData` construction errors silently, resets counters but not saved buffers, and Wheel has an unused external-trigger branch that calls a nonexistent reader.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxNose.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxWheel.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- Static checks:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); checkcode('BehaviorBoxNose.m'); checkcode('BehaviorBoxWheel.m'); checkcode('BehaviorBoxData.m');"`
+- Existing focused side-picking smoke test, because these files already carry side-picking edits in the worktree:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('fcns/testPickSideForCorrect.m');"`
+- Syntax smoke:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); which BehaviorBoxNose; which BehaviorBoxWheel;"`
+- Conflict-marker scan:
+  `rg -n "^<<<<<<<|^=======|^>>>>>>>" BehaviorBoxNose.m BehaviorBoxWheel.m BehaviorBoxData.m fcns/testPickSideForCorrect.m`
+
+6. Milestones
+- Patch Nose session data construction and reset state.
+- Patch Wheel session data construction, reset state, and remove external trigger branch.
+- Add Wheel animation setup and route non-mapping animation callers through it.
+- Run focused MATLAB/static validation and inspect diff.
+
+7. Risks and stop conditions
+- Stop if the fix requires saved `.mat` field renames or non-additive schema migration.
+- Stop if Wheel animation requires the full training setup for an undocumented hardware behavior.
+- Stop if data-object construction cannot be made fail-fast without masking the original MATLAB error.
+
+8. Handoff notes
+- Expected invariant outputs: saved field names, scoring codes, trial randomization semantics, reward behavior, and non-animation training flow.
+- Intentional behavior changes: stale buffer rows from a previous session are no longer saved in later sessions; Nose saved timestamps can start at setup rather than first trial initialization; Wheel external trigger checkbox no longer affects training setup; non-mapping Wheel animation uses a lighter animation setup instead of full training setup.
+
+## 2026-04-15 Fix Nose And Wheel PickSideForCorrect
+
+1. Goal
+- Fix `PickSideForCorrect` in `BehaviorBoxNose.m` and `BehaviorBoxWheel.m` so forced left/right modes have priority over repeat-wrong logic.
+- Replace the broken manual side-bias correction call with a real scalar side-bias helper.
+- Add focused MATLAB smoke coverage for Nose and Wheel side-picking rules.
+
+2. Non-goals
+- Do not change saved field names, `CodedChoice` mappings, stimulus rendering, reward timing, Arduino protocols, or the broader trial loop.
+- Do not refactor shared Nose/Wheel training code beyond the requested side-picking cleanup.
+
+3. Current-state summary
+- `BeforeTrial()` calls `PickSideForCorrect()` in both root-level MATLAB classdefs.
+- `PickSideForCorrect()` updates `isLeftTrial`, and later display, response handling, and `BehaviorBoxData.AddData()` save that side.
+- Wheel can randomize forced left/right trials when `Repeat_wrong` is enabled.
+- Manual keyboard side-bias correction calls `this.SideBias(this)`, but `SideBias` is a property, not a callable method.
+- No relevant `+pkg`, `@Class`, or `private/` dispatch path was found. `startup.m` is minimal.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxNose.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxWheel.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/fcns/testPickSideForCorrect.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- Static checks:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); checkcode('BehaviorBoxNose.m'); checkcode('BehaviorBoxWheel.m'); checkcode('fcns/testPickSideForCorrect.m');"`
+- Focused smoke test:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('fcns/testPickSideForCorrect.m');"`
+- Conflict marker scan:
+  `rg -n "^<<<<<<<|^=======|^>>>>>>>" BehaviorBoxNose.m BehaviorBoxWheel.m fcns/testPickSideForCorrect.m`
+
+6. Milestones
+- Patch deterministic side-picking priority in both classes.
+- Add scalar side-bias helper and replace manual `S` branch call in both classes.
+- Add focused headless tests for forced-side precedence, repeat-wrong, random-choice output shape, and scalar side-bias helpers.
+- Run MATLAB validation and inspect the final diff.
+
+7. Risks and stop conditions
+- Stop if the fix requires changing saved `.mat` schema or `CodedChoice` values.
+- Stop if side-bias correction semantics cannot be derived from existing saved `CodedChoice` history without guessing.
+
+8. Handoff notes
+- Expected invariant outputs: saved field names, scoring codes, reward behavior, GUI setting names, and non-side-picking paths.
+- Intentional behavior change: Wheel `Left Only`/`Right Only` remains forced even when `Repeat_wrong` is enabled; manual side-bias correction no longer errors and chooses the opposite side of the current response bias.
+
 ## 2026-04-15 Fix Nose And Wheel Temporary Settings Expiry
 
 1. Goal
