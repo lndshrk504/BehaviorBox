@@ -1300,3 +1300,223 @@
   - MATLAB class -> BehaviorBox wheel integration
   - saved file -> `BehaviorBoxData` reload
   - live FLIR/DLC rig coverage
+
+## 2026-04-15 Fix EyeTrack Active Bridge Readiness
+
+1. Goal
+- Fix urgent EyeTrack review findings 2, 4, 5, 6, and 7 so the active DLC Live -> ZeroMQ -> MATLAB path is usable today on the local `dlclivegui` conda environment.
+- Make bundled YangLab pupil-model keypoint mapping explicit and hard to misuse.
+- Keep iRecHS2 clearly marked as legacy relic-only material and keep it off the default MATLAB path.
+
+2. Non-goals
+- Do not maintain, repair, or validate iRecHS2 runtime code.
+- Do not make the environment fully reproducible across machines in this pass.
+- Do not change the ZeroMQ JSON field schema or MATLAB tuple field order.
+- Do not change saved MATLAB data schema.
+
+3. Current-state summary
+- Python producer: `EyeTrack/DeepLabCut/ToMatlab/dlc_eye_streamer.py` emits ZeroMQ JSON with eye metrics.
+- Python bridge: `EyeTrack/DeepLabCut/ToMatlab/matlab_zmq_bridge.py` exposes `recv_latest` to MATLAB through `py.*`.
+- MATLAB consumer demo: `EyeTrack/DeepLabCut/ToMatlab/receive_eye_stream_demo.m` imports the bridge and reads the latest tuple.
+- Bundled model keypoint order is `Lpupil`, `LDpupil`, `Dpupil`, `DRpupil`, `Rpupil`, `RVupil`, `Vpupil`, `VLpupil`.
+- `bootstrap_eye_track.m` currently adds legacy iRecHS2 paths by default, which conflicts with active-path-only usage.
+
+4. Files likely touched
+- `/home/wbs/Desktop/BehaviorBox/.agent/PLANS.md`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/README.md`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/bootstrap_eye_track.m`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/DeepLabCut/ToMatlab/README_eye_stream.md`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/DeepLabCut/ToMatlab/dlc_eye_streamer.py`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/DeepLabCut/ToMatlab/receive_eye_stream_demo.m`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/DeepLabCut/Tests/Spin2DLC.py`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/DeepLabCut/Tests/TestSpin.py`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/DeepLabCut/Tests/dlcspin.py`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/DeepLabCut/environment.yaml`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/models/README.md`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/legacy/README.md`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/legacy/iRecHS2/README.md`
+
+5. Validation commands
+- Proposed MATLAB static check:
+  `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); checkcode('EyeTrack/bootstrap_eye_track.m'); checkcode('EyeTrack/DeepLabCut/ToMatlab/receive_eye_stream_demo.m');"`
+- Proposed Python syntax check:
+  `python3 -m py_compile EyeTrack/DeepLabCut/ToMatlab/dlc_eye_streamer.py EyeTrack/DeepLabCut/Tests/Spin2DLC.py EyeTrack/DeepLabCut/Tests/TestSpin.py EyeTrack/DeepLabCut/Tests/dlcspin.py`
+- Proposed live bridge check after starting publisher in `dlclivegui`:
+  `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox/EyeTrack'); paths = bootstrap_eye_track(); run('DeepLabCut/ToMatlab/receive_eye_stream_demo.m');"`
+
+6. Milestones
+- Patch active keypoint preset and docs for the bundled YangLab pupil model.
+- Patch MATLAB demo Python resolution to prefer `BB_EYETRACK_PYTHON`, active `CONDA_PREFIX`, then common `dlclivegui` paths.
+- Remove `prefix:` from the conda environment capture.
+- Remove legacy iRecHS2 from default bootstrap paths and document it as relic-only.
+- Add PySpin teardown and image-release safety to the camera smoke scripts.
+
+7. Risks and stop conditions
+- Stop if MATLAB and Python disagree on the ZeroMQ tuple field order or units.
+- Stop if the local `dlclivegui` interpreter cannot be resolved without machine-specific guessing.
+- Stop if a change would require modifying iRecHS2 implementation code instead of only isolating/documenting it.
+
+8. Handoff notes
+- Expected invariant outputs: JSON field names, MATLAB tuple order, timestamp units, and CSV column names.
+- Intended behavior change: users can run the bundled YangLab model using a named preset instead of hand-entering wrong keypoint indices; bootstrap no longer exposes iRecHS2 unless explicitly requested.
+
+## 2026-04-15 Add BehaviorBoxEyeTrack Scaffolding
+
+1. Goal
+- Add a new root-level MATLAB helper class, `BehaviorBoxEyeTrack.m`, that logs dense eye-tracking samples from text payloads and now owns the live MATLAB subscriber path.
+- Add additive Wheel save outputs, `EyeTrackingRecord` and `EyeTrackingMeta`, without changing existing trial logic ownership.
+- Add placeholder eye columns to `FrameAlignedRecord` so later alignment can remain additive.
+- Replace `receive_eye_stream_demo.m` as the active MATLAB subscriber and update the EyeTrack README files accordingly.
+
+2. Non-goals
+- Do not change Python payload schema or the DLC publisher code in `dlc_eye_streamer.py`.
+- Do not change any `BehaviorBoxNose.m` behavior.
+- Do not populate frame-aligned eye columns with live values yet.
+
+3. Current-state summary
+- `BehaviorBoxSerialTime.m` is the local pattern for a handle-class logger that stores raw text plus a parsed table.
+- `BehaviorBoxWheel.m` owns session setup, save-time assembly, and `FrameAlignedRecord`.
+- The active eye-tracking producer is the DLC ZeroMQ JSON publisher under `EyeTrack/DeepLabCut/ToMatlab/`.
+- `startup.m` is minimal, so any EyeTrack bridge-path assumptions must remain explicit.
+- `receive_eye_stream_demo.m` is now deprecated and still contains the only complete MATLAB-side Python bridge setup logic in the repo.
+- The bundled YangLab model point order is fixed: `Lpupil`, `LDpupil`, `Dpupil`, `DRpupil`, `Rpupil`, `RVupil`, `Vpupil`, `VLpupil`.
+
+4. MATLAB / Python boundary contract
+- Boundary object: ZeroMQ JSON eye sample
+  - Owner side: Python producer, MATLAB consumer
+  - Carrier: JSON text line / message
+  - Fields consumed this pass:
+    - `frame_id`: Python int -> MATLAB double
+    - `capture_time_unix_s`, `publish_time_unix_s`: Python float seconds -> MATLAB double
+    - `capture_time_unix_ns`, `publish_time_unix_ns`: Python int nanoseconds -> MATLAB string in record, exact digits preserved in raw log
+    - `center_x`, `center_y`, `diameter_px`, `diameter_h_px`, `diameter_v_px`, `confidence_mean`, `camera_fps`, `inference_fps`, `latency_ms`: Python float -> MATLAB double
+    - `valid_points`: Python int -> MATLAB double
+    - `points`: Python dict of 8 keypoints -> MATLAB cell column containing an `8x3 double` matrix in fixed model order
+- MATLAB bridge object:
+  - Owner side: Python helper, MATLAB consumer
+  - Carrier: `py.*` bridge to `matlab_zmq_bridge.py`
+  - Contract this pass:
+    - MATLAB calls a Python helper that opens a `zmq.SUB` socket to either localhost or a configured remote host.
+    - MATLAB receives the latest available JSON payload as text and feeds that text into `BehaviorBoxEyeTrack.processReading`.
+- Indexing/orientation contract:
+  - Python pose rows are 0-based in code comments, but saved MATLAB `points_xyp` is an `8x3` matrix whose row order follows the fixed point-name list above.
+  - Columns are `[x y likelihood]`.
+- Classic failure modes to avoid:
+  - Do not trust MATLAB `jsondecode` alone for nanosecond integer exactness; preserve exact digits separately.
+  - Do not transpose or squeeze the 8x3 points matrix.
+  - Do not save nested Python objects directly into MATLAB tables.
+
+5. Files likely touched
+- `/home/wbs/Desktop/BehaviorBox/.agent/PLANS.md`
+- `/home/wbs/Desktop/BehaviorBox/BehaviorBoxEyeTrack.m`
+- `/home/wbs/Desktop/BehaviorBox/BehaviorBoxWheel.m`
+- `/home/wbs/Desktop/BehaviorBox/fcns/testBehaviorBoxEyeTrack.m`
+- `/home/wbs/Desktop/BehaviorBox/MockApp/testBehaviorBoxWheelSaveStatus.m`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/README.md`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/DeepLabCut/ToMatlab/README_eye_stream.md`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/DeepLabCut/Tests/README.md`
+
+6. Validation commands
+- Static checks:
+  `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); checkcode('BehaviorBoxNose.m'); checkcode('BehaviorBoxWheel.m'); checkcode('BehaviorBoxData.m'); checkcode('BehaviorBoxEyeTrack.m'); checkcode('fcns/testBehaviorBoxEyeTrack.m'); checkcode('MockApp/testBehaviorBoxWheelSaveStatus.m'); checkcode('EyeTrack/DeepLabCut/ToMatlab/receive_eye_stream_demo.m');"`
+- Focused MATLAB smoke tests:
+  `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('fcns/testBehaviorBoxEyeTrack.m'); run('MockApp/testBehaviorBoxWheelSaveStatus.m');"`
+- Conflict marker scan:
+  `rg -n "^<<<<<<<|^=======|^>>>>>>>" BehaviorBoxEyeTrack.m BehaviorBoxWheel.m fcns/testBehaviorBoxEyeTrack.m MockApp/testBehaviorBoxWheelSaveStatus.m EyeTrack/README.md EyeTrack/DeepLabCut/ToMatlab/README_eye_stream.md EyeTrack/DeepLabCut/Tests/README.md`
+
+7. Milestones
+- Add `BehaviorBoxEyeTrack.m` with raw-text logging, parsed record table, metadata helpers, fixed point-order handling, and a real MATLAB-side Python subscriber.
+- Add `EyeTrack` session initialization and save output plumbing in `BehaviorBoxWheel.m`.
+- Start and stop the subscriber from Wheel setup/cleanup and tag incoming samples with the active trial number.
+- Add empty additive eye columns to `FrameAlignedRecord` row builders.
+- Add focused MATLAB smoke coverage for the new class, subscriber wiring, and Wheel save outputs.
+- Update active README files so `BehaviorBoxEyeTrack` replaces `receive_eye_stream_demo.m` as the subscriber entrypoint.
+
+8. Risks and stop conditions
+- Stop if the Python payload seen in practice does not contain the documented `points` dict or uses a different point-name order than the bundled model docs.
+- Stop if preserving exact nanosecond fields would require silently changing the Python schema instead of keeping the MATLAB side additive.
+- Stop if additive eye outputs break existing Wheel save/load paths or force microscopy logic outside `BehaviorBoxWheel.m`.
+- Stop if MATLAB `pyenv` lifetime or timer behavior requires changing the producer or bridge schema instead of only the MATLAB subscriber side.
+
+9. Handoff notes
+- Expected invariant outputs: existing `TimestampRecord`, `WheelDisplayRecord`, current `FrameAlignedRecord` columns, trial logic, reward logic, and save path names.
+- Intended output changes: additive `newData.EyeTrackingRecord`, additive `newData.EyeTrackingMeta`, and additive empty eye columns on `FrameAlignedRecord`.
+- Intended behavior change: `BehaviorBoxEyeTrack` becomes the active MATLAB subscriber; `receive_eye_stream_demo.m` remains deprecated transitional code only.
+
+## 2026-04-15 Mark EyeTrack Legacy And Smoke-Only Code For Agents
+
+1. Goal
+- Make EyeTrack routing unambiguous for future AI agents.
+- Mark `DeepLabCut/ToMatlab` as the only active implementation path.
+- Mark `DeepLabCut/Tests` as smoke/hardware probe code only, not production implementation code.
+- Mark all `legacy/iRecHS2` material as relic-only and not to be maintained or integrated.
+
+2. Non-goals
+- Do not change MATLAB or Python runtime behavior.
+- Do not repair iRecHS2.
+- Do not remove historical files in this pass.
+
+3. Current-state summary
+- Active Python/MATLAB bridge is in `EyeTrack/DeepLabCut/ToMatlab`.
+- `EyeTrack/DeepLabCut/Tests` contains dependency, camera, and inference smoke scripts that can look implementation-like.
+- `EyeTrack/legacy/iRecHS2` contains old eye-tracking code that should not be used for current or future implementations.
+
+4. Files likely touched
+- `/home/wbs/Desktop/BehaviorBox/.agent/PLANS.md`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/AGENTS.md`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/README.md`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/DeepLabCut/README.md`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/DeepLabCut/Tests/AGENTS.md`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/DeepLabCut/Tests/README.md`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/legacy/AGENTS.md`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/legacy/README.md`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/legacy/iRecHS2/README.md`
+
+5. Validation commands
+- None planned; documentation-only guardrail change.
+
+6. Milestones
+- Add top-level EyeTrack agent routing instructions.
+- Add nested guardrails in smoke-only and relic-only folders.
+- Strengthen README warnings where humans and agents will see them.
+
+7. Risks and stop conditions
+- Stop if the requested marking requires changing behavior or deleting files.
+
+8. Handoff notes
+- Report changed docs/agent files and that no runtime validation was run because no executable code changed.
+
+## 2026-04-15 Add EyeTrack Legacy And Smoke File Headers
+
+1. Goal
+- Add top-of-file warnings to editable iRecHS2 source files and DeepLabCut smoke scripts so future agents do not confuse them with active eye-tracking implementation code.
+
+2. Non-goals
+- Do not change runtime behavior.
+- Do not repair iRecHS2 or smoke scripts.
+- Do not modify binary, image, PDF, model, or environment files.
+
+3. Current-state summary
+- Active path is `EyeTrack/DeepLabCut/ToMatlab`.
+- Smoke-only scripts live in `EyeTrack/DeepLabCut/Tests`.
+- Relic-only iRecHS2 source lives under `EyeTrack/legacy/iRecHS2`.
+
+4. Files likely touched
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/DeepLabCut/Tests/*.py`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/legacy/iRecHS2/iRecTests/iRecTest1.m`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/legacy/iRecHS2/scripts/*.py`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/legacy/iRecHS2/scripts/*.m`
+- `/home/wbs/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- None planned; comment-only guardrail change.
+
+6. Milestones
+- Add smoke-only warnings to DeepLabCut test scripts.
+- Add relic-only warnings to iRecHS2 MATLAB and Python source files.
+
+7. Risks and stop conditions
+- Stop if a file is binary or generated and cannot safely receive a text header.
+
+8. Handoff notes
+- Report changed source files and note that no runtime validation was run because no executable logic changed.
