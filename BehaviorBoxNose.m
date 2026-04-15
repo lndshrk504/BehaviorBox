@@ -42,6 +42,8 @@ classdef BehaviorBoxNose < handle
         Temp_Countdown = 0;
         Temp_iStart = 0;
         Temp_Active = 0;
+        Temp_CorrectStart = 0;
+        Temp_TrialStart = 0;
         SetIdx = {};
         SetStr = {};
         Include = {};
@@ -471,6 +473,9 @@ classdef BehaviorBoxNose < handle
             this.i = 0;
             this.timeout_counter = 0;
             this.Temp_Active = false;
+            this.Temp_iStart = false;
+            this.Temp_CorrectStart = 0;
+            this.Temp_TrialStart = 0;
         end
         %Do some things before each trial
         function BeforeTrial(this)
@@ -521,51 +526,173 @@ classdef BehaviorBoxNose < handle
             this.ReadyCue(1)
         end
         function CheckTemp(this)
-            % Temp_Settings = struct();
-            % Temp_Old_Settings = struct();
-            % Temp_Countdown = 0;
-            % Temp_iStart = 0;
-            % Temp_Active = 0;
-            %Manually turning on:
             if ~this.Temp_Active
-                if this.Temp_Settings.PerformanceThreshold || this.Temp_Settings.TrialNumber
+                if this.tempSettingLogical_("PerformanceThreshold", false) || this.tempSettingLogical_("TrialNumber", false)
                     this.Temp_Active = true;
                     this.Temp_iStart = true;
+                    this.Temp_CorrectStart = this.currentCorrectCount_();
+                    this.Temp_TrialStart = this.currentScoreCount_();
                 end
             end
-            %Manually Turning Off:
-            if this.Temp_Active && this.Temp_Settings.TempOff
-                this.Temp_Active = false;
-                this.Setting_Struct = this.Temp_Old_Settings;
-                this.app.TrialsRemainingLabel.Text = "_ Trials Remaining";
-                this.app.TempOff_Temp.Value = 1;
+            if this.Temp_Active && this.tempSettingLogical_("TempOff", false)
+                this.endTempMode_();
+                return
             end
             if this.Temp_Active
                 this.Temp_Old_Settings = this.Setting_Struct;
                 this.Setting_Struct = copytoStruct(this.Setting_Struct, this.Temp_Settings);
                 if this.Temp_iStart
                     this.Temp_iStart = false;
-                    this.Temp_Countdown = this.Temp_Settings.TrialCount;
+                    this.Temp_Countdown = this.tempSettingNumeric_("TrialCount", 0);
                 end
-                this.Temp_Countdown = this.Temp_Settings.TrialCount - sum(this.Data_Object.current_data_struct.Score);
-                this.app.TrialsRemainingLabel.Text = this.Temp_Countdown+" Correct Trials Remaining";
-                if this.i <= 1
+
+                if this.tempSettingLogical_("PerformanceThreshold", false)
+                    threshold = this.tempThreshold_("PerfThresh");
+                    performance = this.currentLevelOnePerformance_();
+                    if ~isnan(threshold) && ~isnan(performance) && performance >= threshold
+                        this.endTempMode_();
+                    else
+                        this.setTempLabel_("Lv 1 performance: " + this.formatPercent_(performance) + " / " + this.formatPercent_(threshold));
+                    end
                     return
                 end
-                try
-                    % sMM = this.Data_Object.AnalyzedData.DayMM{:}{8,1}{:}(end);
-                    sMM = this.Data_Object.AnalyzedData.DayMM{1}{8,1}{:}(end);
-                    if this.Temp_Countdown <= 0 && sMM >= this.Temp_Settings.TrialCountThreshold/100
-                        this.Temp_Active = false;
-                        this.Setting_Struct = this.Temp_Old_Settings;
-                        this.app.TrialsRemainingLabel.Text = "_ Trials Remaining";
-                        this.app.TempOff_Temp.Value = 1;
-                    elseif this.Temp_Countdown <= 0
-                        this.app.TrialsRemainingLabel.Text = (this.Temp_Countdown*-1)+" Extra trials, Poor performance";
+
+                correctSinceStart = this.currentCorrectCount_() - this.Temp_CorrectStart;
+                this.Temp_Countdown = this.tempSettingNumeric_("TrialCount", 0) - correctSinceStart;
+                this.setTempLabel_(this.Temp_Countdown + " Correct Trials Remaining");
+                if this.Temp_Countdown <= 0
+                    threshold = this.tempThreshold_("TrialCountThreshold");
+                    performance = this.tempPeriodPerformance_();
+                    if isnan(threshold) || threshold <= 0 || (~isnan(performance) && performance >= threshold)
+                        this.endTempMode_();
+                    else
+                        this.setTempLabel_((this.Temp_Countdown*-1) + " Extra trials, Poor performance");
                     end
-                catch err % This fails because of a problem with the way an incomplete bin is handled after the 11th trial
-                    unwrapErr(err)
                 end
+            end
+        end
+
+        function endTempMode_(this)
+            this.Temp_Active = false;
+            this.Temp_iStart = false;
+            if ~isempty(fieldnames(this.Temp_Old_Settings))
+                this.Setting_Struct = this.Temp_Old_Settings;
+            end
+            this.setTempLabel_("_ Trials Remaining");
+            try
+                this.app.TempOff_Temp.Value = 1;
+            catch
+            end
+        end
+
+        function setTempLabel_(this, text)
+            try
+                this.app.TrialsRemainingLabel.Text = text;
+            catch
+            end
+        end
+
+        function tf = tempSettingLogical_(this, name, defaultValue)
+            tf = defaultValue;
+            if isfield(this.Temp_Settings, name) && ~isempty(this.Temp_Settings.(name))
+                tf = logical(this.Temp_Settings.(name));
+            end
+        end
+
+        function value = tempSettingNumeric_(this, name, defaultValue)
+            value = defaultValue;
+            if isfield(this.Temp_Settings, name) && ~isempty(this.Temp_Settings.(name))
+                value = this.Temp_Settings.(name);
+                if ischar(value) || isstring(value)
+                    value = str2double(value);
+                elseif iscell(value)
+                    value = str2double(string(value{1}));
+                end
+                value = double(value);
+            end
+        end
+
+        function threshold = tempThreshold_(this, name)
+            threshold = this.tempSettingNumeric_(name, NaN);
+            if isnan(threshold)
+                return
+            end
+            if threshold > 1
+                threshold = threshold / 100;
+            end
+            threshold = min(max(threshold, 0), 1);
+        end
+
+        function count = currentScoreCount_(this)
+            count = numel(this.currentScoreVector_());
+        end
+
+        function count = currentCorrectCount_(this)
+            scores = this.currentScoreVector_();
+            count = sum(scores == 1);
+        end
+
+        function performance = tempPeriodPerformance_(this)
+            scores = this.currentScoreVector_();
+            startIdx = min(max(this.Temp_TrialStart, 0), numel(scores));
+            scores = scores((startIdx+1):end);
+            scores = scores(scores ~= 2);
+            if isempty(scores)
+                performance = NaN;
+            else
+                performance = mean(scores == 1);
+            end
+        end
+
+        function performance = currentLevelOnePerformance_(this)
+            scores = this.currentScoreVector_();
+            levels = this.currentLevelVector_();
+            if isempty(scores)
+                performance = NaN;
+                return
+            end
+            rows = scores ~= 2;
+            if numel(levels) == numel(scores)
+                rows = rows & levels == 1;
+            end
+            if ~any(rows)
+                performance = NaN;
+            else
+                performance = mean(scores(rows) == 1);
+            end
+        end
+
+        function scores = currentScoreVector_(this)
+            scores = [];
+            try
+                data = this.Data_Object.current_data_struct;
+                if isstruct(data) && isfield(data, "Score")
+                    scores = double(data.Score(:)');
+                elseif istable(data) && any(strcmp(data.Properties.VariableNames, "Score"))
+                    scores = double(data.Score(:)');
+                end
+            catch
+            end
+        end
+
+        function levels = currentLevelVector_(this)
+            levels = [];
+            try
+                data = this.Data_Object.current_data_struct;
+                if isstruct(data) && isfield(data, "Level")
+                    levels = double(data.Level(:)');
+                elseif istable(data) && any(strcmp(data.Properties.VariableNames, "Level"))
+                    levels = double(data.Level(:)');
+                end
+            catch
+            end
+        end
+
+        function text = formatPercent_(~, value)
+            if isnan(value)
+                text = "n/a";
+            else
+                text = sprintf("%.1f%%", 100*value);
             end
         end
         %update GUI numbers before each trial
