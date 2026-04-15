@@ -1626,13 +1626,46 @@ classdef BehaviorBoxNose < handle
                 end
             end
         end
-        function waitForCorrectSensorAndStallBlink_(this, WaitCorrect)
+        function completed = waitRewardPulseGap_(this)
+            completed = true;
+            try
+                gapSec = double(this.Box.SecBwPulse);
+            catch
+                gapSec = 0;
+            end
+            if ~isfinite(gapSec) || gapSec <= 0
+                return
+            end
+
+            tGap = tic;
+            while toc(tGap) < gapSec
+                pause(0.01); drawnow;
+                if get(this.stop_handle, 'Value') || get(this.app.FastForward, 'Value')
+                    completed = false;
+                    break
+                end
+            end
+        end
+        function completed = waitForCorrectSensorAndStallBlink_(this, WaitCorrect, options)
+            arguments
+                this
+                WaitCorrect
+                options.RequireHold logical = false
+            end
+            completed = false;
             stallSec = 5;
             stallBlinkDur = 0.10;
+            contourFlashInterval = 0.05;
+            delayTime = 0;
+            if options.RequireHold
+                delayTime = this.getDelaySetting_('Input_Delay_Respond');
+            end
             tWait = tic;
             tLastTrigger = 0;
             blinkActive = false;
             blinkT0 = 0;
+            holdT0 = NaN;
+            lastContourFlashT = -Inf;
             baseColor = this.StimulusStruct.LineColor;
             dimColor = this.StimulusStruct.DimColor;
 
@@ -1641,9 +1674,51 @@ classdef BehaviorBoxNose < handle
             distractor_lines = distractor_lines(isgraphics(distractor_lines));
             this.setLinesColorSafe_(distractor_lines, dimColor);
 
-            while contains(this.WhatDecision, 'correct', 'IgnoreCase', true) && ~WaitCorrect()
+            while contains(this.WhatDecision, 'correct', 'IgnoreCase', true)
                 tNow = toc(tWait);
-                if ~blinkActive && (tNow - tLastTrigger) >= stallSec
+
+                correctActive = false;
+                try
+                    correctActive = logical(WaitCorrect());
+                catch
+                end
+
+                if correctActive
+                    tLastTrigger = tNow;
+                    if blinkActive
+                        contour_lines = findobj(this.fig.Children, 'Tag', 'Contour');
+                        contour_lines = contour_lines(isgraphics(contour_lines));
+                        this.setLinesColorSafe_(contour_lines, baseColor);
+                        blinkActive = false;
+                    end
+
+                    if ~options.RequireHold
+                        completed = true;
+                        break
+                    end
+
+                    if isnan(holdT0)
+                        holdT0 = tNow;
+                        lastContourFlashT = -Inf;
+                    end
+
+                    if (tNow - lastContourFlashT) >= contourFlashInterval
+                        contour_lines = findobj(this.fig.Children, 'Tag', 'Contour');
+                        contour_lines = contour_lines(isgraphics(contour_lines));
+                        this.FlashNew(this.StimulusStruct, this.Box, contour_lines, "Flash_Contour");
+                        lastContourFlashT = tNow;
+                    end
+
+                    if (tNow - holdT0) >= delayTime
+                        completed = true;
+                        break
+                    end
+                else
+                    holdT0 = NaN;
+                    lastContourFlashT = -Inf;
+                end
+
+                if ~correctActive && ~blinkActive && (tNow - tLastTrigger) >= stallSec
                     contour_lines = findobj(this.fig.Children, 'Tag', 'Contour');
                     contour_lines = contour_lines(isgraphics(contour_lines));
                     distractor_lines = findobj(this.fig.Children, 'Tag', 'Distractor');
@@ -1658,7 +1733,7 @@ classdef BehaviorBoxNose < handle
                     end
                     blinkActive = true;
                     blinkT0 = tNow;
-                elseif blinkActive && (tNow - blinkT0) >= stallBlinkDur
+                elseif ~correctActive && blinkActive && (tNow - blinkT0) >= stallBlinkDur
                     contour_lines = findobj(this.fig.Children, 'Tag', 'Contour');
                     contour_lines = contour_lines(isgraphics(contour_lines));
                     distractor_lines = findobj(this.fig.Children, 'Tag', 'Distractor');
@@ -1675,7 +1750,7 @@ classdef BehaviorBoxNose < handle
                     tLastTrigger = tNow;
                 end
 
-                pause(0.05); drawnow;
+                pause(0.01); drawnow;
                 if get(this.stop_handle, 'Value') || get(this.app.FastForward, 'Value')
                     break
                 end
@@ -1693,6 +1768,14 @@ classdef BehaviorBoxNose < handle
                     this.setLinesColorSafe_(contour_lines, baseColor);
                     this.setLinesColorSafe_(distractor_lines, dimColor);
                 end
+            end
+            if ~blinkActive
+                contour_lines = findobj(this.fig.Children, 'Tag', 'Contour');
+                contour_lines = contour_lines(isgraphics(contour_lines));
+                distractor_lines = findobj(this.fig.Children, 'Tag', 'Distractor');
+                distractor_lines = distractor_lines(isgraphics(distractor_lines));
+                this.setLinesColorSafe_(contour_lines, baseColor);
+                this.setLinesColorSafe_(distractor_lines, dimColor);
             end
         end
         function FlashNew(this, Stim, Box, Lines, whatdecision, OneWay)
@@ -1870,11 +1953,17 @@ classdef BehaviorBoxNose < handle
                 return
             end
             % Wait for reward-port nosepoke with periodic stall reminder blink.
-            this.waitForCorrectSensorAndStallBlink_(WaitCorrect)
+            if ~this.waitForCorrectSensorAndStallBlink_(WaitCorrect)
+                return
+            end
             for P = 1:PulseNum
                 if P > 1
-                    pause(this.Box.SecBwPulse)
-                    this.waitForCorrectSensorAndStallBlink_(WaitCorrect)
+                    if ~this.waitRewardPulseGap_()
+                        break
+                    end
+                    if ~this.waitForCorrectSensorAndStallBlink_(WaitCorrect, "RequireHold", true)
+                        break
+                    end
                 end
                 REWARD()
                 this.RewardPulses = this.RewardPulses + 1;
