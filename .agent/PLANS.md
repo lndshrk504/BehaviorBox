@@ -994,3 +994,82 @@
 - MATLAB static check: checkcode('BehaviorBoxWheel.m')
 - MATLAB class parse check via meta.class.fromName('BehaviorBoxWheel').
 - Headless mock save harness attempted via MockApp/testBehaviorBoxWheelSaveStatus.m; blocked by pre-existing mock-environment issues unrelated to this timing patch.
+
+## 2026-04-14 Validate DLC Live Eye Stream Into MATLAB And BehaviorBox Save
+
+1. Goal
+- Verify the active DLC Live path can move eye metrics from Python into MATLAB and then into wheel-session saves without breaking current BehaviorBox save/load behavior.
+- Land the narrowest production integration needed so wheel sessions can persist additive eye-tracking outputs that reload cleanly through the current `BehaviorBoxData` path.
+
+2. Non-goals
+- Do not add eye-tracking logic to `BehaviorBoxNose.m`.
+- Do not use `iRecHS2/`; the active path is `DLC/ToMatlab/`.
+- Do not change DLC model training, point order, or camera hardware configuration beyond what is required to validate transport.
+- Do not redefine existing `TimestampRecord`, `WheelDisplayRecord`, or `FrameAlignedRecord` semantics; only additive eye outputs are allowed.
+- Do not commit generated `.mat`, `.csv`, or runtime model artifacts.
+
+3. Current-state summary
+- `DLC/ToMatlab/dlc_eye_streamer.py` is the active Python publisher. It emits ZeroMQ JSON payloads with timing, center, diameter, confidence, valid-point count, FPS, latency, and a nested `points` dictionary.
+- `DLC/ToMatlab/matlab_zmq_bridge.py` exposes `open_subscriber`, `close_socket`, `recv_latest_dict`, and `recv_latest` for MATLAB via `py.*`.
+- `DLC/ToMatlab/receive_eye_stream_demo.m` is only a demo subscriber. It receives the latest tuple and writes a base-workspace `eye` struct; it is not a production MATLAB class.
+- No `BehaviorBoxEyeTrack.m` or equivalent production eye-tracking MATLAB class exists in the current working tree.
+- `BehaviorBoxWheel.m` already owns wheel/imaging timing and additive save tables. Its `SaveAllData()` path already saves `TimestampRecord`, `WheelDisplayRecord`, and `FrameAlignedRecord` into `newData` for wheel sessions.
+- `fcns/readFcn.m` already skips MATLAB tables during trial-vector normalization, which is the current compatibility mechanism for additive session-wide tables.
+- Existing repo notes in `Next Steps/DLC_EyeTracking_FrameAlignedRecord_Plan.md` already point toward a dedicated MATLAB helper class and additive `EyeTrackingRecord` / `EyeTrackingMeta` outputs.
+
+4. Files likely touched
+- `/home/wbs/Desktop/BehaviorBox/.agent/PLANS.md`
+- `/home/wbs/Desktop/BehaviorBox/DLC/ToMatlab/dlc_eye_streamer.py`
+- `/home/wbs/Desktop/BehaviorBox/DLC/ToMatlab/matlab_zmq_bridge.py`
+- `/home/wbs/Desktop/BehaviorBox/DLC/ToMatlab/receive_eye_stream_demo.m`
+- `/home/wbs/Desktop/BehaviorBox/BehaviorBoxEyeTrack.m`
+- `/home/wbs/Desktop/BehaviorBox/BehaviorBoxWheel.m`
+- `/home/wbs/Desktop/BehaviorBox/BehaviorBoxData.m`
+- `/home/wbs/Desktop/BehaviorBox/fcns/readFcn.m`
+- `/home/wbs/Desktop/BehaviorBox/fcns/testBehaviorBoxDataLoad.m`
+- one or more new focused MATLAB/Python smoke tests near `DLC/ToMatlab/` or `fcns/`
+
+5. Validation commands
+- Python syntax smoke:
+  `python3 -m py_compile /home/wbs/Desktop/BehaviorBox/DLC/ToMatlab/dlc_eye_streamer.py /home/wbs/Desktop/BehaviorBox/DLC/ToMatlab/matlab_zmq_bridge.py`
+- MATLAB lint after any `.m` edits:
+  `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); checkcode('BehaviorBoxWheel.m'); checkcode('BehaviorBoxData.m'); checkcode('BehaviorBoxEyeTrack.m'); checkcode('DLC/ToMatlab/receive_eye_stream_demo.m');"`
+- Existing MATLAB bridge demo with a live publisher:
+  `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('DLC/ToMatlab/receive_eye_stream_demo.m');"`
+- Existing loader smoke test:
+  `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('fcns/testBehaviorBoxDataLoad.m');"`
+- Add and run a synthetic end-to-end smoke test that does not require FLIR hardware or a DLC model:
+  `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('DLC/ToMatlab/test_eye_stream_bridge.m');"`
+- Add and run a save-path smoke test that proves additive eye-tracking outputs survive save and reload:
+  `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('fcns/testBehaviorBoxEyeSaveLoad.m');"`
+
+6. Milestones
+- Freeze the Python-to-MATLAB contract.
+  Decide the production MATLAB contract for required fields, types, NaN behavior, timestamp fields, and whether the nested `points` dictionary is flattened, stored separately, or omitted from first-pass save outputs.
+- Add a synthetic publisher/subscriber smoke path.
+  Build a minimal test that publishes representative JSON payloads into `matlab_zmq_bridge.py` and proves MATLAB can receive and normalize them without FLIR or DLCLive.
+- Implement the MATLAB eye-tracking receiver class.
+  Add `BehaviorBoxEyeTrack.m` as a narrow wheel-side helper that owns Python bridge setup, subscriber lifetime, latest-sample access, session-clock stamping, session-wide buffering, and metadata collection.
+- Integrate the receiver into `BehaviorBoxWheel.m`.
+  Keep integration wheel-only. Start/stop the helper with the session, poll or drain it at deterministic points, and save additive `EyeTrackingRecord` and `EyeTrackingMeta` outputs. Extend `FrameAlignedRecord` only with additive eye columns if frame-level alignment is included in this pass.
+- Prove save and reload compatibility.
+  Validate that saved wheel sessions containing eye-tracking outputs can still be read by `BehaviorBoxData` without trimming, schema confusion, or silent loss of additive fields.
+- Run one live end-to-end rig check.
+  With the real DLC Live publisher running, confirm that MATLAB receives fresh samples, BehaviorBox captures them during a wheel session, and the saved `.mat` file contains the expected eye-tracking outputs with reasonable timing.
+
+7. Risks and stop conditions
+- Stop if the MATLAB side is expected to consume a payload shape that the Python publisher does not actually emit.
+- Stop if the first implementation tries to save nested Python objects directly into MATLAB tables without an explicit schema decision.
+- Stop if the integration would require putting microscopy or eye-tracking logic into `BehaviorBoxNose.m`.
+- Stop if additive eye outputs cause `BehaviorBoxData` load regressions or silent field truncation.
+- Stop if Python and MATLAB disagree on timestamp units, indexing, NaN semantics, or field names.
+- Stop if the only available verification path depends on unavailable FLIR/DLC hardware; in that case, complete the synthetic bridge and save/load smoke tests first and report the remaining live-rig risk explicitly.
+
+8. Handoff notes
+- The intended invariant is that existing wheel-session behavior, `TimestampRecord`, `WheelDisplayRecord`, and existing `FrameAlignedRecord` columns keep their current meanings.
+- Any saved eye-tracking output must be additive and explicitly named in the handoff, along with whether it is dense sample-level data, frame-aligned data, or metadata.
+- Report validation separately for:
+  - synthetic publisher -> MATLAB
+  - MATLAB class -> BehaviorBox wheel integration
+  - saved file -> `BehaviorBoxData` reload
+  - live FLIR/DLC rig coverage
