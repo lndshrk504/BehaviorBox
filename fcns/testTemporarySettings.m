@@ -9,6 +9,7 @@ testNoseCorrectCountStartsAtActivation();
 testNosePerformanceUsesPerfThreshold();
 testWheelCorrectCountIgnoresIncorrectAndTimeouts();
 testWheelPerformanceUsesPerfThreshold();
+testWheelHoldStillThresholdComparison();
 
 fprintf('testTemporarySettings passed.\n');
 
@@ -119,6 +120,21 @@ function testWheelPerformanceUsesPerfThreshold()
     advanceCompletedTrials(bb, [1 0 1 1 1], [1 1 1 1 1]);
     bb.CheckTemp();
     assert(~bb.Temp_Active, 'Wheel performance mode should expire using PerfThresh_Temp.');
+end
+
+function testWheelHoldStillThresholdComparison()
+    assert(~BehaviorBoxWheel.holdStillThresholdExceeded(0, 10), ...
+        'Zero wheel output should not reset hold-still.');
+    assert(~BehaviorBoxWheel.holdStillThresholdExceeded(10, 10), ...
+        'Wheel output equal to Hold_Still_Thresh should remain allowed.');
+    assert(~BehaviorBoxWheel.holdStillThresholdExceeded(-10, 10), ...
+        'Negative wheel output equal in magnitude to the threshold should remain allowed.');
+    assert(BehaviorBoxWheel.holdStillThresholdExceeded(10.1, 10), ...
+        'Wheel output above Hold_Still_Thresh should reset hold-still.');
+    assert(BehaviorBoxWheel.holdStillThresholdExceeded(-10.1, 10), ...
+        'Negative wheel output above Hold_Still_Thresh in magnitude should reset hold-still.');
+    assert(BehaviorBoxWheel.holdStillThresholdExceeded(1, 0), ...
+        'A zero threshold should preserve the legacy any-movement reset behavior.');
 end
 
 function app = makeTempApp()

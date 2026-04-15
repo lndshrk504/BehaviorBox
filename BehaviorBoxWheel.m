@@ -1040,14 +1040,15 @@ classdef BehaviorBoxWheel < handle
                     this.beginHoldStillInterval_();
                     if this.i ~=1
                         timelimit = this.Setting_Struct.HoldStill;
+                        holdStillThresh = this.getStructNumericValue_(this.Setting_Struct, "Hold_Still_Thresh", 0);
                         trialStartTimer = tic;
                         holdStillTimer = tic;
                         while toc(holdStillTimer)<=timelimit
                             this.message_handle.Text = "Keep the wheel still for "+num2str(round(timelimit - toc(holdStillTimer),1))+" seconds."; drawnow limitrate
                             holdStillWheel = this.a.ReadWheel();
-                            if holdStillWheel ~= 0
+                            if BehaviorBoxWheel.holdStillThresholdExceeded(holdStillWheel, holdStillThresh)
                                 this.CurrentRawWheel = double(holdStillWheel);
-                                this.CurrentDelta = 0;
+                                this.CurrentDelta = double(holdStillWheel);
                                 this.recordScreenEventPoint_("Hold Still interval reset", "ResetToZero", true);
                                 if ~isempty(this.FLAx) && all(isgraphics(this.FLAx))
                                     this.Flash(this.StimulusStruct, this.Box, this.FLAx, 'Wheel');
@@ -4397,6 +4398,16 @@ classdef BehaviorBoxWheel < handle
     end
     %STATIC FUNCTIONS====
     methods(Static = true)
+        function tf = holdStillThresholdExceeded(rawWheel, threshold)
+            if nargin < 2 || isempty(threshold) || isnan(threshold)
+                threshold = 0;
+            end
+            if nargin < 1 || isempty(rawWheel) || isnan(rawWheel)
+                tf = false;
+                return
+            end
+            tf = abs(double(rawWheel)) > max(double(threshold), 0);
+        end
         %toggle GUI buttons active/inactive
         function toggleButtonsOnOff(Buttons, on)
             ON = logical(on);
