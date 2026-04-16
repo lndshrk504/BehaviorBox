@@ -1493,7 +1493,7 @@ classdef BehaviorBoxWheel < handle
 
             contourLines = findobj('Tag', 'Contour');
             distractorLines = findobj('Tag', 'Distractor');
-            [contourLines, distractorLines, Lines] = this.refreshWheelStimLineHandles_(contourLines, distractorLines);
+            [contourLines, distractorLines, ~] = this.refreshWheelStimLineHandles_(contourLines, distractorLines);
             baseColor = this.StimulusStruct.LineColor;
             flashColor = this.StimulusStruct.FlashColor;
             dimColor  = this.StimulusStruct.DimColor;

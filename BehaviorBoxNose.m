@@ -1052,19 +1052,60 @@ classdef BehaviorBoxNose < handle
             end
         end
         function WaitForInputArduino(this)
-            this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.LineColor;
+            readyCueDot = findobj(this.fig.Children, 'Tag', 'ReadyCueDot');
+            readyCueBaseColor = this.StimulusStruct.LineColor;
+            readyCueDimColor = this.StimulusStruct.DimColor;
+            readyCueBlinkDur = 0.10;
+            waitBlinkActive = false;
+            waitBlinkT0 = 0;
+            waitBlinkEnabled = this.waitBlinkEnabled_();
+            waitBlinkSec = this.getDelaySetting_('Wait_Blink_Sec');
+
+            this.setReadyCueColorSafe_(readyCueDot, readyCueBaseColor);
             while (this.a.ReadLeft() || this.a.ReadRight())
                 pause(0.1)
             end
+            tWaitBlink = tic;
+            tLastWaitInput = 0;
             while ~get(this.stop_handle, 'Value')
                 pause(0.01);
                 if this.Setting_Struct.IntertrialMalCancel && (this.a.ReadLeft() || this.a.ReadRight())
                     this.HandleIntertrialMalingering();
+                    this.setReadyCueColorSafe_(readyCueDot, readyCueBaseColor);
+                    waitBlinkActive = false;
+                    tLastWaitInput = toc(tWaitBlink);
+                end
+
+                tNow = toc(tWaitBlink);
+                try
+                    noSensorActive = this.currentNoseToken_() == '-';
+                catch
+                    noSensorActive = false;
+                end
+                if ~noSensorActive
+                    tLastWaitInput = tNow;
+                    if waitBlinkActive
+                        this.setReadyCueColorSafe_(readyCueDot, readyCueBaseColor);
+                        waitBlinkActive = false;
+                    end
+                elseif waitBlinkEnabled && waitBlinkSec > 0 && ~waitBlinkActive && (tNow - tLastWaitInput) >= waitBlinkSec
+                    readyCueDot = findobj(this.fig.Children, 'Tag', 'ReadyCueDot');
+                    this.setReadyCueColorSafe_(readyCueDot, readyCueDimColor);
+                    waitBlinkActive = true;
+                    waitBlinkT0 = tNow;
+                end
+                if waitBlinkActive && (tNow - waitBlinkT0) >= readyCueBlinkDur
+                    this.setReadyCueColorSafe_(readyCueDot, readyCueBaseColor);
+                    waitBlinkActive = false;
+                    tLastWaitInput = tNow;
                 end
 
                 if this.Middle_StableChoice_StartTrial(true)
                     break;
                 end
+            end
+            if waitBlinkActive
+                this.setReadyCueColorSafe_(readyCueDot, readyCueBaseColor);
             end
         end
         function stable = Middle_StableChoice_StartTrial(this, checkDelay)
@@ -1702,6 +1743,31 @@ classdef BehaviorBoxNose < handle
             end
             if ~isfinite(delay) || delay < 0
                 delay = 0;
+            end
+        end
+        function enabled = waitBlinkEnabled_(this)
+            enabled = false;
+            try
+                enabled = isfield(this.Setting_Struct, 'Wait_Blink') && ...
+                    ~isempty(this.Setting_Struct.Wait_Blink) && ...
+                    logical(this.Setting_Struct.Wait_Blink);
+            catch
+                enabled = false;
+            end
+        end
+        function setReadyCueColorSafe_(~, readyCueDot, color)
+            try
+                readyCueDot = readyCueDot(isgraphics(readyCueDot));
+            catch
+                readyCueDot = gobjects(0);
+            end
+            if isempty(readyCueDot)
+                return
+            end
+            try
+                set(readyCueDot, 'MarkerFaceColor', color);
+                drawnow;
+            catch
             end
         end
         function lines = getStallBlinkLines_(this, lines)

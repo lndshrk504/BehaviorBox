@@ -97,23 +97,24 @@
 
 4. Files likely touched
 - `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxWheel.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/MockApp/MockArduino.m`
 - `/Users/willsnyder/Desktop/BehaviorBox/MockApp/testBehaviorBoxWheelConfirmChoiceGradient.m`
 - `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
 
 5. Validation commands
 - Static checks:
-  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); checkcode('BehaviorBoxWheel.m'); checkcode('MockApp/testBehaviorBoxWheelConfirmChoiceGradient.m');"`
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); checkcode('BehaviorBoxWheel.m'); checkcode('MockApp/MockArduino.m'); checkcode('MockApp/testBehaviorBoxWheelConfirmChoiceGradient.m');"`
 - Focused gradient helper test:
   `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('MockApp/testBehaviorBoxWheelConfirmChoiceGradient.m');"`
 - Existing Wheel save/display smoke:
   `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('MockApp/testBehaviorBoxWheelSaveStatus.m');"`
 - Conflict marker scan:
-  `rg -n "^<<<<<<<|^=======|^>>>>>>>" BehaviorBoxWheel.m MockApp/testBehaviorBoxWheelConfirmChoiceGradient.m .agent/PLANS.md`
+  `rg -n "^<<<<<<<|^=======|^>>>>>>>" BehaviorBoxWheel.m MockApp/MockArduino.m MockApp/testBehaviorBoxWheelConfirmChoiceGradient.m .agent/PLANS.md`
 
 6. Milestones
 - Add small helper methods for `ConfirmChoice` gating, correct-direction progress, color interpolation, and safe line color setting.
 - Patch Wheel response and OnlyCorrect loops so contour color follows current correct-choice progress and stall blink restores that color.
-- Add a focused MATLAB smoke test for left/right progress, wrong-direction baseline behavior, color interpolation, and `ConfirmChoice` gating.
+- Add a focused MATLAB smoke test with a scripted mock wheel encoder for left/right progress, wrong-direction baseline behavior, color interpolation, and `ConfirmChoice` gating.
 - Run focused MATLAB validation and inspect the final diff.
 
 7. Risks and stop conditions
@@ -1662,3 +1663,43 @@
 
 8. Handoff notes
 - Report changed source files and note that no runtime validation was run because no executable logic changed.
+
+## 2026-04-16 Add Nose Wait Blink Setting
+
+1. Goal
+- Add optional ready-cue idle blinking during `BehaviorBoxNose.WaitForInputArduino`.
+- Use existing `Setting_Struct.Wait_Blink` and `Setting_Struct.Wait_Blink_Sec` values when present.
+
+2. Non-goals
+- Do not change Wheel behavior.
+- Do not change Arduino serial protocol, sensor pin mapping, or reward timing.
+- Do not change saved data schema or numerical analysis outputs.
+
+3. Current-state summary
+- `WaitForInput` dispatches to `WaitForInputArduino` for NosePoke Arduino input.
+- `WaitForInputArduino` waits for left/right sensors to clear, handles intertrial malingering, then accepts a stable middle sensor through `Middle_StableChoice_StartTrial`.
+- `ReadNone()` is intentionally inverted for nose input and returns true when any sensor token is active.
+- Existing stall blink behavior is a short nonblocking dim-to-base color blink.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxNose.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/fcns/MockBehaviorBoxNoseWaitBlink.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/fcns/testBehaviorBoxNoseWaitBlink.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- Static checks:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); checkcode('BehaviorBoxNose.m'); checkcode('fcns/MockBehaviorBoxNoseWaitBlink.m'); checkcode('fcns/testBehaviorBoxNoseWaitBlink.m');"`
+- Focused wait-blink smoke:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('fcns/testBehaviorBoxNoseWaitBlink.m');"`
+- Conflict marker scan:
+  `rg -n "^<<<<<<<|^=======|^>>>>>>>" BehaviorBoxNose.m fcns/MockBehaviorBoxNoseWaitBlink.m fcns/testBehaviorBoxNoseWaitBlink.m .agent/PLANS.md`
+
+6. Milestones
+- Patch `WaitForInputArduino` with the idle timer and short ready cue blink.
+- Add a focused headless MATLAB smoke script for enabled/disabled blink behavior.
+- Run focused MATLAB validation and inspect the final diff.
+
+7. Risks and stop conditions
+- Stop if App Designer field names differ from `Wait_Blink` or `Wait_Blink_Sec`.
+- Hardware-in-the-loop Nose session start/stop/save remains unverified unless bench hardware is available.
