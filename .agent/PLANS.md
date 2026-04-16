@@ -28,6 +28,51 @@
     - stop if MATLAB and Python disagree on shapes, dtypes, indexing, or file schema
 - stop if a change would silently alter saved `.mat`, `.h5`, `.json`, or `.csv` outputs without an explicit migration note
 
+## 2026-04-16 Cap Random Same-Side Correct Streaks
+
+1. Goal
+- Add `Same_Side_Max` handling to `PickSideForCorrect` in `BehaviorBoxNose.m` and `BehaviorBoxWheel.m`.
+- In random side mode (`StimulusStruct.side == 1`), prevent a newly randomized side from extending a trailing same-correct-side streak beyond `Same_Side_Max`.
+- Preserve repeat-wrong precedence when the previous trial was wrong.
+
+2. Non-goals
+- Do not change GUI layout, saved field names, scoring codes, reward timing, Arduino protocols, forced-side modes, keyboard/manual mode, or explicit repeat-wrong mode.
+- Do not refactor shared Nose/Wheel code beyond the minimal duplicated helper logic already present in these classes.
+
+3. Current-state summary
+- `BeforeTrial()` calls `PickSideForCorrect()` in both root-level MATLAB classdefs before stimulus display.
+- `BehaviorBoxData.AddData()` stores `Score` and `isLeftTrial` in `current_data_struct`, which is the history source for this cap.
+- `PickSideForCorrect()` already uses `lastScoreWasWrong_()` to decide whether repeat-wrong should preserve the previous correct side.
+- No relevant `+pkg`, `@Class`, or `private/` dispatch path was found. `startup.m` is minimal.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxNose.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxWheel.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/fcns/testPickSideForCorrect.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- Static checks:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); checkcode('BehaviorBoxNose.m'); checkcode('BehaviorBoxWheel.m'); checkcode('fcns/testPickSideForCorrect.m');"`
+- Focused smoke test:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('fcns/testPickSideForCorrect.m');"`
+- Conflict marker scan:
+  `rg -n "^<<<<<<<|^=======|^>>>>>>>" BehaviorBoxNose.m BehaviorBoxWheel.m fcns/testPickSideForCorrect.m .agent/PLANS.md`
+
+6. Milestones
+- Patch random side selection in Nose and Wheel with a `Same_Side_Max` helper that counts trailing trials where `Score == 1` and `isLeftTrial` matches.
+- Keep repeat-wrong preservation for previous wrong trials ahead of the new cap.
+- Add deterministic focused tests for left and right streak caps, below-threshold behavior, and repeat-wrong precedence.
+- Run MATLAB validation and inspect the final diff.
+
+7. Risks and stop conditions
+- Stop if implementing the cap requires changing saved `.mat` schema or historical data conversion.
+- Stop if the current data history lacks `Score` or `isLeftTrial` in live runtime paths.
+
+8. Handoff notes
+- Expected invariant outputs: saved field names, `CodedChoice` mappings, forced-side behavior, explicit repeat-wrong behavior after wrong trials, reward behavior, and GUI setting names.
+- Intentional behavior change: in random mode only, future saved `isLeftTrial` sequences can differ from raw RNG when the proposed random side would extend a trailing same-side correct streak beyond `Same_Side_Max`.
+
 ## 2026-04-15 Add Nose Reward Hold Gate
 
 1. Goal

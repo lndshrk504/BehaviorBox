@@ -770,6 +770,12 @@ classdef BehaviorBoxNose < handle
                 repeat_wrong = logical(this.Setting_Struct.Repeat_wrong);
             end
             switch this.StimulusStruct.side
+                case 1 % Random, with optional same-side cap.
+                    if repeat_wrong && this.i > 1 && this.lastScoreWasWrong_()
+                        isLeftTrial = this.pickRepeatWrongSide_(isLeftTrial);
+                    else
+                        isLeftTrial = this.pickCappedRandomTrialSide_();
+                    end
                 case 2 %all left
                     isLeftTrial = 1;
                 case 3 %all right
@@ -789,6 +795,72 @@ classdef BehaviorBoxNose < handle
         end
         function isLeftTrial = randomTrialSide_(~)
             isLeftTrial = randi([0 1]);
+        end
+        function isLeftTrial = pickCappedRandomTrialSide_(this)
+            isLeftTrial = this.randomTrialSide_();
+            maxSameSide = this.sameSideMax_();
+            if isempty(maxSameSide)
+                return
+            end
+
+            [previousSide, sameCorrectCount] = this.trailingCorrectSideStreak_();
+            if sameCorrectCount >= maxSameSide && isLeftTrial == previousSide
+                isLeftTrial = double(~logical(previousSide));
+            end
+        end
+        function maxSameSide = sameSideMax_(this)
+            maxSameSide = [];
+            if ~isstruct(this.Setting_Struct) || ~isfield(this.Setting_Struct, 'Same_Side_Max')
+                return
+            end
+
+            value = this.Setting_Struct(1).Same_Side_Max;
+            if iscell(value)
+                if isempty(value)
+                    return
+                end
+                value = value{1};
+            end
+            if isstring(value) || ischar(value)
+                value = str2double(value);
+            elseif islogical(value)
+                value = double(value);
+            end
+            if ~isnumeric(value) || isempty(value)
+                return
+            end
+
+            value = double(value(1));
+            if ~isfinite(value) || value < 1
+                return
+            end
+            maxSameSide = floor(value);
+        end
+        function [side, count] = trailingCorrectSideStreak_(this)
+            side = NaN;
+            count = 0;
+            scores = this.currentDataVector_("Score");
+            sides = this.currentDataVector_("isLeftTrial");
+            n = min(numel(scores), numel(sides));
+            if n == 0
+                return
+            end
+
+            scores = scores((numel(scores) - n + 1):end);
+            sides = sides((numel(sides) - n + 1):end);
+            side = sides(end);
+            if scores(end) ~= 1 || ~(side == 0 || side == 1)
+                side = NaN;
+                return
+            end
+
+            for idx = n:-1:1
+                if scores(idx) == 1 && sides(idx) == side
+                    count = count + 1;
+                else
+                    break
+                end
+            end
         end
         function isLeftTrial = pickRepeatWrongSide_(this, isLeftTrial)
             if this.lastScoreWasWrong_()
