@@ -494,7 +494,9 @@ classdef BehaviorBoxNose < handle
             else
                 this.Level = this.Setting_Struct.Starting_opacity;
             end
-            if isvalid(this.fig)
+            if this.shouldReusePreviousStimulus_()
+                this.StimHistory(this.i,:) = this.StimHistory(this.i-1,:);
+            elseif isvalid(this.fig)
                 [this.StimHistory{this.i,1},this.StimHistory{this.i,2}] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, this.Level); %Plot new stimulus as hidden objects, record positions and angles of the segments
             else
                 [this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.Stimulus_Object.setUpFigure();
@@ -867,6 +869,45 @@ classdef BehaviorBoxNose < handle
                 isLeftTrial = double(logical(isLeftTrial));
             else
                 isLeftTrial = this.randomTrialSide_();
+            end
+        end
+        function tf = shouldReusePreviousStimulus_(this)
+            tf = this.repeatWrongTriggered_() && this.previousStimulusAvailable_();
+        end
+        function tf = repeatWrongTriggered_(this)
+            tf = false;
+            if this.i <= 1 || ~this.lastScoreWasWrong_()
+                return
+            end
+
+            repeat_wrong = false;
+            if isfield(this.Setting_Struct, 'Repeat_wrong') && ~isempty(this.Setting_Struct.Repeat_wrong)
+                repeat_wrong = logical(this.Setting_Struct.Repeat_wrong);
+            end
+            switch this.StimulusStruct.side
+                case 5
+                    tf = true;
+                case 1
+                    tf = repeat_wrong;
+                otherwise
+                    tf = repeat_wrong && ~any(this.StimulusStruct.side == [2, 3, 4]);
+            end
+        end
+        function tf = previousStimulusAvailable_(this)
+            tf = false;
+            if this.i <= 1 || size(this.StimHistory, 1) < this.i - 1
+                return
+            end
+            if isempty(this.StimHistory{this.i-1,1}) && isempty(this.StimHistory{this.i-1,2})
+                return
+            end
+            try
+                if isempty(this.fig) || ~isvalid(this.fig)
+                    return
+                end
+                tf = ~isempty(findobj(this.fig, 'Tag', 'Contour')) || ~isempty(findobj(this.fig, 'Tag', 'Distractor'));
+            catch
+                tf = false;
             end
         end
         function isLeftTrial = pickManualTrialSide_(this)

@@ -3,6 +3,7 @@ repoRoot = fileparts(scriptDir);
 addpath(fullfile(repoRoot, 'MockApp'));
 cd(repoRoot);
 run('startup.m');
+cleanupRepeatWrongFigures = onCleanup(@() close(findall(0, 'Type', 'figure', 'Name', 'RepeatWrongStimulusTest')));
 
 rng(7, 'twister');
 
@@ -110,6 +111,22 @@ function exercisePickSide(workflow, label)
     workflow.Data_Object.current_data_struct.Score = [1 0];
     workflow.Data_Object.current_data_struct.isLeftTrial = [0 1];
     assert(workflow.PickSideForCorrect(1, []) == 1, label + " global Repeat_wrong should preserve previous side after wrong.");
+    configureReusableStimulus(workflow);
+    assert(workflow.repeatWrongTriggered_(), label + " repeat-wrong should be marked triggered after a wrong response.");
+    assert(workflow.shouldReusePreviousStimulus_(), label + " repeat-wrong should reuse the previous drawn stimulus when handles and history exist.");
+
+    workflow.Data_Object.current_data_struct.Score = [1 1];
+    assert(~workflow.repeatWrongTriggered_(), label + " repeat-wrong should not trigger after a correct response.");
+    assert(~workflow.shouldReusePreviousStimulus_(), label + " stimulus should not be reused after a correct response.");
+
+    workflow.Data_Object.current_data_struct.Score = [1 0];
+    workflow.StimulusStruct.side = 2;
+    assert(~workflow.repeatWrongTriggered_(), label + " forced-left mode should not use repeat-wrong stimulus reuse.");
+
+    workflow.StimulusStruct.side = 5;
+    workflow.StimHistory(workflow.i-1,:) = {[], []};
+    assert(workflow.repeatWrongTriggered_(), label + " repeat-wrong side mode should trigger after a wrong response.");
+    assert(~workflow.shouldReusePreviousStimulus_(), label + " repeat-wrong should redraw when no previous stimulus history exists.");
 
     workflow.Data_Object.current_data_struct.CodedChoice = [1 3 1 2];
     SB = workflow.currentResponseSideBias_();
@@ -129,6 +146,18 @@ function exercisePickSide(workflow, label)
 
     workflow.Data_Object.current_data_struct.CodedChoice = [5 6];
     assert(workflow.currentResponseSideBias_() == 0, label + " timeout-only data should not imply side bias.");
+end
+
+function configureReusableStimulus(workflow)
+    workflow.i = 2;
+    workflow.StimHistory{1,1} = [1 2 90];
+    workflow.StimHistory{1,2} = [3 4 45];
+    if ~isempty(workflow.fig) && isvalid(workflow.fig)
+        close(workflow.fig);
+    end
+    workflow.fig = figure('Visible', 'off', 'Name', 'RepeatWrongStimulusTest');
+    ax = axes('Parent', workflow.fig);
+    line(ax, [0 1], [0 1], 'Tag', 'Contour');
 end
 
 function setRngForRandomSide(workflow, desiredSide)
