@@ -28,6 +28,62 @@
     - stop if MATLAB and Python disagree on shapes, dtypes, indexing, or file schema
 - stop if a change would silently alter saved `.mat`, `.h5`, `.json`, or `.csv` outputs without an explicit migration note
 
+## 2026-04-16 Production DLC Eye Tracking Framework
+
+1. Goal
+- Implement the production DeepLabCut Live -> ZeroMQ -> MATLAB eye-tracking framework specified in `Next Steps/DLC_EyeTracking_MATLAB_Framework_Contract.md`.
+- Preserve every post-DLC output sample in MATLAB, timestamp samples in the BehaviorBox session clock, save a dense `EyeTrackingRecord`, and derive eye columns for `FrameAlignedRecord` and `WheelDisplayRecord`.
+- Keep FLIR pre-DLC frame dropping allowed, but detect and report any missing post-DLC `frame_id` in MATLAB.
+
+2. Non-goals
+- Do not change model training, DLC point order, reward logic, Nose workflows, Arduino protocols, GUI layout, or legacy iRecHS2 code.
+- Do not make the optional `interval_summary` alignment canonical; implement it for comparison while keeping `previous` as the default.
+- Do not remove the Python CSV sidecar during rollout.
+
+3. Current-state summary
+- `dlc_eye_streamer.py` publishes one JSON sample per DLC output and writes a CSV, but lacks `message_type`, schema metadata, startup metadata, coordinate-frame metadata, and sufficient send buffering.
+- `matlab_zmq_bridge.py` exposes latest-only receive helpers and discards queued messages by design.
+- `BehaviorBoxEyeTrack.m` currently receives only the latest JSON message, appends rows directly to a MATLAB table, still has the `RVupil` typo, and does not implement readiness, stale detection, frame-ID continuity, chunked storage, or final drain semantics.
+- `BehaviorBoxWheel.m` creates and saves `BehaviorBoxEyeTrack`, but eye columns in derived records are placeholders and no dense-eye alignment helper is wired into save/frame records.
+
+4. Files likely touched
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/DeepLabCut/ToMatlab/dlc_eye_streamer.py`
+- `/home/wbs/Desktop/BehaviorBox/EyeTrack/DeepLabCut/ToMatlab/matlab_zmq_bridge.py`
+- `/home/wbs/Desktop/BehaviorBox/BehaviorBoxEyeTrack.m`
+- `/home/wbs/Desktop/BehaviorBox/BehaviorBoxWheel.m`
+- `/home/wbs/Desktop/BehaviorBox/fcns/testBehaviorBoxEyeTrack.m`
+- `/home/wbs/Desktop/BehaviorBox/MockApp/testBehaviorBoxWheelSaveStatus.m`
+- `/home/wbs/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- Python static checks:
+  `/home/wbs/miniforge3/envs/dlclivegui/bin/python -m py_compile dlc_eye_streamer.py matlab_zmq_bridge.py`
+- MATLAB static checks:
+  `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); checkcode('BehaviorBoxEyeTrack.m'); checkcode('BehaviorBoxWheel.m'); checkcode('fcns/testBehaviorBoxEyeTrack.m'); checkcode('MockApp/testBehaviorBoxWheelSaveStatus.m');"`
+- MATLAB focused receiver test:
+  `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('fcns/testBehaviorBoxEyeTrack.m');"`
+- MATLAB save/integration smoke:
+  `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('MockApp/testBehaviorBoxWheelSaveStatus.m');"`
+- Conflict marker scan:
+  `rg -n "^<<<<<<<|^=======|^>>>>>>>" BehaviorBoxEyeTrack.m BehaviorBoxWheel.m fcns/testBehaviorBoxEyeTrack.m MockApp/testBehaviorBoxWheelSaveStatus.m EyeTrack/DeepLabCut/ToMatlab/dlc_eye_streamer.py EyeTrack/DeepLabCut/ToMatlab/matlab_zmq_bridge.py`
+
+6. Milestones
+- Update Python payload, CSV metadata, schema/message types, and coordinate-frame handling.
+- Add all-queued-message receive support in the MATLAB bridge.
+- Rework `BehaviorBoxEyeTrack` around drain-all receive, readiness, stale detection, frame-ID continuity, chunked column storage, final drain, and final record assembly.
+- Add a shared eye-alignment helper with `previous` and optional `interval_summary` modes.
+- Wire final drain/save and derived joins into `BehaviorBoxWheel`.
+- Update focused tests and run Python/MATLAB validation.
+
+7. Risks and stop conditions
+- Stop if MATLAB and Python disagree on JSON field names, timestamp types, point names, point shapes, or coordinate-frame semantics.
+- Stop if a lossless post-DLC transport cannot be verified without changing the contract from PUB/SUB to PUSH/PULL.
+- Stop if frame-aligned or display-record schema changes would break current save tests without explicit test updates documenting the new schema.
+
+8. Handoff notes
+- Intentional saved-schema changes: `EyeTrackingRecord` columns are renamed and expanded; `FrameAlignedRecord` and saved `WheelDisplayRecord` receive derived eye columns; `EyeTrackingMeta` gains readiness, stale, CSV, model, camera, and continuity metadata.
+- Expected invariants: behavior training proceeds if eye tracking is absent, FLIR frames may be dropped before DLC, DLC point order remains YangLab pupil8, and `previous` alignment remains default.
+
 ## 2026-04-16 Reuse Stimulus On Repeat Wrong
 
 1. Goal

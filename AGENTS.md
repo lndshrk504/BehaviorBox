@@ -14,6 +14,13 @@ Python is secondary in this repo. Treat `DLC/ToMatlab/` and `DLC/Tests/` as the 
 - Never install packages, change environments, edit large data artifacts, or rewrite directory layouts unless explicitly asked.
 - End every task with: changed files, validation run, remaining risks, next best step.
 
+## Patch Tool Path Discipline
+Before the first `apply_patch` call in a task, or whenever the working directory is ambiguous, confirm the current working directory and target file with `pwd` and `rg --files` or `ls`. In `*** Update File:`, `*** Add File:`, and `*** Delete File:` lines, use a path that is either relative to that current working directory or a true absolute path beginning with `/`.
+
+Do not use patch filenames such as `home/wbs/Desktop/...`; without the leading slash, the patch tool treats that as relative and duplicates it under the current directory. Do not paste markdown link targets or display-only file references into patch headers. If the session is already inside `EyeTrack/DeepLabCut/ToMatlab`, patch files there as `dlc_eye_streamer.py`, `matlab_zmq_bridge.py`, or `./<name>`, not as `home/wbs/Desktop/BehaviorBox/...`.
+
+Keep patches small and anchored on recently read context. If `apply_patch` reports "Failed to find expected lines", reread the target section and retry with a narrower hunk instead of resubmitting the same patch.
+
 ## Sub-Agent Settings
 - Use `gpt-5.4` with `xhigh` reasoning for sub-agents by default, including `explorer`, `reviewer`, `worker`, and any generic/default sub-agent.
 

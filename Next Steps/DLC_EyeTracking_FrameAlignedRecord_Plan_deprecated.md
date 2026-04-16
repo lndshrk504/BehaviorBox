@@ -1,3 +1,7 @@
+# DEPRECATED: Superseded Eye Tracking Plan
+
+This is an old plan and is deprecated. Use `DLC_EyeTracking_MATLAB_Framework_Contract.md` as the current implementation contract.
+
 # DLC Eye Tracking Integration Plan For FrameAlignedRecord
 
 Date: 2026-03-30
