@@ -1,6 +1,6 @@
 classdef BehaviorBoxWheel < handle
     %BehaviorBox Super class
-    % WBS 10 . 10 . 2024
+    % WBS 4 . 15 . 2026
     %====================================================================
     %Super Class for BehaviorBox Ver 1.4
     %This Class is called by the GUI BehaviorBox via RunTraining()and runs the Training
