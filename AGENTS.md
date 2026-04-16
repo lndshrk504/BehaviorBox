@@ -14,6 +14,9 @@ Python is secondary in this repo. Treat `DLC/ToMatlab/` and `DLC/Tests/` as the 
 - Never install packages, change environments, edit large data artifacts, or rewrite directory layouts unless explicitly asked.
 - End every task with: changed files, validation run, remaining risks, next best step.
 
+## Sub-Agent Settings
+- Use `gpt-5.4` with `xhigh` reasoning for sub-agents by default, including `explorer`, `reviewer`, `worker`, and any generic/default sub-agent.
+
 ## Mandatory Skill Usage
 - If you edit `.m` files, `classdef` files, package folders, MATLAB scripts, or MATLAB tests, use `$matlab-change-verification`.
 - If you touch both MATLAB and Python, any `py.` bridge in MATLAB, any `matlab.engine` usage in Python, or any `.mat` / HDF5 interchange, use `$matlab-python-interop`.

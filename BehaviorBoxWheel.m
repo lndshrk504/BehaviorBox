@@ -536,7 +536,9 @@ classdef BehaviorBoxWheel < handle
             else
                 this.Level = this.Setting_Struct.Starting_opacity;
             end
-            if isvalid(this.fig)
+            if this.shouldReusePreviousStimulus_()
+                this.StimHistory(this.i,:) = this.StimHistory(this.i-1,:);
+            elseif isvalid(this.fig)
                 [this.StimHistory{this.i,1},this.StimHistory{this.i,2}] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, this.Level); %Plot new stimulus as hidden objects, record positions and angles of the segments
             else
                 [this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.Stimulus_Object.setUpFigure();
@@ -804,6 +806,12 @@ classdef BehaviorBoxWheel < handle
                 repeat_wrong = logical(this.Setting_Struct.Repeat_wrong);
             end
             switch this.StimulusStruct.side
+                case 1 % Random, with optional same-side cap.
+                    if repeat_wrong && this.i > 1 && this.lastScoreWasWrong_()
+                        isLeftTrial = this.pickRepeatWrongSide_(isLeftTrial);
+                    else
+                        isLeftTrial = this.pickCappedRandomTrialSide_();
+                    end
                 case 2 %all left
                     isLeftTrial = 1;
                 case 3 %all right
@@ -824,11 +832,116 @@ classdef BehaviorBoxWheel < handle
         function isLeftTrial = randomTrialSide_(~)
             isLeftTrial = randi([0 1]);
         end
+        function isLeftTrial = pickCappedRandomTrialSide_(this)
+            isLeftTrial = this.randomTrialSide_();
+            maxSameSide = this.sameSideMax_();
+            if isempty(maxSameSide)
+                return
+            end
+
+            [previousSide, sameCorrectCount] = this.trailingCorrectSideStreak_();
+            if sameCorrectCount >= maxSameSide && isLeftTrial == previousSide
+                isLeftTrial = double(~logical(previousSide));
+            end
+        end
+        function maxSameSide = sameSideMax_(this)
+            maxSameSide = [];
+            if ~isstruct(this.Setting_Struct) || ~isfield(this.Setting_Struct, 'Same_Side_Max')
+                return
+            end
+
+            value = this.Setting_Struct(1).Same_Side_Max;
+            if iscell(value)
+                if isempty(value)
+                    return
+                end
+                value = value{1};
+            end
+            if isstring(value) || ischar(value)
+                value = str2double(value);
+            elseif islogical(value)
+                value = double(value);
+            end
+            if ~isnumeric(value) || isempty(value)
+                return
+            end
+
+            value = double(value(1));
+            if ~isfinite(value) || value < 1
+                return
+            end
+            maxSameSide = floor(value);
+        end
+        function [side, count] = trailingCorrectSideStreak_(this)
+            side = NaN;
+            count = 0;
+            scores = this.currentDataVector_("Score");
+            sides = this.currentDataVector_("isLeftTrial");
+            n = min(numel(scores), numel(sides));
+            if n == 0
+                return
+            end
+
+            scores = scores((numel(scores) - n + 1):end);
+            sides = sides((numel(sides) - n + 1):end);
+            side = sides(end);
+            if scores(end) ~= 1 || ~(side == 0 || side == 1)
+                side = NaN;
+                return
+            end
+
+            for idx = n:-1:1
+                if scores(idx) == 1 && sides(idx) == side
+                    count = count + 1;
+                else
+                    break
+                end
+            end
+        end
         function isLeftTrial = pickRepeatWrongSide_(this, isLeftTrial)
             if this.lastScoreWasWrong_()
                 isLeftTrial = double(logical(isLeftTrial));
             else
                 isLeftTrial = this.randomTrialSide_();
+            end
+        end
+        function tf = shouldReusePreviousStimulus_(this)
+            tf = this.repeatWrongTriggered_() && this.previousStimulusAvailable_();
+        end
+        function tf = repeatWrongTriggered_(this)
+            tf = false;
+            if this.i <= 1 || ~this.lastScoreWasWrong_()
+                return
+            end
+
+            repeat_wrong = false;
+            if isfield(this.Setting_Struct, 'Repeat_wrong') && ~isempty(this.Setting_Struct.Repeat_wrong)
+                repeat_wrong = logical(this.Setting_Struct.Repeat_wrong);
+            end
+            switch this.StimulusStruct.side
+                case 5
+                    tf = true;
+                case 1
+                    tf = repeat_wrong;
+                otherwise
+                    tf = repeat_wrong && ~any(this.StimulusStruct.side == [2, 3, 4]);
+            end
+        end
+        function tf = previousStimulusAvailable_(this)
+            tf = false;
+            if this.i <= 1 || size(this.StimHistory, 1) < this.i - 1
+                return
+            end
+            if isempty(this.StimHistory{this.i-1,1}) && isempty(this.StimHistory{this.i-1,2})
+                return
+            end
+            try
+                if isempty(this.fig) || ~isvalid(this.fig)
+                    return
+                end
+                tf = ~isempty(findobj(this.fig, 'Tag', 'Contour')) || ~isempty(findobj(this.fig, 'Tag', 'Distractor'));
+            catch
+                tf = false;
             end
         end
         function isLeftTrial = pickManualTrialSide_(this)
@@ -1374,14 +1487,18 @@ classdef BehaviorBoxWheel < handle
             stallTol = 0; % pulses
             lastDist = NaN;
             tLastMove = 0;
-            didStallBlink = false;
             blinkActive = false;
             blinkT0 = 0;
             blinkDur = 0.10;
 
-            Lines = [findobj('Tag', 'Contour') ; findobj('Tag', 'Distractor')];
+            contourLines = findobj('Tag', 'Contour');
+            distractorLines = findobj('Tag', 'Distractor');
+            [contourLines, distractorLines, ~] = this.refreshWheelStimLineHandles_(contourLines, distractorLines);
             baseColor = this.StimulusStruct.LineColor;
+            flashColor = this.StimulusStruct.FlashColor;
             dimColor  = this.StimulusStruct.DimColor;
+            confirmChoice = this.wheelConfirmChoiceEnabled_();
+            appliedContourColor = [NaN NaN NaN];
             pendingScreenEvent = "";
             this.CurrentStimColor = this.colorScalar_(baseColor);
 
@@ -1403,55 +1520,6 @@ classdef BehaviorBoxWheel < handle
                 end
                 tNow = toc(tLoop);
 
-                % Stall detection (reset on movement)
-                if isnan(lastDist) || abs(dist - lastDist) > stallTol
-                    lastDist = dist;
-                    tLastMove = tNow;
-                    didStallBlink = false;
-                    if blinkActive
-                        if isempty(Lines) || any(~isgraphics(Lines))
-                            Lines = [findobj('Tag','Contour') ; findobj('Tag','Distractor')];
-                        end
-                        try
-                            [Lines(:).Color] = deal(baseColor);
-                        catch
-                            set(Lines,'Color',baseColor);
-                        end
-                        blinkActive = false;
-                        pendingScreenEvent = "stallblink_end";
-                        this.CurrentStimColor = this.colorScalar_(baseColor);
-                    end
-                elseif ~blinkActive && (tNow - tLastMove) >= stallSec
-                    if isempty(Lines) || any(~isgraphics(Lines))
-                        Lines = [findobj('Tag','Contour') ; findobj('Tag','Distractor')];
-                    end
-                    try
-                        [Lines(:).Color] = deal(dimColor);
-                    catch
-                        set(Lines,'Color',dimColor);
-                    end
-                    blinkActive = true;
-                    blinkT0 = tNow;
-                    didStallBlink = true;
-                    pendingScreenEvent = "stallblink_start";
-                    this.CurrentStimColor = this.colorScalar_(dimColor);
-                end
-
-                if blinkActive && (tNow - blinkT0) >= blinkDur
-                    if isempty(Lines) || any(~isgraphics(Lines))
-                        Lines = [findobj('Tag','Contour') ; findobj('Tag','Distractor')];
-                    end
-                    try
-                        [Lines(:).Color] = deal(baseColor);
-                    catch
-                        set(Lines,'Color',baseColor);
-                    end
-                    blinkActive = false;
-                    tLastMove = tNow;
-                    pendingScreenEvent = "stallblink_end";
-                    this.CurrentStimColor = this.colorScalar_(baseColor);
-                end
-
                 % dist -> delta
                 delta = dist * k;
 
@@ -1466,6 +1534,66 @@ classdef BehaviorBoxWheel < handle
                 end
                 this.CurrentRawWheel = double(dist);
                 this.CurrentDelta = double(delta);
+                gradientColor = this.wheelConfirmChoiceColor_(delta, thresh, baseColor, flashColor);
+
+                % Stall detection (reset on movement)
+                if isnan(lastDist) || abs(dist - lastDist) > stallTol
+                    lastDist = dist;
+                    tLastMove = tNow;
+                    if blinkActive
+                        [contourLines, distractorLines, Lines] = this.refreshWheelStimLineHandles_(contourLines, distractorLines);
+                        if confirmChoice
+                            this.setLineColorSafe_(contourLines, gradientColor);
+                            this.setLineColorSafe_(distractorLines, baseColor);
+                            appliedContourColor = gradientColor;
+                            this.CurrentStimColor = this.colorScalar_(gradientColor);
+                        else
+                            this.setLineColorSafe_(Lines, baseColor);
+                            this.CurrentStimColor = this.colorScalar_(baseColor);
+                        end
+                        blinkActive = false;
+                        pendingScreenEvent = "stallblink_end";
+                    end
+                elseif ~blinkActive && (tNow - tLastMove) >= stallSec
+                    [contourLines, distractorLines, Lines] = this.refreshWheelStimLineHandles_(contourLines, distractorLines);
+                    this.setLineColorSafe_(Lines, dimColor);
+                    blinkActive = true;
+                    blinkT0 = tNow;
+                    pendingScreenEvent = "stallblink_start";
+                    this.CurrentStimColor = this.colorScalar_(dimColor);
+                    appliedContourColor = [NaN NaN NaN];
+                end
+
+                if blinkActive && (tNow - blinkT0) >= blinkDur
+                    [contourLines, distractorLines, Lines] = this.refreshWheelStimLineHandles_(contourLines, distractorLines);
+                    if confirmChoice
+                        this.setLineColorSafe_(contourLines, gradientColor);
+                        this.setLineColorSafe_(distractorLines, baseColor);
+                        appliedContourColor = gradientColor;
+                        this.CurrentStimColor = this.colorScalar_(gradientColor);
+                    else
+                        this.setLineColorSafe_(Lines, baseColor);
+                        this.CurrentStimColor = this.colorScalar_(baseColor);
+                    end
+                    blinkActive = false;
+                    tLastMove = tNow;
+                    pendingScreenEvent = "stallblink_end";
+                end
+
+                if confirmChoice && ~blinkActive
+                    [contourLines, distractorLines, ~] = this.refreshWheelStimLineHandles_(contourLines, distractorLines);
+                    if ~isempty(contourLines)
+                        if any(~isfinite(appliedContourColor)) || any(abs(appliedContourColor - gradientColor) > 1e-6)
+                            this.setLineColorSafe_(contourLines, gradientColor);
+                            appliedContourColor = gradientColor;
+                        end
+                        this.CurrentStimColor = this.colorScalar_(gradientColor);
+                    else
+                        this.CurrentStimColor = this.colorScalar_(baseColor);
+                    end
+                elseif ~blinkActive
+                    this.CurrentStimColor = this.colorScalar_(baseColor);
+                end
 
                 % Trace
                 I = I+1;
@@ -1583,6 +1711,7 @@ classdef BehaviorBoxWheel < handle
                 blinkT0 = 0;
                 tLastDraw = -Inf;
                 pendingScreenEvent = "";
+                appliedContourColor = [NaN NaN NaN];
                 this.CurrentStimColor = this.colorScalar_(baseColor);
 
                 % Acceptance thresholds (match legacy 0.24/0.26 with a ratio)
@@ -1601,59 +1730,72 @@ classdef BehaviorBoxWheel < handle
                     tNowOC = toc(tLoopOC);
                     tNowTotal = Old_response_time + tNowOC;
 
-                    % Stall detection (same as phase 1)
-                    if isnan(lastDist) || abs(dist - lastDist) > stallTol
-                        lastDist = dist;
-                        tLastMove = tNowOC;
-                        didStallBlink = false;
-                        if blinkActive
-                            if isempty(Lines) || any(~isgraphics(Lines))
-                                Lines = [findobj('Tag','Contour') ; findobj('Tag','Distractor')];
-                            end
-                            try
-                                Lines.Color = baseColor;
-                            catch
-                                set(Lines,'Color',baseColor);
-                            end
-                            blinkActive = false;
-                            pendingScreenEvent = "stallblink_end";
-                            this.CurrentStimColor = this.colorScalar_(baseColor);
-                        end
-                    elseif ~didStallBlink && (tNowOC - tLastMove) >= stallSec
-                        if isempty(Lines) || any(~isgraphics(Lines))
-                            Lines = [findobj('Tag','Contour') ; findobj('Tag','Distractor')];
-                        end
-                        try
-                            Lines.Color = dimColor;
-                        catch
-                            set(Lines,'Color',dimColor);
-                        end
-                        blinkActive = true;
-                        blinkT0 = tNowOC;
-                        didStallBlink = true;
-                        pendingScreenEvent = "stallblink_start";
-                        this.CurrentStimColor = this.colorScalar_(dimColor);
-                    end
-                    if blinkActive && (tNowOC - blinkT0) >= blinkDur
-                        if isempty(Lines) || any(~isgraphics(Lines))
-                            Lines = [findobj('Tag','Contour') ; findobj('Tag','Distractor')];
-                        end
-                        try
-                            Lines.Color = baseColor;
-                        catch
-                            set(Lines,'Color',baseColor);
-                        end
-                        blinkActive = false;
-                        pendingScreenEvent = "stallblink_end";
-                        this.CurrentStimColor = this.colorScalar_(baseColor);
-                    end
-
                     delta = dist * k;
                     if abs(delta) > thresh
                         delta = sign(delta) * thresh;
                     end
                     this.CurrentRawWheel = double(dist);
                     this.CurrentDelta = double(delta);
+                    gradientColor = this.wheelConfirmChoiceColor_(delta, thresh, baseColor, flashColor);
+
+                    % Stall detection (same as phase 1)
+                    if isnan(lastDist) || abs(dist - lastDist) > stallTol
+                        lastDist = dist;
+                        tLastMove = tNowOC;
+                        didStallBlink = false;
+                        if blinkActive
+                            [contourLines, distractorLines, Lines] = this.refreshWheelStimLineHandles_(contourLines, distractorLines);
+                            if confirmChoice
+                                this.setLineColorSafe_(contourLines, gradientColor);
+                                this.setLineColorSafe_(distractorLines, baseColor);
+                                appliedContourColor = gradientColor;
+                                this.CurrentStimColor = this.colorScalar_(gradientColor);
+                            else
+                                this.setLineColorSafe_(Lines, baseColor);
+                                this.CurrentStimColor = this.colorScalar_(baseColor);
+                            end
+                            blinkActive = false;
+                            pendingScreenEvent = "stallblink_end";
+                        end
+                    elseif ~didStallBlink && (tNowOC - tLastMove) >= stallSec
+                        [contourLines, distractorLines, Lines] = this.refreshWheelStimLineHandles_(contourLines, distractorLines);
+                        this.setLineColorSafe_(Lines, dimColor);
+                        blinkActive = true;
+                        blinkT0 = tNowOC;
+                        didStallBlink = true;
+                        pendingScreenEvent = "stallblink_start";
+                        this.CurrentStimColor = this.colorScalar_(dimColor);
+                        appliedContourColor = [NaN NaN NaN];
+                    end
+                    if blinkActive && (tNowOC - blinkT0) >= blinkDur
+                        [contourLines, distractorLines, Lines] = this.refreshWheelStimLineHandles_(contourLines, distractorLines);
+                        if confirmChoice
+                            this.setLineColorSafe_(contourLines, gradientColor);
+                            this.setLineColorSafe_(distractorLines, baseColor);
+                            appliedContourColor = gradientColor;
+                            this.CurrentStimColor = this.colorScalar_(gradientColor);
+                        else
+                            this.setLineColorSafe_(Lines, baseColor);
+                            this.CurrentStimColor = this.colorScalar_(baseColor);
+                        end
+                        blinkActive = false;
+                        pendingScreenEvent = "stallblink_end";
+                    end
+
+                    if confirmChoice && ~blinkActive
+                        [contourLines, distractorLines, ~] = this.refreshWheelStimLineHandles_(contourLines, distractorLines);
+                        if ~isempty(contourLines)
+                            if any(~isfinite(appliedContourColor)) || any(abs(appliedContourColor - gradientColor) > 1e-6)
+                                this.setLineColorSafe_(contourLines, gradientColor);
+                                appliedContourColor = gradientColor;
+                            end
+                            this.CurrentStimColor = this.colorScalar_(gradientColor);
+                        else
+                            this.CurrentStimColor = this.colorScalar_(baseColor);
+                        end
+                    elseif ~blinkActive
+                        this.CurrentStimColor = this.colorScalar_(baseColor);
+                    end
 
                     I = I+1;
                     if I > cap
@@ -1758,9 +1900,9 @@ classdef BehaviorBoxWheel < handle
 
             % Ensure we exit with baseline stimulus color (avoid leaving it dimmed)
             try
-                if ~isempty(Lines) && all(isgraphics(Lines))
-                    Lines.Color = baseColor;
-                end
+                [contourLines, distractorLines, Lines] = this.refreshWheelStimLineHandles_(contourLines, distractorLines);
+                this.setLineColorSafe_(Lines, baseColor);
+                this.CurrentStimColor = this.colorScalar_(baseColor);
             catch
             end
 
@@ -4435,6 +4577,150 @@ classdef BehaviorBoxWheel < handle
                 value = colorValue(1);
             catch
             end
+        end
+
+        function confirmChoice = wheelConfirmChoiceEnabled_(this)
+            confirmChoice = false;
+            try
+                if ~isstruct(this.Setting_Struct) || ~isfield(this.Setting_Struct, 'ConfirmChoice')
+                    return
+                end
+
+                value = this.Setting_Struct(1).ConfirmChoice;
+                if iscell(value)
+                    if isempty(value)
+                        return
+                    end
+                    value = value{1};
+                end
+                if isstring(value) || ischar(value)
+                    textValue = lower(strtrim(string(value)));
+                    if isempty(textValue)
+                        return
+                    end
+                    textValue = textValue(1);
+                    if any(textValue == ["true", "on", "yes"])
+                        confirmChoice = true;
+                        return
+                    elseif any(textValue == ["false", "off", "no"])
+                        return
+                    end
+                    value = str2double(textValue);
+                end
+                if islogical(value)
+                    confirmChoice = any(value(:));
+                elseif isnumeric(value) && ~isempty(value)
+                    value = double(value(1));
+                    confirmChoice = isfinite(value) && value ~= 0;
+                end
+            catch
+                confirmChoice = false;
+            end
+        end
+
+        function color = wheelConfirmChoiceColor_(this, delta, threshold, baseColor, flashColor)
+            progress = this.wheelCorrectChoiceProgress_(delta, threshold);
+            color = this.interpolateStimColor_(baseColor, flashColor, progress);
+        end
+
+        function progress = wheelCorrectChoiceProgress_(this, delta, threshold)
+            progress = 0;
+            try
+                threshold = abs(double(threshold));
+                delta = double(delta);
+                if isempty(threshold) || isempty(delta)
+                    return
+                end
+                threshold = threshold(1);
+                delta = delta(1);
+                if threshold <= 0 || ~isfinite(threshold) || ~isfinite(delta)
+                    return
+                end
+                if logical(this.isLeftTrial)
+                    signedDelta = delta;
+                else
+                    signedDelta = -delta;
+                end
+                progress = max(0, min(1, signedDelta / threshold));
+            catch
+                progress = 0;
+            end
+        end
+
+        function color = interpolateStimColor_(this, baseColor, flashColor, progress)
+            baseColor = this.normalizeStimColor_(baseColor);
+            flashColor = this.normalizeStimColor_(flashColor);
+            progress = double(progress);
+            if isempty(progress) || ~isfinite(progress)
+                progress = 0;
+            end
+            progress = max(0, min(1, progress(1)));
+            color = baseColor + progress .* (flashColor - baseColor);
+            color = max(0, min(1, color));
+        end
+
+        function color = normalizeStimColor_(~, colorValue)
+            color = [0 0 0];
+            try
+                if iscell(colorValue)
+                    if isempty(colorValue)
+                        return
+                    end
+                    colorValue = colorValue{1};
+                end
+                if ~isnumeric(colorValue) && ~islogical(colorValue)
+                    return
+                end
+                colorValue = double(colorValue);
+                if isempty(colorValue)
+                    return
+                end
+                if isscalar(colorValue)
+                    colorValue = repmat(colorValue, 1, 3);
+                else
+                    colorValue = colorValue(:)';
+                    if numel(colorValue) < 3
+                        colorValue = repmat(colorValue(1), 1, 3);
+                    else
+                        colorValue = colorValue(1:3);
+                    end
+                end
+                colorValue(~isfinite(colorValue)) = 0;
+                color = max(0, min(1, colorValue));
+            catch
+                color = [0 0 0];
+            end
+        end
+
+        function setLineColorSafe_(this, lines, color)
+            if isempty(lines)
+                return
+            end
+            lines = lines(isgraphics(lines));
+            if isempty(lines)
+                return
+            end
+            color = this.normalizeStimColor_(color);
+            try
+                [lines(:).Color] = deal(color);
+            catch
+                try
+                    set(lines, 'Color', color);
+                catch
+                end
+            end
+        end
+
+        function [contourLines, distractorLines, Lines] = refreshWheelStimLineHandles_(~, contourLines, distractorLines)
+            if nargin < 2 || isempty(contourLines) || any(~isgraphics(contourLines))
+                contourLines = findobj('Tag', 'Contour');
+            end
+            if nargin < 3 || isempty(distractorLines) || any(~isgraphics(distractorLines))
+                distractorLines = findobj('Tag', 'Distractor');
+            end
+            contourLines = contourLines(isgraphics(contourLines));
+            distractorLines = distractorLines(isgraphics(distractorLines));
+            Lines = [contourLines(:); distractorLines(:)];
         end
 
         function value = numericOrNaN_(this, numericValue)

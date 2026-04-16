@@ -3,6 +3,7 @@ repoRoot = fileparts(scriptDir);
 addpath(fullfile(repoRoot, 'MockApp'));
 cd(repoRoot);
 run('startup.m');
+cleanupRepeatWrongFigures = onCleanup(@() close(findall(0, 'Type', 'figure', 'Name', 'RepeatWrongStimulusTest')));
 
 rng(7, 'twister');
 
@@ -19,10 +20,11 @@ disp("BEHAVIORBOX_PICK_SIDE_FOR_CORRECT_OK");
 
 function workflow = configureWorkflow(workflow, app)
     workflow.message_handle = app.text1;
-    workflow.Setting_Struct = struct('Repeat_wrong', false);
+    workflow.Setting_Struct = struct('Repeat_wrong', false, 'Same_Side_Max', 4);
     workflow.StimulusStruct = struct('side', 1);
     workflow.Data_Object = struct('current_data_struct', struct( ...
         'Score', [], ...
+        'isLeftTrial', [], ...
         'CodedChoice', []));
     workflow.i = 2;
     workflow.current_side = "";
@@ -58,15 +60,73 @@ function exercisePickSide(workflow, label)
     workflow.StimulusStruct.side = 1;
     workflow.Setting_Struct.Repeat_wrong = false;
     workflow.Data_Object.current_data_struct.Score = 1;
+    workflow.Data_Object.current_data_struct.isLeftTrial = [];
     for k = 1:numel(vals)
         vals(k) = workflow.PickSideForCorrect(0, []);
     end
     assert(all(vals == 0 | vals == 1), label + " random mode should return binary side values.");
 
+    workflow.Setting_Struct.Same_Side_Max = 4;
+    workflow.Data_Object.current_data_struct.Score = [1 1 1 1];
+    workflow.Data_Object.current_data_struct.isLeftTrial = [1 1 1 1];
+    setRngForRandomSide(workflow, 1);
+    assert(workflow.PickSideForCorrect(0, []) == 0, label + " Same_Side_Max should flip a proposed left after four left-correct trials.");
+    assert(strcmp(workflow.current_side, 'right'), label + " current_side should match Same_Side_Max left-to-right flip.");
+
+    workflow.Data_Object.current_data_struct.Score = [1 1 1 1];
+    workflow.Data_Object.current_data_struct.isLeftTrial = [0 0 0 0];
+    setRngForRandomSide(workflow, 0);
+    assert(workflow.PickSideForCorrect(1, []) == 1, label + " Same_Side_Max should flip a proposed right after four right-correct trials.");
+    assert(strcmp(workflow.current_side, 'left'), label + " current_side should match Same_Side_Max right-to-left flip.");
+
+    workflow.Data_Object.current_data_struct.Score = [1 1 1 1];
+    workflow.Data_Object.current_data_struct.isLeftTrial = [1 1 1 1];
+    setRngForRandomSide(workflow, 0);
+    assert(workflow.PickSideForCorrect(1, []) == 0, label + " Same_Side_Max should not change an already-opposite random side.");
+
+    workflow.Data_Object.current_data_struct.Score = [1 1 1];
+    workflow.Data_Object.current_data_struct.isLeftTrial = [1 1 1];
+    setRngForRandomSide(workflow, 1);
+    assert(workflow.PickSideForCorrect(0, []) == 1, label + " Same_Side_Max should allow a same-side pick below threshold.");
+
+    workflow.Data_Object.current_data_struct.Score = [1 0 1 1];
+    workflow.Data_Object.current_data_struct.isLeftTrial = [1 1 1 1];
+    setRngForRandomSide(workflow, 1);
+    assert(workflow.PickSideForCorrect(0, []) == 1, label + " Same_Side_Max should count only trailing correct same-side trials.");
+
+    workflow.Data_Object.current_data_struct.Score = [1 1 1 0];
+    workflow.Data_Object.current_data_struct.isLeftTrial = [1 1 1 1];
+    setRngForRandomSide(workflow, 1);
+    assert(workflow.PickSideForCorrect(0, []) == 1, label + " Same_Side_Max should not apply after a wrong trial.");
+
+    workflow.Setting_Struct = rmfield(workflow.Setting_Struct, 'Same_Side_Max');
+    workflow.Data_Object.current_data_struct.Score = [1 1 1 1];
+    workflow.Data_Object.current_data_struct.isLeftTrial = [1 1 1 1];
+    setRngForRandomSide(workflow, 1);
+    assert(workflow.PickSideForCorrect(0, []) == 1, label + " missing Same_Side_Max should leave random side unchanged.");
+    workflow.Setting_Struct.Same_Side_Max = 4;
+
     workflow.StimulusStruct.side = 1;
     workflow.Setting_Struct.Repeat_wrong = true;
     workflow.Data_Object.current_data_struct.Score = [1 0];
+    workflow.Data_Object.current_data_struct.isLeftTrial = [0 1];
     assert(workflow.PickSideForCorrect(1, []) == 1, label + " global Repeat_wrong should preserve previous side after wrong.");
+    configureReusableStimulus(workflow);
+    assert(workflow.repeatWrongTriggered_(), label + " repeat-wrong should be marked triggered after a wrong response.");
+    assert(workflow.shouldReusePreviousStimulus_(), label + " repeat-wrong should reuse the previous drawn stimulus when handles and history exist.");
+
+    workflow.Data_Object.current_data_struct.Score = [1 1];
+    assert(~workflow.repeatWrongTriggered_(), label + " repeat-wrong should not trigger after a correct response.");
+    assert(~workflow.shouldReusePreviousStimulus_(), label + " stimulus should not be reused after a correct response.");
+
+    workflow.Data_Object.current_data_struct.Score = [1 0];
+    workflow.StimulusStruct.side = 2;
+    assert(~workflow.repeatWrongTriggered_(), label + " forced-left mode should not use repeat-wrong stimulus reuse.");
+
+    workflow.StimulusStruct.side = 5;
+    workflow.StimHistory(workflow.i-1,:) = {[], []};
+    assert(workflow.repeatWrongTriggered_(), label + " repeat-wrong side mode should trigger after a wrong response.");
+    assert(~workflow.shouldReusePreviousStimulus_(), label + " repeat-wrong should redraw when no previous stimulus history exists.");
 
     workflow.Data_Object.current_data_struct.CodedChoice = [1 3 1 2];
     SB = workflow.currentResponseSideBias_();
@@ -86,4 +146,27 @@ function exercisePickSide(workflow, label)
 
     workflow.Data_Object.current_data_struct.CodedChoice = [5 6];
     assert(workflow.currentResponseSideBias_() == 0, label + " timeout-only data should not imply side bias.");
+end
+
+function configureReusableStimulus(workflow)
+    workflow.i = 2;
+    workflow.StimHistory{1,1} = [1 2 90];
+    workflow.StimHistory{1,2} = [3 4 45];
+    if ~isempty(workflow.fig) && isvalid(workflow.fig)
+        close(workflow.fig);
+    end
+    workflow.fig = figure('Visible', 'off', 'Name', 'RepeatWrongStimulusTest');
+    ax = axes('Parent', workflow.fig);
+    line(ax, [0 1], [0 1], 'Tag', 'Contour');
+end
+
+function setRngForRandomSide(workflow, desiredSide)
+    for seed = 1:1000
+        rng(seed, 'twister');
+        if workflow.randomTrialSide_() == desiredSide
+            rng(seed, 'twister');
+            return
+        end
+    end
+    error("testPickSideForCorrect:NoSeed", "No deterministic seed found for side %d.", desiredSide);
 end

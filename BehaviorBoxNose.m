@@ -494,7 +494,9 @@ classdef BehaviorBoxNose < handle
             else
                 this.Level = this.Setting_Struct.Starting_opacity;
             end
-            if isvalid(this.fig)
+            if this.shouldReusePreviousStimulus_()
+                this.StimHistory(this.i,:) = this.StimHistory(this.i-1,:);
+            elseif isvalid(this.fig)
                 [this.StimHistory{this.i,1},this.StimHistory{this.i,2}] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, this.Level); %Plot new stimulus as hidden objects, record positions and angles of the segments
             else
                 [this.fig, this.LStimAx, this.RStimAx, this.FLAx] = this.Stimulus_Object.setUpFigure();
@@ -770,6 +772,12 @@ classdef BehaviorBoxNose < handle
                 repeat_wrong = logical(this.Setting_Struct.Repeat_wrong);
             end
             switch this.StimulusStruct.side
+                case 1 % Random, with optional same-side cap.
+                    if repeat_wrong && this.i > 1 && this.lastScoreWasWrong_()
+                        isLeftTrial = this.pickRepeatWrongSide_(isLeftTrial);
+                    else
+                        isLeftTrial = this.pickCappedRandomTrialSide_();
+                    end
                 case 2 %all left
                     isLeftTrial = 1;
                 case 3 %all right
@@ -790,11 +798,116 @@ classdef BehaviorBoxNose < handle
         function isLeftTrial = randomTrialSide_(~)
             isLeftTrial = randi([0 1]);
         end
+        function isLeftTrial = pickCappedRandomTrialSide_(this)
+            isLeftTrial = this.randomTrialSide_();
+            maxSameSide = this.sameSideMax_();
+            if isempty(maxSameSide)
+                return
+            end
+
+            [previousSide, sameCorrectCount] = this.trailingCorrectSideStreak_();
+            if sameCorrectCount >= maxSameSide && isLeftTrial == previousSide
+                isLeftTrial = double(~logical(previousSide));
+            end
+        end
+        function maxSameSide = sameSideMax_(this)
+            maxSameSide = [];
+            if ~isstruct(this.Setting_Struct) || ~isfield(this.Setting_Struct, 'Same_Side_Max')
+                return
+            end
+
+            value = this.Setting_Struct(1).Same_Side_Max;
+            if iscell(value)
+                if isempty(value)
+                    return
+                end
+                value = value{1};
+            end
+            if isstring(value) || ischar(value)
+                value = str2double(value);
+            elseif islogical(value)
+                value = double(value);
+            end
+            if ~isnumeric(value) || isempty(value)
+                return
+            end
+
+            value = double(value(1));
+            if ~isfinite(value) || value < 1
+                return
+            end
+            maxSameSide = floor(value);
+        end
+        function [side, count] = trailingCorrectSideStreak_(this)
+            side = NaN;
+            count = 0;
+            scores = this.currentDataVector_("Score");
+            sides = this.currentDataVector_("isLeftTrial");
+            n = min(numel(scores), numel(sides));
+            if n == 0
+                return
+            end
+
+            scores = scores((numel(scores) - n + 1):end);
+            sides = sides((numel(sides) - n + 1):end);
+            side = sides(end);
+            if scores(end) ~= 1 || ~(side == 0 || side == 1)
+                side = NaN;
+                return
+            end
+
+            for idx = n:-1:1
+                if scores(idx) == 1 && sides(idx) == side
+                    count = count + 1;
+                else
+                    break
+                end
+            end
+        end
         function isLeftTrial = pickRepeatWrongSide_(this, isLeftTrial)
             if this.lastScoreWasWrong_()
                 isLeftTrial = double(logical(isLeftTrial));
             else
                 isLeftTrial = this.randomTrialSide_();
+            end
+        end
+        function tf = shouldReusePreviousStimulus_(this)
+            tf = this.repeatWrongTriggered_() && this.previousStimulusAvailable_();
+        end
+        function tf = repeatWrongTriggered_(this)
+            tf = false;
+            if this.i <= 1 || ~this.lastScoreWasWrong_()
+                return
+            end
+
+            repeat_wrong = false;
+            if isfield(this.Setting_Struct, 'Repeat_wrong') && ~isempty(this.Setting_Struct.Repeat_wrong)
+                repeat_wrong = logical(this.Setting_Struct.Repeat_wrong);
+            end
+            switch this.StimulusStruct.side
+                case 5
+                    tf = true;
+                case 1
+                    tf = repeat_wrong;
+                otherwise
+                    tf = repeat_wrong && ~any(this.StimulusStruct.side == [2, 3, 4]);
+            end
+        end
+        function tf = previousStimulusAvailable_(this)
+            tf = false;
+            if this.i <= 1 || size(this.StimHistory, 1) < this.i - 1
+                return
+            end
+            if isempty(this.StimHistory{this.i-1,1}) && isempty(this.StimHistory{this.i-1,2})
+                return
+            end
+            try
+                if isempty(this.fig) || ~isvalid(this.fig)
+                    return
+                end
+                tf = ~isempty(findobj(this.fig, 'Tag', 'Contour')) || ~isempty(findobj(this.fig, 'Tag', 'Distractor'));
+            catch
+                tf = false;
             end
         end
         function isLeftTrial = pickManualTrialSide_(this)
@@ -939,19 +1052,60 @@ classdef BehaviorBoxNose < handle
             end
         end
         function WaitForInputArduino(this)
-            this.ReadyCueAx.Children.MarkerFaceColor = this.StimulusStruct.LineColor;
+            readyCueDot = findobj(this.fig.Children, 'Tag', 'ReadyCueDot');
+            readyCueBaseColor = this.StimulusStruct.LineColor;
+            readyCueDimColor = this.StimulusStruct.DimColor;
+            readyCueBlinkDur = 0.10;
+            waitBlinkActive = false;
+            waitBlinkT0 = 0;
+            waitBlinkEnabled = this.waitBlinkEnabled_();
+            waitBlinkSec = this.getDelaySetting_('Wait_Blink_Sec');
+
+            this.setReadyCueColorSafe_(readyCueDot, readyCueBaseColor);
             while (this.a.ReadLeft() || this.a.ReadRight())
                 pause(0.1)
             end
+            tWaitBlink = tic;
+            tLastWaitInput = 0;
             while ~get(this.stop_handle, 'Value')
                 pause(0.01);
                 if this.Setting_Struct.IntertrialMalCancel && (this.a.ReadLeft() || this.a.ReadRight())
                     this.HandleIntertrialMalingering();
+                    this.setReadyCueColorSafe_(readyCueDot, readyCueBaseColor);
+                    waitBlinkActive = false;
+                    tLastWaitInput = toc(tWaitBlink);
+                end
+
+                tNow = toc(tWaitBlink);
+                try
+                    noSensorActive = this.currentNoseToken_() == '-';
+                catch
+                    noSensorActive = false;
+                end
+                if ~noSensorActive
+                    tLastWaitInput = tNow;
+                    if waitBlinkActive
+                        this.setReadyCueColorSafe_(readyCueDot, readyCueBaseColor);
+                        waitBlinkActive = false;
+                    end
+                elseif waitBlinkEnabled && waitBlinkSec > 0 && ~waitBlinkActive && (tNow - tLastWaitInput) >= waitBlinkSec
+                    readyCueDot = findobj(this.fig.Children, 'Tag', 'ReadyCueDot');
+                    this.setReadyCueColorSafe_(readyCueDot, readyCueDimColor);
+                    waitBlinkActive = true;
+                    waitBlinkT0 = tNow;
+                end
+                if waitBlinkActive && (tNow - waitBlinkT0) >= readyCueBlinkDur
+                    this.setReadyCueColorSafe_(readyCueDot, readyCueBaseColor);
+                    waitBlinkActive = false;
+                    tLastWaitInput = tNow;
                 end
 
                 if this.Middle_StableChoice_StartTrial(true)
                     break;
                 end
+            end
+            if waitBlinkActive
+                this.setReadyCueColorSafe_(readyCueDot, readyCueBaseColor);
             end
         end
         function stable = Middle_StableChoice_StartTrial(this, checkDelay)
@@ -1589,6 +1743,31 @@ classdef BehaviorBoxNose < handle
             end
             if ~isfinite(delay) || delay < 0
                 delay = 0;
+            end
+        end
+        function enabled = waitBlinkEnabled_(this)
+            enabled = false;
+            try
+                enabled = isfield(this.Setting_Struct, 'Wait_Blink') && ...
+                    ~isempty(this.Setting_Struct.Wait_Blink) && ...
+                    logical(this.Setting_Struct.Wait_Blink);
+            catch
+                enabled = false;
+            end
+        end
+        function setReadyCueColorSafe_(~, readyCueDot, color)
+            try
+                readyCueDot = readyCueDot(isgraphics(readyCueDot));
+            catch
+                readyCueDot = gobjects(0);
+            end
+            if isempty(readyCueDot)
+                return
+            end
+            try
+                set(readyCueDot, 'MarkerFaceColor', color);
+                drawnow;
+            catch
             end
         end
         function lines = getStallBlinkLines_(this, lines)

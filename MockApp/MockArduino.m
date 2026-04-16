@@ -10,6 +10,8 @@ classdef MockArduino < matlab.mixin.SetGet
         FastForwardAtRead double = Inf
         FastForwardAfterRewards double = Inf
         FastForwardControl = []
+        WheelScript double = 0
+        WheelReadCount double = 0
     end
 
     methods
@@ -26,6 +28,24 @@ classdef MockArduino < matlab.mixin.SetGet
             this.FastForwardAtRead = Inf;
             this.FastForwardAfterRewards = Inf;
             this.FastForwardControl = [];
+        end
+
+        function setWheelScript(this, values)
+            if isempty(values)
+                values = 0;
+            end
+            this.WheelScript = double(values);
+            this.WheelReadCount = 0;
+        end
+
+        function value = ReadWheel(this)
+            this.WheelReadCount = this.WheelReadCount + 1;
+            idx = min(this.WheelReadCount, numel(this.WheelScript));
+            value = this.WheelScript(idx);
+        end
+
+        function Reset(this)
+            this.WheelReadCount = 0;
         end
 
         function GiveReward(this, opts)

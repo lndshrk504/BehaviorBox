@@ -28,6 +28,149 @@
     - stop if MATLAB and Python disagree on shapes, dtypes, indexing, or file schema
 - stop if a change would silently alter saved `.mat`, `.h5`, `.json`, or `.csv` outputs without an explicit migration note
 
+## 2026-04-16 Reuse Stimulus On Repeat Wrong
+
+1. Goal
+- In `BehaviorBoxNose.m` and `BehaviorBoxWheel.m`, keep the exact previous visual stimulus when repeat-wrong repeats the previous correct side after an incorrect response.
+- Preserve current side-repetition behavior, reward behavior, trial numbering, and saved field names.
+- Store the repeated trial's `StimHistory` row as a copy of the previous row instead of sampling fresh distractors.
+
+2. Non-goals
+- Do not change GUI controls, `Repeat_wrong` setting names, scoring codes, reward timing, Arduino protocols, wheel imaging metadata, or saved `.mat` schema.
+- Do not change behavior for correct trials, timeout trials, forced left/right modes, or random trials when repeat-wrong is not triggered by a wrong response.
+
+3. Current-state summary
+- `DoLoop()` calls `BeforeTrial()` in both workflow classes before waiting for input.
+- `BeforeTrial()` calls `PickSideForCorrect()` and then always calls `BehaviorBoxVisualStimulus.DisplayOnScreen(...)`.
+- `PickSideForCorrect()` repeats the previous side after wrong trials when `StimulusStruct.side == 5`, or when `Setting_Struct.Repeat_wrong` is enabled in random/other modes.
+- `DisplayOnScreen()` deletes existing contour/distractor handles and calls stimulus generators such as `ShowStimulusContour_Density()`, whose distractor selection uses `randperm`/`randi`; therefore the current behavior repeats the side but redraws a new stimulus.
+- No relevant `+pkg`, `@Class`, or `private/` dispatch path was found. `startup.m` is minimal.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxNose.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxWheel.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/fcns/testPickSideForCorrect.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- Static checks:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); checkcode('BehaviorBoxNose.m'); checkcode('BehaviorBoxWheel.m'); checkcode('fcns/testPickSideForCorrect.m');"`
+- Focused side/repeat smoke:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('fcns/testPickSideForCorrect.m');"`
+- Conflict marker scan:
+  `rg -n "^<<<<<<<|^=======|^>>>>>>>" BehaviorBoxNose.m BehaviorBoxWheel.m fcns/testPickSideForCorrect.m .agent/PLANS.md`
+
+6. Milestones
+- Add a shared-style helper in Nose and Wheel that detects when repeat-wrong is active because the last scored trial was wrong.
+- Patch both `BeforeTrial()` methods to copy the previous `StimHistory` row and leave existing figure handles intact when that helper is true.
+- Extend focused MATLAB smoke coverage for repeat-wrong stimulus reuse gating.
+- Run validation and inspect the final diff.
+
+7. Risks and stop conditions
+- Stop if exact stimulus reuse requires saved schema changes or a new GUI setting.
+- Stop if the repeat-wrong trigger cannot be distinguished from ordinary forced-side or random behavior.
+
+8. Handoff notes
+- Expected invariant outputs: saved field names, scoring codes, `isLeftTrial`, reward/punishment behavior, timing settings, Arduino messages, and wheel imaging fields.
+- Intentional output change: repeated wrong trials save duplicated `StimHist` rows for the repeated stimulus instead of newly randomized L/R stimulus matrices.
+- Reproducibility control: no RNG seed changes; repeat-wrong trials consume fewer random numbers because they skip stimulus redraw.
+
+## 2026-04-16 Add Wheel ConfirmChoice Gradient
+
+1. Goal
+- Add a Wheel-specific `ConfirmChoice` visual cue in `BehaviorBoxWheel.readLeverLoopAnalogWheel`.
+- During Wheel response and OnlyCorrect correction, brighten the correct contour from `StimulusStruct.LineColor` toward `StimulusStruct.FlashColor` as wheel displacement moves the correct stimulus toward center.
+- Gate the cue only on `Setting_Struct.ConfirmChoice`; do not require `StimulusStruct.FlashStim`.
+- During stall blink, temporarily dim as before, then restore the contour to the current gradient color.
+
+2. Non-goals
+- Do not change Nose behavior, reward logic, wheel choice thresholds, Arduino protocol, GUI controls, saved field names, or directory layout.
+- Do not require `StimulusStruct.FlashStim` for the new Wheel gradient.
+- Do not change non-Wheel keyboard response behavior.
+
+3. Current-state summary
+- `WaitForInputAndGiveReward()` calls `readLeverLoopAnalogWheel()` for non-keyboard Wheel input.
+- `readLeverLoopAnalogWheel()` computes signed `delta`, moves the stimulus, handles stall blink, records `CurrentStimColor`, and decides left/right choices.
+- Positive `delta` is accepted as a left choice; negative `delta` is accepted as a right choice.
+- `BehaviorBoxVisualStimulus.chooseDistractors()` tags the correct contour with `Tag='Contour'`, so the Wheel cue can target those handles defensively.
+- `BehaviorBoxWheel.m` and `BehaviorBoxVisualStimulus.m` are root-level classdefs. No relevant `+pkg`, `@Class`, or `private/` dispatch path was found. `startup.m` is minimal.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxWheel.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/MockApp/MockArduino.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/MockApp/testBehaviorBoxWheelConfirmChoiceGradient.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- Static checks:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); checkcode('BehaviorBoxWheel.m'); checkcode('MockApp/MockArduino.m'); checkcode('MockApp/testBehaviorBoxWheelConfirmChoiceGradient.m');"`
+- Focused gradient helper test:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('MockApp/testBehaviorBoxWheelConfirmChoiceGradient.m');"`
+- Existing Wheel save/display smoke:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('MockApp/testBehaviorBoxWheelSaveStatus.m');"`
+- Conflict marker scan:
+  `rg -n "^<<<<<<<|^=======|^>>>>>>>" BehaviorBoxWheel.m MockApp/MockArduino.m MockApp/testBehaviorBoxWheelConfirmChoiceGradient.m .agent/PLANS.md`
+
+6. Milestones
+- Add small helper methods for `ConfirmChoice` gating, correct-direction progress, color interpolation, and safe line color setting.
+- Patch Wheel response and OnlyCorrect loops so contour color follows current correct-choice progress and stall blink restores that color.
+- Add a focused MATLAB smoke test with a scripted mock wheel encoder for left/right progress, wrong-direction baseline behavior, color interpolation, and `ConfirmChoice` gating.
+- Run focused MATLAB validation and inspect the final diff.
+
+7. Risks and stop conditions
+- Stop if the change requires saved `.mat` schema changes or a new GUI setting.
+- Stop if the Wheel delta sign convention cannot be confirmed from the existing choice logic.
+- Stop if a non-contour stimulus path would be affected in a way that cannot be guarded by missing-handle checks.
+
+8. Handoff notes
+- Expected invariant outputs: saved field names, choice decisions, wheel thresholds, reward behavior, Arduino messages, and Nose behavior.
+- Intentional behavior changes: Wheel contour brightness varies during response when `ConfirmChoice` is enabled; saved `WheelDisplayRecord.StimColor` and frame-aligned `StimColor` can vary with the displayed gradient.
+
+## 2026-04-16 Cap Random Same-Side Correct Streaks
+
+1. Goal
+- Add `Same_Side_Max` handling to `PickSideForCorrect` in `BehaviorBoxNose.m` and `BehaviorBoxWheel.m`.
+- In random side mode (`StimulusStruct.side == 1`), prevent a newly randomized side from extending a trailing same-correct-side streak beyond `Same_Side_Max`.
+- Preserve repeat-wrong precedence when the previous trial was wrong.
+
+2. Non-goals
+- Do not change GUI layout, saved field names, scoring codes, reward timing, Arduino protocols, forced-side modes, keyboard/manual mode, or explicit repeat-wrong mode.
+- Do not refactor shared Nose/Wheel code beyond the minimal duplicated helper logic already present in these classes.
+
+3. Current-state summary
+- `BeforeTrial()` calls `PickSideForCorrect()` in both root-level MATLAB classdefs before stimulus display.
+- `BehaviorBoxData.AddData()` stores `Score` and `isLeftTrial` in `current_data_struct`, which is the history source for this cap.
+- `PickSideForCorrect()` already uses `lastScoreWasWrong_()` to decide whether repeat-wrong should preserve the previous correct side.
+- No relevant `+pkg`, `@Class`, or `private/` dispatch path was found. `startup.m` is minimal.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxNose.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxWheel.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/fcns/testPickSideForCorrect.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- Static checks:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); checkcode('BehaviorBoxNose.m'); checkcode('BehaviorBoxWheel.m'); checkcode('fcns/testPickSideForCorrect.m');"`
+- Focused smoke test:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('fcns/testPickSideForCorrect.m');"`
+- Conflict marker scan:
+  `rg -n "^<<<<<<<|^=======|^>>>>>>>" BehaviorBoxNose.m BehaviorBoxWheel.m fcns/testPickSideForCorrect.m .agent/PLANS.md`
+
+6. Milestones
+- Patch random side selection in Nose and Wheel with a `Same_Side_Max` helper that counts trailing trials where `Score == 1` and `isLeftTrial` matches.
+- Keep repeat-wrong preservation for previous wrong trials ahead of the new cap.
+- Add deterministic focused tests for left and right streak caps, below-threshold behavior, and repeat-wrong precedence.
+- Run MATLAB validation and inspect the final diff.
+
+7. Risks and stop conditions
+- Stop if implementing the cap requires changing saved `.mat` schema or historical data conversion.
+- Stop if the current data history lacks `Score` or `isLeftTrial` in live runtime paths.
+
+8. Handoff notes
+- Expected invariant outputs: saved field names, `CodedChoice` mappings, forced-side behavior, explicit repeat-wrong behavior after wrong trials, reward behavior, and GUI setting names.
+- Intentional behavior change: in random mode only, future saved `isLeftTrial` sequences can differ from raw RNG when the proposed random side would extend a trailing same-side correct streak beyond `Same_Side_Max`.
+
 ## 2026-04-15 Add Nose Reward Hold Gate
 
 1. Goal
@@ -1520,3 +1663,43 @@
 
 8. Handoff notes
 - Report changed source files and note that no runtime validation was run because no executable logic changed.
+
+## 2026-04-16 Add Nose Wait Blink Setting
+
+1. Goal
+- Add optional ready-cue idle blinking during `BehaviorBoxNose.WaitForInputArduino`.
+- Use existing `Setting_Struct.Wait_Blink` and `Setting_Struct.Wait_Blink_Sec` values when present.
+
+2. Non-goals
+- Do not change Wheel behavior.
+- Do not change Arduino serial protocol, sensor pin mapping, or reward timing.
+- Do not change saved data schema or numerical analysis outputs.
+
+3. Current-state summary
+- `WaitForInput` dispatches to `WaitForInputArduino` for NosePoke Arduino input.
+- `WaitForInputArduino` waits for left/right sensors to clear, handles intertrial malingering, then accepts a stable middle sensor through `Middle_StableChoice_StartTrial`.
+- `ReadNone()` is intentionally inverted for nose input and returns true when any sensor token is active.
+- Existing stall blink behavior is a short nonblocking dim-to-base color blink.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxNose.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/fcns/MockBehaviorBoxNoseWaitBlink.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/fcns/testBehaviorBoxNoseWaitBlink.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- Static checks:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); checkcode('BehaviorBoxNose.m'); checkcode('fcns/MockBehaviorBoxNoseWaitBlink.m'); checkcode('fcns/testBehaviorBoxNoseWaitBlink.m');"`
+- Focused wait-blink smoke:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('fcns/testBehaviorBoxNoseWaitBlink.m');"`
+- Conflict marker scan:
+  `rg -n "^<<<<<<<|^=======|^>>>>>>>" BehaviorBoxNose.m fcns/MockBehaviorBoxNoseWaitBlink.m fcns/testBehaviorBoxNoseWaitBlink.m .agent/PLANS.md`
+
+6. Milestones
+- Patch `WaitForInputArduino` with the idle timer and short ready cue blink.
+- Add a focused headless MATLAB smoke script for enabled/disabled blink behavior.
+- Run focused MATLAB validation and inspect the final diff.
+
+7. Risks and stop conditions
+- Stop if App Designer field names differ from `Wait_Blink` or `Wait_Blink_Sec`.
+- Hardware-in-the-loop Nose session start/stop/save remains unverified unless bench hardware is available.
