@@ -2311,10 +2311,6 @@ classdef BehaviorBoxWheel < handle
                 options.MapMeta = struct()
                 options.TimestampRecord = []
             end
-            fakeNames = {'w', 'W'};
-            if any(strcmp(num2str(this.Setting_Struct.Subject), fakeNames)) || any(strcmp(this.Setting_Struct.Strain, fakeNames)) %do not save if I use a fake name for fake data
-                return
-            end
             D = string(datetime(this.Data_Object.start_time, "Format", "yyMMdd_HHmmss"));
             if options.Activity == "Training"
                 stim = erase(this.app.Stimulus_type.Value, ' ');
@@ -2391,6 +2387,10 @@ classdef BehaviorBoxWheel < handle
                 catch
                     f = [];
                 end
+                fakeNames = {'w', 'W'};
+                if any(strcmp(num2str(this.Setting_Struct.Subject), fakeNames)) || any(strcmp(this.Setting_Struct.Strain, fakeNames)) %do not save if I use a fake name for fake data
+                    return
+                end
                 try
                     try
                         saveFile = fullfile(savefolder, char(saveasname + ".mat"));
@@ -2429,6 +2429,10 @@ classdef BehaviorBoxWheel < handle
                 MapMeta = options.MapMeta;
                 TimestampRecord = options.TimestampRecord;
                 saveFile = fullfile(savefolder, char(saveasname + ".mat"));
+                fakeNames = {'w', 'W'};
+                if any(strcmp(num2str(this.Setting_Struct.Subject), fakeNames)) || any(strcmp(this.Setting_Struct.Strain, fakeNames)) %do not save if I use a fake name for fake data
+                    return
+                end
                 try
                     save(saveFile, 'Settings', 'Position_Record', 'Notes', 'TimeLog', 'MapLog', 'MapMeta', 'TimestampRecord')
                 catch err
@@ -4046,12 +4050,16 @@ classdef BehaviorBoxWheel < handle
             end
             try
                 eyeTrackingRecord = this.EyeTrack.getRecord();
-            catch
+            catch err
+                warning('BehaviorBoxWheel:EyeTrackRecordSaveFailed', ...
+                    'Could not build EyeTrackingRecord during save: %s', err.message);
                 eyeTrackingRecord = BehaviorBoxEyeTrack.emptyRecordTable();
             end
             try
                 eyeTrackingMeta = this.EyeTrack.getMeta();
-            catch
+            catch err
+                warning('BehaviorBoxWheel:EyeTrackMetaSaveFailed', ...
+                    'Could not build EyeTrackingMeta during save: %s', err.message);
                 eyeTrackingMeta = BehaviorBoxEyeTrack.emptyMeta();
             end
         end

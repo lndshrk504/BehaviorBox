@@ -298,6 +298,7 @@ classdef BehaviorBoxEyeTrack < handle
             meta.RecordVariableNames = string(record.Properties.VariableNames);
             meta.StreamMetadata = this.StreamMetadata;
             meta.CsvPath = this.readMetadataString_("csv_path", "");
+            meta.MetadataPath = this.readMetadataString_("metadata_path", "");
             meta.SchemaVersion = this.readMetadataNumeric_("schema_version", NaN);
             meta.TrialBoundaryUs = this.TrialBoundaryUs;
             meta.TrialBoundaryValues = this.TrialBoundaryValues;
@@ -360,22 +361,6 @@ classdef BehaviorBoxEyeTrack < handle
                 "capture_time_unix_ns"
                 "publish_time_unix_s"
                 "publish_time_unix_ns"
-                "schema_version"
-                "source"
-                "model_preset"
-                "model_type"
-                "point_count"
-                "camera_serial"
-                "camera_model"
-                "sensor_roi_x"
-                "sensor_roi_y"
-                "sensor_roi_width"
-                "sensor_roi_height"
-                "crop_x1"
-                "crop_x2"
-                "crop_y1"
-                "crop_y2"
-                "pose_coordinate_frame"
                 "center_x"
                 "center_y"
                 "diameter_px"
@@ -403,22 +388,6 @@ classdef BehaviorBoxEyeTrack < handle
                 "double"
                 "double"
                 "string"
-                "double"
-                "string"
-                "double"
-                "string"
-                "string"
-                "string"
-                "double"
-                "string"
-                "string"
-                "double"
-                "double"
-                "double"
-                "double"
-                "double"
-                "double"
-                "double"
                 "double"
                 "string"
                 "double"
@@ -496,6 +465,7 @@ classdef BehaviorBoxEyeTrack < handle
                 'RecordVariableNames', string.empty(0,1), ...
                 'StreamMetadata', struct(), ...
                 'CsvPath', "", ...
+                'MetadataPath', "", ...
                 'SchemaVersion', NaN, ...
                 'TrialBoundaryUs', double.empty(0,1), ...
                 'TrialBoundaryValues', double.empty(0,1));
@@ -658,6 +628,9 @@ classdef BehaviorBoxEyeTrack < handle
                     rows = [rows; row]; %#ok<AGROW>
                 end
             end
+            if height(rows) > 0
+                this.ParsedLog = this.recordFromChunks_();
+            end
         end
 
         function [row, didAppend] = processPayload_(this, payload, rawLine, trialOverride)
@@ -666,7 +639,7 @@ classdef BehaviorBoxEyeTrack < handle
             messageType = this.readStringField_(payload, 'message_type', "sample");
 
             this.updatePointNamesFromPayload_(payload);
-            this.updateMetadataFromPayload_(payload);
+            this.updateMetadataFromPayload_(payload, messageType);
 
             if messageType == "metadata"
                 this.MetadataMessagesReceived = this.MetadataMessagesReceived + 1;
@@ -722,22 +695,6 @@ classdef BehaviorBoxEyeTrack < handle
             rowStruct.capture_time_unix_ns = this.readIntegerTextField_(rawLine, payload, 'capture_time_unix_ns');
             rowStruct.publish_time_unix_s = this.readNumericField_(payload, 'publish_time_unix_s');
             rowStruct.publish_time_unix_ns = this.readIntegerTextField_(rawLine, payload, 'publish_time_unix_ns');
-            rowStruct.schema_version = this.readNumericField_(payload, 'schema_version');
-            rowStruct.source = this.readStringField_(payload, 'source', "");
-            rowStruct.model_preset = this.readStringField_(payload, 'model_preset', "");
-            rowStruct.model_type = this.readStringField_(payload, 'model_type', "");
-            rowStruct.point_count = this.readNumericField_(payload, 'point_count');
-            rowStruct.camera_serial = this.readStringField_(payload, 'camera_serial', "");
-            rowStruct.camera_model = this.readStringField_(payload, 'camera_model', "");
-            rowStruct.sensor_roi_x = this.readNumericField_(payload, 'sensor_roi_x');
-            rowStruct.sensor_roi_y = this.readNumericField_(payload, 'sensor_roi_y');
-            rowStruct.sensor_roi_width = this.readNumericField_(payload, 'sensor_roi_width');
-            rowStruct.sensor_roi_height = this.readNumericField_(payload, 'sensor_roi_height');
-            rowStruct.crop_x1 = this.readNumericField_(payload, 'crop_x1');
-            rowStruct.crop_x2 = this.readNumericField_(payload, 'crop_x2');
-            rowStruct.crop_y1 = this.readNumericField_(payload, 'crop_y1');
-            rowStruct.crop_y2 = this.readNumericField_(payload, 'crop_y2');
-            rowStruct.pose_coordinate_frame = this.readStringField_(payload, 'pose_coordinate_frame', "");
             rowStruct.center_x = this.readNumericField_(payload, 'center_x');
             rowStruct.center_y = this.readNumericField_(payload, 'center_y');
             rowStruct.diameter_px = this.readNumericField_(payload, 'diameter_px');
@@ -821,11 +778,36 @@ classdef BehaviorBoxEyeTrack < handle
             this.ParsedLog = BehaviorBoxEyeTrack.emptyRecordTable(this.PointNames);
         end
 
-        function updateMetadataFromPayload_(this, payload)
+        function updateMetadataFromPayload_(this, payload, messageType)
             if ~isstruct(payload)
                 return
             end
             fields = fieldnames(payload);
+            if string(messageType) ~= "metadata"
+                staticFields = [ ...
+                    "schema_version"
+                    "source"
+                    "address"
+                    "csv_path"
+                    "metadata_path"
+                    "model_preset"
+                    "model_type"
+                    "point_names"
+                    "point_count"
+                    "pcutoff"
+                    "pose_coordinate_frame"
+                    "camera_serial"
+                    "camera_model"
+                    "sensor_roi_x"
+                    "sensor_roi_y"
+                    "sensor_roi_width"
+                    "sensor_roi_height"
+                    "crop_x1"
+                    "crop_x2"
+                    "crop_y1"
+                    "crop_y2"];
+                fields = intersect(fields, cellstr(staticFields), 'stable');
+            end
             for idx = 1:numel(fields)
                 fieldName = fields{idx};
                 if strcmp(fieldName, 'points')
@@ -1013,10 +995,18 @@ classdef BehaviorBoxEyeTrack < handle
 
         function value = readIntegerTextField_(~, line, payload, fieldName)
             value = "";
-            pattern = '"' + string(fieldName) + '"\s*:\s*([0-9]+)';
+            pattern = '"' + string(fieldName) + '"\s*:\s*("?[-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?"?)';
             tokens = regexp(char(line), char(pattern), 'tokens', 'once');
             if ~isempty(tokens)
-                value = string(tokens{1});
+                token = erase(string(tokens{1}), '"');
+                if contains(token, ".") || contains(lower(token), "e")
+                    parsed = str2double(token);
+                    if isfinite(parsed)
+                        value = string(sprintf('%.0f', parsed));
+                    end
+                else
+                    value = token;
+                end
                 return
             end
             if isstruct(payload) && isfield(payload, fieldName)
@@ -1100,9 +1090,9 @@ classdef BehaviorBoxEyeTrack < handle
                 pyenv(Version=char(this.PythonExecutable), ExecutionMode="OutOfProcess");
             end
 
-            pyPath = string(cell(py.sys.path));
+            pyPath = string(cell(py.sys.path()));
             if ~any(pyPath == this.BridgeDir)
-                py.sys.path.insert(int32(0), char(this.BridgeDir));
+                py.sys.path().insert(int32(0), char(this.BridgeDir));
             end
 
             bridge = py.importlib.import_module("matlab_zmq_bridge");
@@ -1250,12 +1240,6 @@ classdef BehaviorBoxEyeTrack < handle
             stringFields = [ ...
                 "capture_time_unix_ns"
                 "publish_time_unix_ns"
-                "source"
-                "model_preset"
-                "model_type"
-                "camera_serial"
-                "camera_model"
-                "pose_coordinate_frame"
                 "sample_status"];
             logicalFields = "is_valid";
             if any(name == stringFields)

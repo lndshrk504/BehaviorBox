@@ -1558,6 +1558,55 @@ static bool x11_get_window_root_xy(Display* dpy, Window w, int& rx, int& ry) {
   return true;
 }
 
+static bool x11_get_window_frame_rect(Display* dpy, Window w, Rect& r) {
+  XWindowAttributes wa{};
+  if (!XGetWindowAttributes(dpy, w, &wa)) return false;
+
+  int clientRx = 0;
+  int clientRy = 0;
+  if (!x11_get_window_root_xy(dpy, w, clientRx, clientRy)) return false;
+
+  r = {clientRx, clientRy, wa.width, wa.height};
+
+  const Atom frameExtentsAtom = XInternAtom(dpy, "_NET_FRAME_EXTENTS", False);
+  Atom actualType = None;
+  int actualFormat = 0;
+  unsigned long nitems = 0;
+  unsigned long bytesAfter = 0;
+  unsigned char* prop = nullptr;
+  const int propStatus = XGetWindowProperty(dpy, w,
+                                            frameExtentsAtom,
+                                            0, 4, False, XA_CARDINAL,
+                                            &actualType, &actualFormat,
+                                            &nitems, &bytesAfter, &prop);
+  if (propStatus == Success && prop &&
+      actualType == XA_CARDINAL && actualFormat == 32 && nitems >= 4) {
+    const long* extents = reinterpret_cast<const long*>(prop);
+    r.x -= static_cast<int>(extents[0]);
+    r.y -= static_cast<int>(extents[2]);
+    XFree(prop);
+    return true;
+  }
+  if (prop) XFree(prop);
+
+  Window root = 0;
+  Window parent = 0;
+  Window* children = nullptr;
+  unsigned int childCount = 0;
+  if (XQueryTree(dpy, w, &root, &parent, &children, &childCount)) {
+    if (children) XFree(children);
+    if (parent != 0 && parent != root && parent != w) {
+      int frameRx = 0;
+      int frameRy = 0;
+      if (x11_get_window_root_xy(dpy, parent, frameRx, frameRy)) {
+        r.x = frameRx;
+        r.y = frameRy;
+      }
+    }
+  }
+  return true;
+}
+
 static void x11_apply_window_geometry(Display* dpy, Window w, const Rect& r) {
   x11_apply_window_hints(dpy, w, r);
   XMoveResizeWindow(dpy, w,
@@ -2474,6 +2523,7 @@ struct V4L2DmabufCam {
   bool frameClockStarted{false};
   std::chrono::steady_clock::time_point lastFrameTs{};
   std::chrono::steady_clock::time_point lastReconnectAttempt{};
+  std::chrono::steady_clock::time_point reconnectPendingSince{};
   int consecutiveDqErrors{0};
   double frameIntervalEwmaMs{0.0};
   int stutterEvents{0};
@@ -2595,6 +2645,7 @@ struct V4L2DmabufCam {
     frameIntervalEwmaMs = 0.0;
     stutterEvents = 0;
     reconnectPending = false;
+    reconnectPendingSince = std::chrono::steady_clock::time_point{};
     lastReconnectAttempt = std::chrono::steady_clock::time_point{};
     mjpegHw.reset();
 
@@ -2777,6 +2828,7 @@ struct V4L2DmabufCam {
     frameClockStarted = false;
     consecutiveDqErrors = 0;
     reconnectPending = false;
+    reconnectPendingSince = std::chrono::steady_clock::time_point{};
     return true;
   }
 
@@ -2844,6 +2896,7 @@ struct V4L2DmabufCam {
     frameIntervalEwmaMs = 0.0;
     stutterEvents = 0;
     reconnectPending = false;
+    reconnectPendingSince = std::chrono::steady_clock::time_point{};
     lastReconnectAttempt = std::chrono::steady_clock::time_point{};
     mjpegHw.reset();
     mjpegPlaneY.clear();
@@ -3409,12 +3462,12 @@ int main(int argc, char** argv) {
     XSync(dpy, False);
 
     {
-      int ax = 0, ay = 0;
-      XWindowAttributes awa{};
-      if (x11_get_window_root_xy(dpy, w, ax, ay) && XGetWindowAttributes(dpy, w, &awa)) {
+      Rect applied{};
+      if (x11_get_window_frame_rect(dpy, w, applied)) {
         std::cerr << "Applied geometry: " << c.devPath
                   << " requested=(" << r.x << "," << r.y << " " << r.w << "x" << r.h << ")"
-                  << " actual=(" << ax << "," << ay << " " << awa.width << "x" << awa.height << ")\n";
+                  << " actual=(" << applied.x << "," << applied.y << " "
+                  << applied.w << "x" << applied.h << ")\n";
       }
     }
 
@@ -3713,6 +3766,19 @@ int main(int argc, char** argv) {
   auto syncWindowStart = std::chrono::steady_clock::now();
   const int reconnectRetryMs = 1200;
   const int watchdogNoFrameMs = 1500;
+  const auto reconnectGiveUpAfter = std::chrono::minutes(10);
+
+  auto schedule_reconnect = [&](V4L2DmabufCam& cam) {
+    if (!cam.reconnectPending || cam.reconnectPendingSince.time_since_epoch().count() == 0) {
+      cam.reconnectPendingSince = std::chrono::steady_clock::now();
+    }
+    cam.reconnectPending = true;
+  };
+
+  auto clear_reconnect_state = [&](V4L2DmabufCam& cam) {
+    cam.reconnectPending = false;
+    cam.reconnectPendingSince = std::chrono::steady_clock::time_point{};
+  };
 
   auto blink_visible = [](int cycleMs, int visibleMs) -> bool {
     const int safeCycle = std::max(250, cycleMs);
@@ -3791,7 +3857,7 @@ int main(int argc, char** argv) {
     const int clamped = std::clamp(depth, 2, 4);
     for (auto& cam : vcams) {
       cam.requestedBufferCount = clamped;
-      cam.reconnectPending = true;
+      schedule_reconnect(cam);
     }
   };
 
@@ -3844,7 +3910,7 @@ int main(int argc, char** argv) {
     auto itPool = candidatePoolByStableId.find(stableId);
     if (itPool == candidatePoolByStableId.end() || itPool->second.empty()) {
       std::cerr << "Reconnect failed: no candidates found for stable-id " << stableId << "\n";
-      cam.reconnectPending = true;
+      schedule_reconnect(cam);
       return false;
     }
 
@@ -3882,7 +3948,7 @@ int main(int argc, char** argv) {
       }
 
       vcams[camIndex] = std::move(replacement);
-      vcams[camIndex].reconnectPending = false;
+      clear_reconnect_state(vcams[camIndex]);
       vcams[camIndex].consecutiveDqErrors = 0;
       vcams[camIndex].frameClockStarted = false;
       vcams[camIndex].stutterEvents = 0;
@@ -3898,7 +3964,7 @@ int main(int argc, char** argv) {
       return true;
     }
 
-    cam.reconnectPending = true;
+    schedule_reconnect(cam);
     std::cerr << "Reconnect failed for stable-id " << stableId << "; will retry.\n";
     return false;
   };
@@ -3997,7 +4063,7 @@ int main(int argc, char** argv) {
       if (idx < 0 || static_cast<size_t>(idx) >= vcams.size()) return "ERR camera index out of range\n";
       auto& c = vcams[static_cast<size_t>(idx)];
       if (sub == "reconnect") {
-        c.reconnectPending = true;
+        schedule_reconnect(c);
         return "OK reconnect scheduled\n";
       }
       if (sub == "rec") {
@@ -4042,6 +4108,34 @@ int main(int argc, char** argv) {
   std::vector<pollfd> pfds;
   pfds.reserve(2 + vcams.size());
 
+  auto close_camera_window = [&](size_t camIndex, const std::string& reason) -> bool {
+    if (camIndex >= wins.size() || camIndex >= vcams.size()) return false;
+
+    auto& w = wins[camIndex];
+    auto& cam = vcams[camIndex];
+    std::cerr << "Closing camera window for " << cam.cam.devPath
+              << " (" << reason << ")\n";
+
+    Rect sampled{};
+    if (w.win && x11_get_window_frame_rect(dpy, w.win, sampled)) {
+      w.geom = sampled;
+    }
+    saved[cam.cam.stableId] = w.geom;
+    save_positions_csv(positionsCsv, saved);
+    savedResolutions[cam.cam.stableId] = {cam.width, cam.height};
+    save_resolutions_csv(resolutionsCsv, savedResolutions);
+
+    if (w.surf != EGL_NO_SURFACE) {
+      if (eglMakeCurrent(edpy, w.surf, w.surf, ctx)) {}
+    }
+    cam.shutdown(eglDestroyImageKHR, edpy);
+    if (w.surf != EGL_NO_SURFACE) eglDestroySurface(edpy, w.surf);
+    if (w.win) XDestroyWindow(dpy, w.win);
+    wins.erase(wins.begin() + camIndex);
+    vcams.erase(vcams.begin() + camIndex);
+    return true;
+  };
+
   bool quit = false;
   bool positionsDirty = false;
   static constexpr int kResizeSettleMs = 140;
@@ -4066,24 +4160,7 @@ int main(int argc, char** argv) {
       if (ev.type == ClientMessage && (Atom)ev.xclient.data.l[0] == WM_DELETE_WINDOW) {
         for (size_t i = 0; i < wins.size(); ++i) {
           if (wins[i].win == (Window)ev.xclient.window) {
-            int rx = 0, ry = 0;
-            x11_get_window_root_xy(dpy, wins[i].win, rx, ry);
-            XWindowAttributes wa{};
-            XGetWindowAttributes(dpy, wins[i].win, &wa);
-            wins[i].geom = {rx, ry, wa.width, wa.height};
-            saved[vcams[i].cam.stableId] = wins[i].geom;
-            save_positions_csv(positionsCsv, saved);
-            savedResolutions[vcams[i].cam.stableId] = {vcams[i].width, vcams[i].height};
-            save_resolutions_csv(resolutionsCsv, savedResolutions);
-
-            if (wins[i].surf != EGL_NO_SURFACE) {
-              if (eglMakeCurrent(edpy, wins[i].surf, wins[i].surf, ctx)) {}
-            }
-            vcams[i].shutdown(eglDestroyImageKHR, edpy);
-            if (wins[i].surf != EGL_NO_SURFACE) eglDestroySurface(edpy, wins[i].surf);
-            if (wins[i].win) XDestroyWindow(dpy, wins[i].win);
-            wins.erase(wins.begin() + i);
-            vcams.erase(vcams.begin() + i);
+            (void)close_camera_window(i, "user requested close");
             break;
           }
         }
@@ -4092,9 +4169,12 @@ int main(int argc, char** argv) {
         for (size_t i = 0; i < wins.size(); ++i) {
           auto& w = wins[i];
           if (w.win == ev.xconfigure.window) {
-            int rx = 0, ry = 0;
-            x11_get_window_root_xy(dpy, w.win, rx, ry);
-            Rect nextGeom{rx, ry, ev.xconfigure.width, ev.xconfigure.height};
+            Rect nextGeom{};
+            if (!x11_get_window_frame_rect(dpy, w.win, nextGeom)) {
+              nextGeom = w.geom;
+              nextGeom.w = ev.xconfigure.width;
+              nextGeom.h = ev.xconfigure.height;
+            }
             w.geom = nextGeom;
             w.pendingGeom = nextGeom;
             w.lastResizeEvent = std::chrono::steady_clock::now();
@@ -4115,11 +4195,7 @@ int main(int argc, char** argv) {
       if (sinceMs < kResizeSettleMs) continue;
 
       Rect current = w.pendingGeom;
-      int rx = 0, ry = 0;
-      XWindowAttributes wa{};
-      if (x11_get_window_root_xy(dpy, w.win, rx, ry) && XGetWindowAttributes(dpy, w.win, &wa)) {
-        current = {rx, ry, wa.width, wa.height};
-      }
+      (void)x11_get_window_frame_rect(dpy, w.win, current);
       Rect corrected = constrain_rect_to_aspect(current, vcams[i].width, vcams[i].height);
       clamp_rect_to_screen(corrected, screenW, screenH);
 
@@ -4144,8 +4220,24 @@ int main(int argc, char** argv) {
           (cam.frameClockStarted &&
            std::chrono::duration_cast<std::chrono::milliseconds>(camLoopNow - cam.lastFrameTs).count() > watchdogNoFrameMs) ||
           cam.fd < 0) {
-        cam.reconnectPending = true;
+        schedule_reconnect(cam);
         (void)try_reconnect_camera(i, cam.fd < 0 ? "camera fd invalid" : "watchdog timeout");
+        if (cam.reconnectPending &&
+            cam.reconnectPendingSince.time_since_epoch().count() != 0 &&
+            camLoopNow - cam.reconnectPendingSince >= reconnectGiveUpAfter) {
+          const auto pendingSeconds = std::chrono::duration_cast<std::chrono::seconds>(
+              camLoopNow - cam.reconnectPendingSince).count();
+          const std::string devicePath = cam.cam.devPath;
+          if (close_camera_window(i,
+                                  "reconnect timed out after " +
+                                      std::to_string(pendingSeconds) + " seconds")) {
+            if (wins.empty()) quit = true;
+            break;
+          }
+          std::cerr << "Failed to close timed-out reconnect window for "
+                    << devicePath << "\n";
+          continue;
+        }
         if (cam.fd < 0) {
           draw_reconnecting_placeholder(i);
           continue;
@@ -4181,7 +4273,7 @@ int main(int argc, char** argv) {
       if (dqFailed) {
         ++cam.consecutiveDqErrors;
         if (cam.consecutiveDqErrors >= 2 || dqErrno == ENODEV || dqErrno == EIO || dqErrno == ENXIO || dqErrno == EBADF) {
-          cam.reconnectPending = true;
+          schedule_reconnect(cam);
           if (cam.requestedBufferCount < 4) {
             ++cam.requestedBufferCount;
             std::cerr << "Increasing capture queue depth to " << cam.requestedBufferCount
@@ -4197,7 +4289,7 @@ int main(int argc, char** argv) {
           const auto msSinceFrame = std::chrono::duration_cast<std::chrono::milliseconds>(
               std::chrono::steady_clock::now() - cam.lastFrameTs).count();
           if (msSinceFrame > watchdogNoFrameMs) {
-            cam.reconnectPending = true;
+            schedule_reconnect(cam);
           }
         }
         if (cam.reconnectPending) draw_reconnecting_placeholder(i);
@@ -4225,7 +4317,7 @@ int main(int argc, char** argv) {
       }
       if (cam.stutterEvents >= 4 && cam.requestedBufferCount < 4) {
         ++cam.requestedBufferCount;
-        cam.reconnectPending = true;
+        schedule_reconnect(cam);
         cam.stutterEvents = 0;
         std::cerr << "Detected recurring stutter on " << cam.cam.devPath
                   << "; increasing queue depth to " << cam.requestedBufferCount
@@ -4669,11 +4761,12 @@ int main(int argc, char** argv) {
 
   for (size_t i = 0; i < wins.size(); ++i) {
     if (!wins[i].win) continue;
-    int rx = 0, ry = 0;
-    x11_get_window_root_xy(dpy, wins[i].win, rx, ry);
-    XWindowAttributes wa{};
-    XGetWindowAttributes(dpy, wins[i].win, &wa);
-    saved[vcams[i].cam.stableId] = {rx, ry, wa.width, wa.height};
+    Rect sampled{};
+    if (x11_get_window_frame_rect(dpy, wins[i].win, sampled)) {
+      saved[vcams[i].cam.stableId] = sampled;
+    } else {
+      saved[vcams[i].cam.stableId] = wins[i].geom;
+    }
     savedResolutions[vcams[i].cam.stableId] = {vcams[i].width, vcams[i].height};
   }
   save_positions_csv(positionsCsv, saved);

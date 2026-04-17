@@ -383,22 +383,50 @@ classdef BehaviorBox_App < matlab.apps.AppBase
                 app
                 ~
             end
-            if ~isempty(app.Arduino_Com.Value)
-                [devicesInfo, COM, ID] = arduinoServer('ArduinoInfo', app.ArduinoInfo, 'desiredIdentity', app.Arduino_Com.Value, 'FindExact', true);
-                app.ArduinoInfo = devicesInfo;
-                app.Arduino_Com.Value = ID;
+            COM = [];
+            ID = [];
+
+            devicesInfo = arduinoServer('desiredIdentity', '');
+            app.ArduinoInfo = devicesInfo;
+
+            currentInput = string(app.Box_Input_type.Value);
+            [autoInput, autoIdentity] = inferBehaviorInputFromArduinoInfo(devicesInfo);
+            if any(currentInput == ["NosePoke", "Wheel"]) && autoInput ~= "" && currentInput ~= autoInput
+                fprintf('Auto-switching input from %s to %s based on detected Arduino(s): %s\n', ...
+                    char(currentInput), char(autoInput), char(autoIdentity));
+                app.Box_Input_type.Value = char(autoInput);
+                app.Arduino_Com.Value = '';
+                currentInput = autoInput;
+            end
+
+            switch currentInput
+                case "NosePoke"
+                    desiredIdentity = "Nose";
+                case "Wheel"
+                    desiredIdentity = "Wheel";
+                otherwise
+                    desiredIdentity = "";
+            end
+
+            if desiredIdentity == ""
+                app.Arduino_Com.Value = '';
                 return
+            end
+
+            preferredIdentity = string(app.Arduino_Com.Value);
+            if preferredIdentity ~= "" && contains(preferredIdentity, desiredIdentity, IgnoreCase=true)
+                [~, COM, ID] = arduinoServer('ArduinoInfo', devicesInfo, 'desiredIdentity', preferredIdentity, 'FindExact', true);
+            end
+
+            if isempty(COM)
+                [~, COM, ID] = arduinoServer('ArduinoInfo', devicesInfo, 'desiredIdentity', desiredIdentity, 'FindExact', true);
+            end
+
+            idString = string(ID);
+            if isempty(idString) || all(strlength(idString) == 0)
+                app.Arduino_Com.Value = '';
             else
-                switch app.Box_Input_type.Value
-                    case 'NosePoke' % Nose
-                        [devicesInfo, COM, ID] = arduinoServer('desiredIdentity', 'Nose', 'FindFirst', false, 'FindAll', true);
-                    case 'Wheel' % Wheel
-                        [devicesInfo, COM, ID] = arduinoServer('desiredIdentity', 'Wheel', 'FindFirst', false, 'FindAll', true);
-                    otherwise % Keyboard mode, no serial device connected
-                end
-                app.ArduinoInfo = devicesInfo;
-                app.Arduino_Com.Value = ID;
-                return
+                app.Arduino_Com.Value = char(idString);
             end
         end
 
