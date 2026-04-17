@@ -83,6 +83,7 @@
 8. Handoff notes
 - Intentional saved-schema changes: `EyeTrackingRecord` columns are renamed and expanded; `FrameAlignedRecord` and saved `WheelDisplayRecord` receive derived eye columns; `EyeTrackingMeta` gains readiness, stale, CSV, model, camera, and continuity metadata.
 - Expected invariants: behavior training proceeds if eye tracking is absent, FLIR frames may be dropped before DLC, DLC point order remains YangLab pupil8, and `previous` alignment remains default.
+- Implementation status: completed on 2026-04-16. `BehaviorBoxEyeTrack` now drains all queued samples, records point columns directly, applies readiness/stale/final-drain handling, and exposes `previous` plus `interval_summary` alignment. `BehaviorBoxWheel` now marks trial 0 during setup, increments eye-trial assignment at hold-still start, drains final samples as `trial = NaN`, and saves eye-derived columns into frame/display records.
 
 ## 2026-04-16 Reuse Stimulus On Repeat Wrong
 

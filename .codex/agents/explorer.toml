@@ -6,6 +6,7 @@ Stay in exploration mode.
 
 Map the true execution path before proposing edits.
 For MATLAB, identify package folders (+pkg), class folders (@Class), scripts, startup/addpath behavior, and the narrowest real validation commands.
+When MATLAB inspection requires execution or linting, prefer the configured Codex MCP server named matlab. It is configured headless with matlab-display-mode nodesktop; do not launch or attach to a GUI MATLAB desktop.
 For Python, identify modules, environment assumptions, and any file-format boundary with MATLAB.
 
 Return concrete file paths, functions, symbols, and validation commands.

@@ -112,6 +112,7 @@ classdef BehaviorBoxWheel < handle
         WheelDisplayRecord = table();
         FrameAlignedRecord = table();
         CurrentTrialFrameAlignedRecord = table();
+        EyeTrackAlignmentMode string = "previous"
         CurrentWheelPhase string = "intertrial"
         CurrentRawWheel double = 0
         CurrentDelta double = 0
@@ -509,8 +510,7 @@ classdef BehaviorBoxWheel < handle
         function BeforeTrial(this)
             if ~isempty(this.EyeTrack) && isobject(this.EyeTrack)
                 try
-                    this.EyeTrack.markTrial(this.i);
-                    this.EyeTrack.pollAvailable(this.i);
+                    this.EyeTrack.pollAvailable();
                 catch
                 end
             end
@@ -2359,11 +2359,11 @@ classdef BehaviorBoxWheel < handle
                     end
                     timeSegments = this.annotateTimestampSegmentsForSave_(timeSegments, FullTrials);
                     newData.TimestampRecord = timeSegments;
+                    [newData.EyeTrackingRecord, newData.EyeTrackingMeta] = this.eyeTrackSaveOutputs_();
                     if ~isempty(this.Time) && isobject(this.Time)
                         newData.WheelDisplayRecord = this.annotateWheelDisplayRecordForSave_(this.WheelDisplayRecord, FullTrials);
-                        newData.FrameAlignedRecord = this.FrameAlignedRecord;
+                        newData.FrameAlignedRecord = this.alignFrameRowsWithEyeTrack_(this.FrameAlignedRecord);
                     end
-                    [newData.EyeTrackingRecord, newData.EyeTrackingMeta] = this.eyeTrackSaveOutputs_();
 
                 end
                 if isscalar(this.SetUpdate) % Settings never changed during the session.
@@ -3929,6 +3929,7 @@ classdef BehaviorBoxWheel < handle
             end
             try
                 this.EyeTrack.markTrial(NaN);
+                this.EyeTrack.finalDrain();
             catch
             end
             try
@@ -3966,7 +3967,9 @@ classdef BehaviorBoxWheel < handle
                     this.EyeTrack.setSessionClock(this.TrainStartTime, this.TrainStartWallClock);
                     this.EyeTrack.markTrial(0);
                     this.EyeTrack.start();
-                catch
+                catch err
+                    warning('BehaviorBoxEyeTrack:StartupUnavailable', ...
+                        'Eye tracking was configured but did not start cleanly: %s', err.message);
                 end
             end
             this.start_time = this.TrainStartWallClock;
@@ -4038,6 +4041,10 @@ classdef BehaviorBoxWheel < handle
                 return
             end
             try
+                this.EyeTrack.finalDrain();
+            catch
+            end
+            try
                 eyeTrackingRecord = this.EyeTrack.getRecord();
             catch
                 eyeTrackingRecord = BehaviorBoxEyeTrack.emptyRecordTable();
@@ -4074,6 +4081,7 @@ classdef BehaviorBoxWheel < handle
 
             wheelDisplayRecord.trialCommitted = trialCommitted;
             wheelDisplayRecord.trialStatus = trialStatus;
+            wheelDisplayRecord = this.alignWheelDisplayRowsWithEyeTrack_(wheelDisplayRecord);
         end
 
         function timeSegments = annotateTimestampSegmentsForSave_(this, timeSegments, committedTrials)
@@ -4219,6 +4227,13 @@ classdef BehaviorBoxWheel < handle
         end
 
         function beginHoldStillInterval_(this)
+            if ~isempty(this.EyeTrack) && isobject(this.EyeTrack)
+                try
+                    this.EyeTrack.markTrial(this.i);
+                    this.EyeTrack.pollAvailable();
+                catch
+                end
+            end
             this.logTimeEvent_("hold_still_start", struct( ...
                 'trial', this.i, ...
                 'side', this.trialSideName_(), ...
@@ -4393,7 +4408,7 @@ classdef BehaviorBoxWheel < handle
                     frameTTrial = (frameUs - holdStillUs) / 1e6;
                 end
 
-                row = table( ...
+                row = this.frameAlignedRow_( ...
                     double(this.i), ...
                     double(frameRows.frame(iFrame)), ...
                     frameUs, ...
@@ -4408,17 +4423,7 @@ classdef BehaviorBoxWheel < handle
                     double(sourceRow.level), ...
                     logical(sourceRow.isLeftTrial), ...
                     "", ...
-                    NaN, ...
-                    NaN, ...
-                    NaN, ...
-                    NaN, ...
-                    NaN, ...
-                    NaN, ...
-                    NaN, ...
-                    0, ...
-                    NaN, ...
-                    false, ...
-                    'VariableNames', {'trial','frame','t_us','t_arduino_us','t_pc_receive_us','phase','tTrial','rawWheel','delta','StimColor','screenEvent','level','isLeftTrial','decision','correct','eye_x','eye_y','eye_diameter_px','eye_confidence','eye_valid_points','eye_latency_ms','eye_sample_count','eye_dt_us','eye_isValid'});
+                    NaN);
                 rows = [rows; row];
                 prevFrameUs = frameUs;
             end
@@ -4428,6 +4433,7 @@ classdef BehaviorBoxWheel < handle
             end
             rows.decision(:) = finalDecision;
             rows.correct(:) = finalCorrect;
+            rows = this.alignFrameRowsWithEyeTrack_(rows);
             this.CurrentTrialFrameAlignedRecord = rows;
             this.FrameAlignedRecord = [this.FrameAlignedRecord; rows];
         end
@@ -4508,7 +4514,7 @@ classdef BehaviorBoxWheel < handle
                     frameTTrial = (frameUs - segmentStartUs) / 1e6;
                 end
 
-                row = table( ...
+                row = this.frameAlignedRow_( ...
                     double(segmentTrial), ...
                     double(frameRows.frame(iFrame)), ...
                     frameUs, ...
@@ -4523,17 +4529,7 @@ classdef BehaviorBoxWheel < handle
                     NaN, ...
                     false, ...
                     "", ...
-                    NaN, ...
-                    NaN, ...
-                    NaN, ...
-                    NaN, ...
-                    NaN, ...
-                    NaN, ...
-                    NaN, ...
-                    0, ...
-                    NaN, ...
-                    false, ...
-                    'VariableNames', {'trial','frame','t_us','t_arduino_us','t_pc_receive_us','phase','tTrial','rawWheel','delta','StimColor','screenEvent','level','isLeftTrial','decision','correct','eye_x','eye_y','eye_diameter_px','eye_confidence','eye_valid_points','eye_latency_ms','eye_sample_count','eye_dt_us','eye_isValid'});
+                    NaN);
                 rows = [rows; row];
                 prevFrameUs = frameUs;
             end
@@ -4541,6 +4537,7 @@ classdef BehaviorBoxWheel < handle
             if isempty(rows) || height(rows) == 0
                 return
             end
+            rows = this.alignFrameRowsWithEyeTrack_(rows);
             this.FrameAlignedRecord = [this.FrameAlignedRecord; rows];
         end
 
@@ -4737,6 +4734,76 @@ classdef BehaviorBoxWheel < handle
             end
         end
 
+        function row = frameAlignedRow_(this, trial, frame, tUs, tArduinoUs, tPcReceiveUs, phase, tTrial, rawWheel, delta, stimColor, screenEvent, level, isLeftTrial, decision, correct)
+            row = table( ...
+                double(trial), ...
+                double(frame), ...
+                double(tUs), ...
+                double(tArduinoUs), ...
+                double(tPcReceiveUs), ...
+                string(phase), ...
+                double(tTrial), ...
+                double(rawWheel), ...
+                double(delta), ...
+                double(stimColor), ...
+                string(screenEvent), ...
+                double(level), ...
+                logical(isLeftTrial), ...
+                string(decision), ...
+                double(correct), ...
+                'VariableNames', {'trial','frame','t_us','t_arduino_us','t_pc_receive_us','phase','tTrial','rawWheel','delta','StimColor','screenEvent','level','isLeftTrial','decision','correct'});
+            row = BehaviorBoxEyeTrack.alignEyeSamplesToTable(BehaviorBoxEyeTrack.emptyRecordTable(), row);
+        end
+
+        function rows = alignFrameRowsWithEyeTrack_(this, rows)
+            if isempty(rows) || ~istable(rows)
+                rows = this.emptyFrameAlignedRecord_();
+                return
+            end
+            eyeRecord = this.currentEyeTrackingRecord_();
+            rows = BehaviorBoxEyeTrack.alignEyeSamplesToTable( ...
+                eyeRecord, rows, ...
+                'Mode', char(this.EyeTrackAlignmentMode), ...
+                'IntervalDirection', 'previous');
+        end
+
+        function rows = alignWheelDisplayRowsWithEyeTrack_(this, rows)
+            if isempty(rows) || ~istable(rows)
+                rows = this.emptyWheelDisplayRecord_();
+                return
+            end
+            eyeRecord = this.currentEyeTrackingRecord_();
+            rows = BehaviorBoxEyeTrack.alignEyeSamplesToTable( ...
+                eyeRecord, rows, ...
+                'Mode', char(this.EyeTrackAlignmentMode), ...
+                'IntervalDirection', 'next', ...
+                'SessionEndUs', this.currentSessionMicros_());
+        end
+
+        function record = currentEyeTrackingRecord_(this)
+            record = BehaviorBoxEyeTrack.emptyRecordTable();
+            if isempty(this.EyeTrack) || ~isobject(this.EyeTrack)
+                return
+            end
+            try
+                record = this.EyeTrack.getRecord();
+            catch
+                record = BehaviorBoxEyeTrack.emptyRecordTable();
+            end
+        end
+
+        function tUs = currentSessionMicros_(this)
+            tUs = Inf;
+            if isempty(this.TrainStartTime)
+                return
+            end
+            try
+                tUs = round(toc(this.TrainStartTime) * 1e6);
+            catch
+                tUs = Inf;
+            end
+        end
+
         function tbl = emptyWheelDisplayRecord_(this)
             tbl = table( ...
                 'Size', [0 10], ...
@@ -4746,9 +4813,10 @@ classdef BehaviorBoxWheel < handle
 
         function tbl = emptyFrameAlignedRecord_(this)
             tbl = table( ...
-                'Size', [0 24], ...
-                'VariableTypes', {'double','double','double','double','double','string','double','double','double','double','string','double','logical','string','double','double','double','double','double','double','double','double','double','logical'}, ...
-                'VariableNames', {'trial','frame','t_us','t_arduino_us','t_pc_receive_us','phase','tTrial','rawWheel','delta','StimColor','screenEvent','level','isLeftTrial','decision','correct','eye_x','eye_y','eye_diameter_px','eye_confidence','eye_valid_points','eye_latency_ms','eye_sample_count','eye_dt_us','eye_isValid'});
+                'Size', [0 15], ...
+                'VariableTypes', {'double','double','double','double','double','string','double','double','double','double','string','double','logical','string','double'}, ...
+                'VariableNames', {'trial','frame','t_us','t_arduino_us','t_pc_receive_us','phase','tTrial','rawWheel','delta','StimColor','screenEvent','level','isLeftTrial','decision','correct'});
+            tbl = BehaviorBoxEyeTrack.alignEyeSamplesToTable(BehaviorBoxEyeTrack.emptyRecordTable(), tbl);
         end
 
         function eventNames = frameAlignedEventLabel_(this, eventNames)
