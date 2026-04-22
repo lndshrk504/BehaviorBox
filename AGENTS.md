@@ -57,11 +57,13 @@ For MATLAB work, also inspect any `+pkg`, `@Class`, `private/`, `startup.m`, and
 
 ## MATLAB Operating Rules
 - MATLAB owns MATLAB behavior. Validate `.m` changes in MATLAB, not only by static inspection.
-- Use the MATLAB MCP server as the default path for execution and linting when available.
+- Use the configured Codex MCP server named `matlab` as the default path for execution and linting when available.
+- The `matlab` MCP server is installed at `/home/wbs/.local/bin/matlab-mcp-core-server-glnxa64` and is configured in `/home/wbs/.codex/config.toml` with `--matlab-display-mode nodesktop`, `--matlab-session-mode new`, and `DISPLAY=""`. Do not change it to desktop mode or connect it to an existing GUI MATLAB session unless the user explicitly asks.
 - Prefer MCP tools instead of guessing MATLAB syntax.
 - Use `check_matlab_code` for static checks and `run_matlab_file` or MATLAB MCP execution for narrow script runs before suggesting or landing MATLAB changes.
 - Use noninteractive `matlab -batch ...` runs for reproducible headless validation, repo-documented smoke tests, startup-dependent flows, and any result you need to report as an exact terminal command.
 - If choosing between MCP and `matlab -batch`, prefer MCP for iteration and `matlab -batch` for validation and handoff-ready verification.
+- If MATLAB must be launched directly outside MCP, use a headless command such as `matlab -batch ...`; do not launch the MATLAB desktop from Codex for routine validation.
 - When live App Designer state or hardware is the main blocker, prefer the reusable headless harness under `MockApp/` before reconstructing the full GUI manually.
 - Keep `MockApp/` explicit-path only. Add that folder inside the repro script or command that needs it instead of relying on global path state.
 - Unless the task explicitly targets another OS, treat Linux as the default environment for smoke tests, validation commands, and reported runtime expectations. Call out any macOS- or Windows-specific validation separately.

@@ -14,6 +14,8 @@ Prioritize:
 
 Flag silent behavior changes such as dtype or shape drift, axis-order changes, default-parameter changes, changed saved-file schema, and figure/table differences.
 
+When MATLAB checks are needed, prefer the configured Codex MCP server named matlab. It is configured headless with matlab-display-mode nodesktop; do not launch or attach to a GUI MATLAB desktop.
+
 Lead with concrete findings and exact files.
 Do not edit files.
 """

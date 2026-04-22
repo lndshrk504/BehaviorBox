@@ -122,6 +122,7 @@
 8. Handoff notes
 - Intentional saved-schema changes: `EyeTrackingRecord` columns are renamed and expanded; `FrameAlignedRecord` and saved `WheelDisplayRecord` receive derived eye columns; `EyeTrackingMeta` gains readiness, stale, CSV, model, camera, and continuity metadata.
 - Expected invariants: behavior training proceeds if eye tracking is absent, FLIR frames may be dropped before DLC, DLC point order remains YangLab pupil8, and `previous` alignment remains default.
+- Implementation status: completed on 2026-04-16. `BehaviorBoxEyeTrack` now drains all queued samples, records point columns directly, applies readiness/stale/final-drain handling, and exposes `previous` plus `interval_summary` alignment. `BehaviorBoxWheel` now marks trial 0 during setup, increments eye-trial assignment at hold-still start, drains final samples as `trial = NaN`, and saves eye-derived columns into frame/display records.
 
 ## 2026-04-16 Reuse Stimulus On Repeat Wrong
 
@@ -1798,3 +1799,49 @@
 7. Risks and stop conditions
 - Stop if App Designer field names differ from `Wait_Blink` or `Wait_Blink_Sec`.
 - Hardware-in-the-loop Nose session start/stop/save remains unverified unless bench hardware is available.
+
+## 2026-04-17 Auto-Switch GUI Input From Detected Arduino Family
+
+1. Goal
+- When Arduino polling runs during GUI startup/reset, automatically switch `BB_App` input selection to `NosePoke` or `Wheel` if the discovered behavior Arduinos belong to exactly one family.
+- Keep the existing Nose and Wheel connection flow in `BehaviorBoxNose.ConfigureBox`, `BehaviorBoxWheel.ConfigureBox`, and `fcns/arduinoServer.m`.
+
+2. Non-goals
+- Do not change Arduino serial protocol, Box ID strings, baud rates, reward pin handling, or timestamp-Arduino behavior.
+- Do not change save-data schema, subject loading rules, or non-Nose/Wheel GUI modes beyond avoiding an incorrect default selection.
+
+3. Current-state summary
+- `fcns/arduinoServer.m` enumerates serial ports, reads startup text, and extracts `Box ID` identities such as Nose, Wheel, and Time.
+- `BB_App.FindArduino` currently searches only the family implied by the current GUI input, which defaults to `NosePoke` at startup.
+- `BehaviorBox_OpeningFcn` calls `FindArduino`, then `LoadComputerSpecifics`, then builds either `BehaviorBoxNose` or `BehaviorBoxWheel`.
+- `BehaviorBoxNose.ConfigureBox` and `BehaviorBoxWheel.ConfigureBox` each retry connection with family-specific discovery if the selected Arduino lookup fails.
+- On single-purpose training machines, a Wheel-only setup can still start in Nose mode, requiring a manual GUI input change before the correct Arduino is selected.
+
+4. Files likely touched
+- `/home/wbs/Desktop/BehaviorBox/BB_App.m`
+- `/home/wbs/Desktop/BehaviorBox/fcns/arduinoServer.m` (read-only context unless implementation forces a change)
+- `/home/wbs/Desktop/BehaviorBox/fcns/inferBehaviorInputFromArduinoInfo.m`
+- `/home/wbs/Desktop/BehaviorBox/fcns/testInferBehaviorInputFromArduinoInfo.m`
+- `/home/wbs/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- Static checks:
+  `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); checkcode('BB_App.m'); checkcode('fcns/inferBehaviorInputFromArduinoInfo.m'); checkcode('fcns/testInferBehaviorInputFromArduinoInfo.m');"`
+- Focused helper smoke:
+  `matlab -batch "cd('/home/wbs/Desktop/BehaviorBox'); run('fcns/testInferBehaviorInputFromArduinoInfo.m');"`
+- Conflict marker scan:
+  `rg -n "^<<<<<<<|^=======|^>>>>>>>" BB_App.m fcns/inferBehaviorInputFromArduinoInfo.m fcns/testInferBehaviorInputFromArduinoInfo.m .agent/PLANS.md`
+
+6. Milestones
+- Add a helper that infers a unique behavior input family from discovered Arduino identities.
+- Update `BB_App.FindArduino` to poll all Arduinos once, auto-switch the GUI input when exactly one behavior family is present, and then select the matching Arduino.
+- Run focused MATLAB validation and inspect the final diff.
+
+7. Risks and stop conditions
+- Stop if the app relies on programmatic `Box_Input_type.Value` changes firing callbacks automatically; if not, update the dependent state explicitly.
+- Stop if the detected-device list can contain both Nose and Wheel identities on normal single-box setups, because that would make the auto-switch heuristic ambiguous.
+- Hardware-in-the-loop confirmation of actual serial connection remains unverified unless a Nose-only or Wheel-only bench setup is available.
+
+8. Handoff notes
+- Call out the handshake locations in `BB_App.m`, `BehaviorBoxNose.m`, `BehaviorBoxWheel.m`, and `fcns/arduinoServer.m`.
+- Report that validation covers inference logic and MATLAB syntax, not live USB enumeration against attached hardware.
