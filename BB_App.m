@@ -1,168 +1,167 @@
-classdef BehaviorBox_App < matlab.apps.AppBase
+classdef BB_App < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
         figure1                         matlab.ui.Figure
-        GraphPopOut_2                   matlab.ui.control.Button
-        GraphPopOut                     matlab.ui.control.Button
-        Folder                          matlab.ui.control.Button
-        Git                             matlab.ui.control.Button
         TabGroup                        matlab.ui.container.TabGroup
         SettingsTab                     matlab.ui.container.Tab
-        One_ScanImage_File              matlab.ui.control.CheckBox
-        InputControlPanel               matlab.ui.container.Panel
-        TurnMag                         matlab.ui.control.NumericEditField
-        TurnMagEditFieldLabel           matlab.ui.control.Label
-        RoundUp                         matlab.ui.control.CheckBox
-        RoundUpVal                      matlab.ui.control.NumericEditField
-        RoundUpEditFieldLabel           matlab.ui.control.Label
-        Stimulus_FinishLine             matlab.ui.control.CheckBox
-        IntertrialMalCancel             matlab.ui.control.CheckBox
-        IntertrialMalSec                matlab.ui.control.NumericEditField
-        SkipWaitForInput                matlab.ui.control.CheckBox
-        ConfirmChoice                   matlab.ui.control.CheckBox
-        Input_Delay_Start               matlab.ui.control.NumericEditField
-        Input_Delay_Respond             matlab.ui.control.NumericEditField
-        Hold_Still_Thresh               matlab.ui.control.NumericEditField
-        EditField_6Label                matlab.ui.control.Label
-        DuringTrialEditFieldLabel       matlab.ui.control.Label
-        StimulusvariablesPanel          matlab.ui.container.Panel
-        WinPos                          matlab.ui.control.StateButton
-        Stimulus_SegThick               matlab.ui.control.NumericEditField
-        SegmentthicknessEditFieldLabel  matlab.ui.control.Label
-        Stimulus_SegLength              matlab.ui.control.NumericEditField
-        SegmentlengthEditFieldLabel     matlab.ui.control.Label
-        Stimulus_SegSpacing             matlab.ui.control.NumericEditField
-        SegmentSpacingEditFieldLabel    matlab.ui.control.Label
-        Stimulus_SpotlightColor         matlab.ui.control.NumericEditField
-        Stimulus_BetweenSpotlight       matlab.ui.control.NumericEditField
-        Stimulus_LineColor              matlab.ui.control.NumericEditField
-        LinebrightnessEditFieldLabel    matlab.ui.control.Label
-        Stimulus_FlashColor             matlab.ui.control.NumericEditField
-        EditField_5Label_2              matlab.ui.control.Label
-        Stimulus_DimColor               matlab.ui.control.NumericEditField
-        BackgroundEditFieldLabel_2      matlab.ui.control.Label
-        Stimulus_BackgroundColor        matlab.ui.control.NumericEditField
-        BackgroundEditFieldLabel        matlab.ui.control.Label
-        ReadyCue_Color                  matlab.ui.control.NumericEditField
-        ReadyCue_Size                   matlab.ui.control.NumericEditField
-        EditField_2Label                matlab.ui.control.Label
-        ReadyCuecolorLabel              matlab.ui.control.Label
-        BetweenSpotlight_textlabel      matlab.ui.control.Label
-        SpotlightbrightnessEditFieldLabel  matlab.ui.control.Label
-        Stimulus_size_y                 matlab.ui.control.EditField
-        Stimulus_size_x                 matlab.ui.control.EditField
-        Stimulus_position_x             matlab.ui.control.EditField
-        Stimulus_position_y             matlab.ui.control.EditField
-        Arduino_Com                     matlab.ui.control.EditField
+        text86                          matlab.ui.control.Label
         Panel_2                         matlab.ui.container.Panel
-        Stimulus_type                   matlab.ui.control.DropDown
-        text65                          matlab.ui.control.Label
-        Stimulus_FlashStim              matlab.ui.control.CheckBox
-        EditField                       matlab.ui.control.NumericEditField
-        Stimulus_RepFlashInitial        matlab.ui.control.EditField
-        Stimulus_RepFlashAfterC         matlab.ui.control.EditField
         Stimulus_RepFlashAfterW         matlab.ui.control.EditField
+        Stimulus_RepFlashAfterC         matlab.ui.control.EditField
+        Stimulus_CorrectAngleAdj        matlab.ui.control.NumericEditField
         CorrectionoffsetEditFieldLabel  matlab.ui.control.Label
+        Stimulus_RepFlashInitial        matlab.ui.control.EditField
+        text122                         matlab.ui.control.Label
+        EditField                       matlab.ui.control.NumericEditField
+        text121                         matlab.ui.control.Label
+        Stimulus_FlashStim              matlab.ui.control.CheckBox
         Stimulus_ContTol                matlab.ui.control.NumericEditField
         ContangletolEditFieldLabel      matlab.ui.control.Label
-        Stimulus_CorrectAngleAdj        matlab.ui.control.NumericEditField
-        text122                         matlab.ui.control.Label
-        text121                         matlab.ui.control.Label
+        Stimulus_type                   matlab.ui.control.DropDown
+        text65                          matlab.ui.control.Label
         SubjectPanel                    matlab.ui.container.Panel
-        Inv                             matlab.ui.control.EditField
-        Strain                          matlab.ui.control.EditField
-        WeightgEditField                matlab.ui.control.EditField
         StrainDropDown                  matlab.ui.control.DropDown
         DropDownLabel                   matlab.ui.control.Label
-        Investigator                    matlab.ui.control.Label
+        WeightgEditField                matlab.ui.control.EditField
         WeightgEditFieldLabel           matlab.ui.control.Label
+        Strain                          matlab.ui.control.EditField
         text13                          matlab.ui.control.Label
-        text86                          matlab.ui.control.Label
+        Inv                             matlab.ui.control.EditField
+        Investigator                    matlab.ui.control.Label
+        One_ScanImage_File              matlab.ui.control.CheckBox
+        StimulusvariablesPanel          matlab.ui.container.Panel
+        WinPos                          matlab.ui.control.StateButton
+        Arduino_Com                     matlab.ui.control.EditField
+        Stimulus_position_x             matlab.ui.control.EditField
+        Stimulus_position_y             matlab.ui.control.EditField
+        Stimulus_size_x                 matlab.ui.control.EditField
+        Stimulus_size_y                 matlab.ui.control.EditField
+        ReadyCue_Size                   matlab.ui.control.NumericEditField
+        ReadyCue_Color                  matlab.ui.control.NumericEditField
+        EditField_2Label                matlab.ui.control.Label
+        ReadyCuecolorLabel              matlab.ui.control.Label
+        Stimulus_BackgroundColor        matlab.ui.control.NumericEditField
+        BackgroundEditFieldLabel        matlab.ui.control.Label
+        Stimulus_DimColor               matlab.ui.control.NumericEditField
+        BackgroundEditFieldLabel_2      matlab.ui.control.Label
+        Stimulus_FlashColor             matlab.ui.control.NumericEditField
+        EditField_5Label_2              matlab.ui.control.Label
+        Stimulus_LineColor              matlab.ui.control.NumericEditField
+        LinebrightnessEditFieldLabel    matlab.ui.control.Label
+        Stimulus_BetweenSpotlight       matlab.ui.control.NumericEditField
+        BetweenSpotlight_textlabel      matlab.ui.control.Label
+        Stimulus_SpotlightColor         matlab.ui.control.NumericEditField
+        SpotlightbrightnessEditFieldLabel  matlab.ui.control.Label
+        Stimulus_SegSpacing             matlab.ui.control.NumericEditField
+        SegmentSpacingEditFieldLabel    matlab.ui.control.Label
+        Stimulus_SegLength              matlab.ui.control.NumericEditField
+        SegmentlengthEditFieldLabel     matlab.ui.control.Label
+        Stimulus_SegThick               matlab.ui.control.NumericEditField
+        SegmentthicknessEditFieldLabel  matlab.ui.control.Label
+        InputControlPanel               matlab.ui.container.Panel
+        Wait_Blink_Sec                  matlab.ui.control.NumericEditField
+        Wait_Blink                      matlab.ui.control.CheckBox
+        Hold_Still_Thresh               matlab.ui.control.NumericEditField
+        EditField_6Label                matlab.ui.control.Label
+        Input_Delay_Respond             matlab.ui.control.NumericEditField
+        Input_Delay_Start               matlab.ui.control.NumericEditField
+        DuringTrialEditFieldLabel       matlab.ui.control.Label
+        ConfirmChoice                   matlab.ui.control.CheckBox
+        SkipWaitForInput                matlab.ui.control.CheckBox
+        IntertrialMalSec                matlab.ui.control.NumericEditField
+        Stimulus_FinishLine             matlab.ui.control.CheckBox
+        IntertrialMalCancel             matlab.ui.control.CheckBox
+        RoundUpVal                      matlab.ui.control.NumericEditField
+        RoundUpEditFieldLabel           matlab.ui.control.Label
+        RoundUp                         matlab.ui.control.CheckBox
+        TurnMag                         matlab.ui.control.NumericEditField
+        TurnMagEditFieldLabel           matlab.ui.control.Label
         uipanel4                        matlab.ui.container.Panel
-        LeftValveButton                 matlab.ui.control.Button
-        RightValveButton                matlab.ui.control.Button
-        Box_Lrewardtime                 matlab.ui.control.EditField
-        Box_Rrewardtime                 matlab.ui.control.EditField
-        Box_LeftPulse                   matlab.ui.control.NumericEditField
-        Box_RightPulse                  matlab.ui.control.NumericEditField
         Box_SecBwPulse                  matlab.ui.control.NumericEditField
         secbwPulsesEditFieldLabel       matlab.ui.control.Label
+        Box_RightPulse                  matlab.ui.control.NumericEditField
+        Box_Rrewardtime                 matlab.ui.control.EditField
+        RightValveButton                matlab.ui.control.Button
+        Box_LeftPulse                   matlab.ui.control.NumericEditField
+        Box_Lrewardtime                 matlab.ui.control.EditField
+        LeftValveButton                 matlab.ui.control.Button
         uipanel3                        matlab.ui.container.Panel
-        text35                          matlab.ui.control.Label
-        SideBiassEditField_2Label       matlab.ui.control.Label
-        text12                          matlab.ui.control.Label
-        EditField_5Label                matlab.ui.control.Label
-        text10                          matlab.ui.control.Label
-        text8                           matlab.ui.control.Label
-        Input_ignored                   matlab.ui.control.CheckBox
-        Pokes_ignored_time              matlab.ui.control.EditField
-        Penalty_time                    matlab.ui.control.EditField
-        Intertrial_time                 matlab.ui.control.EditField
-        HoldStill                       matlab.ui.control.NumericEditField
-        Box_Timeout_after_time          matlab.ui.control.EditField
-        SideBiasInterval                matlab.ui.control.NumericEditField
-        OnlyCorrect                     matlab.ui.control.CheckBox
-        Box_OCPulse                     matlab.ui.control.NumericEditField
-        Repeat_wrong                    matlab.ui.control.CheckBox
-        Stimulus_PersistCorrect         matlab.ui.control.CheckBox
-        Stimulus_PersistCorrectInterv   matlab.ui.control.NumericEditField
-        Stimulus_PersistIncorrect       matlab.ui.control.CheckBox
-        Stimulus_PersistIncorrectInterv  matlab.ui.control.NumericEditField
-        Data_Sbin                       matlab.ui.control.EditField
         Data_Lbin                       matlab.ui.control.EditField
+        Data_Sbin                       matlab.ui.control.EditField
+        text35                          matlab.ui.control.Label
+        Stimulus_PersistIncorrectInterv  matlab.ui.control.NumericEditField
+        Stimulus_PersistIncorrect       matlab.ui.control.CheckBox
+        Stimulus_PersistCorrectInterv   matlab.ui.control.NumericEditField
+        Stimulus_PersistCorrect         matlab.ui.control.CheckBox
+        Repeat_wrong                    matlab.ui.control.CheckBox
+        Box_OCPulse                     matlab.ui.control.NumericEditField
+        OnlyCorrect                     matlab.ui.control.CheckBox
+        SideBiasInterval                matlab.ui.control.NumericEditField
+        SideBiassEditField_2Label       matlab.ui.control.Label
+        Box_Timeout_after_time          matlab.ui.control.EditField
+        text12                          matlab.ui.control.Label
+        HoldStill                       matlab.ui.control.NumericEditField
+        EditField_5Label                matlab.ui.control.Label
+        Intertrial_time                 matlab.ui.control.EditField
+        text10                          matlab.ui.control.Label
+        Penalty_time                    matlab.ui.control.EditField
+        text8                           matlab.ui.control.Label
+        Pokes_ignored_time              matlab.ui.control.EditField
+        Input_ignored                   matlab.ui.control.CheckBox
         uipanel1                        matlab.ui.container.Panel
-        Box_Input_type                  matlab.ui.control.DropDown
-        Stimulus_side                   matlab.ui.control.DropDown
-        Side_delta                      matlab.ui.control.NumericEditField
-        MinRandAlt                      matlab.ui.control.EditField
-        MaxRandAlt                      matlab.ui.control.EditField
-        Starting_opacity                matlab.ui.control.Spinner
-        EasyTrials                      matlab.ui.control.CheckBox
-        Level_EasyLvProb                matlab.ui.control.NumericEditField
-        EasyLvProbLabel                 matlab.ui.control.Label
-        Level_EasyLvList                matlab.ui.control.EditField
+        Level_HardLvList                matlab.ui.control.EditField
         Level_HardLvProb                matlab.ui.control.NumericEditField
         HighLvProbEditFieldLabel        matlab.ui.control.Label
-        Level_HardLvList                matlab.ui.control.EditField
+        Level_EasyLvList                matlab.ui.control.EditField
+        Level_EasyLvProb                matlab.ui.control.NumericEditField
+        EasyLvProbLabel                 matlab.ui.control.Label
+        EasyTrials                      matlab.ui.control.CheckBox
+        Starting_opacity                matlab.ui.control.Spinner
         DistractorsSpinnerLabel         matlab.ui.control.Label
+        MaxRandAlt                      matlab.ui.control.EditField
         text119                         matlab.ui.control.Label
+        MinRandAlt                      matlab.ui.control.EditField
         text117                         matlab.ui.control.Label
+        Side_delta                      matlab.ui.control.NumericEditField
+        Stimulus_side                   matlab.ui.control.DropDown
         text89                          matlab.ui.control.Label
+        Box_Input_type                  matlab.ui.control.DropDown
         text66                          matlab.ui.control.Label
         TemporaryTab                    matlab.ui.container.Tab
+        ExpireAfterButtonGroup          matlab.ui.container.ButtonGroup
+        TrialsRemainingLabel            matlab.ui.control.Label
+        TrialCountThreshold_Temp        matlab.ui.control.NumericEditField
+        TrialCount_Temp                 matlab.ui.control.NumericEditField
+        TrialNumber_Temp                matlab.ui.control.RadioButton
+        PerfThresh_Temp                 matlab.ui.control.NumericEditField
+        PerformanceThreshold_Temp       matlab.ui.control.RadioButton
+        TempOff_Temp                    matlab.ui.control.RadioButton
         AutomaticDropWheelPanel         matlab.ui.container.Panel
         Auto_Msg                        matlab.ui.control.Label
         Auto_Animate                    matlab.ui.control.CheckBox
-        Auto_Stop                       matlab.ui.control.StateButton
         Auto_Freq                       matlab.ui.control.NumericEditField
         FrequencyEditFieldLabel         matlab.ui.control.Label
+        Auto_Stop                       matlab.ui.control.StateButton
         Auto_Go                         matlab.ui.control.StateButton
-        ExpireAfterButtonGroup          matlab.ui.container.ButtonGroup
-        TempOff_Temp                    matlab.ui.control.RadioButton
-        PerformanceThreshold_Temp       matlab.ui.control.RadioButton
-        TrialNumber_Temp                matlab.ui.control.RadioButton
-        PerfThresh_Temp                 matlab.ui.control.NumericEditField
-        TrialCount_Temp                 matlab.ui.control.NumericEditField
-        TrialCountThreshold_Temp        matlab.ui.control.NumericEditField
-        TrialsRemainingLabel            matlab.ui.control.Label
         InputControlPanel_2             matlab.ui.container.Panel
-        Hold_Still_Thresh_Temp          matlab.ui.control.NumericEditField
-        EditField_6Label_2              matlab.ui.control.Label
+        ConfirmChoice_Temp              matlab.ui.control.CheckBox
         IntertrialMalSec_Temp           matlab.ui.control.NumericEditField
         IntertrialMalCancel_Temp        matlab.ui.control.CheckBox
+        Hold_Still_Thresh_Temp          matlab.ui.control.NumericEditField
+        EditField_6Label_2              matlab.ui.control.Label
         uipanel3_2                      matlab.ui.container.Panel
-        Input_ignored_Temp              matlab.ui.control.CheckBox
-        Pokes_ignored_time_Temp         matlab.ui.control.EditField
-        Penalty_time_Temp               matlab.ui.control.EditField
-        Intertrial_time_Temp            matlab.ui.control.EditField
-        HoldStill_Temp                  matlab.ui.control.NumericEditField
-        OnlyCorrect_Temp                matlab.ui.control.CheckBox
-        Box_OCPulse_Temp                matlab.ui.control.NumericEditField
         Repeat_wrong_Temp               matlab.ui.control.CheckBox
+        Box_OCPulse_Temp                matlab.ui.control.NumericEditField
+        OnlyCorrect_Temp                matlab.ui.control.CheckBox
+        HoldStill_Temp                  matlab.ui.control.NumericEditField
         EditField_5Label_3              matlab.ui.control.Label
+        Intertrial_time_Temp            matlab.ui.control.EditField
         text10_2                        matlab.ui.control.Label
+        Penalty_time_Temp               matlab.ui.control.EditField
         text8_2                         matlab.ui.control.Label
+        Pokes_ignored_time_Temp         matlab.ui.control.EditField
+        Input_ignored_Temp              matlab.ui.control.CheckBox
         uipanel1_2                      matlab.ui.container.Panel
         prob_list_Temp                  matlab.ui.control.TextArea
         EasyTrials_Temp                 matlab.ui.control.CheckBox
@@ -183,7 +182,12 @@ classdef BehaviorBox_App < matlab.apps.AppBase
         WeightWaterTab                  matlab.ui.container.Tab
         GridLayout6                     matlab.ui.container.GridLayout
         HistoryPanel                    matlab.ui.container.Panel
-        OtherUnusedTab                  matlab.ui.container.Tab
+        BoxDebugTab                     matlab.ui.container.Tab
+        DeveloperPanel                  matlab.ui.container.Panel
+        DebugSerialModeButtonGroup      matlab.ui.container.ButtonGroup
+        DebugSerialFailure              matlab.ui.control.RadioButton
+        DebugSerialFile                 matlab.ui.control.RadioButton
+        DebugSerialMemory               matlab.ui.control.RadioButton
         ArduinosDropDown                matlab.ui.control.DropDown
         ArduinosDropDownLabel           matlab.ui.control.Label
         EquipmentPanel                  matlab.ui.container.Panel
@@ -198,131 +202,126 @@ classdef BehaviorBox_App < matlab.apps.AppBase
         OpenL                           matlab.ui.control.StateButton
         Ext_trigger                     matlab.ui.control.CheckBox
         uipanel11                       matlab.ui.container.Panel
-        Stimulus_Orient                 matlab.ui.control.EditField
-        Ori_Frequency                   matlab.ui.control.EditField
-        Ori_Bar_Size                    matlab.ui.control.EditField
         Ori_Random                      matlab.ui.control.CheckBox
-        Ori_Interval                    matlab.ui.control.EditField
+        Ori_Frequency                   matlab.ui.control.EditField
+        text85                          matlab.ui.control.Label
+        Stimulus_Orient                 matlab.ui.control.EditField
+        text84                          matlab.ui.control.Label
+        Ori_Bar_Size                    matlab.ui.control.EditField
+        text82                          matlab.ui.control.Label
         Ori_Orientations                matlab.ui.control.DropDown
+        text83                          matlab.ui.control.Label
+        Ori_Interval                    matlab.ui.control.EditField
+        text81                          matlab.ui.control.Label
         Ori_Duration                    matlab.ui.control.EditField
+        text79                          matlab.ui.control.Label
         Ori_Repeats                     matlab.ui.control.EditField
         Orientation                     matlab.ui.control.Button
-        text85                          matlab.ui.control.Label
-        text84                          matlab.ui.control.Label
-        text83                          matlab.ui.control.Label
-        text82                          matlab.ui.control.Label
-        text81                          matlab.ui.control.Label
-        text79                          matlab.ui.control.Label
         MapTab                          matlab.ui.container.Tab
+        Fix_RewardEnable                matlab.ui.control.CheckBox
+        Map_SweepXMax                   matlab.ui.control.NumericEditField
+        SweepXMaxLabel                  matlab.ui.control.Label
+        Fix_RewardCooldownSec           matlab.ui.control.NumericEditField
+        RewardCooldownSecLabel          matlab.ui.control.Label
+        Map_LoomPeriodSec               matlab.ui.control.NumericEditField
+        EditField_6Label_6              matlab.ui.control.Label
+        Map_SweepXMin                   matlab.ui.control.NumericEditField
+        EditField_5Label_4              matlab.ui.control.Label
+        Fix_PeakThreshold               matlab.ui.control.NumericEditField
+        PeakThresholdLabel              matlab.ui.control.Label
+        Map_LoomMaxScale                matlab.ui.control.NumericEditField
+        EditField_6Label_5              matlab.ui.control.Label
+        Map_FlashXMax                   matlab.ui.control.NumericEditField
+        FlashXMaxLabel                  matlab.ui.control.Label
+        Fix_PeriodSec                   matlab.ui.control.NumericEditField
+        PeriodSecLabel                  matlab.ui.control.Label
+        Map_LoomMinScale                matlab.ui.control.NumericEditField
+        LoomMinScaleLabel               matlab.ui.control.Label
+        Map_FlashXMin                   matlab.ui.control.NumericEditField
+        FlashXMinEditFieldLabel         matlab.ui.control.Label
+        Fix_Radius                      matlab.ui.control.NumericEditField
+        RadiusLabel                     matlab.ui.control.Label
+        Map_LoomY                       matlab.ui.control.NumericEditField
+        LoomYLabel                      matlab.ui.control.Label
+        Map_FlashCount                  matlab.ui.control.NumericEditField
+        FlashCountLabel                 matlab.ui.control.Label
+        Fix_Y                           matlab.ui.control.NumericEditField
+        Fix_YEditFieldLabel             matlab.ui.control.Label
+        Map_LoomX                       matlab.ui.control.NumericEditField
+        EditField_6Label_4              matlab.ui.control.Label
+        Map_InterFlashIntervalSec       matlab.ui.control.NumericEditField
+        FlashIntEditFieldLabel          matlab.ui.control.Label
+        Fix_X                           matlab.ui.control.NumericEditField
+        Fix_XEditFieldLabel             matlab.ui.control.Label
+        Map_OrientedLineAngleDeg        matlab.ui.control.NumericEditField
+        EditField_5Label_5              matlab.ui.control.Label
+        Map_FlashDurationSec            matlab.ui.control.NumericEditField
+        FlashDurEditFieldLabel          matlab.ui.control.Label
+        Fix_Enable                      matlab.ui.control.CheckBox
+        Map_SweepSpeed                  matlab.ui.control.NumericEditField
+        EditField_6Label_3              matlab.ui.control.Label
+        Map_SettlePauseSec              matlab.ui.control.NumericEditField
+        SettlesEditFieldLabel           matlab.ui.control.Label
         AnimateStimulusPanel            matlab.ui.container.Panel
-        Timekeeper                      matlab.ui.control.DropDown
-        TimeDropDownLabel               matlab.ui.control.Label
-        Animate_LineAngle               matlab.ui.control.NumericEditField
-        LineAngleEditFieldLabel         matlab.ui.control.Label
-        WhichStimulusButtonGroup        matlab.ui.container.ButtonGroup
-        Animate_OnlyCorrectButton       matlab.ui.control.RadioButton
-        Animate_BothButton              matlab.ui.control.RadioButton
-        Animate_OnlyIncorrectButton     matlab.ui.control.RadioButton
-        Animate_AlternateSide           matlab.ui.control.CheckBox
-        Animate_CenteredStimulus        matlab.ui.control.CheckBox
-        Animate_Rec                     matlab.ui.control.StateButton
-        Animate_Flash                   matlab.ui.control.StateButton
-        Animate_YPosition               matlab.ui.control.Slider
         YPositionSliderLabel            matlab.ui.control.Label
-        Animate_Style                   matlab.ui.control.DropDown
-        StyleDropDownLabel              matlab.ui.control.Label
-        Animate_Show                    matlab.ui.control.StateButton
-        Animate_XPosition               matlab.ui.control.Slider
+        Animate_YPosition               matlab.ui.control.Slider
         XPositionLabel                  matlab.ui.control.Label
-        Animate_MimicTrial              matlab.ui.control.CheckBox
+        Animate_XPosition               matlab.ui.control.Slider
         Animate_Speed                   matlab.ui.control.NumericEditField
         SpeedEditFieldLabel             matlab.ui.control.Label
         Animate_End                     matlab.ui.control.StateButton
+        Animate_Flash                   matlab.ui.control.StateButton
+        Animate_Show                    matlab.ui.control.StateButton
         Animate_Go                      matlab.ui.control.StateButton
         Animate_Side                    matlab.ui.control.DropDown
         SideDropDownLabel               matlab.ui.control.Label
-        Fix_RewardEnable                matlab.ui.control.CheckBox
-        Fix_RewardCooldownSec           matlab.ui.control.NumericEditField
-        RewardCooldownSecLabel          matlab.ui.control.Label
-        Fix_PeakThreshold               matlab.ui.control.NumericEditField
-        PeakThresholdLabel              matlab.ui.control.Label
-        Fix_PeriodSec                   matlab.ui.control.NumericEditField
-        PeriodSecLabel                  matlab.ui.control.Label
-        Fix_Radius                      matlab.ui.control.NumericEditField
-        RadiusLabel                     matlab.ui.control.Label
-        Fix_Y                           matlab.ui.control.NumericEditField
-        Fix_YEditFieldLabel             matlab.ui.control.Label
-        Fix_X                           matlab.ui.control.NumericEditField
-        Fix_XEditFieldLabel             matlab.ui.control.Label
-        Fix_Enable                      matlab.ui.control.CheckBox
-        Map_LoomVariant                 matlab.ui.control.DropDown
-        LoomVariantLabel                matlab.ui.control.Label
-        Map_LoomPeriodSec               matlab.ui.control.NumericEditField
-        EditField_6Label_6              matlab.ui.control.Label
-        Map_LoomMaxScale                matlab.ui.control.NumericEditField
-        EditField_6Label_5              matlab.ui.control.Label
-        Map_LoomMinScale                matlab.ui.control.NumericEditField
-        LoomMinScaleLabel               matlab.ui.control.Label
-        Map_LoomY                       matlab.ui.control.NumericEditField
-        LoomYLabel                      matlab.ui.control.Label
-        Map_LoomX                       matlab.ui.control.NumericEditField
-        EditField_6Label_4              matlab.ui.control.Label
-        Map_OrientedLineAngleDeg        matlab.ui.control.NumericEditField
-        EditField_5Label_5              matlab.ui.control.Label
-        Map_SweepXMax                   matlab.ui.control.NumericEditField
-        SweepXMaxLabel                  matlab.ui.control.Label
-        Map_SweepSpeed                  matlab.ui.control.NumericEditField
-        EditField_6Label_3              matlab.ui.control.Label
-        Map_SweepXMin                   matlab.ui.control.NumericEditField
-        EditField_5Label_4              matlab.ui.control.Label
-        Map_FlashXMax                   matlab.ui.control.NumericEditField
-        FlashXMaxLabel                  matlab.ui.control.Label
-        Map_FlashXMin                   matlab.ui.control.NumericEditField
-        FlashXMinEditFieldLabel         matlab.ui.control.Label
-        Map_FlashCount                  matlab.ui.control.NumericEditField
-        FlashCountLabel                 matlab.ui.control.Label
-        Map_InterFlashIntervalSec       matlab.ui.control.NumericEditField
-        FlashIntEditFieldLabel          matlab.ui.control.Label
-        Map_FlashDurationSec            matlab.ui.control.NumericEditField
-        FlashDurEditFieldLabel          matlab.ui.control.Label
-        Map_SettlePauseSec              matlab.ui.control.NumericEditField
-        SettlesEditFieldLabel           matlab.ui.control.Label
-        FixationPanel                   matlab.ui.container.Panel
-        MappingPanel                    matlab.ui.container.Panel
+        StimulusButtonGroup             matlab.ui.container.ButtonGroup
+        Animate_Level                   matlab.ui.control.NumericEditField
+        LevelLabel                      matlab.ui.control.Label
+        Animate_Correct                 matlab.ui.control.RadioButton
+        Animate_Incorrect               matlab.ui.control.RadioButton
+        Animate_Style                   matlab.ui.control.DropDown
+        StyleDropDownLabel              matlab.ui.control.Label
+        FixationDotPanel                matlab.ui.container.Panel
+        LineSweepPanel                  matlab.ui.container.Panel
         DataViewerTab                   matlab.ui.container.Tab
         GridLayout7                     matlab.ui.container.GridLayout
         PerfHistPanel_Data              matlab.ui.container.Panel
         ControlsPanel                   matlab.ui.container.Panel
         GridLayout8                     matlab.ui.container.GridLayout
-        Plot_Data                       matlab.ui.control.StateButton
         BigBin_Data                     matlab.ui.control.NumericEditField
         LargeBinLabel                   matlab.ui.control.Label
         SmallBin_Data                   matlab.ui.control.NumericEditField
         SmallBinLabel                   matlab.ui.control.Label
+        Plot_Data                       matlab.ui.control.StateButton
         Files_Data                      matlab.ui.control.DropDown
         FileDropDownLabel               matlab.ui.control.Label
         Next_Data                       matlab.ui.control.StateButton
         Back_Data                       matlab.ui.control.StateButton
-        text17                          matlab.ui.control.Label
-        text19                          matlab.ui.control.Label
-        Subject                         matlab.ui.control.EditField
-        LoadButton                      matlab.ui.control.Button
-        ShowStim                        matlab.ui.control.Button
-        ResetButton                     matlab.ui.control.Button
-        Stop                            matlab.ui.control.StateButton
-        Skip                            matlab.ui.control.StateButton
-        Pause                           matlab.ui.control.StateButton
-        FastForward                     matlab.ui.control.StateButton
-        Start                           matlab.ui.control.Button
-        Water                           matlab.ui.control.Button
-        PrintSetup                      matlab.ui.control.Button
         text15                          matlab.ui.control.Label
         text16                          matlab.ui.control.Label
         text18                          matlab.ui.control.Label
+        text17                          matlab.ui.control.Label
         text20                          matlab.ui.control.Label
+        text19                          matlab.ui.control.Label
+        Subject                         matlab.ui.control.EditField
+        LoadButton                      matlab.ui.control.Button
+        Git                             matlab.ui.control.Button
+        Folder                          matlab.ui.control.Button
+        GraphPopOut                     matlab.ui.control.Button
+        GraphPopOut_2                   matlab.ui.control.Button
+        ShowStim                        matlab.ui.control.Button
+        ResetButton                     matlab.ui.control.Button
+        Skip                            matlab.ui.control.StateButton
+        Stop                            matlab.ui.control.StateButton
+        FastForward                     matlab.ui.control.StateButton
+        Pause                           matlab.ui.control.StateButton
         text3                           matlab.ui.control.Label
+        Start                           matlab.ui.control.Button
+        Water                           matlab.ui.control.Button
         text2                           matlab.ui.control.Label
         text1                           matlab.ui.control.Label
+        PrintSetup                      matlab.ui.control.Button
     end
 
     properties (Access = public)
@@ -493,26 +492,33 @@ classdef BehaviorBox_App < matlab.apps.AppBase
                 names = [names ; namesREF(contains(namesREF, 'Temp'))];
                 for s = names'
                     try
-                        if app.(s{:}).Type == "uieditfield"
+                        obj = app.(s{:});
+                        if obj.Type == "uieditfield"
                             if class(Set.(s{:})) == "double"
-                                app.(s{:}).Value = num2str(Set.(s{:}));
+                                obj.Value = num2str(Set.(s{:}));
                             else
-                                app.(s{:}).Value = Set.(s{:});
+                                obj.Value = Set.(s{:});
                             end
-                        elseif app.(s{:}).Type == "uidropdown"
-                            app.(s{:}).Value = app.(s{:}).Items(Set.(s{:}));
-                        elseif app.(s{:}).Type == "uicheckbox"
-                            app.(s{:}).Value = Set.(s{:});
-                        elseif app.(s{:}).Type == "uinumericeditfield"
-                            app.(s{:}).Value = Set.(s{:});
-                        elseif app.(s{:}).Type == "uispinner"
-                            app.(s{:}).Value = Set.(s{:});
-                        elseif app.(s{:}).Type == "uiradiobutton"
-                            app.(s{:}).Value = Set.(s{:});
-                        elseif app.(s{:}).Type == "uitextarea"
-                            app.(s{:}).Value = Set.(s{:});
+                        elseif obj.Type == "uidropdown"
+                            restoreDropDownValue(obj, Set.(s{:}), string(s{:}));
+                        elseif obj.Type == "uicheckbox"
+                            obj.Value = Set.(s{:});
+                        elseif obj.Type == "uinumericeditfield"
+                            obj.Value = Set.(s{:});
+                        elseif obj.Type == "uispinner"
+                            obj.Value = Set.(s{:});
+                        elseif obj.Type == "uiradiobutton"
+                            obj.Value = Set.(s{:});
+                        elseif obj.Type == "uitextarea"
+                            obj.Value = Set.(s{:});
                         end
                     catch err
+                        try
+                            if isprop(app.(s{:}), 'Type') && app.(s{:}).Type == "uidropdown"
+                                continue
+                            end
+                        catch
+                        end
                         try
                             if class(Set.(s{:})) ~= "char"
                                 handles.(s{:}).String = Set.(s{:});
@@ -570,10 +576,10 @@ classdef BehaviorBox_App < matlab.apps.AppBase
                 unwrapErr(err)
             end
             app.WeightgEditField.Value = '';
-            %app.TrialNumber_Temp.Value = true;
-            app.TempOff_Temp.Value = true;
-            app.TrialCount_Temp.Value = 10;
-            app.TrialCountThreshold_Temp.Value = 90;
+            app.TrialNumber_Temp.Value = true; % Always turn on temp settings
+            %app.TempOff_Temp.Value = true;
+            app.TrialCount_Temp.Value = 5;
+            app.TrialCountThreshold_Temp.Value = 95;
             drawnow; pause(0.1); % Update GUI
             text = "Settings synced.";
             fprintf('%s\n',text)
@@ -581,6 +587,70 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             drawnow; pause(0.1); % Update GUI
             assignin("base", "BB", BB)
             assignin("base", "BBData", BBData)
+
+            function restoreDropDownValue(obj, rawValue, tagName)
+                items = string(obj.Items);
+                target = strings(0,1);
+
+                if isnumeric(rawValue) || islogical(rawValue)
+                    idx = round(double(rawValue));
+                    if tagName == "Animate_Style"
+                        target = mapLegacyAnimateStyle(idx);
+                    elseif idx >= 1 && idx <= numel(items)
+                        target = items(idx);
+                    end
+                else
+                    target = string(rawValue);
+                end
+
+                if isempty(target) || strlength(target) == 0
+                    return
+                end
+
+                if tagName == "Animate_Style"
+                    target = canonicalAnimateStyle(target);
+                end
+
+                if any(matches(items, target))
+                    obj.Value = char(target);
+                end
+            end
+
+            function out = canonicalAnimateStyle(in)
+                out = string(in);
+                switch out
+                    case "Sweeping Bar"
+                        out = "Bar";
+                    case "Flash Stimulus"
+                        out = "Stimulus";
+                    case {"Map-SweepVerticalLine", "Map-SweepOrientedLine"}
+                        out = "Map-SweepLine";
+                    otherwise
+                end
+            end
+
+            function out = mapLegacyAnimateStyle(idx)
+                out = strings(0,1);
+                switch idx
+                    case 1
+                        out = "X-Line";
+                    case 2
+                        out = "Y-Line";
+                    case 3
+                        out = "Bar";
+                    case 4
+                        out = "Stimulus";
+                    case 5
+                        out = "Dot";
+                    case 6
+                        out = "Map-FlashContourX";
+                    case {7, 8}
+                        out = "Map-SweepLine";
+                    case 9
+                        out = "Map-LoomingStimulus";
+                    otherwise
+                end
+            end
         end
 
         function PlotDataViewer(app, options)
@@ -718,7 +788,8 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             names = cellfun(@(x)app.(x).Tag, props, 'UniformOutput', false, 'ErrorHandler', @errorFuncNaN);
             boxstuff = props(contains(names, 'box_','IgnoreCase',true));
             stimstuff = props(contains(names, 'stimulus_','IgnoreCase',true));
-            allstuff = [boxstuff' stimstuff'];
+            debugstuff = props(contains(names, 'debug_','IgnoreCase',true));
+            allstuff = [boxstuff' stimstuff' debugstuff'];
             SavedComputerSpecifics = struct();
             for i = allstuff
                 SavedComputerSpecifics.(i{:}) = app.(i{:}).Value;
@@ -853,6 +924,66 @@ classdef BehaviorBox_App < matlab.apps.AppBase
 
             % Enable interactive buttons
             app.BB.toggleButtonsOnOff(app.BB.Buttons, true);
+        end
+
+        function resetMapPanelControls(app)
+            % Restore Map-tab controls that should return to their startup state
+            % when Reset is pressed, even though the App Designer components
+            % themselves are not recreated.
+            defaults = {
+                'Animate_Style', 'Stimulus'
+                'Animate_Side', 'Left'
+                'Animate_Level', 1
+                'Animate_Speed', 0.01
+                'Map_SettlePauseSec', 5
+                'Map_SweepSpeed', 0.6
+                'Map_FlashDurationSec', 0.5
+                'Map_InterFlashIntervalSec', 2
+                'Map_FlashCount', 5
+                'Map_FlashXMin', -1
+                'Map_LoomMinScale', 0.5
+                'Fix_PeriodSec', 2
+                'Map_FlashXMax', 1
+                'Map_LoomMaxScale', 1.5
+                'Fix_PeakThreshold', 0.9
+                'Map_SweepXMin', -1.2
+                'Map_SweepXMax', 1.2
+                'Fix_Enable', true
+                'Fix_RewardEnable', true
+                'Fix_Radius', 0.03
+            };
+            for i = 1:size(defaults, 1)
+                propName = defaults{i, 1};
+                try
+                    app.(propName).Value = defaults{i, 2};
+                catch
+                end
+            end
+            try
+                app.StimulusButtonGroup.SelectedObject = app.Animate_Correct;
+            catch
+                try
+                    app.Animate_Correct.Value = true;
+                    app.Animate_Incorrect.Value = false;
+                catch
+                end
+            end
+            try
+                app.Animate_XPosition.Value = 0;
+                app.Animate_YPosition.Value = 0;
+            catch
+            end
+            try
+                app.Animate_Go.Value = false;
+                app.Animate_Go.Enable = true;
+                app.Animate_Show.Value = false;
+                app.Animate_Show.Enable = true;
+                app.Animate_Flash.Value = false;
+                app.Animate_Flash.Enable = true;
+                app.Animate_End.Value = false;
+                app.Animate_End.Enable = false;
+            catch
+            end
         end
 
     end
@@ -1299,10 +1430,9 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             end
         end
 
-        % Value changed function: Animate_Go, Animate_Rec
+        % Value changed function: Animate_Go
         function Animate_GoValueChanged(app, event)
             app.Animate_Go.Enable = false;
-            app.Animate_Rec.Enable = false;
             app.Animate_Show.Enable = false;
             app.Animate_End.Enable = true;
             app.Animate_End.Value = false;
@@ -1322,13 +1452,11 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Animate_End.Enable = false;
             app.Animate_Flash.Value = false;
             app.Animate_Flash.Enable = true;
-            app.Animate_Rec.Enable = true;
-            app.Animate_Rec.Value = false;
             app.Stop.Value = false;
             drawnow limitrate;
         end
 
-        % Value changed function: Animate_XPosition, Animate_YPosition
+        % Callback function: not associated with a component
         function Animate_PositionValueChanged(app, event)
             try
                 switch event.Source.Tag
@@ -1344,7 +1472,6 @@ classdef BehaviorBox_App < matlab.apps.AppBase
 
         % Value changed function: Animate_Flash
         function Animate_FlashValueChanged(app, event)
-            value = app.Animate_Flash.Value;
             app.Animate_Flash.Enable = false;
             app.BB.AnimateStimulus("Mode", "Flash");
 
@@ -1353,8 +1480,6 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Animate_Show.Enable = true;
             app.Animate_Flash.Value = false;
             app.Animate_Flash.Enable = true;
-            app.Animate_Rec.Enable = true;
-            app.Animate_Rec.Value = false;
         end
 
         % Value changed function: Back_Data, Next_Data, Plot_Data
@@ -1377,12 +1502,6 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Animate_Show.Enable = true;
             app.Animate_Flash.Value = false;
             app.Animate_Flash.Enable = true;
-        end
-
-        % Callback function
-        function Animate_RecValueChanged(app, event)
-            value = app.Animate_Rec.Value;
-
         end
 
         % Value changed function: Box_Input_type
@@ -1433,6 +1552,16 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.figure1.HandleVisibility = 'callback';
             app.figure1.Tag = 'figure1';
 
+            % Create PrintSetup
+            app.PrintSetup = uibutton(app.figure1, 'push');
+            app.PrintSetup.ButtonPushedFcn = createCallbackFcn(app, @PrintSetup_Callback, true);
+            app.PrintSetup.Tag = 'PrintSetup';
+            app.PrintSetup.HorizontalAlignment = 'left';
+            app.PrintSetup.FontSize = 10;
+            app.PrintSetup.Tooltip = 'show all connections required in command window';
+            app.PrintSetup.Position = [8 371 37 22];
+            app.PrintSetup.Text = 'Setup';
+
             % Create text1
             app.text1 = uilabel(app.figure1);
             app.text1.Tag = 'text1';
@@ -1450,62 +1579,6 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.text2.FontSize = 11;
             app.text2.Position = [4 393 87 17];
             app.text2.Text = 'Time(min):';
-
-            % Create text3
-            app.text3 = uilabel(app.figure1);
-            app.text3.Tag = 'text3';
-            app.text3.HorizontalAlignment = 'right';
-            app.text3.VerticalAlignment = 'top';
-            app.text3.FontSize = 14;
-            app.text3.Position = [91 392 110 18];
-            app.text3.Text = '-';
-
-            % Create text20
-            app.text20 = uilabel(app.figure1);
-            app.text20.Tag = 'text20';
-            app.text20.HorizontalAlignment = 'center';
-            app.text20.VerticalAlignment = 'top';
-            app.text20.FontSize = 11;
-            app.text20.Position = [699 392 49 15];
-            app.text20.Text = 'choices';
-
-            % Create text18
-            app.text18 = uilabel(app.figure1);
-            app.text18.Tag = 'text18';
-            app.text18.HorizontalAlignment = 'center';
-            app.text18.VerticalAlignment = 'top';
-            app.text18.FontSize = 11;
-            app.text18.Position = [758 393 49 15];
-            app.text18.Text = 'difficulty';
-
-            % Create text16
-            app.text16 = uilabel(app.figure1);
-            app.text16.Tag = 'text16';
-            app.text16.BackgroundColor = [0.831372549019608 0.815686274509804 0.784313725490196];
-            app.text16.HorizontalAlignment = 'center';
-            app.text16.VerticalAlignment = 'top';
-            app.text16.FontSize = 40;
-            app.text16.Position = [817 370 71 52];
-            app.text16.Text = '0';
-
-            % Create text15
-            app.text15 = uilabel(app.figure1);
-            app.text15.Tag = 'text15';
-            app.text15.HorizontalAlignment = 'center';
-            app.text15.VerticalAlignment = 'top';
-            app.text15.FontSize = 10;
-            app.text15.Position = [822 411 63 22];
-            app.text15.Text = 'Trial Number';
-
-            % Create PrintSetup
-            app.PrintSetup = uibutton(app.figure1, 'push');
-            app.PrintSetup.ButtonPushedFcn = createCallbackFcn(app, @PrintSetup_Callback, true);
-            app.PrintSetup.Tag = 'PrintSetup';
-            app.PrintSetup.HorizontalAlignment = 'left';
-            app.PrintSetup.FontSize = 10;
-            app.PrintSetup.Tooltip = 'show all connections required in command window';
-            app.PrintSetup.Position = [8 371 37 22];
-            app.PrintSetup.Text = 'Setup';
 
             % Create Water
             app.Water = uibutton(app.figure1, 'push');
@@ -1527,14 +1600,14 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Start.Position = [118 371 36 22];
             app.Start.Text = 'Start';
 
-            % Create FastForward
-            app.FastForward = uibutton(app.figure1, 'state');
-            app.FastForward.Tag = 'FastForward';
-            app.FastForward.Tooltip = {'Click this button to fast-forward through the current pause interval'};
-            app.FastForward.Icon = fullfile(pathToMLAPP, 'imgs', 'Forward_font_awesome.svg.png');
-            app.FastForward.Text = '';
-            app.FastForward.BackgroundColor = [1 1 1];
-            app.FastForward.Position = [191 371 27 22];
+            % Create text3
+            app.text3 = uilabel(app.figure1);
+            app.text3.Tag = 'text3';
+            app.text3.HorizontalAlignment = 'right';
+            app.text3.VerticalAlignment = 'top';
+            app.text3.FontSize = 14;
+            app.text3.Position = [91 392 110 18];
+            app.text3.Text = '-';
 
             % Create Pause
             app.Pause = uibutton(app.figure1, 'state');
@@ -1543,12 +1616,14 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Pause.Text = '';
             app.Pause.Position = [159 371 27 22];
 
-            % Create Skip
-            app.Skip = uibutton(app.figure1, 'state');
-            app.Skip.Tag = 'Skip';
-            app.Skip.Icon = fullfile(pathToMLAPP, 'imgs', 'skip.png');
-            app.Skip.Text = '';
-            app.Skip.Position = [223 371 27 22];
+            % Create FastForward
+            app.FastForward = uibutton(app.figure1, 'state');
+            app.FastForward.Tag = 'FastForward';
+            app.FastForward.Tooltip = {'Click this button to fast-forward through the current pause interval'};
+            app.FastForward.Icon = fullfile(pathToMLAPP, 'imgs', 'Forward_font_awesome.svg.png');
+            app.FastForward.Text = '';
+            app.FastForward.BackgroundColor = [1 1 1];
+            app.FastForward.Position = [191 371 27 22];
 
             % Create Stop
             app.Stop = uibutton(app.figure1, 'state');
@@ -1559,6 +1634,13 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Stop.FontSize = 11;
             app.Stop.FontWeight = 'bold';
             app.Stop.Position = [255 371 40 22];
+
+            % Create Skip
+            app.Skip = uibutton(app.figure1, 'state');
+            app.Skip.Tag = 'Skip';
+            app.Skip.Icon = fullfile(pathToMLAPP, 'imgs', 'skip.png');
+            app.Skip.Text = '';
+            app.Skip.Position = [223 371 27 22];
 
             % Create ResetButton
             app.ResetButton = uibutton(app.figure1, 'push');
@@ -1579,6 +1661,44 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.ShowStim.Tooltip = {'Press to generate an example of the current level. May crash if the flash routine hasn''t finished.'};
             app.ShowStim.Position = [342 371 47 22];
             app.ShowStim.Text = 'Preview';
+
+            % Create GraphPopOut_2
+            app.GraphPopOut_2 = uibutton(app.figure1, 'push');
+            app.GraphPopOut_2.ButtonPushedFcn = createCallbackFcn(app, @GraphPopOut_2ButtonPushed, true);
+            app.GraphPopOut_2.Tag = 'GraphPopOut_2';
+            app.GraphPopOut_2.Icon = fullfile(pathToMLAPP, 'imgs', 'popout.png');
+            app.GraphPopOut_2.Tooltip = {'Pop out Today''s Performance graph'};
+            app.GraphPopOut_2.Position = [402 369 32 30];
+            app.GraphPopOut_2.Text = '';
+
+            % Create GraphPopOut
+            app.GraphPopOut = uibutton(app.figure1, 'push');
+            app.GraphPopOut.ButtonPushedFcn = createCallbackFcn(app, @GraphPopOutButtonPushed, true);
+            app.GraphPopOut.Tag = 'GraphPopOut';
+            app.GraphPopOut.Icon = fullfile(pathToMLAPP, 'imgs', 'popout.png');
+            app.GraphPopOut.Tooltip = {'Pop out the All Time Graph'};
+            app.GraphPopOut.Position = [438 369 32 30];
+            app.GraphPopOut.Text = '';
+
+            % Create Folder
+            app.Folder = uibutton(app.figure1, 'push');
+            app.Folder.ButtonPushedFcn = createCallbackFcn(app, @FolderButtonPushed, true);
+            app.Folder.Tag = 'Folder';
+            app.Folder.Icon = fullfile(pathToMLAPP, 'imgs', 'folder.png');
+            app.Folder.Tooltip = {'Open mouse''s folder to see files'};
+            app.Folder.Position = [475 369 32 30];
+            app.Folder.Text = '';
+
+            % Create Git
+            app.Git = uibutton(app.figure1, 'push');
+            app.Git.ButtonPushedFcn = createCallbackFcn(app, @GitButtonPushed, true);
+            app.Git.Tag = 'Git';
+            app.Git.Icon = fullfile(pathToMLAPP, 'imgs', 'git.png');
+            app.Git.WordWrap = 'on';
+            app.Git.FontSize = 10;
+            app.Git.Tooltip = {'Update this App by pulling from stable Git repo'};
+            app.Git.Position = [509 369 32 30];
+            app.Git.Text = '';
 
             % Create LoadButton
             app.LoadButton = uibutton(app.figure1, 'push');
@@ -1608,6 +1728,15 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.text19.Position = [696 370 55 26];
             app.text19.Text = '0';
 
+            % Create text20
+            app.text20 = uilabel(app.figure1);
+            app.text20.Tag = 'text20';
+            app.text20.HorizontalAlignment = 'center';
+            app.text20.VerticalAlignment = 'top';
+            app.text20.FontSize = 11;
+            app.text20.Position = [699 392 49 15];
+            app.text20.Text = 'choices';
+
             % Create text17
             app.text17 = uilabel(app.figure1);
             app.text17.Tag = 'text17';
@@ -1617,6 +1746,34 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.text17.FontSize = 20;
             app.text17.Position = [755 370 55 26];
             app.text17.Text = '0';
+
+            % Create text18
+            app.text18 = uilabel(app.figure1);
+            app.text18.Tag = 'text18';
+            app.text18.HorizontalAlignment = 'center';
+            app.text18.VerticalAlignment = 'top';
+            app.text18.FontSize = 11;
+            app.text18.Position = [758 393 49 15];
+            app.text18.Text = 'difficulty';
+
+            % Create text16
+            app.text16 = uilabel(app.figure1);
+            app.text16.Tag = 'text16';
+            app.text16.BackgroundColor = [0.831372549019608 0.815686274509804 0.784313725490196];
+            app.text16.HorizontalAlignment = 'center';
+            app.text16.VerticalAlignment = 'top';
+            app.text16.FontSize = 40;
+            app.text16.Position = [817 370 71 52];
+            app.text16.Text = '0';
+
+            % Create text15
+            app.text15 = uilabel(app.figure1);
+            app.text15.Tag = 'text15';
+            app.text15.HorizontalAlignment = 'center';
+            app.text15.VerticalAlignment = 'top';
+            app.text15.FontSize = 10;
+            app.text15.Position = [822 411 63 22];
+            app.text15.Text = 'Trial Number';
 
             % Create TabGroup
             app.TabGroup = uitabgroup(app.figure1);
@@ -1644,6 +1801,16 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.text66.Position = [7 134 38 16];
             app.text66.Text = 'Input:';
 
+            % Create Box_Input_type
+            app.Box_Input_type = uidropdown(app.uipanel1);
+            app.Box_Input_type.Items = {'One Lever', 'Two Levers', 'NosePoke', 'Rotating Ball', 'Lick Sensor', 'Wheel', 'Lick Go/No-Go', 'Keyboard', 'ArduinoWheel', 'ArduinoNosePoke'};
+            app.Box_Input_type.ValueChangedFcn = createCallbackFcn(app, @Box_Input_typeValueChanged, true);
+            app.Box_Input_type.Tag = 'Box_Input_type';
+            app.Box_Input_type.Tooltip = 'choose input';
+            app.Box_Input_type.FontSize = 9;
+            app.Box_Input_type.Position = [47 133 115 18];
+            app.Box_Input_type.Value = 'Wheel';
+
             % Create text89
             app.text89 = uilabel(app.uipanel1);
             app.text89.Tag = 'text89';
@@ -1652,6 +1819,22 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.text89.Position = [7 113 36 16];
             app.text89.Text = 'Side:';
 
+            % Create Stimulus_side
+            app.Stimulus_side = uidropdown(app.uipanel1);
+            app.Stimulus_side.Items = {'Random', 'Left Only', 'Right Only', 'Keyboard', 'Repeat Wrong'};
+            app.Stimulus_side.Tag = 'Stimulus_side';
+            app.Stimulus_side.Tooltip = 'choose stimulus';
+            app.Stimulus_side.FontSize = 9;
+            app.Stimulus_side.Position = [47 112 79 18];
+            app.Stimulus_side.Value = 'Random';
+
+            % Create Side_delta
+            app.Side_delta = uieditfield(app.uipanel1, 'numeric');
+            app.Side_delta.Tag = 'Side_delta';
+            app.Side_delta.FontSize = 10;
+            app.Side_delta.Position = [132 113 26 16];
+            app.Side_delta.Value = 4;
+
             % Create text117
             app.text117 = uilabel(app.uipanel1);
             app.text117.Tag = 'text117';
@@ -1659,6 +1842,15 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.text117.FontSize = 11;
             app.text117.Position = [7 95 64 19];
             app.text117.Text = 'Alt. Random:';
+
+            % Create MinRandAlt
+            app.MinRandAlt = uieditfield(app.uipanel1, 'text');
+            app.MinRandAlt.Tag = 'MinRandAlt';
+            app.MinRandAlt.HorizontalAlignment = 'center';
+            app.MinRandAlt.FontSize = 11;
+            app.MinRandAlt.Tooltip = 'What the starting opacity is in complete training';
+            app.MinRandAlt.Position = [73 96 22 13];
+            app.MinRandAlt.Value = '2';
 
             % Create text119
             app.text119 = uilabel(app.uipanel1);
@@ -1669,41 +1861,36 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.text119.Position = [94 95 10 16];
             app.text119.Text = '<';
 
+            % Create MaxRandAlt
+            app.MaxRandAlt = uieditfield(app.uipanel1, 'text');
+            app.MaxRandAlt.Tag = 'MaxRandAlt';
+            app.MaxRandAlt.HorizontalAlignment = 'center';
+            app.MaxRandAlt.FontSize = 11;
+            app.MaxRandAlt.Tooltip = 'What the starting opacity is in complete training';
+            app.MaxRandAlt.Position = [104 96 22 13];
+            app.MaxRandAlt.Value = '4';
+
             % Create DistractorsSpinnerLabel
             app.DistractorsSpinnerLabel = uilabel(app.uipanel1);
             app.DistractorsSpinnerLabel.FontSize = 10;
             app.DistractorsSpinnerLabel.Position = [8 73 29 17];
             app.DistractorsSpinnerLabel.Text = 'Level';
 
-            % Create Level_HardLvList
-            app.Level_HardLvList = uieditfield(app.uipanel1, 'text');
-            app.Level_HardLvList.Tag = 'Level_HardLvList';
-            app.Level_HardLvList.FontSize = 10;
-            app.Level_HardLvList.Position = [120 12 42 22];
-            app.Level_HardLvList.Value = '2:6';
+            % Create Starting_opacity
+            app.Starting_opacity = uispinner(app.uipanel1);
+            app.Starting_opacity.Limits = [1 20];
+            app.Starting_opacity.Tag = 'Starting_opacity';
+            app.Starting_opacity.FontSize = 10;
+            app.Starting_opacity.Position = [36 73 49 17];
+            app.Starting_opacity.Value = 1;
 
-            % Create HighLvProbEditFieldLabel
-            app.HighLvProbEditFieldLabel = uilabel(app.uipanel1);
-            app.HighLvProbEditFieldLabel.HorizontalAlignment = 'right';
-            app.HighLvProbEditFieldLabel.FontSize = 10;
-            app.HighLvProbEditFieldLabel.Position = [16 12 65 22];
-            app.HighLvProbEditFieldLabel.Text = 'High Lv. Prob';
-
-            % Create Level_HardLvProb
-            app.Level_HardLvProb = uieditfield(app.uipanel1, 'numeric');
-            app.Level_HardLvProb.Limits = [0 1];
-            app.Level_HardLvProb.ValueChangedFcn = createCallbackFcn(app, @Level_HardLvProbValueChanged, true);
-            app.Level_HardLvProb.Tag = 'Level_HardLvProb';
-            app.Level_HardLvProb.FontSize = 10;
-            app.Level_HardLvProb.Position = [86 12 30 22];
-            app.Level_HardLvProb.Value = 0.8;
-
-            % Create Level_EasyLvList
-            app.Level_EasyLvList = uieditfield(app.uipanel1, 'text');
-            app.Level_EasyLvList.Tag = 'Level_EasyLvList';
-            app.Level_EasyLvList.FontSize = 10;
-            app.Level_EasyLvList.Position = [120 38 42 22];
-            app.Level_EasyLvList.Value = '1';
+            % Create EasyTrials
+            app.EasyTrials = uicheckbox(app.uipanel1);
+            app.EasyTrials.Tag = 'EasyTrials';
+            app.EasyTrials.Tooltip = 'Defines if easier trials should be shown or not';
+            app.EasyTrials.Text = 'Easy %';
+            app.EasyTrials.FontSize = 9;
+            app.EasyTrials.Position = [103 70 53 22];
 
             % Create EasyLvProbLabel
             app.EasyLvProbLabel = uilabel(app.uipanel1);
@@ -1721,65 +1908,35 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Level_EasyLvProb.Position = [87 38 30 22];
             app.Level_EasyLvProb.Value = 0.2;
 
-            % Create EasyTrials
-            app.EasyTrials = uicheckbox(app.uipanel1);
-            app.EasyTrials.Tag = 'EasyTrials';
-            app.EasyTrials.Tooltip = 'Defines if easier trials should be shown or not';
-            app.EasyTrials.Text = 'Easy %';
-            app.EasyTrials.FontSize = 9;
-            app.EasyTrials.Position = [103 70 53 22];
+            % Create Level_EasyLvList
+            app.Level_EasyLvList = uieditfield(app.uipanel1, 'text');
+            app.Level_EasyLvList.Tag = 'Level_EasyLvList';
+            app.Level_EasyLvList.FontSize = 10;
+            app.Level_EasyLvList.Position = [120 38 42 22];
+            app.Level_EasyLvList.Value = '1';
 
-            % Create Starting_opacity
-            app.Starting_opacity = uispinner(app.uipanel1);
-            app.Starting_opacity.Limits = [1 20];
-            app.Starting_opacity.Tag = 'Starting_opacity';
-            app.Starting_opacity.FontSize = 10;
-            app.Starting_opacity.Position = [36 73 49 17];
-            app.Starting_opacity.Value = 1;
+            % Create HighLvProbEditFieldLabel
+            app.HighLvProbEditFieldLabel = uilabel(app.uipanel1);
+            app.HighLvProbEditFieldLabel.HorizontalAlignment = 'right';
+            app.HighLvProbEditFieldLabel.FontSize = 10;
+            app.HighLvProbEditFieldLabel.Position = [16 12 65 22];
+            app.HighLvProbEditFieldLabel.Text = 'High Lv. Prob';
 
-            % Create MaxRandAlt
-            app.MaxRandAlt = uieditfield(app.uipanel1, 'text');
-            app.MaxRandAlt.Tag = 'MaxRandAlt';
-            app.MaxRandAlt.HorizontalAlignment = 'center';
-            app.MaxRandAlt.FontSize = 11;
-            app.MaxRandAlt.Tooltip = 'What the starting opacity is in complete training';
-            app.MaxRandAlt.Position = [104 96 22 13];
-            app.MaxRandAlt.Value = '4';
+            % Create Level_HardLvProb
+            app.Level_HardLvProb = uieditfield(app.uipanel1, 'numeric');
+            app.Level_HardLvProb.Limits = [0 1];
+            app.Level_HardLvProb.ValueChangedFcn = createCallbackFcn(app, @Level_HardLvProbValueChanged, true);
+            app.Level_HardLvProb.Tag = 'Level_HardLvProb';
+            app.Level_HardLvProb.FontSize = 10;
+            app.Level_HardLvProb.Position = [86 12 30 22];
+            app.Level_HardLvProb.Value = 0.8;
 
-            % Create MinRandAlt
-            app.MinRandAlt = uieditfield(app.uipanel1, 'text');
-            app.MinRandAlt.Tag = 'MinRandAlt';
-            app.MinRandAlt.HorizontalAlignment = 'center';
-            app.MinRandAlt.FontSize = 11;
-            app.MinRandAlt.Tooltip = 'What the starting opacity is in complete training';
-            app.MinRandAlt.Position = [73 96 22 13];
-            app.MinRandAlt.Value = '2';
-
-            % Create Side_delta
-            app.Side_delta = uieditfield(app.uipanel1, 'numeric');
-            app.Side_delta.Tag = 'Side_delta';
-            app.Side_delta.FontSize = 10;
-            app.Side_delta.Position = [132 113 26 16];
-            app.Side_delta.Value = 0.2;
-
-            % Create Stimulus_side
-            app.Stimulus_side = uidropdown(app.uipanel1);
-            app.Stimulus_side.Items = {'Random', 'Left Only', 'Right Only', 'Keyboard', 'Repeat Wrong'};
-            app.Stimulus_side.Tag = 'Stimulus_side';
-            app.Stimulus_side.Tooltip = 'choose stimulus';
-            app.Stimulus_side.FontSize = 9;
-            app.Stimulus_side.Position = [47 112 79 18];
-            app.Stimulus_side.Value = 'Random';
-
-            % Create Box_Input_type
-            app.Box_Input_type = uidropdown(app.uipanel1);
-            app.Box_Input_type.Items = {'One Lever', 'Two Levers', 'NosePoke', 'Rotating Ball', 'Lick Sensor', 'Wheel', 'Lick Go/No-Go', 'Keyboard', 'ArduinoWheel', 'ArduinoNosePoke'};
-            app.Box_Input_type.ValueChangedFcn = createCallbackFcn(app, @Box_Input_typeValueChanged, true);
-            app.Box_Input_type.Tag = 'Box_Input_type';
-            app.Box_Input_type.Tooltip = 'choose input';
-            app.Box_Input_type.FontSize = 9;
-            app.Box_Input_type.Position = [47 133 115 18];
-            app.Box_Input_type.Value = 'NosePoke';
+            % Create Level_HardLvList
+            app.Level_HardLvList = uieditfield(app.uipanel1, 'text');
+            app.Level_HardLvList.Tag = 'Level_HardLvList';
+            app.Level_HardLvList.FontSize = 10;
+            app.Level_HardLvList.Position = [120 12 42 22];
+            app.Level_HardLvList.Value = '2:6';
 
             % Create uipanel3
             app.uipanel3 = uipanel(app.SettingsTab);
@@ -1789,125 +1946,12 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.uipanel3.FontSize = 10;
             app.uipanel3.Position = [199 28 147 294];
 
-            % Create Data_Lbin
-            app.Data_Lbin = uieditfield(app.uipanel3, 'text');
-            app.Data_Lbin.Tag = 'Data_Lbin';
-            app.Data_Lbin.HorizontalAlignment = 'center';
-            app.Data_Lbin.FontSize = 11;
-            app.Data_Lbin.Tooltip = {'How many small bins in a full bin'};
-            app.Data_Lbin.Position = [95 38 20 18];
-            app.Data_Lbin.Value = '2';
-
-            % Create Data_Sbin
-            app.Data_Sbin = uieditfield(app.uipanel3, 'text');
-            app.Data_Sbin.Tag = 'Data_Sbin';
-            app.Data_Sbin.HorizontalAlignment = 'center';
-            app.Data_Sbin.FontSize = 11;
-            app.Data_Sbin.Tooltip = {'How many trials in a small bin'};
-            app.Data_Sbin.Position = [54 38 31 18];
-            app.Data_Sbin.Value = '10';
-
-            % Create Stimulus_PersistIncorrectInterv
-            app.Stimulus_PersistIncorrectInterv = uieditfield(app.uipanel3, 'numeric');
-            app.Stimulus_PersistIncorrectInterv.Limits = [0 60];
-            app.Stimulus_PersistIncorrectInterv.Tag = 'Stimulus_PersistIncorrectInterv';
-            app.Stimulus_PersistIncorrectInterv.HorizontalAlignment = 'center';
-            app.Stimulus_PersistIncorrectInterv.FontSize = 10;
-            app.Stimulus_PersistIncorrectInterv.Position = [100 60 25 15];
-            app.Stimulus_PersistIncorrectInterv.Value = 1;
-
-            % Create Stimulus_PersistIncorrect
-            app.Stimulus_PersistIncorrect = uicheckbox(app.uipanel3);
-            app.Stimulus_PersistIncorrect.Tag = 'Stimulus_PersistIncorrect';
-            app.Stimulus_PersistIncorrect.Text = 'Persist incorrect?';
-            app.Stimulus_PersistIncorrect.FontSize = 9;
-            app.Stimulus_PersistIncorrect.Position = [5 59 89 16];
-
-            % Create Stimulus_PersistCorrectInterv
-            app.Stimulus_PersistCorrectInterv = uieditfield(app.uipanel3, 'numeric');
-            app.Stimulus_PersistCorrectInterv.Limits = [0 60];
-            app.Stimulus_PersistCorrectInterv.Tag = 'Stimulus_PersistCorrectInterv';
-            app.Stimulus_PersistCorrectInterv.HorizontalAlignment = 'center';
-            app.Stimulus_PersistCorrectInterv.FontSize = 10;
-            app.Stimulus_PersistCorrectInterv.Position = [100 78 25 15];
-            app.Stimulus_PersistCorrectInterv.Value = 1;
-
-            % Create Stimulus_PersistCorrect
-            app.Stimulus_PersistCorrect = uicheckbox(app.uipanel3);
-            app.Stimulus_PersistCorrect.Tag = 'Stimulus_PersistCorrect';
-            app.Stimulus_PersistCorrect.Text = 'Persist correct?';
-            app.Stimulus_PersistCorrect.FontSize = 9;
-            app.Stimulus_PersistCorrect.Position = [5 75 83 16];
-            app.Stimulus_PersistCorrect.Value = true;
-
-            % Create Repeat_wrong
-            app.Repeat_wrong = uicheckbox(app.uipanel3);
-            app.Repeat_wrong.Tag = 'Repeat_wrong';
-            app.Repeat_wrong.Tooltip = 'repeat the same side if last one was wrong';
-            app.Repeat_wrong.Text = 'repeat wrong';
-            app.Repeat_wrong.FontSize = 10;
-            app.Repeat_wrong.Position = [4 96 95 15];
-
-            % Create Box_OCPulse
-            app.Box_OCPulse = uieditfield(app.uipanel3, 'numeric');
-            app.Box_OCPulse.Limits = [0 10];
-            app.Box_OCPulse.Tag = 'Box_OCPulse';
-            app.Box_OCPulse.FontSize = 10;
-            app.Box_OCPulse.Tooltip = {'How many drops to give if using the Only Correct setting, where the mouse is able to answer correctly after a wrong choice.'};
-            app.Box_OCPulse.Position = [96 113 25 22];
-            app.Box_OCPulse.Value = 1;
-
-            % Create OnlyCorrect
-            app.OnlyCorrect = uicheckbox(app.uipanel3);
-            app.OnlyCorrect.Tag = 'OnlyCorrect';
-            app.OnlyCorrect.Text = 'Only Correct';
-            app.OnlyCorrect.FontSize = 10;
-            app.OnlyCorrect.Position = [9 115 78 22];
-
-            % Create SideBiasInterval
-            app.SideBiasInterval = uieditfield(app.uipanel3, 'numeric');
-            app.SideBiasInterval.Limits = [0.05 0.5];
-            app.SideBiasInterval.Tag = 'SideBiasInterval';
-            app.SideBiasInterval.HorizontalAlignment = 'center';
-            app.SideBiasInterval.FontSize = 10;
-            app.SideBiasInterval.Position = [89 147 38 22];
-            app.SideBiasInterval.Value = 0.25;
-
-            % Create Box_Timeout_after_time
-            app.Box_Timeout_after_time = uieditfield(app.uipanel3, 'text');
-            app.Box_Timeout_after_time.Tag = 'Box_Timeout_after_time';
-            app.Box_Timeout_after_time.HorizontalAlignment = 'center';
-            app.Box_Timeout_after_time.FontSize = 10;
-            app.Box_Timeout_after_time.Tooltip = 'trial times out and next one begins after how many seconds';
-            app.Box_Timeout_after_time.Position = [89 168 38 22];
-            app.Box_Timeout_after_time.Value = '0';
-
-            % Create HoldStill
-            app.HoldStill = uieditfield(app.uipanel3, 'numeric');
-            app.HoldStill.Limits = [0 10];
-            app.HoldStill.Tag = 'HoldStill';
-            app.HoldStill.HorizontalAlignment = 'center';
-            app.HoldStill.FontSize = 10;
-            app.HoldStill.Tooltip = {'Hold the wheel still for this many seconds before a new trial starts. Timer will reset if the will is moved during this time.'};
-            app.HoldStill.Position = [89 189 38 20];
-
-            % Create Intertrial_time
-            app.Intertrial_time = uieditfield(app.uipanel3, 'text');
-            app.Intertrial_time.Tag = 'Intertrial_time';
-            app.Intertrial_time.HorizontalAlignment = 'center';
-            app.Intertrial_time.FontSize = 10;
-            app.Intertrial_time.Tooltip = 'Interval between each trial in seconds';
-            app.Intertrial_time.Position = [89 209 38 22];
-            app.Intertrial_time.Value = '1';
-
-            % Create Penalty_time
-            app.Penalty_time = uieditfield(app.uipanel3, 'text');
-            app.Penalty_time.Tag = 'Penalty_time';
-            app.Penalty_time.HorizontalAlignment = 'center';
-            app.Penalty_time.FontSize = 10;
-            app.Penalty_time.Tooltip = 'penalty delay in seconds';
-            app.Penalty_time.Position = [89 230 38 22];
-            app.Penalty_time.Value = '1';
+            % Create Input_ignored
+            app.Input_ignored = uicheckbox(app.uipanel3);
+            app.Input_ignored.Tag = 'Input_ignored';
+            app.Input_ignored.Text = 'Input ignored';
+            app.Input_ignored.FontSize = 10;
+            app.Input_ignored.Position = [3 250 80 22];
 
             % Create Pokes_ignored_time
             app.Pokes_ignored_time = uieditfield(app.uipanel3, 'text');
@@ -1918,13 +1962,6 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Pokes_ignored_time.Position = [89 252 38 22];
             app.Pokes_ignored_time.Value = '2';
 
-            % Create Input_ignored
-            app.Input_ignored = uicheckbox(app.uipanel3);
-            app.Input_ignored.Tag = 'Input_ignored';
-            app.Input_ignored.Text = 'Input ignored';
-            app.Input_ignored.FontSize = 10;
-            app.Input_ignored.Position = [3 250 80 22];
-
             % Create text8
             app.text8 = uilabel(app.uipanel3);
             app.text8.Tag = 'text8';
@@ -1932,6 +1969,15 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.text8.FontSize = 10;
             app.text8.Position = [23 235 53 12];
             app.text8.Text = 'Penalty(s)';
+
+            % Create Penalty_time
+            app.Penalty_time = uieditfield(app.uipanel3, 'text');
+            app.Penalty_time.Tag = 'Penalty_time';
+            app.Penalty_time.HorizontalAlignment = 'center';
+            app.Penalty_time.FontSize = 10;
+            app.Penalty_time.Tooltip = 'penalty delay in seconds';
+            app.Penalty_time.Position = [89 230 38 22];
+            app.Penalty_time.Value = '1';
 
             % Create text10
             app.text10 = uilabel(app.uipanel3);
@@ -1941,6 +1987,15 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.text10.Position = [23 214 53 12];
             app.text10.Text = 'Intertrial (s)';
 
+            % Create Intertrial_time
+            app.Intertrial_time = uieditfield(app.uipanel3, 'text');
+            app.Intertrial_time.Tag = 'Intertrial_time';
+            app.Intertrial_time.HorizontalAlignment = 'center';
+            app.Intertrial_time.FontSize = 10;
+            app.Intertrial_time.Tooltip = 'Interval between each trial in seconds';
+            app.Intertrial_time.Position = [89 209 38 22];
+            app.Intertrial_time.Value = '1';
+
             % Create EditField_5Label
             app.EditField_5Label = uilabel(app.uipanel3);
             app.EditField_5Label.HorizontalAlignment = 'right';
@@ -1948,6 +2003,15 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.EditField_5Label.Tooltip = {'Hold the wheel still for this many seconds before a new trial starts. Timer will reset if the will is moved during this time.'};
             app.EditField_5Label.Position = [18 194 58 11];
             app.EditField_5Label.Text = 'Hold still (s):';
+
+            % Create HoldStill
+            app.HoldStill = uieditfield(app.uipanel3, 'numeric');
+            app.HoldStill.Limits = [0 10];
+            app.HoldStill.Tag = 'HoldStill';
+            app.HoldStill.HorizontalAlignment = 'center';
+            app.HoldStill.FontSize = 10;
+            app.HoldStill.Tooltip = {'Hold the wheel still for this many seconds before a new trial starts. Timer will reset if the will is moved during this time.'};
+            app.HoldStill.Position = [89 189 38 20];
 
             % Create text12
             app.text12 = uilabel(app.uipanel3);
@@ -1957,12 +2021,87 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.text12.Position = [23 173 53 12];
             app.text12.Text = 'Timeout (s)';
 
+            % Create Box_Timeout_after_time
+            app.Box_Timeout_after_time = uieditfield(app.uipanel3, 'text');
+            app.Box_Timeout_after_time.Tag = 'Box_Timeout_after_time';
+            app.Box_Timeout_after_time.HorizontalAlignment = 'center';
+            app.Box_Timeout_after_time.FontSize = 10;
+            app.Box_Timeout_after_time.Tooltip = 'trial times out and next one begins after how many seconds';
+            app.Box_Timeout_after_time.Position = [89 168 38 22];
+            app.Box_Timeout_after_time.Value = '0';
+
             % Create SideBiassEditField_2Label
             app.SideBiassEditField_2Label = uilabel(app.uipanel3);
             app.SideBiassEditField_2Label.HorizontalAlignment = 'right';
             app.SideBiassEditField_2Label.FontSize = 10;
             app.SideBiassEditField_2Label.Position = [16 152 60 13];
             app.SideBiassEditField_2Label.Text = 'SideBias (s):';
+
+            % Create SideBiasInterval
+            app.SideBiasInterval = uieditfield(app.uipanel3, 'numeric');
+            app.SideBiasInterval.Limits = [0.05 0.5];
+            app.SideBiasInterval.Tag = 'SideBiasInterval';
+            app.SideBiasInterval.HorizontalAlignment = 'center';
+            app.SideBiasInterval.FontSize = 10;
+            app.SideBiasInterval.Position = [89 147 38 22];
+            app.SideBiasInterval.Value = 0.25;
+
+            % Create OnlyCorrect
+            app.OnlyCorrect = uicheckbox(app.uipanel3);
+            app.OnlyCorrect.Tag = 'OnlyCorrect';
+            app.OnlyCorrect.Text = 'Only Correct';
+            app.OnlyCorrect.FontSize = 10;
+            app.OnlyCorrect.Position = [9 115 78 22];
+
+            % Create Box_OCPulse
+            app.Box_OCPulse = uieditfield(app.uipanel3, 'numeric');
+            app.Box_OCPulse.Limits = [0 10];
+            app.Box_OCPulse.Tag = 'Box_OCPulse';
+            app.Box_OCPulse.FontSize = 10;
+            app.Box_OCPulse.Tooltip = {'How many drops to give if using the Only Correct setting, where the mouse is able to answer correctly after a wrong choice.'};
+            app.Box_OCPulse.Position = [96 113 25 22];
+            app.Box_OCPulse.Value = 1;
+
+            % Create Repeat_wrong
+            app.Repeat_wrong = uicheckbox(app.uipanel3);
+            app.Repeat_wrong.Tag = 'Repeat_wrong';
+            app.Repeat_wrong.Tooltip = 'repeat the same side if last one was wrong';
+            app.Repeat_wrong.Text = 'repeat wrong';
+            app.Repeat_wrong.FontSize = 10;
+            app.Repeat_wrong.Position = [4 96 95 15];
+
+            % Create Stimulus_PersistCorrect
+            app.Stimulus_PersistCorrect = uicheckbox(app.uipanel3);
+            app.Stimulus_PersistCorrect.Tag = 'Stimulus_PersistCorrect';
+            app.Stimulus_PersistCorrect.Text = 'Persist correct?';
+            app.Stimulus_PersistCorrect.FontSize = 9;
+            app.Stimulus_PersistCorrect.Position = [5 75 83 16];
+            app.Stimulus_PersistCorrect.Value = true;
+
+            % Create Stimulus_PersistCorrectInterv
+            app.Stimulus_PersistCorrectInterv = uieditfield(app.uipanel3, 'numeric');
+            app.Stimulus_PersistCorrectInterv.Limits = [0 60];
+            app.Stimulus_PersistCorrectInterv.Tag = 'Stimulus_PersistCorrectInterv';
+            app.Stimulus_PersistCorrectInterv.HorizontalAlignment = 'center';
+            app.Stimulus_PersistCorrectInterv.FontSize = 10;
+            app.Stimulus_PersistCorrectInterv.Position = [100 78 25 15];
+            app.Stimulus_PersistCorrectInterv.Value = 1;
+
+            % Create Stimulus_PersistIncorrect
+            app.Stimulus_PersistIncorrect = uicheckbox(app.uipanel3);
+            app.Stimulus_PersistIncorrect.Tag = 'Stimulus_PersistIncorrect';
+            app.Stimulus_PersistIncorrect.Text = 'Persist incorrect?';
+            app.Stimulus_PersistIncorrect.FontSize = 9;
+            app.Stimulus_PersistIncorrect.Position = [5 59 89 16];
+
+            % Create Stimulus_PersistIncorrectInterv
+            app.Stimulus_PersistIncorrectInterv = uieditfield(app.uipanel3, 'numeric');
+            app.Stimulus_PersistIncorrectInterv.Limits = [0 60];
+            app.Stimulus_PersistIncorrectInterv.Tag = 'Stimulus_PersistIncorrectInterv';
+            app.Stimulus_PersistIncorrectInterv.HorizontalAlignment = 'center';
+            app.Stimulus_PersistIncorrectInterv.FontSize = 10;
+            app.Stimulus_PersistIncorrectInterv.Position = [100 60 25 15];
+            app.Stimulus_PersistIncorrectInterv.Value = 1;
 
             % Create text35
             app.text35 = uilabel(app.uipanel3);
@@ -1973,6 +2112,24 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.text35.Position = [15 39 38 15];
             app.text35.Text = 'binsize:';
 
+            % Create Data_Sbin
+            app.Data_Sbin = uieditfield(app.uipanel3, 'text');
+            app.Data_Sbin.Tag = 'Data_Sbin';
+            app.Data_Sbin.HorizontalAlignment = 'center';
+            app.Data_Sbin.FontSize = 11;
+            app.Data_Sbin.Tooltip = {'How many trials in a small bin'};
+            app.Data_Sbin.Position = [54 38 31 18];
+            app.Data_Sbin.Value = '10';
+
+            % Create Data_Lbin
+            app.Data_Lbin = uieditfield(app.uipanel3, 'text');
+            app.Data_Lbin.Tag = 'Data_Lbin';
+            app.Data_Lbin.HorizontalAlignment = 'center';
+            app.Data_Lbin.FontSize = 11;
+            app.Data_Lbin.Tooltip = {'How many small bins in a full bin'};
+            app.Data_Lbin.Position = [95 38 20 18];
+            app.Data_Lbin.Value = '2';
+
             % Create uipanel4
             app.uipanel4 = uipanel(app.SettingsTab);
             app.uipanel4.AutoResizeChildren = 'off';
@@ -1981,48 +2138,17 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.uipanel4.FontSize = 11;
             app.uipanel4.Position = [355 245 154 77];
 
-            % Create secbwPulsesEditFieldLabel
-            app.secbwPulsesEditFieldLabel = uilabel(app.uipanel4);
-            app.secbwPulsesEditFieldLabel.FontSize = 10;
-            app.secbwPulsesEditFieldLabel.Position = [6 6 72 10];
-            app.secbwPulsesEditFieldLabel.Text = 'sec b/w Pulses';
-
-            % Create Box_SecBwPulse
-            app.Box_SecBwPulse = uieditfield(app.uipanel4, 'numeric');
-            app.Box_SecBwPulse.Tag = 'Box_SecBwPulse';
-            app.Box_SecBwPulse.FontSize = 10;
-            app.Box_SecBwPulse.Position = [80 3 26 15];
-            app.Box_SecBwPulse.Value = 0.2;
-
-            % Create Box_RightPulse
-            app.Box_RightPulse = uieditfield(app.uipanel4, 'numeric');
-            app.Box_RightPulse.Limits = [1 10];
-            app.Box_RightPulse.Tag = 'Box_RightPulse';
-            app.Box_RightPulse.HorizontalAlignment = 'center';
-            app.Box_RightPulse.FontSize = 10;
-            app.Box_RightPulse.Tooltip = {'How many pulses from the rightwater valve'};
-            app.Box_RightPulse.Position = [68 21 25 14];
-            app.Box_RightPulse.Value = 1;
-
-            % Create Box_LeftPulse
-            app.Box_LeftPulse = uieditfield(app.uipanel4, 'numeric');
-            app.Box_LeftPulse.Limits = [1 10];
-            app.Box_LeftPulse.Tag = 'Box_LeftPulse';
-            app.Box_LeftPulse.HorizontalAlignment = 'center';
-            app.Box_LeftPulse.FontSize = 10;
-            app.Box_LeftPulse.Tooltip = {'How many pulses from the left water valve'};
-            app.Box_LeftPulse.Position = [68 39 25 14];
-            app.Box_LeftPulse.Value = 1;
-
-            % Create Box_Rrewardtime
-            app.Box_Rrewardtime = uieditfield(app.uipanel4, 'text');
-            app.Box_Rrewardtime.ValueChangedFcn = createCallbackFcn(app, @RewardTimeChanged, true);
-            app.Box_Rrewardtime.Tag = 'Box_Rrewardtime';
-            app.Box_Rrewardtime.HorizontalAlignment = 'center';
-            app.Box_Rrewardtime.FontSize = 11;
-            app.Box_Rrewardtime.Tooltip = 'How long the vale is open in seconds';
-            app.Box_Rrewardtime.Position = [26 21 38 14];
-            app.Box_Rrewardtime.Value = '0.04';
+            % Create LeftValveButton
+            app.LeftValveButton = uibutton(app.uipanel4, 'push');
+            app.LeftValveButton.ButtonPushedFcn = createCallbackFcn(app, @LeftValveButtonPushed, true);
+            app.LeftValveButton.Tag = 'LeftValveButton';
+            app.LeftValveButton.BackgroundColor = [0 0 1];
+            app.LeftValveButton.FontSize = 11;
+            app.LeftValveButton.FontWeight = 'bold';
+            app.LeftValveButton.FontColor = [1 1 1];
+            app.LeftValveButton.Tooltip = {'Press to test Left water reward size'};
+            app.LeftValveButton.Position = [4 38 18 17];
+            app.LeftValveButton.Text = 'L';
 
             % Create Box_Lrewardtime
             app.Box_Lrewardtime = uieditfield(app.uipanel4, 'text');
@@ -2033,6 +2159,16 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Box_Lrewardtime.Tooltip = 'How long the vale is open in seconds';
             app.Box_Lrewardtime.Position = [26 39 38 14];
             app.Box_Lrewardtime.Value = '0.04';
+
+            % Create Box_LeftPulse
+            app.Box_LeftPulse = uieditfield(app.uipanel4, 'numeric');
+            app.Box_LeftPulse.Limits = [1 10];
+            app.Box_LeftPulse.Tag = 'Box_LeftPulse';
+            app.Box_LeftPulse.HorizontalAlignment = 'center';
+            app.Box_LeftPulse.FontSize = 10;
+            app.Box_LeftPulse.Tooltip = {'How many pulses from the left water valve'};
+            app.Box_LeftPulse.Position = [68 39 25 14];
+            app.Box_LeftPulse.Value = 1;
 
             % Create RightValveButton
             app.RightValveButton = uibutton(app.uipanel4, 'push');
@@ -2047,199 +2183,181 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.RightValveButton.Position = [4 20 19 17];
             app.RightValveButton.Text = 'R';
 
-            % Create LeftValveButton
-            app.LeftValveButton = uibutton(app.uipanel4, 'push');
-            app.LeftValveButton.ButtonPushedFcn = createCallbackFcn(app, @LeftValveButtonPushed, true);
-            app.LeftValveButton.Tag = 'LeftValveButton';
-            app.LeftValveButton.BackgroundColor = [0 0 1];
-            app.LeftValveButton.FontSize = 11;
-            app.LeftValveButton.FontWeight = 'bold';
-            app.LeftValveButton.FontColor = [1 1 1];
-            app.LeftValveButton.Tooltip = {'Press to test Left water reward size'};
-            app.LeftValveButton.Position = [4 38 18 17];
-            app.LeftValveButton.Text = 'L';
+            % Create Box_Rrewardtime
+            app.Box_Rrewardtime = uieditfield(app.uipanel4, 'text');
+            app.Box_Rrewardtime.ValueChangedFcn = createCallbackFcn(app, @RewardTimeChanged, true);
+            app.Box_Rrewardtime.Tag = 'Box_Rrewardtime';
+            app.Box_Rrewardtime.HorizontalAlignment = 'center';
+            app.Box_Rrewardtime.FontSize = 11;
+            app.Box_Rrewardtime.Tooltip = 'How long the vale is open in seconds';
+            app.Box_Rrewardtime.Position = [26 21 38 14];
+            app.Box_Rrewardtime.Value = '0.04';
 
-            % Create text86
-            app.text86 = uilabel(app.SettingsTab);
-            app.text86.Tag = 'text86';
-            app.text86.HorizontalAlignment = 'center';
-            app.text86.FontSize = 8;
-            app.text86.Position = [12 7 169 22];
-            app.text86.Text = 'WBS Jan. 2025';
+            % Create Box_RightPulse
+            app.Box_RightPulse = uieditfield(app.uipanel4, 'numeric');
+            app.Box_RightPulse.Limits = [1 10];
+            app.Box_RightPulse.Tag = 'Box_RightPulse';
+            app.Box_RightPulse.HorizontalAlignment = 'center';
+            app.Box_RightPulse.FontSize = 10;
+            app.Box_RightPulse.Tooltip = {'How many pulses from the rightwater valve'};
+            app.Box_RightPulse.Position = [68 21 25 14];
+            app.Box_RightPulse.Value = 1;
 
-            % Create SubjectPanel
-            app.SubjectPanel = uipanel(app.SettingsTab);
-            app.SubjectPanel.AutoResizeChildren = 'off';
-            app.SubjectPanel.Title = 'Subject';
-            app.SubjectPanel.Position = [11 28 178 118];
+            % Create secbwPulsesEditFieldLabel
+            app.secbwPulsesEditFieldLabel = uilabel(app.uipanel4);
+            app.secbwPulsesEditFieldLabel.FontSize = 10;
+            app.secbwPulsesEditFieldLabel.Position = [6 6 72 10];
+            app.secbwPulsesEditFieldLabel.Text = 'sec b/w Pulses';
 
-            % Create text13
-            app.text13 = uilabel(app.SubjectPanel);
-            app.text13.Tag = 'text13';
-            app.text13.HorizontalAlignment = 'right';
-            app.text13.Position = [-3 51 68 22];
-            app.text13.Text = 'Strain';
+            % Create Box_SecBwPulse
+            app.Box_SecBwPulse = uieditfield(app.uipanel4, 'numeric');
+            app.Box_SecBwPulse.Tag = 'Box_SecBwPulse';
+            app.Box_SecBwPulse.FontSize = 10;
+            app.Box_SecBwPulse.Position = [80 3 26 15];
+            app.Box_SecBwPulse.Value = 2;
 
-            % Create WeightgEditFieldLabel
-            app.WeightgEditFieldLabel = uilabel(app.SubjectPanel);
-            app.WeightgEditFieldLabel.HorizontalAlignment = 'right';
-            app.WeightgEditFieldLabel.Position = [-3 28 68 22];
-            app.WeightgEditFieldLabel.Text = 'Weight';
+            % Create InputControlPanel
+            app.InputControlPanel = uipanel(app.SettingsTab);
+            app.InputControlPanel.AutoResizeChildren = 'off';
+            app.InputControlPanel.Title = 'Input Control';
+            app.InputControlPanel.Position = [519 113 169 209];
 
-            % Create Investigator
-            app.Investigator = uilabel(app.SubjectPanel);
-            app.Investigator.Tag = 'text128';
-            app.Investigator.HorizontalAlignment = 'right';
-            app.Investigator.Position = [-3 74 68 22];
-            app.Investigator.Text = 'Investigator';
+            % Create TurnMagEditFieldLabel
+            app.TurnMagEditFieldLabel = uilabel(app.InputControlPanel);
+            app.TurnMagEditFieldLabel.HorizontalAlignment = 'right';
+            app.TurnMagEditFieldLabel.FontSize = 9;
+            app.TurnMagEditFieldLabel.Position = [6 165 46 22];
+            app.TurnMagEditFieldLabel.Text = 'Turn Mag.';
 
-            % Create DropDownLabel
-            app.DropDownLabel = uilabel(app.SubjectPanel);
-            app.DropDownLabel.Tag = 'StrainDropDown';
-            app.DropDownLabel.HorizontalAlignment = 'right';
-            app.DropDownLabel.Position = [1 3 66 22];
-            app.DropDownLabel.Text = 'Drop Down';
+            % Create TurnMag
+            app.TurnMag = uieditfield(app.InputControlPanel, 'numeric');
+            app.TurnMag.Tag = 'TurnMag';
+            app.TurnMag.FontSize = 9;
+            app.TurnMag.Position = [53 165 107 22];
+            app.TurnMag.Value = 1000;
 
-            % Create StrainDropDown
-            app.StrainDropDown = uidropdown(app.SubjectPanel);
-            app.StrainDropDown.Items = {'shank'};
-            app.StrainDropDown.Tag = 'StrainDropDown';
-            app.StrainDropDown.Position = [82 3 96 22];
-            app.StrainDropDown.Value = 'shank';
+            % Create RoundUp
+            app.RoundUp = uicheckbox(app.InputControlPanel);
+            app.RoundUp.Tag = 'RoundUp';
+            app.RoundUp.Tooltip = {'Choose to accept the mouse''s choice at timeout if they turn the wheel *almost* to the choice.'};
+            app.RoundUp.Text = 'Round up choice';
+            app.RoundUp.FontSize = 10;
+            app.RoundUp.Position = [5 148 97 22];
 
-            % Create WeightgEditField
-            app.WeightgEditField = uieditfield(app.SubjectPanel, 'text');
-            app.WeightgEditField.Tag = 'Weight';
-            app.WeightgEditField.Tooltip = {'Enter the animal''s weight in grams'};
-            app.WeightgEditField.Position = [69 28 57 22];
+            % Create RoundUpEditFieldLabel
+            app.RoundUpEditFieldLabel = uilabel(app.InputControlPanel);
+            app.RoundUpEditFieldLabel.HorizontalAlignment = 'right';
+            app.RoundUpEditFieldLabel.FontSize = 10;
+            app.RoundUpEditFieldLabel.Position = [26 134 69 22];
+            app.RoundUpEditFieldLabel.Text = 'Round Up (%)';
 
-            % Create Strain
-            app.Strain = uieditfield(app.SubjectPanel, 'text');
-            app.Strain.Tag = 'Strain';
-            app.Strain.HorizontalAlignment = 'center';
-            app.Strain.Tooltip = 'Enter animal strain e.g. Shank3, 16b';
-            app.Strain.Position = [69 51 57 22];
-            app.Strain.Value = 'w';
+            % Create RoundUpVal
+            app.RoundUpVal = uieditfield(app.InputControlPanel, 'numeric');
+            app.RoundUpVal.Limits = [0 110];
+            app.RoundUpVal.Tag = 'RoundUpVal';
+            app.RoundUpVal.FontSize = 10;
+            app.RoundUpVal.Tooltip = {'Choose the percentage threshold to accept the mouse''s choice if they do not turn the wheel fully.'};
+            app.RoundUpVal.Position = [102 134 54 22];
+            app.RoundUpVal.Value = 95;
 
-            % Create Inv
-            app.Inv = uieditfield(app.SubjectPanel, 'text');
-            app.Inv.Tag = 'Investigator';
-            app.Inv.HorizontalAlignment = 'center';
-            app.Inv.Tooltip = 'Name of person conducting the training';
-            app.Inv.Position = [69 74 57 22];
-            app.Inv.Value = 'Will';
+            % Create IntertrialMalCancel
+            app.IntertrialMalCancel = uicheckbox(app.InputControlPanel);
+            app.IntertrialMalCancel.Tag = 'IntertrialMalCancel';
+            app.IntertrialMalCancel.Tooltip = {'Check this box to end the current trial if the mouse pokes left or right when the ready cue is up. Only a center poke will start the next trial.'};
+            app.IntertrialMalCancel.Text = 'Intertrial Mal';
+            app.IntertrialMalCancel.FontSize = 10;
+            app.IntertrialMalCancel.Position = [24 104 73 22];
+            app.IntertrialMalCancel.Value = true;
 
-            % Create Panel_2
-            app.Panel_2 = uipanel(app.SettingsTab);
-            app.Panel_2.AutoResizeChildren = 'off';
-            app.Panel_2.Title = 'Panel';
-            app.Panel_2.Position = [355 7 333 102];
+            % Create Stimulus_FinishLine
+            app.Stimulus_FinishLine = uicheckbox(app.InputControlPanel);
+            app.Stimulus_FinishLine.Tag = 'Stimulus_FinishLine';
+            app.Stimulus_FinishLine.Tooltip = {'DIsplay a marker that will indicate how far the mouse has to turn the wheel to input a choice. Based on stimulus variables.'};
+            app.Stimulus_FinishLine.Text = 'Finish line?';
+            app.Stimulus_FinishLine.FontSize = 10;
+            app.Stimulus_FinishLine.Position = [5 124 70 15];
 
-            % Create text121
-            app.text121 = uilabel(app.Panel_2);
-            app.text121.Tag = 'text121';
-            app.text121.HorizontalAlignment = 'center';
-            app.text121.VerticalAlignment = 'top';
-            app.text121.FontSize = 11;
-            app.text121.Position = [50 44 28 17];
-            app.text121.Text = 'freq';
+            % Create IntertrialMalSec
+            app.IntertrialMalSec = uieditfield(app.InputControlPanel, 'numeric');
+            app.IntertrialMalSec.Tag = 'IntertrialMalSec';
+            app.IntertrialMalSec.FontSize = 10;
+            app.IntertrialMalSec.Tooltip = {'If the box is checked, a new trial will not begin until this many seconds after the mouse last poked Left or Right during the intertrial period. Once a new trial does begin, it will cancel if the mouse pokes anything but the center.'};
+            app.IntertrialMalSec.Position = [109 104 44 22];
+            app.IntertrialMalSec.Value = 3;
 
-            % Create text122
-            app.text122 = uilabel(app.Panel_2);
-            app.text122.Tag = 'text122';
-            app.text122.HorizontalAlignment = 'center';
-            app.text122.VerticalAlignment = 'top';
-            app.text122.FontSize = 11;
-            app.text122.Position = [116 44 36 17];
-            app.text122.Text = 'reps';
+            % Create SkipWaitForInput
+            app.SkipWaitForInput = uicheckbox(app.InputControlPanel);
+            app.SkipWaitForInput.Tag = 'SkipWaitForInput';
+            app.SkipWaitForInput.Tooltip = {'Trials will begin without holding the middle choice'};
+            app.SkipWaitForInput.Text = 'Skip WaitForInput';
+            app.SkipWaitForInput.FontSize = 10;
+            app.SkipWaitForInput.Position = [14 85 101 22];
 
-            % Create Stimulus_CorrectAngleAdj
-            app.Stimulus_CorrectAngleAdj = uieditfield(app.Panel_2, 'numeric');
-            app.Stimulus_CorrectAngleAdj.Tag = 'Stimulus_CorrectAngleAdj';
-            app.Stimulus_CorrectAngleAdj.FontSize = 10;
-            app.Stimulus_CorrectAngleAdj.Tooltip = {'When correcting the randomly oriented segments, lines are offset by a random angle between this and the tolerance.'};
-            app.Stimulus_CorrectAngleAdj.Position = [274 31 26 22];
-            app.Stimulus_CorrectAngleAdj.Value = 45;
+            % Create ConfirmChoice
+            app.ConfirmChoice = uicheckbox(app.InputControlPanel);
+            app.ConfirmChoice.Tag = 'ConfirmChoice';
+            app.ConfirmChoice.Tooltip = {'If the mouse stands in front of the correct choice during the Input Ignored interval, the 5-dashed line contour will blink to show the impatient mouse they are indeed going to be rewarded.'};
+            app.ConfirmChoice.Text = 'Confirm choice';
+            app.ConfirmChoice.FontSize = 10;
+            app.ConfirmChoice.Position = [15 44 89 22];
+            app.ConfirmChoice.Value = true;
 
-            % Create ContangletolEditFieldLabel
-            app.ContangletolEditFieldLabel = uilabel(app.Panel_2);
-            app.ContangletolEditFieldLabel.HorizontalAlignment = 'right';
-            app.ContangletolEditFieldLabel.FontSize = 10;
-            app.ContangletolEditFieldLabel.Position = [199 56 72 22];
-            app.ContangletolEditFieldLabel.Text = 'Cont. angle tol.';
+            % Create DuringTrialEditFieldLabel
+            app.DuringTrialEditFieldLabel = uilabel(app.InputControlPanel);
+            app.DuringTrialEditFieldLabel.HorizontalAlignment = 'right';
+            app.DuringTrialEditFieldLabel.FontSize = 10;
+            app.DuringTrialEditFieldLabel.Position = [8 25 54 22];
+            app.DuringTrialEditFieldLabel.Text = 'Input delay';
 
-            % Create Stimulus_ContTol
-            app.Stimulus_ContTol = uieditfield(app.Panel_2, 'numeric');
-            app.Stimulus_ContTol.Tag = 'Stimulus_ContTol';
-            app.Stimulus_ContTol.FontSize = 10;
-            app.Stimulus_ContTol.Tooltip = {'Stimuli are checked for accidental continuation and any angles below this threshold are adjusted'};
-            app.Stimulus_ContTol.Position = [274 56 26 22];
-            app.Stimulus_ContTol.Value = 10;
+            % Create Input_Delay_Start
+            app.Input_Delay_Start = uieditfield(app.InputControlPanel, 'numeric');
+            app.Input_Delay_Start.Limits = [0 200];
+            app.Input_Delay_Start.Tag = 'Input_Delay_Start';
+            app.Input_Delay_Start.FontSize = 10;
+            app.Input_Delay_Start.Tooltip = {'Start a trial response delay. Mouse must hold their choice for this time before it is accepted.'};
+            app.Input_Delay_Start.Position = [65 25 44 22];
+            app.Input_Delay_Start.Value = 1;
 
-            % Create CorrectionoffsetEditFieldLabel
-            app.CorrectionoffsetEditFieldLabel = uilabel(app.Panel_2);
-            app.CorrectionoffsetEditFieldLabel.HorizontalAlignment = 'right';
-            app.CorrectionoffsetEditFieldLabel.FontSize = 10;
-            app.CorrectionoffsetEditFieldLabel.Position = [193 31 78 22];
-            app.CorrectionoffsetEditFieldLabel.Text = 'Correction offset';
+            % Create Input_Delay_Respond
+            app.Input_Delay_Respond = uieditfield(app.InputControlPanel, 'numeric');
+            app.Input_Delay_Respond.Limits = [0 200];
+            app.Input_Delay_Respond.Tag = 'Input_Delay_Respond';
+            app.Input_Delay_Respond.FontSize = 10;
+            app.Input_Delay_Respond.Tooltip = {'Trial response delay. Mouse must hold their choice for this time before it is accepted.'};
+            app.Input_Delay_Respond.Position = [116 25 44 22];
+            app.Input_Delay_Respond.Value = 2;
 
-            % Create Stimulus_RepFlashAfterW
-            app.Stimulus_RepFlashAfterW = uieditfield(app.Panel_2, 'text');
-            app.Stimulus_RepFlashAfterW.Tag = 'Stimulus_RepFlashAfterW';
-            app.Stimulus_RepFlashAfterW.FontSize = 11;
-            app.Stimulus_RepFlashAfterW.Tooltip = 'Number of times (repetitions) that stimulus is flashed';
-            app.Stimulus_RepFlashAfterW.Position = [176 24 22 18];
-            app.Stimulus_RepFlashAfterW.Value = '1';
+            % Create EditField_6Label
+            app.EditField_6Label = uilabel(app.InputControlPanel);
+            app.EditField_6Label.HorizontalAlignment = 'right';
+            app.EditField_6Label.FontSize = 10;
+            app.EditField_6Label.Position = [6 2 78 22];
+            app.EditField_6Label.Text = 'Hold Still Thresh';
 
-            % Create Stimulus_RepFlashAfterC
-            app.Stimulus_RepFlashAfterC = uieditfield(app.Panel_2, 'text');
-            app.Stimulus_RepFlashAfterC.Tag = 'Stimulus_RepFlashAfterC';
-            app.Stimulus_RepFlashAfterC.FontSize = 11;
-            app.Stimulus_RepFlashAfterC.Tooltip = 'Number of times (repetitions) that stimulus is flashed';
-            app.Stimulus_RepFlashAfterC.Position = [147 24 22 18];
-            app.Stimulus_RepFlashAfterC.Value = '1';
+            % Create Hold_Still_Thresh
+            app.Hold_Still_Thresh = uieditfield(app.InputControlPanel, 'numeric');
+            app.Hold_Still_Thresh.Limits = [0 500];
+            app.Hold_Still_Thresh.Tag = 'Hold_Still_Thresh';
+            app.Hold_Still_Thresh.FontSize = 10;
+            app.Hold_Still_Thresh.Tooltip = {'Speed mouse must keep wheel under during "Hold Still" interval before trial.'};
+            app.Hold_Still_Thresh.Position = [106 2 44 22];
+            app.Hold_Still_Thresh.Value = 10;
 
-            % Create Stimulus_RepFlashInitial
-            app.Stimulus_RepFlashInitial = uieditfield(app.Panel_2, 'text');
-            app.Stimulus_RepFlashInitial.Tag = 'Stimulus_RepFlashInitial';
-            app.Stimulus_RepFlashInitial.FontSize = 11;
-            app.Stimulus_RepFlashInitial.Tooltip = 'Number of times (repetitions) that stimulus is flashed';
-            app.Stimulus_RepFlashInitial.Position = [147 43 22 18];
-            app.Stimulus_RepFlashInitial.Value = '1';
+            % Create Wait_Blink
+            app.Wait_Blink = uicheckbox(app.InputControlPanel);
+            app.Wait_Blink.Tag = 'Wait_Blink';
+            app.Wait_Blink.Tooltip = {'Blink the ready cue when waiting for the mouse to begin a new trial.'};
+            app.Wait_Blink.Text = 'Wait blink';
+            app.Wait_Blink.FontSize = 10;
+            app.Wait_Blink.Position = [16 65 66 22];
+            app.Wait_Blink.Value = true;
 
-            % Create EditField
-            app.EditField = uieditfield(app.Panel_2, 'numeric');
-            app.EditField.Tag = 'Stimulus_FreqAnimation';
-            app.EditField.HorizontalAlignment = 'left';
-            app.EditField.FontSize = 10;
-            app.EditField.Position = [78 37 36 22];
-            app.EditField.Value = 50;
-
-            % Create Stimulus_FlashStim
-            app.Stimulus_FlashStim = uicheckbox(app.Panel_2);
-            app.Stimulus_FlashStim.Tag = 'Stimulus_FlashStim';
-            app.Stimulus_FlashStim.Text = 'flash';
-            app.Stimulus_FlashStim.FontSize = 11;
-            app.Stimulus_FlashStim.Position = [5 43 58 18];
-            app.Stimulus_FlashStim.Value = true;
-
-            % Create text65
-            app.text65 = uilabel(app.Panel_2);
-            app.text65.Tag = 'text65';
-            app.text65.HorizontalAlignment = 'right';
-            app.text65.VerticalAlignment = 'top';
-            app.text65.FontSize = 11;
-            app.text65.Position = [1 64 49 16];
-            app.text65.Text = 'Stimulus:';
-
-            % Create Stimulus_type
-            app.Stimulus_type = uidropdown(app.Panel_2);
-            app.Stimulus_type.Items = {'Contour crude', 'Contour fine ', 'Square Vs O crude', 'Square Vs O fine', 'unknown', 'XvsO', 'Two Task Contour', 'Cued Images', 'Distract Contour', 'Grating', 'Contour Density', 'BehaviorBox Practice'};
-            app.Stimulus_type.Tag = 'Stimulus_type';
-            app.Stimulus_type.Tooltip = 'choose stimulus';
-            app.Stimulus_type.FontSize = 9;
-            app.Stimulus_type.Position = [55 63 115 18];
-            app.Stimulus_type.Value = 'Contour Density';
+            % Create Wait_Blink_Sec
+            app.Wait_Blink_Sec = uieditfield(app.InputControlPanel, 'numeric');
+            app.Wait_Blink_Sec.Tag = 'Wait_Blink_Sec';
+            app.Wait_Blink_Sec.FontSize = 10;
+            app.Wait_Blink_Sec.Position = [94 65 38 22];
+            app.Wait_Blink_Sec.Value = 1;
 
             % Create StimulusvariablesPanel
             app.StimulusvariablesPanel = uipanel(app.SettingsTab);
@@ -2247,12 +2365,190 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.StimulusvariablesPanel.Title = 'Stimulus variables';
             app.StimulusvariablesPanel.Position = [695 7 178 313];
 
-            % Create Arduino_Com
-            app.Arduino_Com = uieditfield(app.StimulusvariablesPanel, 'text');
-            app.Arduino_Com.Tag = 'Arduino_Com';
-            app.Arduino_Com.HorizontalAlignment = 'center';
-            app.Arduino_Com.Tooltip = 'com port to use for arduino';
-            app.Arduino_Com.Position = [23 7 59 22];
+            % Create SegmentthicknessEditFieldLabel
+            app.SegmentthicknessEditFieldLabel = uilabel(app.StimulusvariablesPanel);
+            app.SegmentthicknessEditFieldLabel.HorizontalAlignment = 'right';
+            app.SegmentthicknessEditFieldLabel.FontSize = 10;
+            app.SegmentthicknessEditFieldLabel.Position = [18 266 91 15];
+            app.SegmentthicknessEditFieldLabel.Text = 'Segment thickness';
+
+            % Create Stimulus_SegThick
+            app.Stimulus_SegThick = uieditfield(app.StimulusvariablesPanel, 'numeric');
+            app.Stimulus_SegThick.Tag = 'Stimulus_SegThick';
+            app.Stimulus_SegThick.FontSize = 10;
+            app.Stimulus_SegThick.Position = [119 262 44 22];
+            app.Stimulus_SegThick.Value = 13;
+
+            % Create SegmentlengthEditFieldLabel
+            app.SegmentlengthEditFieldLabel = uilabel(app.StimulusvariablesPanel);
+            app.SegmentlengthEditFieldLabel.HorizontalAlignment = 'right';
+            app.SegmentlengthEditFieldLabel.FontSize = 10;
+            app.SegmentlengthEditFieldLabel.Position = [36 245 73 15];
+            app.SegmentlengthEditFieldLabel.Text = 'Segment length';
+
+            % Create Stimulus_SegLength
+            app.Stimulus_SegLength = uieditfield(app.StimulusvariablesPanel, 'numeric');
+            app.Stimulus_SegLength.Tag = 'Stimulus_SegLength';
+            app.Stimulus_SegLength.FontSize = 10;
+            app.Stimulus_SegLength.Position = [119 241 44 22];
+            app.Stimulus_SegLength.Value = 13;
+
+            % Create SegmentSpacingEditFieldLabel
+            app.SegmentSpacingEditFieldLabel = uilabel(app.StimulusvariablesPanel);
+            app.SegmentSpacingEditFieldLabel.HorizontalAlignment = 'right';
+            app.SegmentSpacingEditFieldLabel.FontSize = 10;
+            app.SegmentSpacingEditFieldLabel.Position = [25 224 84 15];
+            app.SegmentSpacingEditFieldLabel.Text = 'Segment Spacing';
+
+            % Create Stimulus_SegSpacing
+            app.Stimulus_SegSpacing = uieditfield(app.StimulusvariablesPanel, 'numeric');
+            app.Stimulus_SegSpacing.Tag = 'Stimulus_SegSpacing';
+            app.Stimulus_SegSpacing.FontSize = 10;
+            app.Stimulus_SegSpacing.Position = [119 220 44 22];
+            app.Stimulus_SegSpacing.Value = 13;
+
+            % Create SpotlightbrightnessEditFieldLabel
+            app.SpotlightbrightnessEditFieldLabel = uilabel(app.StimulusvariablesPanel);
+            app.SpotlightbrightnessEditFieldLabel.HorizontalAlignment = 'right';
+            app.SpotlightbrightnessEditFieldLabel.FontSize = 10;
+            app.SpotlightbrightnessEditFieldLabel.Position = [16 203 93 15];
+            app.SpotlightbrightnessEditFieldLabel.Text = 'Spotlight brightness';
+
+            % Create Stimulus_SpotlightColor
+            app.Stimulus_SpotlightColor = uieditfield(app.StimulusvariablesPanel, 'numeric');
+            app.Stimulus_SpotlightColor.Limits = [0 1];
+            app.Stimulus_SpotlightColor.Tag = 'Stimulus_SpotlightColor';
+            app.Stimulus_SpotlightColor.FontSize = 10;
+            app.Stimulus_SpotlightColor.Tooltip = {'0 is black and 1 is white'};
+            app.Stimulus_SpotlightColor.Position = [119 199 44 22];
+
+            % Create BetweenSpotlight_textlabel
+            app.BetweenSpotlight_textlabel = uilabel(app.StimulusvariablesPanel);
+            app.BetweenSpotlight_textlabel.HorizontalAlignment = 'right';
+            app.BetweenSpotlight_textlabel.FontSize = 10;
+            app.BetweenSpotlight_textlabel.Tooltip = {'Percentage of the screen space that is left blank between each spotlight'};
+            app.BetweenSpotlight_textlabel.Position = [6 178 103 22];
+            app.BetweenSpotlight_textlabel.Text = 'Between spotlight (%)';
+
+            % Create Stimulus_BetweenSpotlight
+            app.Stimulus_BetweenSpotlight = uieditfield(app.StimulusvariablesPanel, 'numeric');
+            app.Stimulus_BetweenSpotlight.Limits = [0 99];
+            app.Stimulus_BetweenSpotlight.Tag = 'Stimulus_BetweenSpotlight';
+            app.Stimulus_BetweenSpotlight.FontSize = 10;
+            app.Stimulus_BetweenSpotlight.Tooltip = {'Percentage of the screen space that is left blank between each spotlight. 33% is the default for the nose poke, use a smaller value for the wheel.'};
+            app.Stimulus_BetweenSpotlight.Position = [119 178 44 22];
+            app.Stimulus_BetweenSpotlight.Value = 10;
+
+            % Create LinebrightnessEditFieldLabel
+            app.LinebrightnessEditFieldLabel = uilabel(app.StimulusvariablesPanel);
+            app.LinebrightnessEditFieldLabel.HorizontalAlignment = 'right';
+            app.LinebrightnessEditFieldLabel.FontSize = 10;
+            app.LinebrightnessEditFieldLabel.Position = [36 160 73 16];
+            app.LinebrightnessEditFieldLabel.Text = 'Line brightness';
+
+            % Create Stimulus_LineColor
+            app.Stimulus_LineColor = uieditfield(app.StimulusvariablesPanel, 'numeric');
+            app.Stimulus_LineColor.Limits = [0 1];
+            app.Stimulus_LineColor.Tag = 'Stimulus_LineColor';
+            app.Stimulus_LineColor.FontSize = 10;
+            app.Stimulus_LineColor.Tooltip = {'0 is black and 1 is white'};
+            app.Stimulus_LineColor.Position = [119 157 44 22];
+            app.Stimulus_LineColor.Value = 0.6;
+
+            % Create EditField_5Label_2
+            app.EditField_5Label_2 = uilabel(app.StimulusvariablesPanel);
+            app.EditField_5Label_2.HorizontalAlignment = 'right';
+            app.EditField_5Label_2.FontSize = 10;
+            app.EditField_5Label_2.Tooltip = {'The stimulus will alternate between this color and the regular brightness.'};
+            app.EditField_5Label_2.Position = [52 136 57 22];
+            app.EditField_5Label_2.Text = 'Flash Color';
+
+            % Create Stimulus_FlashColor
+            app.Stimulus_FlashColor = uieditfield(app.StimulusvariablesPanel, 'numeric');
+            app.Stimulus_FlashColor.Limits = [0 1];
+            app.Stimulus_FlashColor.Tag = 'Stimulus_FlashColor';
+            app.Stimulus_FlashColor.FontSize = 10;
+            app.Stimulus_FlashColor.Tooltip = {'The stimulus will alternate between this color and the regular brightness.'};
+            app.Stimulus_FlashColor.Position = [119 136 44 22];
+            app.Stimulus_FlashColor.Value = 1;
+
+            % Create BackgroundEditFieldLabel_2
+            app.BackgroundEditFieldLabel_2 = uilabel(app.StimulusvariablesPanel);
+            app.BackgroundEditFieldLabel_2.HorizontalAlignment = 'right';
+            app.BackgroundEditFieldLabel_2.FontSize = 10;
+            app.BackgroundEditFieldLabel_2.Position = [36 115 73 22];
+            app.BackgroundEditFieldLabel_2.Text = 'Dim Color';
+
+            % Create Stimulus_DimColor
+            app.Stimulus_DimColor = uieditfield(app.StimulusvariablesPanel, 'numeric');
+            app.Stimulus_DimColor.Limits = [0 1];
+            app.Stimulus_DimColor.Tag = 'Stimulus_DimColor';
+            app.Stimulus_DimColor.FontSize = 10;
+            app.Stimulus_DimColor.Tooltip = {'0 is black and 1 is white'};
+            app.Stimulus_DimColor.Position = [119 115 44 22];
+            app.Stimulus_DimColor.Value = 0.1;
+
+            % Create BackgroundEditFieldLabel
+            app.BackgroundEditFieldLabel = uilabel(app.StimulusvariablesPanel);
+            app.BackgroundEditFieldLabel.HorizontalAlignment = 'right';
+            app.BackgroundEditFieldLabel.FontSize = 10;
+            app.BackgroundEditFieldLabel.Position = [36 98 73 15];
+            app.BackgroundEditFieldLabel.Text = 'Background';
+
+            % Create Stimulus_BackgroundColor
+            app.Stimulus_BackgroundColor = uieditfield(app.StimulusvariablesPanel, 'numeric');
+            app.Stimulus_BackgroundColor.Limits = [0 1];
+            app.Stimulus_BackgroundColor.Tag = 'Stimulus_BackgroundColor';
+            app.Stimulus_BackgroundColor.FontSize = 10;
+            app.Stimulus_BackgroundColor.Tooltip = {'0 is black and 1 is white'};
+            app.Stimulus_BackgroundColor.Position = [119 94 44 22];
+
+            % Create ReadyCuecolorLabel
+            app.ReadyCuecolorLabel = uilabel(app.StimulusvariablesPanel);
+            app.ReadyCuecolorLabel.HorizontalAlignment = 'right';
+            app.ReadyCuecolorLabel.FontSize = 10;
+            app.ReadyCuecolorLabel.Position = [32 75 77 17];
+            app.ReadyCuecolorLabel.Text = 'ReadyCue color';
+
+            % Create EditField_2Label
+            app.EditField_2Label = uilabel(app.StimulusvariablesPanel);
+            app.EditField_2Label.HorizontalAlignment = 'right';
+            app.EditField_2Label.FontSize = 10;
+            app.EditField_2Label.Position = [36 52 73 22];
+            app.EditField_2Label.Text = 'ReadyCue size';
+
+            % Create ReadyCue_Color
+            app.ReadyCue_Color = uieditfield(app.StimulusvariablesPanel, 'numeric');
+            app.ReadyCue_Color.Limits = [0 1];
+            app.ReadyCue_Color.Tag = 'ReadyCue_Color';
+            app.ReadyCue_Color.FontSize = 10;
+            app.ReadyCue_Color.Position = [119 73 44 22];
+
+            % Create ReadyCue_Size
+            app.ReadyCue_Size = uieditfield(app.StimulusvariablesPanel, 'numeric');
+            app.ReadyCue_Size.Limits = [1 Inf];
+            app.ReadyCue_Size.Tag = 'ReadyCue_Size';
+            app.ReadyCue_Size.FontSize = 10;
+            app.ReadyCue_Size.Position = [119 52 44 22];
+            app.ReadyCue_Size.Value = 12;
+
+            % Create Stimulus_size_y
+            app.Stimulus_size_y = uieditfield(app.StimulusvariablesPanel, 'text');
+            app.Stimulus_size_y.Tag = 'Stimulus_size_y';
+            app.Stimulus_size_y.HorizontalAlignment = 'center';
+            app.Stimulus_size_y.FontSize = 11;
+            app.Stimulus_size_y.Tooltip = {'Height in pixels'};
+            app.Stimulus_size_y.Position = [7 36 36 13];
+            app.Stimulus_size_y.Value = '3';
+
+            % Create Stimulus_size_x
+            app.Stimulus_size_x = uieditfield(app.StimulusvariablesPanel, 'text');
+            app.Stimulus_size_x.Tag = 'Stimulus_size_x';
+            app.Stimulus_size_x.HorizontalAlignment = 'center';
+            app.Stimulus_size_x.FontSize = 11;
+            app.Stimulus_size_x.Tooltip = {'Width in pixels'};
+            app.Stimulus_size_x.Position = [50 36 35 13];
+            app.Stimulus_size_x.Value = '10';
 
             % Create Stimulus_position_y
             app.Stimulus_position_y = uieditfield(app.StimulusvariablesPanel, 'text');
@@ -2272,190 +2568,12 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Stimulus_position_x.Position = [92 36 35 13];
             app.Stimulus_position_x.Value = '1';
 
-            % Create Stimulus_size_x
-            app.Stimulus_size_x = uieditfield(app.StimulusvariablesPanel, 'text');
-            app.Stimulus_size_x.Tag = 'Stimulus_size_x';
-            app.Stimulus_size_x.HorizontalAlignment = 'center';
-            app.Stimulus_size_x.FontSize = 11;
-            app.Stimulus_size_x.Tooltip = {'Width in pixels'};
-            app.Stimulus_size_x.Position = [50 36 35 13];
-            app.Stimulus_size_x.Value = '10';
-
-            % Create Stimulus_size_y
-            app.Stimulus_size_y = uieditfield(app.StimulusvariablesPanel, 'text');
-            app.Stimulus_size_y.Tag = 'Stimulus_size_y';
-            app.Stimulus_size_y.HorizontalAlignment = 'center';
-            app.Stimulus_size_y.FontSize = 11;
-            app.Stimulus_size_y.Tooltip = {'Height in pixels'};
-            app.Stimulus_size_y.Position = [7 36 36 13];
-            app.Stimulus_size_y.Value = '3';
-
-            % Create SpotlightbrightnessEditFieldLabel
-            app.SpotlightbrightnessEditFieldLabel = uilabel(app.StimulusvariablesPanel);
-            app.SpotlightbrightnessEditFieldLabel.HorizontalAlignment = 'right';
-            app.SpotlightbrightnessEditFieldLabel.FontSize = 10;
-            app.SpotlightbrightnessEditFieldLabel.Position = [16 203 93 15];
-            app.SpotlightbrightnessEditFieldLabel.Text = 'Spotlight brightness';
-
-            % Create BetweenSpotlight_textlabel
-            app.BetweenSpotlight_textlabel = uilabel(app.StimulusvariablesPanel);
-            app.BetweenSpotlight_textlabel.HorizontalAlignment = 'right';
-            app.BetweenSpotlight_textlabel.FontSize = 10;
-            app.BetweenSpotlight_textlabel.Tooltip = {'Percentage of the screen space that is left blank between each spotlight'};
-            app.BetweenSpotlight_textlabel.Position = [6 178 103 22];
-            app.BetweenSpotlight_textlabel.Text = 'Between spotlight (%)';
-
-            % Create ReadyCuecolorLabel
-            app.ReadyCuecolorLabel = uilabel(app.StimulusvariablesPanel);
-            app.ReadyCuecolorLabel.HorizontalAlignment = 'right';
-            app.ReadyCuecolorLabel.FontSize = 10;
-            app.ReadyCuecolorLabel.Position = [32 75 77 17];
-            app.ReadyCuecolorLabel.Text = 'ReadyCue color';
-
-            % Create EditField_2Label
-            app.EditField_2Label = uilabel(app.StimulusvariablesPanel);
-            app.EditField_2Label.HorizontalAlignment = 'right';
-            app.EditField_2Label.FontSize = 10;
-            app.EditField_2Label.Position = [36 52 73 22];
-            app.EditField_2Label.Text = 'ReadyCue size';
-
-            % Create ReadyCue_Size
-            app.ReadyCue_Size = uieditfield(app.StimulusvariablesPanel, 'numeric');
-            app.ReadyCue_Size.Limits = [1 Inf];
-            app.ReadyCue_Size.Tag = 'ReadyCue_Size';
-            app.ReadyCue_Size.FontSize = 10;
-            app.ReadyCue_Size.Position = [119 52 44 22];
-            app.ReadyCue_Size.Value = 12;
-
-            % Create ReadyCue_Color
-            app.ReadyCue_Color = uieditfield(app.StimulusvariablesPanel, 'numeric');
-            app.ReadyCue_Color.Limits = [0 1];
-            app.ReadyCue_Color.Tag = 'ReadyCue_Color';
-            app.ReadyCue_Color.FontSize = 10;
-            app.ReadyCue_Color.Position = [119 73 44 22];
-
-            % Create BackgroundEditFieldLabel
-            app.BackgroundEditFieldLabel = uilabel(app.StimulusvariablesPanel);
-            app.BackgroundEditFieldLabel.HorizontalAlignment = 'right';
-            app.BackgroundEditFieldLabel.FontSize = 10;
-            app.BackgroundEditFieldLabel.Position = [36 98 73 15];
-            app.BackgroundEditFieldLabel.Text = 'Background';
-
-            % Create Stimulus_BackgroundColor
-            app.Stimulus_BackgroundColor = uieditfield(app.StimulusvariablesPanel, 'numeric');
-            app.Stimulus_BackgroundColor.Limits = [0 1];
-            app.Stimulus_BackgroundColor.Tag = 'Stimulus_BackgroundColor';
-            app.Stimulus_BackgroundColor.FontSize = 10;
-            app.Stimulus_BackgroundColor.Tooltip = {'0 is black and 1 is white'};
-            app.Stimulus_BackgroundColor.Position = [119 94 44 22];
-
-            % Create BackgroundEditFieldLabel_2
-            app.BackgroundEditFieldLabel_2 = uilabel(app.StimulusvariablesPanel);
-            app.BackgroundEditFieldLabel_2.HorizontalAlignment = 'right';
-            app.BackgroundEditFieldLabel_2.FontSize = 10;
-            app.BackgroundEditFieldLabel_2.Position = [36 115 73 22];
-            app.BackgroundEditFieldLabel_2.Text = 'Dim Color';
-
-            % Create Stimulus_DimColor
-            app.Stimulus_DimColor = uieditfield(app.StimulusvariablesPanel, 'numeric');
-            app.Stimulus_DimColor.Limits = [0 1];
-            app.Stimulus_DimColor.Tag = 'Stimulus_DimColor';
-            app.Stimulus_DimColor.FontSize = 10;
-            app.Stimulus_DimColor.Tooltip = {'0 is black and 1 is white'};
-            app.Stimulus_DimColor.Position = [119 115 44 22];
-            app.Stimulus_DimColor.Value = 0.1;
-
-            % Create EditField_5Label_2
-            app.EditField_5Label_2 = uilabel(app.StimulusvariablesPanel);
-            app.EditField_5Label_2.HorizontalAlignment = 'right';
-            app.EditField_5Label_2.FontSize = 10;
-            app.EditField_5Label_2.Tooltip = {'The stimulus will alternate between this color and the regular brightness.'};
-            app.EditField_5Label_2.Position = [52 136 57 22];
-            app.EditField_5Label_2.Text = 'Flash Color';
-
-            % Create Stimulus_FlashColor
-            app.Stimulus_FlashColor = uieditfield(app.StimulusvariablesPanel, 'numeric');
-            app.Stimulus_FlashColor.Limits = [0 1];
-            app.Stimulus_FlashColor.Tag = 'Stimulus_FlashColor';
-            app.Stimulus_FlashColor.FontSize = 10;
-            app.Stimulus_FlashColor.Tooltip = {'The stimulus will alternate between this color and the regular brightness.'};
-            app.Stimulus_FlashColor.Position = [119 136 44 22];
-            app.Stimulus_FlashColor.Value = 1;
-
-            % Create LinebrightnessEditFieldLabel
-            app.LinebrightnessEditFieldLabel = uilabel(app.StimulusvariablesPanel);
-            app.LinebrightnessEditFieldLabel.HorizontalAlignment = 'right';
-            app.LinebrightnessEditFieldLabel.FontSize = 10;
-            app.LinebrightnessEditFieldLabel.Position = [36 160 73 16];
-            app.LinebrightnessEditFieldLabel.Text = 'Line brightness';
-
-            % Create Stimulus_LineColor
-            app.Stimulus_LineColor = uieditfield(app.StimulusvariablesPanel, 'numeric');
-            app.Stimulus_LineColor.Limits = [0 1];
-            app.Stimulus_LineColor.Tag = 'Stimulus_LineColor';
-            app.Stimulus_LineColor.FontSize = 10;
-            app.Stimulus_LineColor.Tooltip = {'0 is black and 1 is white'};
-            app.Stimulus_LineColor.Position = [119 157 44 22];
-            app.Stimulus_LineColor.Value = 0.6;
-
-            % Create Stimulus_BetweenSpotlight
-            app.Stimulus_BetweenSpotlight = uieditfield(app.StimulusvariablesPanel, 'numeric');
-            app.Stimulus_BetweenSpotlight.Limits = [0 99];
-            app.Stimulus_BetweenSpotlight.Tag = 'Stimulus_BetweenSpotlight';
-            app.Stimulus_BetweenSpotlight.FontSize = 10;
-            app.Stimulus_BetweenSpotlight.Tooltip = {'Percentage of the screen space that is left blank between each spotlight. 33% is the default for the nose poke, use a smaller value for the wheel.'};
-            app.Stimulus_BetweenSpotlight.Position = [119 178 44 22];
-            app.Stimulus_BetweenSpotlight.Value = 10;
-
-            % Create Stimulus_SpotlightColor
-            app.Stimulus_SpotlightColor = uieditfield(app.StimulusvariablesPanel, 'numeric');
-            app.Stimulus_SpotlightColor.Limits = [0 1];
-            app.Stimulus_SpotlightColor.Tag = 'Stimulus_SpotlightColor';
-            app.Stimulus_SpotlightColor.FontSize = 10;
-            app.Stimulus_SpotlightColor.Tooltip = {'0 is black and 1 is white'};
-            app.Stimulus_SpotlightColor.Position = [119 199 44 22];
-
-            % Create SegmentSpacingEditFieldLabel
-            app.SegmentSpacingEditFieldLabel = uilabel(app.StimulusvariablesPanel);
-            app.SegmentSpacingEditFieldLabel.HorizontalAlignment = 'right';
-            app.SegmentSpacingEditFieldLabel.FontSize = 10;
-            app.SegmentSpacingEditFieldLabel.Position = [25 224 84 15];
-            app.SegmentSpacingEditFieldLabel.Text = 'Segment Spacing';
-
-            % Create Stimulus_SegSpacing
-            app.Stimulus_SegSpacing = uieditfield(app.StimulusvariablesPanel, 'numeric');
-            app.Stimulus_SegSpacing.Tag = 'Stimulus_SegSpacing';
-            app.Stimulus_SegSpacing.FontSize = 10;
-            app.Stimulus_SegSpacing.Position = [119 220 44 22];
-            app.Stimulus_SegSpacing.Value = 13;
-
-            % Create SegmentlengthEditFieldLabel
-            app.SegmentlengthEditFieldLabel = uilabel(app.StimulusvariablesPanel);
-            app.SegmentlengthEditFieldLabel.HorizontalAlignment = 'right';
-            app.SegmentlengthEditFieldLabel.FontSize = 10;
-            app.SegmentlengthEditFieldLabel.Position = [36 245 73 15];
-            app.SegmentlengthEditFieldLabel.Text = 'Segment length';
-
-            % Create Stimulus_SegLength
-            app.Stimulus_SegLength = uieditfield(app.StimulusvariablesPanel, 'numeric');
-            app.Stimulus_SegLength.Tag = 'Stimulus_SegLength';
-            app.Stimulus_SegLength.FontSize = 10;
-            app.Stimulus_SegLength.Position = [119 241 44 22];
-            app.Stimulus_SegLength.Value = 13;
-
-            % Create SegmentthicknessEditFieldLabel
-            app.SegmentthicknessEditFieldLabel = uilabel(app.StimulusvariablesPanel);
-            app.SegmentthicknessEditFieldLabel.HorizontalAlignment = 'right';
-            app.SegmentthicknessEditFieldLabel.FontSize = 10;
-            app.SegmentthicknessEditFieldLabel.Position = [18 266 91 15];
-            app.SegmentthicknessEditFieldLabel.Text = 'Segment thickness';
-
-            % Create Stimulus_SegThick
-            app.Stimulus_SegThick = uieditfield(app.StimulusvariablesPanel, 'numeric');
-            app.Stimulus_SegThick.Tag = 'Stimulus_SegThick';
-            app.Stimulus_SegThick.FontSize = 10;
-            app.Stimulus_SegThick.Position = [119 262 44 22];
-            app.Stimulus_SegThick.Value = 13;
+            % Create Arduino_Com
+            app.Arduino_Com = uieditfield(app.StimulusvariablesPanel, 'text');
+            app.Arduino_Com.Tag = 'Arduino_Com';
+            app.Arduino_Com.HorizontalAlignment = 'center';
+            app.Arduino_Com.Tooltip = 'com port to use for arduino';
+            app.Arduino_Com.Position = [23 7 59 22];
 
             % Create WinPos
             app.WinPos = uibutton(app.StimulusvariablesPanel, 'state');
@@ -2468,139 +2586,194 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.WinPos.FontColor = [1 1 1];
             app.WinPos.Position = [102 9 51 18];
 
-            % Create InputControlPanel
-            app.InputControlPanel = uipanel(app.SettingsTab);
-            app.InputControlPanel.AutoResizeChildren = 'off';
-            app.InputControlPanel.Title = 'Input Control';
-            app.InputControlPanel.Position = [519 113 169 209];
-
-            % Create DuringTrialEditFieldLabel
-            app.DuringTrialEditFieldLabel = uilabel(app.InputControlPanel);
-            app.DuringTrialEditFieldLabel.HorizontalAlignment = 'right';
-            app.DuringTrialEditFieldLabel.FontSize = 10;
-            app.DuringTrialEditFieldLabel.Position = [8 25 54 22];
-            app.DuringTrialEditFieldLabel.Text = 'Input delay';
-
-            % Create EditField_6Label
-            app.EditField_6Label = uilabel(app.InputControlPanel);
-            app.EditField_6Label.HorizontalAlignment = 'right';
-            app.EditField_6Label.FontSize = 10;
-            app.EditField_6Label.Position = [6 2 78 22];
-            app.EditField_6Label.Text = 'Hold Still Thresh';
-
-            % Create Hold_Still_Thresh
-            app.Hold_Still_Thresh = uieditfield(app.InputControlPanel, 'numeric');
-            app.Hold_Still_Thresh.Limits = [0 500];
-            app.Hold_Still_Thresh.Tag = 'Hold_Still_Thresh';
-            app.Hold_Still_Thresh.FontSize = 10;
-            app.Hold_Still_Thresh.Tooltip = {'Speed mouse must keep wheel under during "Hold Still" interval before trial.'};
-            app.Hold_Still_Thresh.Position = [106 2 44 22];
-            app.Hold_Still_Thresh.Value = 10;
-
-            % Create Input_Delay_Respond
-            app.Input_Delay_Respond = uieditfield(app.InputControlPanel, 'numeric');
-            app.Input_Delay_Respond.Limits = [0 200];
-            app.Input_Delay_Respond.Tag = 'Input_Delay_Respond';
-            app.Input_Delay_Respond.FontSize = 10;
-            app.Input_Delay_Respond.Tooltip = {'Trial response delay. Mouse must hold their choice for this time before it is accepted.'};
-            app.Input_Delay_Respond.Position = [116 25 44 22];
-            app.Input_Delay_Respond.Value = 2;
-
-            % Create Input_Delay_Start
-            app.Input_Delay_Start = uieditfield(app.InputControlPanel, 'numeric');
-            app.Input_Delay_Start.Limits = [0 200];
-            app.Input_Delay_Start.Tag = 'Input_Delay_Start';
-            app.Input_Delay_Start.FontSize = 10;
-            app.Input_Delay_Start.Tooltip = {'Start a trial response delay. Mouse must hold their choice for this time before it is accepted.'};
-            app.Input_Delay_Start.Position = [65 25 44 22];
-            app.Input_Delay_Start.Value = 2;
-
-            % Create ConfirmChoice
-            app.ConfirmChoice = uicheckbox(app.InputControlPanel);
-            app.ConfirmChoice.Tag = 'ConfirmChoice';
-            app.ConfirmChoice.Tooltip = {'If the mouse stands in front of the correct choice during the Input Ignored interval, the 5-dashed line contour will blink to show the impatient mouse they are indeed going to be rewarded.'};
-            app.ConfirmChoice.Text = 'Confirm choice';
-            app.ConfirmChoice.FontSize = 10;
-            app.ConfirmChoice.Position = [15 44 89 22];
-            app.ConfirmChoice.Value = true;
-
-            % Create SkipWaitForInput
-            app.SkipWaitForInput = uicheckbox(app.InputControlPanel);
-            app.SkipWaitForInput.Tag = 'SkipWaitForInput';
-            app.SkipWaitForInput.Tooltip = {'Trials will begin without holding the middle choice'};
-            app.SkipWaitForInput.Text = 'Skip WaitForInput';
-            app.SkipWaitForInput.FontSize = 10;
-            app.SkipWaitForInput.Position = [14 76 101 22];
-
-            % Create IntertrialMalSec
-            app.IntertrialMalSec = uieditfield(app.InputControlPanel, 'numeric');
-            app.IntertrialMalSec.Tag = 'IntertrialMalSec';
-            app.IntertrialMalSec.FontSize = 10;
-            app.IntertrialMalSec.Tooltip = {'If the box is checked, a new trial will not begin until this many seconds after the mouse last poked Left or Right during the intertrial period. Once a new trial does begin, it will cancel if the mouse pokes anything but the center.'};
-            app.IntertrialMalSec.Position = [109 104 44 22];
-            app.IntertrialMalSec.Value = 1;
-
-            % Create IntertrialMalCancel
-            app.IntertrialMalCancel = uicheckbox(app.InputControlPanel);
-            app.IntertrialMalCancel.Tag = 'IntertrialMalCancel';
-            app.IntertrialMalCancel.Tooltip = {'Check this box to end the current trial if the mouse pokes left or right when the ready cue is up. Only a center poke will start the next trial.'};
-            app.IntertrialMalCancel.Text = 'Intertrial Mal';
-            app.IntertrialMalCancel.FontSize = 10;
-            app.IntertrialMalCancel.Position = [24 104 73 22];
-            app.IntertrialMalCancel.Value = true;
-
-            % Create Stimulus_FinishLine
-            app.Stimulus_FinishLine = uicheckbox(app.InputControlPanel);
-            app.Stimulus_FinishLine.Tag = 'Stimulus_FinishLine';
-            app.Stimulus_FinishLine.Tooltip = {'DIsplay a marker that will indicate how far the mouse has to turn the wheel to input a choice. Based on stimulus variables.'};
-            app.Stimulus_FinishLine.Text = 'Finish line?';
-            app.Stimulus_FinishLine.FontSize = 10;
-            app.Stimulus_FinishLine.Position = [5 124 70 15];
-
-            % Create RoundUpEditFieldLabel
-            app.RoundUpEditFieldLabel = uilabel(app.InputControlPanel);
-            app.RoundUpEditFieldLabel.HorizontalAlignment = 'right';
-            app.RoundUpEditFieldLabel.FontSize = 10;
-            app.RoundUpEditFieldLabel.Position = [26 134 69 22];
-            app.RoundUpEditFieldLabel.Text = 'Round Up (%)';
-
-            % Create RoundUpVal
-            app.RoundUpVal = uieditfield(app.InputControlPanel, 'numeric');
-            app.RoundUpVal.Limits = [0 110];
-            app.RoundUpVal.Tag = 'RoundUpVal';
-            app.RoundUpVal.FontSize = 10;
-            app.RoundUpVal.Tooltip = {'Choose the percentage threshold to accept the mouse''s choice if they do not turn the wheel fully.'};
-            app.RoundUpVal.Position = [102 134 54 22];
-            app.RoundUpVal.Value = 95;
-
-            % Create RoundUp
-            app.RoundUp = uicheckbox(app.InputControlPanel);
-            app.RoundUp.Tag = 'RoundUp';
-            app.RoundUp.Tooltip = {'Choose to accept the mouse''s choice at timeout if they turn the wheel *almost* to the choice.'};
-            app.RoundUp.Text = 'Round up choice';
-            app.RoundUp.FontSize = 10;
-            app.RoundUp.Position = [5 148 97 22];
-
-            % Create TurnMagEditFieldLabel
-            app.TurnMagEditFieldLabel = uilabel(app.InputControlPanel);
-            app.TurnMagEditFieldLabel.HorizontalAlignment = 'right';
-            app.TurnMagEditFieldLabel.FontSize = 9;
-            app.TurnMagEditFieldLabel.Position = [6 165 46 22];
-            app.TurnMagEditFieldLabel.Text = 'Turn Mag.';
-
-            % Create TurnMag
-            app.TurnMag = uieditfield(app.InputControlPanel, 'numeric');
-            app.TurnMag.Tag = 'TurnMag';
-            app.TurnMag.FontSize = 9;
-            app.TurnMag.Position = [53 165 107 22];
-            app.TurnMag.Value = 1000;
-
             % Create One_ScanImage_File
             app.One_ScanImage_File = uicheckbox(app.SettingsTab);
             app.One_ScanImage_File.Tag = 'One_ScanImage_File';
             app.One_ScanImage_File.Text = '1 Scanimage File';
             app.One_ScanImage_File.Position = [376 191 114 22];
             app.One_ScanImage_File.Value = true;
+
+            % Create SubjectPanel
+            app.SubjectPanel = uipanel(app.SettingsTab);
+            app.SubjectPanel.AutoResizeChildren = 'off';
+            app.SubjectPanel.Title = 'Subject';
+            app.SubjectPanel.Position = [11 28 178 118];
+
+            % Create Investigator
+            app.Investigator = uilabel(app.SubjectPanel);
+            app.Investigator.Tag = 'text128';
+            app.Investigator.HorizontalAlignment = 'right';
+            app.Investigator.Position = [-3 74 68 22];
+            app.Investigator.Text = 'Investigator';
+
+            % Create Inv
+            app.Inv = uieditfield(app.SubjectPanel, 'text');
+            app.Inv.Tag = 'Investigator';
+            app.Inv.HorizontalAlignment = 'center';
+            app.Inv.Tooltip = 'Name of person conducting the training';
+            app.Inv.Position = [69 74 57 22];
+            app.Inv.Value = 'Will';
+
+            % Create text13
+            app.text13 = uilabel(app.SubjectPanel);
+            app.text13.Tag = 'text13';
+            app.text13.HorizontalAlignment = 'right';
+            app.text13.Position = [-3 51 68 22];
+            app.text13.Text = 'Strain';
+
+            % Create Strain
+            app.Strain = uieditfield(app.SubjectPanel, 'text');
+            app.Strain.Tag = 'Strain';
+            app.Strain.HorizontalAlignment = 'center';
+            app.Strain.Tooltip = 'Enter animal strain e.g. Shank3, 16b';
+            app.Strain.Position = [69 51 57 22];
+            app.Strain.Value = 'w';
+
+            % Create WeightgEditFieldLabel
+            app.WeightgEditFieldLabel = uilabel(app.SubjectPanel);
+            app.WeightgEditFieldLabel.HorizontalAlignment = 'right';
+            app.WeightgEditFieldLabel.Position = [-3 28 68 22];
+            app.WeightgEditFieldLabel.Text = 'Weight';
+
+            % Create WeightgEditField
+            app.WeightgEditField = uieditfield(app.SubjectPanel, 'text');
+            app.WeightgEditField.Tag = 'Weight';
+            app.WeightgEditField.Tooltip = {'Enter the animal''s weight in grams'};
+            app.WeightgEditField.Position = [69 28 57 22];
+
+            % Create DropDownLabel
+            app.DropDownLabel = uilabel(app.SubjectPanel);
+            app.DropDownLabel.Tag = 'StrainDropDown';
+            app.DropDownLabel.HorizontalAlignment = 'right';
+            app.DropDownLabel.Position = [1 3 66 22];
+            app.DropDownLabel.Text = 'Drop Down';
+
+            % Create StrainDropDown
+            app.StrainDropDown = uidropdown(app.SubjectPanel);
+            app.StrainDropDown.Items = {'shank'};
+            app.StrainDropDown.Tag = 'StrainDropDown';
+            app.StrainDropDown.Position = [82 3 96 22];
+            app.StrainDropDown.Value = 'shank';
+
+            % Create Panel_2
+            app.Panel_2 = uipanel(app.SettingsTab);
+            app.Panel_2.AutoResizeChildren = 'off';
+            app.Panel_2.Title = 'Panel';
+            app.Panel_2.Position = [355 7 333 102];
+
+            % Create text65
+            app.text65 = uilabel(app.Panel_2);
+            app.text65.Tag = 'text65';
+            app.text65.HorizontalAlignment = 'right';
+            app.text65.VerticalAlignment = 'top';
+            app.text65.FontSize = 11;
+            app.text65.Position = [1 64 49 16];
+            app.text65.Text = 'Stimulus:';
+
+            % Create Stimulus_type
+            app.Stimulus_type = uidropdown(app.Panel_2);
+            app.Stimulus_type.Items = {'Contour crude', 'Contour fine ', 'Square Vs O crude', 'Square Vs O fine', 'unknown', 'XvsO', 'Two Task Contour', 'Cued Images', 'Distract Contour', 'Grating', 'Contour Density', 'BehaviorBox Practice'};
+            app.Stimulus_type.Tag = 'Stimulus_type';
+            app.Stimulus_type.Tooltip = 'choose stimulus';
+            app.Stimulus_type.FontSize = 9;
+            app.Stimulus_type.Position = [55 63 115 18];
+            app.Stimulus_type.Value = 'Contour Density';
+
+            % Create ContangletolEditFieldLabel
+            app.ContangletolEditFieldLabel = uilabel(app.Panel_2);
+            app.ContangletolEditFieldLabel.HorizontalAlignment = 'right';
+            app.ContangletolEditFieldLabel.FontSize = 10;
+            app.ContangletolEditFieldLabel.Position = [199 56 72 22];
+            app.ContangletolEditFieldLabel.Text = 'Cont. angle tol.';
+
+            % Create Stimulus_ContTol
+            app.Stimulus_ContTol = uieditfield(app.Panel_2, 'numeric');
+            app.Stimulus_ContTol.Tag = 'Stimulus_ContTol';
+            app.Stimulus_ContTol.FontSize = 10;
+            app.Stimulus_ContTol.Tooltip = {'Stimuli are checked for accidental continuation and any angles below this threshold are adjusted'};
+            app.Stimulus_ContTol.Position = [274 56 26 22];
+            app.Stimulus_ContTol.Value = 10;
+
+            % Create Stimulus_FlashStim
+            app.Stimulus_FlashStim = uicheckbox(app.Panel_2);
+            app.Stimulus_FlashStim.Tag = 'Stimulus_FlashStim';
+            app.Stimulus_FlashStim.Text = 'flash';
+            app.Stimulus_FlashStim.FontSize = 11;
+            app.Stimulus_FlashStim.Position = [5 43 58 18];
+            app.Stimulus_FlashStim.Value = true;
+
+            % Create text121
+            app.text121 = uilabel(app.Panel_2);
+            app.text121.Tag = 'text121';
+            app.text121.HorizontalAlignment = 'center';
+            app.text121.VerticalAlignment = 'top';
+            app.text121.FontSize = 11;
+            app.text121.Position = [50 44 28 17];
+            app.text121.Text = 'freq';
+
+            % Create EditField
+            app.EditField = uieditfield(app.Panel_2, 'numeric');
+            app.EditField.Tag = 'Stimulus_FreqAnimation';
+            app.EditField.HorizontalAlignment = 'left';
+            app.EditField.FontSize = 10;
+            app.EditField.Position = [78 37 36 22];
+            app.EditField.Value = 50;
+
+            % Create text122
+            app.text122 = uilabel(app.Panel_2);
+            app.text122.Tag = 'text122';
+            app.text122.HorizontalAlignment = 'center';
+            app.text122.VerticalAlignment = 'top';
+            app.text122.FontSize = 11;
+            app.text122.Position = [116 44 36 17];
+            app.text122.Text = 'reps';
+
+            % Create Stimulus_RepFlashInitial
+            app.Stimulus_RepFlashInitial = uieditfield(app.Panel_2, 'text');
+            app.Stimulus_RepFlashInitial.Tag = 'Stimulus_RepFlashInitial';
+            app.Stimulus_RepFlashInitial.FontSize = 11;
+            app.Stimulus_RepFlashInitial.Tooltip = 'Number of times (repetitions) that stimulus is flashed';
+            app.Stimulus_RepFlashInitial.Position = [147 43 22 18];
+            app.Stimulus_RepFlashInitial.Value = '1';
+
+            % Create CorrectionoffsetEditFieldLabel
+            app.CorrectionoffsetEditFieldLabel = uilabel(app.Panel_2);
+            app.CorrectionoffsetEditFieldLabel.HorizontalAlignment = 'right';
+            app.CorrectionoffsetEditFieldLabel.FontSize = 10;
+            app.CorrectionoffsetEditFieldLabel.Position = [193 31 78 22];
+            app.CorrectionoffsetEditFieldLabel.Text = 'Correction offset';
+
+            % Create Stimulus_CorrectAngleAdj
+            app.Stimulus_CorrectAngleAdj = uieditfield(app.Panel_2, 'numeric');
+            app.Stimulus_CorrectAngleAdj.Tag = 'Stimulus_CorrectAngleAdj';
+            app.Stimulus_CorrectAngleAdj.FontSize = 10;
+            app.Stimulus_CorrectAngleAdj.Tooltip = {'When correcting the randomly oriented segments, lines are offset by a random angle between this and the tolerance.'};
+            app.Stimulus_CorrectAngleAdj.Position = [274 31 26 22];
+            app.Stimulus_CorrectAngleAdj.Value = 45;
+
+            % Create Stimulus_RepFlashAfterC
+            app.Stimulus_RepFlashAfterC = uieditfield(app.Panel_2, 'text');
+            app.Stimulus_RepFlashAfterC.Tag = 'Stimulus_RepFlashAfterC';
+            app.Stimulus_RepFlashAfterC.FontSize = 11;
+            app.Stimulus_RepFlashAfterC.Tooltip = 'Number of times (repetitions) that stimulus is flashed';
+            app.Stimulus_RepFlashAfterC.Position = [147 24 22 18];
+            app.Stimulus_RepFlashAfterC.Value = '1';
+
+            % Create Stimulus_RepFlashAfterW
+            app.Stimulus_RepFlashAfterW = uieditfield(app.Panel_2, 'text');
+            app.Stimulus_RepFlashAfterW.Tag = 'Stimulus_RepFlashAfterW';
+            app.Stimulus_RepFlashAfterW.FontSize = 11;
+            app.Stimulus_RepFlashAfterW.Tooltip = 'Number of times (repetitions) that stimulus is flashed';
+            app.Stimulus_RepFlashAfterW.Position = [176 24 22 18];
+            app.Stimulus_RepFlashAfterW.Value = '1';
+
+            % Create text86
+            app.text86 = uilabel(app.SettingsTab);
+            app.text86.Tag = 'text86';
+            app.text86.HorizontalAlignment = 'center';
+            app.text86.FontSize = 8;
+            app.text86.Position = [12 7 169 22];
+            app.text86.Text = 'WBS Jan. 2025';
 
             % Create TemporaryTab
             app.TemporaryTab = uitab(app.TabGroup);
@@ -2650,80 +2823,12 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.uipanel3_2.FontSize = 10;
             app.uipanel3_2.Position = [199 17 147 305];
 
-            % Create text8_2
-            app.text8_2 = uilabel(app.uipanel3_2);
-            app.text8_2.Tag = 'text8';
-            app.text8_2.HorizontalAlignment = 'right';
-            app.text8_2.FontSize = 10;
-            app.text8_2.Position = [23 246 53 12];
-            app.text8_2.Text = 'Penalty(s)';
-
-            % Create text10_2
-            app.text10_2 = uilabel(app.uipanel3_2);
-            app.text10_2.Tag = 'text10';
-            app.text10_2.HorizontalAlignment = 'right';
-            app.text10_2.FontSize = 10;
-            app.text10_2.Position = [23 225 53 12];
-            app.text10_2.Text = 'Intertrial (s)';
-
-            % Create EditField_5Label_3
-            app.EditField_5Label_3 = uilabel(app.uipanel3_2);
-            app.EditField_5Label_3.HorizontalAlignment = 'right';
-            app.EditField_5Label_3.FontSize = 10;
-            app.EditField_5Label_3.Tooltip = {'Hold the wheel still for this many seconds before a new trial starts. Timer will reset if the will is moved during this time.'};
-            app.EditField_5Label_3.Position = [18 205 58 11];
-            app.EditField_5Label_3.Text = 'Hold still (s):';
-
-            % Create Repeat_wrong_Temp
-            app.Repeat_wrong_Temp = uicheckbox(app.uipanel3_2);
-            app.Repeat_wrong_Temp.Tag = 'Repeat_wrong_Temp';
-            app.Repeat_wrong_Temp.Tooltip = 'repeat the same side if last one was wrong';
-            app.Repeat_wrong_Temp.Text = 'repeat wrong';
-            app.Repeat_wrong_Temp.FontSize = 10;
-            app.Repeat_wrong_Temp.Position = [4 107 95 15];
-
-            % Create Box_OCPulse_Temp
-            app.Box_OCPulse_Temp = uieditfield(app.uipanel3_2, 'numeric');
-            app.Box_OCPulse_Temp.Limits = [0 10];
-            app.Box_OCPulse_Temp.Tag = 'Box_OCPulse_Temp';
-            app.Box_OCPulse_Temp.FontSize = 10;
-            app.Box_OCPulse_Temp.Tooltip = {'How many drops to give if using the Only Correct setting, where the mouse is able to answer correctly after a wrong choice.'};
-            app.Box_OCPulse_Temp.Position = [89 118 25 22];
-            app.Box_OCPulse_Temp.Value = 1;
-
-            % Create OnlyCorrect_Temp
-            app.OnlyCorrect_Temp = uicheckbox(app.uipanel3_2);
-            app.OnlyCorrect_Temp.Tag = 'OnlyCorrect_Temp';
-            app.OnlyCorrect_Temp.Text = 'Only Correct';
-            app.OnlyCorrect_Temp.FontSize = 10;
-            app.OnlyCorrect_Temp.Position = [5 119 78 22];
-
-            % Create HoldStill_Temp
-            app.HoldStill_Temp = uieditfield(app.uipanel3_2, 'numeric');
-            app.HoldStill_Temp.Limits = [0 10];
-            app.HoldStill_Temp.Tag = 'HoldStill_Temp';
-            app.HoldStill_Temp.HorizontalAlignment = 'center';
-            app.HoldStill_Temp.FontSize = 10;
-            app.HoldStill_Temp.Tooltip = {'Hold the wheel still for this many seconds before a new trial starts. Timer will reset if the will is moved during this time.'};
-            app.HoldStill_Temp.Position = [89 200 38 20];
-
-            % Create Intertrial_time_Temp
-            app.Intertrial_time_Temp = uieditfield(app.uipanel3_2, 'text');
-            app.Intertrial_time_Temp.Tag = 'Intertrial_time_Temp';
-            app.Intertrial_time_Temp.HorizontalAlignment = 'center';
-            app.Intertrial_time_Temp.FontSize = 10;
-            app.Intertrial_time_Temp.Tooltip = 'Interval between each trial in seconds';
-            app.Intertrial_time_Temp.Position = [89 220 38 22];
-            app.Intertrial_time_Temp.Value = '1';
-
-            % Create Penalty_time_Temp
-            app.Penalty_time_Temp = uieditfield(app.uipanel3_2, 'text');
-            app.Penalty_time_Temp.Tag = 'Penalty_time_Temp';
-            app.Penalty_time_Temp.HorizontalAlignment = 'center';
-            app.Penalty_time_Temp.FontSize = 10;
-            app.Penalty_time_Temp.Tooltip = 'penalty delay in seconds';
-            app.Penalty_time_Temp.Position = [89 241 38 22];
-            app.Penalty_time_Temp.Value = '1';
+            % Create Input_ignored_Temp
+            app.Input_ignored_Temp = uicheckbox(app.uipanel3_2);
+            app.Input_ignored_Temp.Tag = 'Input_ignored_Temp';
+            app.Input_ignored_Temp.Text = 'Input ignored';
+            app.Input_ignored_Temp.FontSize = 10;
+            app.Input_ignored_Temp.Position = [3 261 80 22];
 
             % Create Pokes_ignored_time_Temp
             app.Pokes_ignored_time_Temp = uieditfield(app.uipanel3_2, 'text');
@@ -2734,12 +2839,80 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Pokes_ignored_time_Temp.Position = [89 263 38 22];
             app.Pokes_ignored_time_Temp.Value = '2';
 
-            % Create Input_ignored_Temp
-            app.Input_ignored_Temp = uicheckbox(app.uipanel3_2);
-            app.Input_ignored_Temp.Tag = 'Input_ignored_Temp';
-            app.Input_ignored_Temp.Text = 'Input ignored';
-            app.Input_ignored_Temp.FontSize = 10;
-            app.Input_ignored_Temp.Position = [3 261 80 22];
+            % Create text8_2
+            app.text8_2 = uilabel(app.uipanel3_2);
+            app.text8_2.Tag = 'text8';
+            app.text8_2.HorizontalAlignment = 'right';
+            app.text8_2.FontSize = 10;
+            app.text8_2.Position = [23 246 53 12];
+            app.text8_2.Text = 'Penalty(s)';
+
+            % Create Penalty_time_Temp
+            app.Penalty_time_Temp = uieditfield(app.uipanel3_2, 'text');
+            app.Penalty_time_Temp.Tag = 'Penalty_time_Temp';
+            app.Penalty_time_Temp.HorizontalAlignment = 'center';
+            app.Penalty_time_Temp.FontSize = 10;
+            app.Penalty_time_Temp.Tooltip = 'penalty delay in seconds';
+            app.Penalty_time_Temp.Position = [89 241 38 22];
+            app.Penalty_time_Temp.Value = '1';
+
+            % Create text10_2
+            app.text10_2 = uilabel(app.uipanel3_2);
+            app.text10_2.Tag = 'text10';
+            app.text10_2.HorizontalAlignment = 'right';
+            app.text10_2.FontSize = 10;
+            app.text10_2.Position = [23 225 53 12];
+            app.text10_2.Text = 'Intertrial (s)';
+
+            % Create Intertrial_time_Temp
+            app.Intertrial_time_Temp = uieditfield(app.uipanel3_2, 'text');
+            app.Intertrial_time_Temp.Tag = 'Intertrial_time_Temp';
+            app.Intertrial_time_Temp.HorizontalAlignment = 'center';
+            app.Intertrial_time_Temp.FontSize = 10;
+            app.Intertrial_time_Temp.Tooltip = 'Interval between each trial in seconds';
+            app.Intertrial_time_Temp.Position = [89 220 38 22];
+            app.Intertrial_time_Temp.Value = '1';
+
+            % Create EditField_5Label_3
+            app.EditField_5Label_3 = uilabel(app.uipanel3_2);
+            app.EditField_5Label_3.HorizontalAlignment = 'right';
+            app.EditField_5Label_3.FontSize = 10;
+            app.EditField_5Label_3.Tooltip = {'Hold the wheel still for this many seconds before a new trial starts. Timer will reset if the will is moved during this time.'};
+            app.EditField_5Label_3.Position = [18 205 58 11];
+            app.EditField_5Label_3.Text = 'Hold still (s):';
+
+            % Create HoldStill_Temp
+            app.HoldStill_Temp = uieditfield(app.uipanel3_2, 'numeric');
+            app.HoldStill_Temp.Limits = [0 10];
+            app.HoldStill_Temp.Tag = 'HoldStill_Temp';
+            app.HoldStill_Temp.HorizontalAlignment = 'center';
+            app.HoldStill_Temp.FontSize = 10;
+            app.HoldStill_Temp.Tooltip = {'Hold the wheel still for this many seconds before a new trial starts. Timer will reset if the will is moved during this time.'};
+            app.HoldStill_Temp.Position = [89 200 38 20];
+
+            % Create OnlyCorrect_Temp
+            app.OnlyCorrect_Temp = uicheckbox(app.uipanel3_2);
+            app.OnlyCorrect_Temp.Tag = 'OnlyCorrect_Temp';
+            app.OnlyCorrect_Temp.Text = 'Only Correct';
+            app.OnlyCorrect_Temp.FontSize = 10;
+            app.OnlyCorrect_Temp.Position = [5 119 78 22];
+
+            % Create Box_OCPulse_Temp
+            app.Box_OCPulse_Temp = uieditfield(app.uipanel3_2, 'numeric');
+            app.Box_OCPulse_Temp.Limits = [0 10];
+            app.Box_OCPulse_Temp.Tag = 'Box_OCPulse_Temp';
+            app.Box_OCPulse_Temp.FontSize = 10;
+            app.Box_OCPulse_Temp.Tooltip = {'How many drops to give if using the Only Correct setting, where the mouse is able to answer correctly after a wrong choice.'};
+            app.Box_OCPulse_Temp.Position = [89 118 25 22];
+            app.Box_OCPulse_Temp.Value = 1;
+
+            % Create Repeat_wrong_Temp
+            app.Repeat_wrong_Temp = uicheckbox(app.uipanel3_2);
+            app.Repeat_wrong_Temp.Tag = 'Repeat_wrong_Temp';
+            app.Repeat_wrong_Temp.Tooltip = 'repeat the same side if last one was wrong';
+            app.Repeat_wrong_Temp.Text = 'repeat wrong';
+            app.Repeat_wrong_Temp.FontSize = 10;
+            app.Repeat_wrong_Temp.Position = [4 107 95 15];
 
             % Create InputControlPanel_2
             app.InputControlPanel_2 = uipanel(app.TemporaryTab);
@@ -2747,28 +2920,11 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.InputControlPanel_2.Title = 'Input Control';
             app.InputControlPanel_2.Position = [349 217 169 105];
 
-            % Create IntertrialMalCancel_Temp
-            app.IntertrialMalCancel_Temp = uicheckbox(app.InputControlPanel_2);
-            app.IntertrialMalCancel_Temp.Tag = 'IntertrialMalCancel_Temp';
-            app.IntertrialMalCancel_Temp.Tooltip = {'Check this box to end the current trial if the mouse pokes left or right when the ready cue is up. Only a center poke will start the next trial.'};
-            app.IntertrialMalCancel_Temp.Text = 'Intertrial Mal';
-            app.IntertrialMalCancel_Temp.FontSize = 10;
-            app.IntertrialMalCancel_Temp.Position = [23 24 73 22];
-            app.IntertrialMalCancel_Temp.Value = true;
-
-            % Create IntertrialMalSec_Temp
-            app.IntertrialMalSec_Temp = uieditfield(app.InputControlPanel_2, 'numeric');
-            app.IntertrialMalSec_Temp.Tag = 'IntertrialMalSec_Temp';
-            app.IntertrialMalSec_Temp.FontSize = 10;
-            app.IntertrialMalSec_Temp.Tooltip = {'If the box is checked, a new trial will not begin until this many seconds after the mouse last poked Left or Right during the intertrial period. Once a new trial does begin, it will cancel if the mouse pokes anything but the center.'};
-            app.IntertrialMalSec_Temp.Position = [102 24 44 22];
-            app.IntertrialMalSec_Temp.Value = 1;
-
             % Create EditField_6Label_2
             app.EditField_6Label_2 = uilabel(app.InputControlPanel_2);
             app.EditField_6Label_2.HorizontalAlignment = 'right';
             app.EditField_6Label_2.FontSize = 10;
-            app.EditField_6Label_2.Position = [22 55 78 22];
+            app.EditField_6Label_2.Position = [26 56 78 22];
             app.EditField_6Label_2.Text = 'Hold Still Thresh';
 
             % Create Hold_Still_Thresh_Temp
@@ -2777,64 +2933,34 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Hold_Still_Thresh_Temp.Tag = 'Hold_Still_Thresh_Temp';
             app.Hold_Still_Thresh_Temp.FontSize = 10;
             app.Hold_Still_Thresh_Temp.Tooltip = {'Speed mouse must keep wheel under during "Hold Still" interval before trial.'};
-            app.Hold_Still_Thresh_Temp.Position = [107 55 44 22];
+            app.Hold_Still_Thresh_Temp.Position = [110 56 44 22];
             app.Hold_Still_Thresh_Temp.Value = 10;
 
-            % Create ExpireAfterButtonGroup
-            app.ExpireAfterButtonGroup = uibuttongroup(app.TemporaryTab);
-            app.ExpireAfterButtonGroup.AutoResizeChildren = 'off';
-            app.ExpireAfterButtonGroup.Title = 'Expire After';
-            app.ExpireAfterButtonGroup.Position = [12 17 177 125];
+            % Create IntertrialMalCancel_Temp
+            app.IntertrialMalCancel_Temp = uicheckbox(app.InputControlPanel_2);
+            app.IntertrialMalCancel_Temp.Tag = 'IntertrialMalCancel_Temp';
+            app.IntertrialMalCancel_Temp.Tooltip = {'Check this box to end the current trial if the mouse pokes left or right when the ready cue is up. Only a center poke will start the next trial.'};
+            app.IntertrialMalCancel_Temp.Text = 'Intertrial Mal';
+            app.IntertrialMalCancel_Temp.FontSize = 10;
+            app.IntertrialMalCancel_Temp.Position = [26 30 73 22];
+            app.IntertrialMalCancel_Temp.Value = true;
 
-            % Create TrialsRemainingLabel
-            app.TrialsRemainingLabel = uilabel(app.ExpireAfterButtonGroup);
-            app.TrialsRemainingLabel.FontSize = 10;
-            app.TrialsRemainingLabel.Position = [11 5 162 34];
-            app.TrialsRemainingLabel.Text = '_ Trials Remaining';
+            % Create IntertrialMalSec_Temp
+            app.IntertrialMalSec_Temp = uieditfield(app.InputControlPanel_2, 'numeric');
+            app.IntertrialMalSec_Temp.Tag = 'IntertrialMalSec_Temp';
+            app.IntertrialMalSec_Temp.FontSize = 10;
+            app.IntertrialMalSec_Temp.Tooltip = {'If the box is checked, a new trial will not begin until this many seconds after the mouse last poked Left or Right during the intertrial period. Once a new trial does begin, it will cancel if the mouse pokes anything but the center.'};
+            app.IntertrialMalSec_Temp.Position = [110 30 44 22];
+            app.IntertrialMalSec_Temp.Value = 3;
 
-            % Create TrialCountThreshold_Temp
-            app.TrialCountThreshold_Temp = uieditfield(app.ExpireAfterButtonGroup, 'numeric');
-            app.TrialCountThreshold_Temp.Tag = 'TrialCountThreshold_Temp';
-            app.TrialCountThreshold_Temp.FontSize = 10;
-            app.TrialCountThreshold_Temp.Tooltip = {'After so many correct responses the accuracy must be above this percentage threshold for Temporary settings to end'};
-            app.TrialCountThreshold_Temp.Position = [138 35 38 22];
-            app.TrialCountThreshold_Temp.Value = 90;
-
-            % Create TrialCount_Temp
-            app.TrialCount_Temp = uieditfield(app.ExpireAfterButtonGroup, 'numeric');
-            app.TrialCount_Temp.Tag = 'TrialCount_Temp';
-            app.TrialCount_Temp.FontSize = 10;
-            app.TrialCount_Temp.Position = [95 35 38 22];
-            app.TrialCount_Temp.Value = 10;
-
-            % Create PerfThresh_Temp
-            app.PerfThresh_Temp = uieditfield(app.ExpireAfterButtonGroup, 'numeric');
-            app.PerfThresh_Temp.Tag = 'PerfThresh_Temp';
-            app.PerfThresh_Temp.FontSize = 10;
-            app.PerfThresh_Temp.Position = [94 59 38 22];
-
-            % Create TrialNumber_Temp
-            app.TrialNumber_Temp = uiradiobutton(app.ExpireAfterButtonGroup);
-            app.TrialNumber_Temp.Tag = 'TrialNumber_Temp';
-            app.TrialNumber_Temp.Text = 'Correct Resp.';
-            app.TrialNumber_Temp.FontSize = 10;
-            app.TrialNumber_Temp.Position = [11 35 84 22];
-
-            % Create PerformanceThreshold_Temp
-            app.PerformanceThreshold_Temp = uiradiobutton(app.ExpireAfterButtonGroup);
-            app.PerformanceThreshold_Temp.Tag = 'PerformanceThreshold_Temp';
-            app.PerformanceThreshold_Temp.Tooltip = {'Temporary settings will persist until performance at Level 1 crosses the threshold'};
-            app.PerformanceThreshold_Temp.Text = 'Performance';
-            app.PerformanceThreshold_Temp.FontSize = 10;
-            app.PerformanceThreshold_Temp.Position = [11 59 79 22];
-
-            % Create TempOff_Temp
-            app.TempOff_Temp = uiradiobutton(app.ExpireAfterButtonGroup);
-            app.TempOff_Temp.Tag = 'TempOff_Temp';
-            app.TempOff_Temp.Text = 'Off';
-            app.TempOff_Temp.FontSize = 10;
-            app.TempOff_Temp.Position = [11 80 35 22];
-            app.TempOff_Temp.Value = true;
+            % Create ConfirmChoice_Temp
+            app.ConfirmChoice_Temp = uicheckbox(app.InputControlPanel_2);
+            app.ConfirmChoice_Temp.Tag = 'ConfirmChoice_Temp';
+            app.ConfirmChoice_Temp.Tooltip = {'If the mouse stands in front of the correct choice during the Input Ignored interval, the 5-dashed line contour will blink to show the impatient mouse they are indeed going to be rewarded.'};
+            app.ConfirmChoice_Temp.Text = 'Confirm choice';
+            app.ConfirmChoice_Temp.FontSize = 10;
+            app.ConfirmChoice_Temp.Position = [26 4 89 22];
+            app.ConfirmChoice_Temp.Value = true;
 
             % Create AutomaticDropWheelPanel
             app.AutomaticDropWheelPanel = uipanel(app.TemporaryTab);
@@ -2850,6 +2976,15 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Auto_Go.FontWeight = 'bold';
             app.Auto_Go.Position = [19 132 32 23];
 
+            % Create Auto_Stop
+            app.Auto_Stop = uibutton(app.AutomaticDropWheelPanel, 'state');
+            app.Auto_Stop.Tag = 'Auto_Stop';
+            app.Auto_Stop.Enable = 'off';
+            app.Auto_Stop.Text = 'Stop';
+            app.Auto_Stop.BackgroundColor = [1 0.4118 0.1608];
+            app.Auto_Stop.FontWeight = 'bold';
+            app.Auto_Stop.Position = [92 131 43 23];
+
             % Create FrequencyEditFieldLabel
             app.FrequencyEditFieldLabel = uilabel(app.AutomaticDropWheelPanel);
             app.FrequencyEditFieldLabel.HorizontalAlignment = 'right';
@@ -2862,15 +2997,6 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Auto_Freq.Tooltip = {'Give a reward every _ seconds'};
             app.Auto_Freq.Position = [80 97 39 22];
             app.Auto_Freq.Value = 2;
-
-            % Create Auto_Stop
-            app.Auto_Stop = uibutton(app.AutomaticDropWheelPanel, 'state');
-            app.Auto_Stop.Tag = 'Auto_Stop';
-            app.Auto_Stop.Enable = 'off';
-            app.Auto_Stop.Text = 'Stop';
-            app.Auto_Stop.BackgroundColor = [1 0.4118 0.1608];
-            app.Auto_Stop.FontWeight = 'bold';
-            app.Auto_Stop.Position = [92 131 43 23];
 
             % Create Auto_Animate
             app.Auto_Animate = uicheckbox(app.AutomaticDropWheelPanel);
@@ -2885,6 +3011,62 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Auto_Msg.VerticalAlignment = 'top';
             app.Auto_Msg.Position = [10 11 125 51];
             app.Auto_Msg.Text = '__ Rewards given';
+
+            % Create ExpireAfterButtonGroup
+            app.ExpireAfterButtonGroup = uibuttongroup(app.TemporaryTab);
+            app.ExpireAfterButtonGroup.AutoResizeChildren = 'off';
+            app.ExpireAfterButtonGroup.Title = 'Expire After';
+            app.ExpireAfterButtonGroup.Position = [12 17 177 125];
+
+            % Create TempOff_Temp
+            app.TempOff_Temp = uiradiobutton(app.ExpireAfterButtonGroup);
+            app.TempOff_Temp.Tag = 'TempOff_Temp';
+            app.TempOff_Temp.Text = 'Off';
+            app.TempOff_Temp.FontSize = 10;
+            app.TempOff_Temp.Position = [11 80 35 22];
+            app.TempOff_Temp.Value = true;
+
+            % Create PerformanceThreshold_Temp
+            app.PerformanceThreshold_Temp = uiradiobutton(app.ExpireAfterButtonGroup);
+            app.PerformanceThreshold_Temp.Tag = 'PerformanceThreshold_Temp';
+            app.PerformanceThreshold_Temp.Tooltip = {'Temporary settings will persist until performance at Level 1 crosses the threshold'};
+            app.PerformanceThreshold_Temp.Text = 'Performance';
+            app.PerformanceThreshold_Temp.FontSize = 10;
+            app.PerformanceThreshold_Temp.Position = [11 59 79 22];
+
+            % Create PerfThresh_Temp
+            app.PerfThresh_Temp = uieditfield(app.ExpireAfterButtonGroup, 'numeric');
+            app.PerfThresh_Temp.Tag = 'PerfThresh_Temp';
+            app.PerfThresh_Temp.FontSize = 10;
+            app.PerfThresh_Temp.Position = [94 59 38 22];
+
+            % Create TrialNumber_Temp
+            app.TrialNumber_Temp = uiradiobutton(app.ExpireAfterButtonGroup);
+            app.TrialNumber_Temp.Tag = 'TrialNumber_Temp';
+            app.TrialNumber_Temp.Text = 'Correct Resp.';
+            app.TrialNumber_Temp.FontSize = 10;
+            app.TrialNumber_Temp.Position = [11 35 84 22];
+
+            % Create TrialCount_Temp
+            app.TrialCount_Temp = uieditfield(app.ExpireAfterButtonGroup, 'numeric');
+            app.TrialCount_Temp.Tag = 'TrialCount_Temp';
+            app.TrialCount_Temp.FontSize = 10;
+            app.TrialCount_Temp.Position = [95 35 38 22];
+            app.TrialCount_Temp.Value = 10;
+
+            % Create TrialCountThreshold_Temp
+            app.TrialCountThreshold_Temp = uieditfield(app.ExpireAfterButtonGroup, 'numeric');
+            app.TrialCountThreshold_Temp.Tag = 'TrialCountThreshold_Temp';
+            app.TrialCountThreshold_Temp.FontSize = 10;
+            app.TrialCountThreshold_Temp.Tooltip = {'After so many correct responses the accuracy must be above this percentage threshold for Temporary settings to end'};
+            app.TrialCountThreshold_Temp.Position = [138 35 38 22];
+            app.TrialCountThreshold_Temp.Value = 90;
+
+            % Create TrialsRemainingLabel
+            app.TrialsRemainingLabel = uilabel(app.ExpireAfterButtonGroup);
+            app.TrialsRemainingLabel.FontSize = 10;
+            app.TrialsRemainingLabel.Position = [11 5 162 34];
+            app.TrialsRemainingLabel.Text = '_ Trials Remaining';
 
             % Create NotesTab
             app.NotesTab = uitab(app.TabGroup);
@@ -2974,72 +3156,18 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.HistoryPanel.Layout.Row = 1;
             app.HistoryPanel.Layout.Column = 1;
 
-            % Create OtherUnusedTab
-            app.OtherUnusedTab = uitab(app.TabGroup);
-            app.OtherUnusedTab.AutoResizeChildren = 'off';
-            app.OtherUnusedTab.Title = 'Other / Unused';
+            % Create BoxDebugTab
+            app.BoxDebugTab = uitab(app.TabGroup);
+            app.BoxDebugTab.AutoResizeChildren = 'off';
+            app.BoxDebugTab.Title = 'Box - Debug';
 
             % Create uipanel11
-            app.uipanel11 = uipanel(app.OtherUnusedTab);
+            app.uipanel11 = uipanel(app.BoxDebugTab);
             app.uipanel11.AutoResizeChildren = 'off';
             app.uipanel11.Title = 'Orientation Tuning';
             app.uipanel11.Tag = 'uipanel11';
             app.uipanel11.FontSize = 11;
             app.uipanel11.Position = [4 251 510 68];
-
-            % Create text79
-            app.text79 = uilabel(app.uipanel11);
-            app.text79.Tag = 'text79';
-            app.text79.HorizontalAlignment = 'center';
-            app.text79.VerticalAlignment = 'top';
-            app.text79.FontSize = 11;
-            app.text79.Position = [127 28 51 17];
-            app.text79.Text = 'Repeats:';
-
-            % Create text81
-            app.text81 = uilabel(app.uipanel11);
-            app.text81.Tag = 'text81';
-            app.text81.HorizontalAlignment = 'center';
-            app.text81.VerticalAlignment = 'top';
-            app.text81.FontSize = 11;
-            app.text81.Position = [175 28 51 17];
-            app.text81.Text = 'Duration:';
-
-            % Create text82
-            app.text82 = uilabel(app.uipanel11);
-            app.text82.Tag = 'text82';
-            app.text82.HorizontalAlignment = 'center';
-            app.text82.VerticalAlignment = 'top';
-            app.text82.FontSize = 11;
-            app.text82.Position = [271 28 64 17];
-            app.text82.Text = 'Orientations:';
-
-            % Create text83
-            app.text83 = uilabel(app.uipanel11);
-            app.text83.Tag = 'text83';
-            app.text83.HorizontalAlignment = 'center';
-            app.text83.VerticalAlignment = 'top';
-            app.text83.FontSize = 11;
-            app.text83.Position = [222 28 51 17];
-            app.text83.Text = 'Interval:';
-
-            % Create text84
-            app.text84 = uilabel(app.uipanel11);
-            app.text84.Tag = 'text84';
-            app.text84.HorizontalAlignment = 'center';
-            app.text84.VerticalAlignment = 'top';
-            app.text84.FontSize = 11;
-            app.text84.Position = [336 28 51 17];
-            app.text84.Text = 'Bar size:';
-
-            % Create text85
-            app.text85 = uilabel(app.uipanel11);
-            app.text85.Tag = 'text85';
-            app.text85.HorizontalAlignment = 'center';
-            app.text85.VerticalAlignment = 'top';
-            app.text85.FontSize = 11;
-            app.text85.Position = [388 28 62 17];
-            app.text85.Text = 'Frequency:';
 
             % Create Orientation
             app.Orientation = uibutton(app.uipanel11, 'push');
@@ -3059,6 +3187,15 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Ori_Repeats.Position = [139 6 27 18];
             app.Ori_Repeats.Value = '2';
 
+            % Create text79
+            app.text79 = uilabel(app.uipanel11);
+            app.text79.Tag = 'text79';
+            app.text79.HorizontalAlignment = 'center';
+            app.text79.VerticalAlignment = 'top';
+            app.text79.FontSize = 11;
+            app.text79.Position = [127 28 51 17];
+            app.text79.Text = 'Repeats:';
+
             % Create Ori_Duration
             app.Ori_Duration = uieditfield(app.uipanel11, 'text');
             app.Ori_Duration.Tag = 'Ori_Duration';
@@ -3068,14 +3205,14 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Ori_Duration.Position = [186 6 27 18];
             app.Ori_Duration.Value = '2';
 
-            % Create Ori_Orientations
-            app.Ori_Orientations = uidropdown(app.uipanel11);
-            app.Ori_Orientations.Items = {'4', '8', '16'};
-            app.Ori_Orientations.Tag = 'Ori_Orientations';
-            app.Ori_Orientations.Tooltip = 'total number of equally spaced orientations';
-            app.Ori_Orientations.FontSize = 11;
-            app.Ori_Orientations.Position = [276 8 53 18];
-            app.Ori_Orientations.Value = '8';
+            % Create text81
+            app.text81 = uilabel(app.uipanel11);
+            app.text81.Tag = 'text81';
+            app.text81.HorizontalAlignment = 'center';
+            app.text81.VerticalAlignment = 'top';
+            app.text81.FontSize = 11;
+            app.text81.Position = [175 28 51 17];
+            app.text81.Text = 'Duration:';
 
             % Create Ori_Interval
             app.Ori_Interval = uieditfield(app.uipanel11, 'text');
@@ -3086,13 +3223,32 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Ori_Interval.Position = [233 6 27 18];
             app.Ori_Interval.Value = '2';
 
-            % Create Ori_Random
-            app.Ori_Random = uicheckbox(app.uipanel11);
-            app.Ori_Random.Tag = 'Ori_Random';
-            app.Ori_Random.Tooltip = 'randomize orientations';
-            app.Ori_Random.Text = 'random';
-            app.Ori_Random.FontSize = 11;
-            app.Ori_Random.Position = [441 5 64 18];
+            % Create text83
+            app.text83 = uilabel(app.uipanel11);
+            app.text83.Tag = 'text83';
+            app.text83.HorizontalAlignment = 'center';
+            app.text83.VerticalAlignment = 'top';
+            app.text83.FontSize = 11;
+            app.text83.Position = [222 28 51 17];
+            app.text83.Text = 'Interval:';
+
+            % Create Ori_Orientations
+            app.Ori_Orientations = uidropdown(app.uipanel11);
+            app.Ori_Orientations.Items = {'4', '8', '16'};
+            app.Ori_Orientations.Tag = 'Ori_Orientations';
+            app.Ori_Orientations.Tooltip = 'total number of equally spaced orientations';
+            app.Ori_Orientations.FontSize = 11;
+            app.Ori_Orientations.Position = [276 8 53 18];
+            app.Ori_Orientations.Value = '8';
+
+            % Create text82
+            app.text82 = uilabel(app.uipanel11);
+            app.text82.Tag = 'text82';
+            app.text82.HorizontalAlignment = 'center';
+            app.text82.VerticalAlignment = 'top';
+            app.text82.FontSize = 11;
+            app.text82.Position = [271 28 64 17];
+            app.text82.Text = 'Orientations:';
 
             % Create Ori_Bar_Size
             app.Ori_Bar_Size = uieditfield(app.uipanel11, 'text');
@@ -3103,14 +3259,14 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Ori_Bar_Size.Position = [342 5 27 18];
             app.Ori_Bar_Size.Value = '170';
 
-            % Create Ori_Frequency
-            app.Ori_Frequency = uieditfield(app.uipanel11, 'text');
-            app.Ori_Frequency.Tag = 'Ori_Frequency';
-            app.Ori_Frequency.HorizontalAlignment = 'center';
-            app.Ori_Frequency.FontSize = 11;
-            app.Ori_Frequency.Tooltip = 'temporal frequency of grating';
-            app.Ori_Frequency.Position = [404 6 27 18];
-            app.Ori_Frequency.Value = '0.5';
+            % Create text84
+            app.text84 = uilabel(app.uipanel11);
+            app.text84.Tag = 'text84';
+            app.text84.HorizontalAlignment = 'center';
+            app.text84.VerticalAlignment = 'top';
+            app.text84.FontSize = 11;
+            app.text84.Position = [336 28 51 17];
+            app.text84.Text = 'Bar size:';
 
             % Create Stimulus_Orient
             app.Stimulus_Orient = uieditfield(app.uipanel11, 'text');
@@ -3121,15 +3277,41 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Stimulus_Orient.Position = [376 5 25 18];
             app.Stimulus_Orient.Value = '0';
 
+            % Create text85
+            app.text85 = uilabel(app.uipanel11);
+            app.text85.Tag = 'text85';
+            app.text85.HorizontalAlignment = 'center';
+            app.text85.VerticalAlignment = 'top';
+            app.text85.FontSize = 11;
+            app.text85.Position = [388 28 62 17];
+            app.text85.Text = 'Frequency:';
+
+            % Create Ori_Frequency
+            app.Ori_Frequency = uieditfield(app.uipanel11, 'text');
+            app.Ori_Frequency.Tag = 'Ori_Frequency';
+            app.Ori_Frequency.HorizontalAlignment = 'center';
+            app.Ori_Frequency.FontSize = 11;
+            app.Ori_Frequency.Tooltip = 'temporal frequency of grating';
+            app.Ori_Frequency.Position = [404 6 27 18];
+            app.Ori_Frequency.Value = '0.5';
+
+            % Create Ori_Random
+            app.Ori_Random = uicheckbox(app.uipanel11);
+            app.Ori_Random.Tag = 'Ori_Random';
+            app.Ori_Random.Tooltip = 'randomize orientations';
+            app.Ori_Random.Text = 'random';
+            app.Ori_Random.FontSize = 11;
+            app.Ori_Random.Position = [441 5 64 18];
+
             % Create Ext_trigger
-            app.Ext_trigger = uicheckbox(app.OtherUnusedTab);
+            app.Ext_trigger = uicheckbox(app.BoxDebugTab);
             app.Ext_trigger.Tag = 'Ext_trigger';
             app.Ext_trigger.Tooltip = 'start experiment by an external trigger';
             app.Ext_trigger.Text = 'ext trigger';
             app.Ext_trigger.Position = [565 294 75 22];
 
             % Create EquipmentPanel
-            app.EquipmentPanel = uipanel(app.OtherUnusedTab);
+            app.EquipmentPanel = uipanel(app.BoxDebugTab);
             app.EquipmentPanel.AutoResizeChildren = 'off';
             app.EquipmentPanel.Title = 'Equipment';
             app.EquipmentPanel.Position = [695 65 185 251];
@@ -3207,304 +3389,110 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.BaseButton.Text = 'Base';
 
             % Create ArduinosDropDownLabel
-            app.ArduinosDropDownLabel = uilabel(app.OtherUnusedTab);
+            app.ArduinosDropDownLabel = uilabel(app.BoxDebugTab);
             app.ArduinosDropDownLabel.HorizontalAlignment = 'right';
             app.ArduinosDropDownLabel.Position = [504 193 64 22];
             app.ArduinosDropDownLabel.Text = 'Arduino(s):';
 
             % Create ArduinosDropDown
-            app.ArduinosDropDown = uidropdown(app.OtherUnusedTab);
+            app.ArduinosDropDown = uidropdown(app.BoxDebugTab);
             app.ArduinosDropDown.Tag = 'ArduinosDropDown';
             app.ArduinosDropDown.Position = [583 193 100 22];
+
+            % Create DeveloperPanel
+            app.DeveloperPanel = uipanel(app.BoxDebugTab);
+            app.DeveloperPanel.AutoResizeChildren = 'off';
+            app.DeveloperPanel.Title = 'Developer';
+            app.DeveloperPanel.Tag = 'DeveloperPanel';
+            app.DeveloperPanel.Position = [11 103 142 137];
+
+            % Create DebugSerialModeButtonGroup
+            app.DebugSerialModeButtonGroup = uibuttongroup(app.DeveloperPanel);
+            app.DebugSerialModeButtonGroup.AutoResizeChildren = 'off';
+            app.DebugSerialModeButtonGroup.Title = 'Serial Log Mode';
+            app.DebugSerialModeButtonGroup.Tag = 'DebugSerialModeButtonGroup';
+            app.DebugSerialModeButtonGroup.Position = [8 11 123 94];
+
+            % Create DebugSerialMemory
+            app.DebugSerialMemory = uiradiobutton(app.DebugSerialModeButtonGroup);
+            app.DebugSerialMemory.Tag = 'Debug_SerialMemory';
+            app.DebugSerialMemory.Text = 'memory';
+            app.DebugSerialMemory.Position = [11 48 66 22];
+            app.DebugSerialMemory.Value = true;
+
+            % Create DebugSerialFile
+            app.DebugSerialFile = uiradiobutton(app.DebugSerialModeButtonGroup);
+            app.DebugSerialFile.Tag = 'Debug_SerialFile';
+            app.DebugSerialFile.Text = 'file';
+            app.DebugSerialFile.Position = [11 26 37 22];
+
+            % Create DebugSerialFailure
+            app.DebugSerialFailure = uiradiobutton(app.DebugSerialModeButtonGroup);
+            app.DebugSerialFailure.Tag = 'Debug_SerialFailure';
+            app.DebugSerialFailure.Text = 'failure';
+            app.DebugSerialFailure.Position = [11 4 54 22];
 
             % Create MapTab
             app.MapTab = uitab(app.TabGroup);
             app.MapTab.Title = 'Map';
 
-            % Create MappingPanel
-            app.MappingPanel = uipanel(app.MapTab);
-            app.MappingPanel.Title = 'Mapping';
-            app.MappingPanel.Position = [10 94 314 224];
+            % Create LineSweepPanel
+            app.LineSweepPanel = uipanel(app.MapTab);
+            app.LineSweepPanel.Title = 'Line Sweep';
+            app.LineSweepPanel.Position = [10 94 314 224];
 
-            % Create FixationPanel
-            app.FixationPanel = uipanel(app.MapTab);
-            app.FixationPanel.Title = 'Fixation';
-            app.FixationPanel.Position = [334 96 179 221];
-
-            % Create SettlesEditFieldLabel
-            app.SettlesEditFieldLabel = uilabel(app.MapTab);
-            app.SettlesEditFieldLabel.HorizontalAlignment = 'right';
-            app.SettlesEditFieldLabel.Position = [14 268 53 22];
-            app.SettlesEditFieldLabel.Text = 'Settle (s)';
-
-            % Create Map_SettlePauseSec
-            app.Map_SettlePauseSec = uieditfield(app.MapTab, 'numeric');
-            app.Map_SettlePauseSec.Tag = 'Map_SettlePauseSec';
-            app.Map_SettlePauseSec.Position = [103 268 34 22];
-            app.Map_SettlePauseSec.Value = 5;
-
-            % Create FlashDurEditFieldLabel
-            app.FlashDurEditFieldLabel = uilabel(app.MapTab);
-            app.FlashDurEditFieldLabel.HorizontalAlignment = 'right';
-            app.FlashDurEditFieldLabel.Position = [14 243 57 22];
-            app.FlashDurEditFieldLabel.Text = 'Flash Dur';
-
-            % Create Map_FlashDurationSec
-            app.Map_FlashDurationSec = uieditfield(app.MapTab, 'numeric');
-            app.Map_FlashDurationSec.Tag = 'Map_FlashDurationSec';
-            app.Map_FlashDurationSec.Position = [103 244 34 22];
-            app.Map_FlashDurationSec.Value = 0.5;
-
-            % Create FlashIntEditFieldLabel
-            app.FlashIntEditFieldLabel = uilabel(app.MapTab);
-            app.FlashIntEditFieldLabel.HorizontalAlignment = 'right';
-            app.FlashIntEditFieldLabel.Position = [14 219 51 22];
-            app.FlashIntEditFieldLabel.Text = 'Flash Int';
-
-            % Create Map_InterFlashIntervalSec
-            app.Map_InterFlashIntervalSec = uieditfield(app.MapTab, 'numeric');
-            app.Map_InterFlashIntervalSec.Tag = 'Map_InterFlashIntervalSec';
-            app.Map_InterFlashIntervalSec.Position = [103 219 34 22];
-            app.Map_InterFlashIntervalSec.Value = 2;
-
-            % Create FlashCountLabel
-            app.FlashCountLabel = uilabel(app.MapTab);
-            app.FlashCountLabel.HorizontalAlignment = 'right';
-            app.FlashCountLabel.Position = [14 195 70 22];
-            app.FlashCountLabel.Text = 'Flash Count';
-
-            % Create Map_FlashCount
-            app.Map_FlashCount = uieditfield(app.MapTab, 'numeric');
-            app.Map_FlashCount.Tag = 'Map_FlashCount';
-            app.Map_FlashCount.Position = [103 195 34 22];
-            app.Map_FlashCount.Value = 5;
-
-            % Create FlashXMinEditFieldLabel
-            app.FlashXMinEditFieldLabel = uilabel(app.MapTab);
-            app.FlashXMinEditFieldLabel.HorizontalAlignment = 'right';
-            app.FlashXMinEditFieldLabel.Position = [14 171 68 22];
-            app.FlashXMinEditFieldLabel.Text = 'Flash X Min';
-
-            % Create Map_FlashXMin
-            app.Map_FlashXMin = uieditfield(app.MapTab, 'numeric');
-            app.Map_FlashXMin.Tag = 'Map_FlashXMin';
-            app.Map_FlashXMin.Position = [103 171 34 22];
-            app.Map_FlashXMin.Value = -0.8;
-
-            % Create FlashXMaxLabel
-            app.FlashXMaxLabel = uilabel(app.MapTab);
-            app.FlashXMaxLabel.HorizontalAlignment = 'right';
-            app.FlashXMaxLabel.Position = [14 147 65 22];
-            app.FlashXMaxLabel.Text = 'FlashXMax';
-
-            % Create Map_FlashXMax
-            app.Map_FlashXMax = uieditfield(app.MapTab, 'numeric');
-            app.Map_FlashXMax.Tag = 'Map_FlashXMax';
-            app.Map_FlashXMax.Position = [103 147 34 22];
-            app.Map_FlashXMax.Value = 0.8;
-
-            % Create EditField_5Label_4
-            app.EditField_5Label_4 = uilabel(app.MapTab);
-            app.EditField_5Label_4.HorizontalAlignment = 'right';
-            app.EditField_5Label_4.Position = [14 123 76 22];
-            app.EditField_5Label_4.Text = 'Sweep X Min';
-
-            % Create Map_SweepXMin
-            app.Map_SweepXMin = uieditfield(app.MapTab, 'numeric');
-            app.Map_SweepXMin.Tag = 'Map_SweepXMin';
-            app.Map_SweepXMin.Position = [103 123 34 22];
-            app.Map_SweepXMin.Value = -1.2;
-
-            % Create EditField_6Label_3
-            app.EditField_6Label_3 = uilabel(app.MapTab);
-            app.EditField_6Label_3.HorizontalAlignment = 'right';
-            app.EditField_6Label_3.Position = [190 267 80 22];
-            app.EditField_6Label_3.Text = 'Sweep Speed';
-
-            % Create Map_SweepSpeed
-            app.Map_SweepSpeed = uieditfield(app.MapTab, 'numeric');
-            app.Map_SweepSpeed.Tag = 'Map_SweepSpeed';
-            app.Map_SweepSpeed.Position = [279 267 34 22];
-            app.Map_SweepSpeed.Value = 0.6;
-
-            % Create SweepXMaxLabel
-            app.SweepXMaxLabel = uilabel(app.MapTab);
-            app.SweepXMaxLabel.HorizontalAlignment = 'right';
-            app.SweepXMaxLabel.Position = [14 99 79 22];
-            app.SweepXMaxLabel.Text = 'Sweep X Max';
-
-            % Create Map_SweepXMax
-            app.Map_SweepXMax = uieditfield(app.MapTab, 'numeric');
-            app.Map_SweepXMax.Tag = 'Map_SweepXMax';
-            app.Map_SweepXMax.Position = [103 99 34 22];
-            app.Map_SweepXMax.Value = 1.2;
-
-            % Create EditField_5Label_5
-            app.EditField_5Label_5 = uilabel(app.MapTab);
-            app.EditField_5Label_5.HorizontalAlignment = 'right';
-            app.EditField_5Label_5.Position = [197 243 67 22];
-            app.EditField_5Label_5.Text = 'Angle (deg)';
-
-            % Create Map_OrientedLineAngleDeg
-            app.Map_OrientedLineAngleDeg = uieditfield(app.MapTab, 'numeric');
-            app.Map_OrientedLineAngleDeg.Tag = 'Map_OrientedLineAngleDeg';
-            app.Map_OrientedLineAngleDeg.Position = [279 243 34 22];
-            app.Map_OrientedLineAngleDeg.Value = 90;
-
-            % Create EditField_6Label_4
-            app.EditField_6Label_4 = uilabel(app.MapTab);
-            app.EditField_6Label_4.HorizontalAlignment = 'right';
-            app.EditField_6Label_4.Position = [218 219 46 22];
-            app.EditField_6Label_4.Text = 'Loom X';
-
-            % Create Map_LoomX
-            app.Map_LoomX = uieditfield(app.MapTab, 'numeric');
-            app.Map_LoomX.Tag = 'Map_LoomX';
-            app.Map_LoomX.Position = [279 219 34 22];
-
-            % Create LoomYLabel
-            app.LoomYLabel = uilabel(app.MapTab);
-            app.LoomYLabel.HorizontalAlignment = 'right';
-            app.LoomYLabel.Position = [218 195 46 22];
-            app.LoomYLabel.Text = 'Loom Y';
-
-            % Create Map_LoomY
-            app.Map_LoomY = uieditfield(app.MapTab, 'numeric');
-            app.Map_LoomY.Tag = 'Map_LoomY';
-            app.Map_LoomY.Position = [279 195 34 22];
-
-            % Create LoomMinScaleLabel
-            app.LoomMinScaleLabel = uilabel(app.MapTab);
-            app.LoomMinScaleLabel.HorizontalAlignment = 'right';
-            app.LoomMinScaleLabel.Position = [173 171 91 22];
-            app.LoomMinScaleLabel.Text = 'Loom Min Scale';
-
-            % Create Map_LoomMinScale
-            app.Map_LoomMinScale = uieditfield(app.MapTab, 'numeric');
-            app.Map_LoomMinScale.Tag = 'Map_LoomMinScale';
-            app.Map_LoomMinScale.Position = [279 171 34 22];
-            app.Map_LoomMinScale.Value = 0.5;
-
-            % Create EditField_6Label_5
-            app.EditField_6Label_5 = uilabel(app.MapTab);
-            app.EditField_6Label_5.HorizontalAlignment = 'right';
-            app.EditField_6Label_5.Position = [176 147 88 22];
-            app.EditField_6Label_5.Text = 'LoomMaxScale';
-
-            % Create Map_LoomMaxScale
-            app.Map_LoomMaxScale = uieditfield(app.MapTab, 'numeric');
-            app.Map_LoomMaxScale.Tag = 'Map_LoomMaxScale';
-            app.Map_LoomMaxScale.Position = [279 147 34 22];
-            app.Map_LoomMaxScale.Value = 1.5;
-
-            % Create EditField_6Label_6
-            app.EditField_6Label_6 = uilabel(app.MapTab);
-            app.EditField_6Label_6.HorizontalAlignment = 'right';
-            app.EditField_6Label_6.Position = [174 123 90 22];
-            app.EditField_6Label_6.Text = 'LoomPeriodSec';
-
-            % Create Map_LoomPeriodSec
-            app.Map_LoomPeriodSec = uieditfield(app.MapTab, 'numeric');
-            app.Map_LoomPeriodSec.Tag = 'Map_LoomPeriodSec';
-            app.Map_LoomPeriodSec.Position = [279 123 34 22];
-
-            % Create LoomVariantLabel
-            app.LoomVariantLabel = uilabel(app.MapTab);
-            app.LoomVariantLabel.HorizontalAlignment = 'right';
-            app.LoomVariantLabel.Position = [139 99 72 22];
-            app.LoomVariantLabel.Text = 'LoomVariant';
-
-            % Create Map_LoomVariant
-            app.Map_LoomVariant = uidropdown(app.MapTab);
-            app.Map_LoomVariant.Items = {'Correct', 'Incorrect'};
-            app.Map_LoomVariant.Tag = 'Map_LoomVariant';
-            app.Map_LoomVariant.Position = [226 99 87 22];
-            app.Map_LoomVariant.Value = 'Correct';
-
-            % Create Fix_Enable
-            app.Fix_Enable = uicheckbox(app.MapTab);
-            app.Fix_Enable.Tag = 'Fix_Enable';
-            app.Fix_Enable.Text = 'Enable Fixation';
-            app.Fix_Enable.Position = [401 269 105 22];
-
-            % Create Fix_XEditFieldLabel
-            app.Fix_XEditFieldLabel = uilabel(app.MapTab);
-            app.Fix_XEditFieldLabel.HorizontalAlignment = 'right';
-            app.Fix_XEditFieldLabel.Position = [421 245 36 22];
-            app.Fix_XEditFieldLabel.Text = 'Fix_X';
-
-            % Create Fix_X
-            app.Fix_X = uieditfield(app.MapTab, 'numeric');
-            app.Fix_X.Tag = 'Fix_X';
-            app.Fix_X.Position = [472 245 34 22];
-
-            % Create Fix_YEditFieldLabel
-            app.Fix_YEditFieldLabel = uilabel(app.MapTab);
-            app.Fix_YEditFieldLabel.HorizontalAlignment = 'right';
-            app.Fix_YEditFieldLabel.Position = [421 221 36 22];
-            app.Fix_YEditFieldLabel.Text = 'Fix_Y';
-
-            % Create Fix_Y
-            app.Fix_Y = uieditfield(app.MapTab, 'numeric');
-            app.Fix_Y.Tag = 'Fix_Y';
-            app.Fix_Y.Position = [472 221 34 22];
-
-            % Create RadiusLabel
-            app.RadiusLabel = uilabel(app.MapTab);
-            app.RadiusLabel.HorizontalAlignment = 'right';
-            app.RadiusLabel.Position = [415 197 42 22];
-            app.RadiusLabel.Text = 'Radius';
-
-            % Create Fix_Radius
-            app.Fix_Radius = uieditfield(app.MapTab, 'numeric');
-            app.Fix_Radius.Tag = 'Fix_Radius';
-            app.Fix_Radius.Position = [472 197 34 22];
-            app.Fix_Radius.Value = 0.03;
-
-            % Create PeriodSecLabel
-            app.PeriodSecLabel = uilabel(app.MapTab);
-            app.PeriodSecLabel.HorizontalAlignment = 'right';
-            app.PeriodSecLabel.Position = [397 173 60 22];
-            app.PeriodSecLabel.Text = 'PeriodSec';
-
-            % Create Fix_PeriodSec
-            app.Fix_PeriodSec = uieditfield(app.MapTab, 'numeric');
-            app.Fix_PeriodSec.Tag = 'Fix_PeriodSec';
-            app.Fix_PeriodSec.Position = [472 173 34 22];
-            app.Fix_PeriodSec.Value = 2;
-
-            % Create PeakThresholdLabel
-            app.PeakThresholdLabel = uilabel(app.MapTab);
-            app.PeakThresholdLabel.HorizontalAlignment = 'right';
-            app.PeakThresholdLabel.Position = [371 149 86 22];
-            app.PeakThresholdLabel.Text = 'PeakThreshold';
-
-            % Create Fix_PeakThreshold
-            app.Fix_PeakThreshold = uieditfield(app.MapTab, 'numeric');
-            app.Fix_PeakThreshold.Tag = 'Fix_PeakThreshold';
-            app.Fix_PeakThreshold.Position = [472 149 34 22];
-
-            % Create RewardCooldownSecLabel
-            app.RewardCooldownSecLabel = uilabel(app.MapTab);
-            app.RewardCooldownSecLabel.HorizontalAlignment = 'right';
-            app.RewardCooldownSecLabel.Position = [337 125 120 22];
-            app.RewardCooldownSecLabel.Text = 'RewardCooldownSec';
-
-            % Create Fix_RewardCooldownSec
-            app.Fix_RewardCooldownSec = uieditfield(app.MapTab, 'numeric');
-            app.Fix_RewardCooldownSec.Tag = 'Fix_RewardCooldownSec';
-            app.Fix_RewardCooldownSec.Position = [472 125 34 22];
-
-            % Create Fix_RewardEnable
-            app.Fix_RewardEnable = uicheckbox(app.MapTab);
-            app.Fix_RewardEnable.Tag = 'Fix_RewardEnable';
-            app.Fix_RewardEnable.Text = 'Fix_RewardEnable';
-            app.Fix_RewardEnable.Position = [383 101 123 22];
+            % Create FixationDotPanel
+            app.FixationDotPanel = uipanel(app.MapTab);
+            app.FixationDotPanel.Title = 'Fixation Dot';
+            app.FixationDotPanel.Position = [334 96 179 221];
 
             % Create AnimateStimulusPanel
             app.AnimateStimulusPanel = uipanel(app.MapTab);
             app.AnimateStimulusPanel.Title = 'Animate Stimulus';
             app.AnimateStimulusPanel.Position = [533 7 343 314];
+
+            % Create StyleDropDownLabel
+            app.StyleDropDownLabel = uilabel(app.AnimateStimulusPanel);
+            app.StyleDropDownLabel.HorizontalAlignment = 'right';
+            app.StyleDropDownLabel.Position = [6 259 32 22];
+            app.StyleDropDownLabel.Text = 'Style';
+
+            % Create Animate_Style
+            app.Animate_Style = uidropdown(app.AnimateStimulusPanel);
+            app.Animate_Style.Items = {'Stimulus', 'Dot', 'Map-FlashContourX', 'Map-SweepLine', 'Map-LoomingStimulus'};
+            app.Animate_Style.Tag = 'Animate_Style';
+            app.Animate_Style.Position = [52 259 147 22];
+            app.Animate_Style.Value = 'Stimulus';
+
+            % Create StimulusButtonGroup
+            app.StimulusButtonGroup = uibuttongroup(app.AnimateStimulusPanel);
+            app.StimulusButtonGroup.Title = 'Stimulus';
+            app.StimulusButtonGroup.Position = [210 185 118 102];
+
+            % Create Animate_Incorrect
+            app.Animate_Incorrect = uiradiobutton(app.StimulusButtonGroup);
+            app.Animate_Incorrect.Tag = 'Animate_Incorrect';
+            app.Animate_Incorrect.Text = 'Incorrect';
+            app.Animate_Incorrect.Position = [8 53 70 22];
+
+            % Create Animate_Correct
+            app.Animate_Correct = uiradiobutton(app.StimulusButtonGroup);
+            app.Animate_Correct.Tag = 'Animate_Correct';
+            app.Animate_Correct.Text = 'Correct';
+            app.Animate_Correct.Position = [8 30 62 22];
+            app.Animate_Correct.Value = true;
+
+            % Create LevelLabel
+            app.LevelLabel = uilabel(app.StimulusButtonGroup);
+            app.LevelLabel.HorizontalAlignment = 'right';
+            app.LevelLabel.Position = [41 7 33 22];
+            app.LevelLabel.Text = 'Level';
+
+            % Create Animate_Level
+            app.Animate_Level = uieditfield(app.StimulusButtonGroup, 'numeric');
+            app.Animate_Level.Tag = 'Animate_Level';
+            app.Animate_Level.Position = [8 7 28 22];
+            app.Animate_Level.Value = 1;
 
             % Create SideDropDownLabel
             app.SideDropDownLabel = uilabel(app.AnimateStimulusPanel);
@@ -3528,6 +3516,20 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Animate_Go.FontWeight = 'bold';
             app.Animate_Go.Position = [6 210 28 23];
 
+            % Create Animate_Show
+            app.Animate_Show = uibutton(app.AnimateStimulusPanel, 'state');
+            app.Animate_Show.ValueChangedFcn = createCallbackFcn(app, @Animate_ShowValueChanged, true);
+            app.Animate_Show.Tag = 'Animate_Show';
+            app.Animate_Show.Text = 'Show';
+            app.Animate_Show.Position = [44 210 39 23];
+
+            % Create Animate_Flash
+            app.Animate_Flash = uibutton(app.AnimateStimulusPanel, 'state');
+            app.Animate_Flash.ValueChangedFcn = createCallbackFcn(app, @Animate_FlashValueChanged, true);
+            app.Animate_Flash.Tag = 'Animate_Flash';
+            app.Animate_Flash.Text = 'Flash';
+            app.Animate_Flash.Position = [93 210 37 23];
+
             % Create Animate_End
             app.Animate_End = uibutton(app.AnimateStimulusPanel, 'state');
             app.Animate_End.Tag = 'Animate_End';
@@ -3540,145 +3542,301 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             % Create SpeedEditFieldLabel
             app.SpeedEditFieldLabel = uilabel(app.AnimateStimulusPanel);
             app.SpeedEditFieldLabel.HorizontalAlignment = 'right';
-            app.SpeedEditFieldLabel.Position = [6 186 40 22];
+            app.SpeedEditFieldLabel.Position = [6 184 40 22];
             app.SpeedEditFieldLabel.Text = 'Speed';
 
             % Create Animate_Speed
             app.Animate_Speed = uieditfield(app.AnimateStimulusPanel, 'numeric');
             app.Animate_Speed.Tag = 'Animate_Speed';
-            app.Animate_Speed.Position = [55 186 35 22];
+            app.Animate_Speed.Position = [55 184 35 22];
             app.Animate_Speed.Value = 0.01;
 
-            % Create Animate_MimicTrial
-            app.Animate_MimicTrial = uicheckbox(app.AnimateStimulusPanel);
-            app.Animate_MimicTrial.Tag = 'Animate_MimicTrial';
-            app.Animate_MimicTrial.Text = 'Mimic trial';
-            app.Animate_MimicTrial.Position = [17 162 77 22];
+            % Create Animate_XPosition
+            app.Animate_XPosition = uislider(app.AnimateStimulusPanel);
+            app.Animate_XPosition.Limits = [-1 1];
+            app.Animate_XPosition.FontSize = 10;
+            app.Animate_XPosition.Tag = 'Animate_XPosition';
+            app.Animate_XPosition.Position = [17 154 158 3];
 
             % Create XPositionLabel
             app.XPositionLabel = uilabel(app.AnimateStimulusPanel);
             app.XPositionLabel.HorizontalAlignment = 'right';
             app.XPositionLabel.FontSize = 10;
-            app.XPositionLabel.Position = [66 138 51 22];
+            app.XPositionLabel.Position = [71 164 51 22];
             app.XPositionLabel.Text = 'X-Position';
 
-            % Create Animate_XPosition
-            app.Animate_XPosition = uislider(app.AnimateStimulusPanel);
-            app.Animate_XPosition.Limits = [0 1];
-            app.Animate_XPosition.ValueChangedFcn = createCallbackFcn(app, @Animate_PositionValueChanged, true);
-            app.Animate_XPosition.FontSize = 10;
-            app.Animate_XPosition.Tag = 'Animate_XPosition';
-            app.Animate_XPosition.Position = [12 136 158 3];
-
-            % Create Animate_Show
-            app.Animate_Show = uibutton(app.AnimateStimulusPanel, 'state');
-            app.Animate_Show.ValueChangedFcn = createCallbackFcn(app, @Animate_ShowValueChanged, true);
-            app.Animate_Show.Tag = 'Animate_Show';
-            app.Animate_Show.Text = 'Show';
-            app.Animate_Show.Position = [44 210 39 23];
-
-            % Create StyleDropDownLabel
-            app.StyleDropDownLabel = uilabel(app.AnimateStimulusPanel);
-            app.StyleDropDownLabel.HorizontalAlignment = 'right';
-            app.StyleDropDownLabel.Position = [6 259 32 22];
-            app.StyleDropDownLabel.Text = 'Style';
-
-            % Create Animate_Style
-            app.Animate_Style = uidropdown(app.AnimateStimulusPanel);
-            app.Animate_Style.Items = {'Y-Line', 'X-Line', 'Bar', 'Stimulus', 'Dot', 'Map-FlashContourX', 'Map-SweepVerticalLine', 'Map-SweepOrientedLine', 'Map-LoomingStimulus'};
-            app.Animate_Style.Tag = 'Animate_Style';
-            app.Animate_Style.Position = [52 259 106 22];
-            app.Animate_Style.Value = 'Y-Line';
+            % Create Animate_YPosition
+            app.Animate_YPosition = uislider(app.AnimateStimulusPanel);
+            app.Animate_YPosition.Limits = [-1 1];
+            app.Animate_YPosition.FontSize = 10;
+            app.Animate_YPosition.Tag = 'Animate_YPosition';
+            app.Animate_YPosition.Position = [17 100 158 3];
 
             % Create YPositionSliderLabel
             app.YPositionSliderLabel = uilabel(app.AnimateStimulusPanel);
             app.YPositionSliderLabel.HorizontalAlignment = 'right';
             app.YPositionSliderLabel.FontSize = 10;
-            app.YPositionSliderLabel.Position = [66 85 50 22];
+            app.YPositionSliderLabel.Position = [71 109 50 22];
             app.YPositionSliderLabel.Text = 'Y-Position';
 
-            % Create Animate_YPosition
-            app.Animate_YPosition = uislider(app.AnimateStimulusPanel);
-            app.Animate_YPosition.Limits = [0 1];
-            app.Animate_YPosition.ValueChangedFcn = createCallbackFcn(app, @Animate_PositionValueChanged, true);
-            app.Animate_YPosition.FontSize = 10;
-            app.Animate_YPosition.Tag = 'Animate_YPosition';
-            app.Animate_YPosition.Position = [12 83 158 3];
+            % Create SettlesEditFieldLabel
+            app.SettlesEditFieldLabel = uilabel(app.MapTab);
+            app.SettlesEditFieldLabel.HorizontalAlignment = 'right';
+            app.SettlesEditFieldLabel.Position = [14 268 53 22];
+            app.SettlesEditFieldLabel.Text = 'Settle (s)';
 
-            % Create Animate_Flash
-            app.Animate_Flash = uibutton(app.AnimateStimulusPanel, 'state');
-            app.Animate_Flash.ValueChangedFcn = createCallbackFcn(app, @Animate_FlashValueChanged, true);
-            app.Animate_Flash.Tag = 'Animate_Flash';
-            app.Animate_Flash.Text = 'Flash';
-            app.Animate_Flash.Position = [93 210 37 23];
+            % Create Map_SettlePauseSec
+            app.Map_SettlePauseSec = uieditfield(app.MapTab, 'numeric');
+            app.Map_SettlePauseSec.Tag = 'Map_SettlePauseSec';
+            app.Map_SettlePauseSec.Position = [103 268 34 22];
+            app.Map_SettlePauseSec.Value = 5;
 
-            % Create Animate_Rec
-            app.Animate_Rec = uibutton(app.AnimateStimulusPanel, 'state');
-            app.Animate_Rec.ValueChangedFcn = createCallbackFcn(app, @Animate_GoValueChanged, true);
-            app.Animate_Rec.Tag = 'Animate_Rec';
-            app.Animate_Rec.Text = 'Rec';
-            app.Animate_Rec.BackgroundColor = [0 1 0];
-            app.Animate_Rec.FontWeight = 'bold';
-            app.Animate_Rec.FontColor = [1 1 1];
-            app.Animate_Rec.Position = [92 159 39 23];
+            % Create EditField_6Label_3
+            app.EditField_6Label_3 = uilabel(app.MapTab);
+            app.EditField_6Label_3.HorizontalAlignment = 'right';
+            app.EditField_6Label_3.Position = [190 267 80 22];
+            app.EditField_6Label_3.Text = 'Sweep Speed';
 
-            % Create Animate_CenteredStimulus
-            app.Animate_CenteredStimulus = uicheckbox(app.AnimateStimulusPanel);
-            app.Animate_CenteredStimulus.Tag = 'Animate_CenteredStimulus';
-            app.Animate_CenteredStimulus.Text = 'Centered Stimulus';
-            app.Animate_CenteredStimulus.Position = [20 28 121 22];
+            % Create Map_SweepSpeed
+            app.Map_SweepSpeed = uieditfield(app.MapTab, 'numeric');
+            app.Map_SweepSpeed.Tag = 'Map_SweepSpeed';
+            app.Map_SweepSpeed.Position = [279 267 34 22];
+            app.Map_SweepSpeed.Value = 0.6;
 
-            % Create Animate_AlternateSide
-            app.Animate_AlternateSide = uicheckbox(app.AnimateStimulusPanel);
-            app.Animate_AlternateSide.Tag = 'Animate_AlternateSide';
-            app.Animate_AlternateSide.Text = 'Alternate Side';
-            app.Animate_AlternateSide.Position = [20 7 98 22];
+            % Create Fix_Enable
+            app.Fix_Enable = uicheckbox(app.MapTab);
+            app.Fix_Enable.Tag = 'Fix_Enable';
+            app.Fix_Enable.Text = 'Show fixation dot';
+            app.Fix_Enable.Position = [343 269 116 22];
+            app.Fix_Enable.Value = true;
 
-            % Create WhichStimulusButtonGroup
-            app.WhichStimulusButtonGroup = uibuttongroup(app.AnimateStimulusPanel);
-            app.WhichStimulusButtonGroup.Title = 'Which Stimulus';
-            app.WhichStimulusButtonGroup.Position = [214 178 123 106];
+            % Create FlashDurEditFieldLabel
+            app.FlashDurEditFieldLabel = uilabel(app.MapTab);
+            app.FlashDurEditFieldLabel.HorizontalAlignment = 'right';
+            app.FlashDurEditFieldLabel.Position = [14 243 57 22];
+            app.FlashDurEditFieldLabel.Text = 'Flash Dur';
 
-            % Create Animate_OnlyIncorrectButton
-            app.Animate_OnlyIncorrectButton = uiradiobutton(app.WhichStimulusButtonGroup);
-            app.Animate_OnlyIncorrectButton.Tag = 'Animate_OnlyIncorrectButton';
-            app.Animate_OnlyIncorrectButton.Text = 'Only Incorrect';
-            app.Animate_OnlyIncorrectButton.Position = [11 60 97 22];
-            app.Animate_OnlyIncorrectButton.Value = true;
+            % Create Map_FlashDurationSec
+            app.Map_FlashDurationSec = uieditfield(app.MapTab, 'numeric');
+            app.Map_FlashDurationSec.Tag = 'Map_FlashDurationSec';
+            app.Map_FlashDurationSec.Position = [103 244 34 22];
+            app.Map_FlashDurationSec.Value = 0.5;
 
-            % Create Animate_BothButton
-            app.Animate_BothButton = uiradiobutton(app.WhichStimulusButtonGroup);
-            app.Animate_BothButton.Tag = 'Animate_BothButton';
-            app.Animate_BothButton.Text = 'Both';
-            app.Animate_BothButton.Position = [11 38 48 22];
+            % Create EditField_5Label_5
+            app.EditField_5Label_5 = uilabel(app.MapTab);
+            app.EditField_5Label_5.HorizontalAlignment = 'right';
+            app.EditField_5Label_5.Position = [197 243 67 22];
+            app.EditField_5Label_5.Text = 'Angle (deg)';
 
-            % Create Animate_OnlyCorrectButton
-            app.Animate_OnlyCorrectButton = uiradiobutton(app.WhichStimulusButtonGroup);
-            app.Animate_OnlyCorrectButton.Tag = 'Animate_OnlyCorrectButton';
-            app.Animate_OnlyCorrectButton.Text = 'Only Correct';
-            app.Animate_OnlyCorrectButton.Position = [11 16 90 22];
+            % Create Map_OrientedLineAngleDeg
+            app.Map_OrientedLineAngleDeg = uieditfield(app.MapTab, 'numeric');
+            app.Map_OrientedLineAngleDeg.Tag = 'Map_OrientedLineAngleDeg';
+            app.Map_OrientedLineAngleDeg.Position = [279 243 34 22];
 
-            % Create LineAngleEditFieldLabel
-            app.LineAngleEditFieldLabel = uilabel(app.AnimateStimulusPanel);
-            app.LineAngleEditFieldLabel.HorizontalAlignment = 'right';
-            app.LineAngleEditFieldLabel.Position = [209 130 61 22];
-            app.LineAngleEditFieldLabel.Text = 'Line Angle';
+            % Create Fix_XEditFieldLabel
+            app.Fix_XEditFieldLabel = uilabel(app.MapTab);
+            app.Fix_XEditFieldLabel.HorizontalAlignment = 'right';
+            app.Fix_XEditFieldLabel.Position = [421 245 36 22];
+            app.Fix_XEditFieldLabel.Text = 'Fix_X';
 
-            % Create Animate_LineAngle
-            app.Animate_LineAngle = uieditfield(app.AnimateStimulusPanel, 'numeric');
-            app.Animate_LineAngle.Tag = 'Animate_LineAngle';
-            app.Animate_LineAngle.Position = [279 130 44 22];
+            % Create Fix_X
+            app.Fix_X = uieditfield(app.MapTab, 'numeric');
+            app.Fix_X.Tag = 'Fix_X';
+            app.Fix_X.Position = [472 245 34 22];
 
-            % Create TimeDropDownLabel
-            app.TimeDropDownLabel = uilabel(app.AnimateStimulusPanel);
-            app.TimeDropDownLabel.HorizontalAlignment = 'right';
-            app.TimeDropDownLabel.Position = [184 154 31 22];
-            app.TimeDropDownLabel.Text = 'Time';
+            % Create FlashIntEditFieldLabel
+            app.FlashIntEditFieldLabel = uilabel(app.MapTab);
+            app.FlashIntEditFieldLabel.HorizontalAlignment = 'right';
+            app.FlashIntEditFieldLabel.Position = [14 219 51 22];
+            app.FlashIntEditFieldLabel.Text = 'Flash Int';
 
-            % Create Timekeeper
-            app.Timekeeper = uidropdown(app.AnimateStimulusPanel);
-            app.Timekeeper.Tag = 'Timekeeper';
-            app.Timekeeper.Position = [230 154 100 22];
+            % Create Map_InterFlashIntervalSec
+            app.Map_InterFlashIntervalSec = uieditfield(app.MapTab, 'numeric');
+            app.Map_InterFlashIntervalSec.Tag = 'Map_InterFlashIntervalSec';
+            app.Map_InterFlashIntervalSec.Position = [103 219 34 22];
+            app.Map_InterFlashIntervalSec.Value = 2;
+
+            % Create EditField_6Label_4
+            app.EditField_6Label_4 = uilabel(app.MapTab);
+            app.EditField_6Label_4.HorizontalAlignment = 'right';
+            app.EditField_6Label_4.Position = [218 219 46 22];
+            app.EditField_6Label_4.Text = 'Loom X';
+
+            % Create Map_LoomX
+            app.Map_LoomX = uieditfield(app.MapTab, 'numeric');
+            app.Map_LoomX.Tag = 'Map_LoomX';
+            app.Map_LoomX.Position = [279 219 34 22];
+
+            % Create Fix_YEditFieldLabel
+            app.Fix_YEditFieldLabel = uilabel(app.MapTab);
+            app.Fix_YEditFieldLabel.HorizontalAlignment = 'right';
+            app.Fix_YEditFieldLabel.Position = [421 221 36 22];
+            app.Fix_YEditFieldLabel.Text = 'Fix_Y';
+
+            % Create Fix_Y
+            app.Fix_Y = uieditfield(app.MapTab, 'numeric');
+            app.Fix_Y.Tag = 'Fix_Y';
+            app.Fix_Y.Position = [472 221 34 22];
+
+            % Create FlashCountLabel
+            app.FlashCountLabel = uilabel(app.MapTab);
+            app.FlashCountLabel.HorizontalAlignment = 'right';
+            app.FlashCountLabel.Position = [14 195 70 22];
+            app.FlashCountLabel.Text = 'Flash Count';
+
+            % Create Map_FlashCount
+            app.Map_FlashCount = uieditfield(app.MapTab, 'numeric');
+            app.Map_FlashCount.Tag = 'Map_FlashCount';
+            app.Map_FlashCount.Position = [103 195 34 22];
+            app.Map_FlashCount.Value = 5;
+
+            % Create LoomYLabel
+            app.LoomYLabel = uilabel(app.MapTab);
+            app.LoomYLabel.HorizontalAlignment = 'right';
+            app.LoomYLabel.Position = [218 195 46 22];
+            app.LoomYLabel.Text = 'Loom Y';
+
+            % Create Map_LoomY
+            app.Map_LoomY = uieditfield(app.MapTab, 'numeric');
+            app.Map_LoomY.Tag = 'Map_LoomY';
+            app.Map_LoomY.Position = [279 195 34 22];
+
+            % Create RadiusLabel
+            app.RadiusLabel = uilabel(app.MapTab);
+            app.RadiusLabel.HorizontalAlignment = 'right';
+            app.RadiusLabel.Position = [415 197 42 22];
+            app.RadiusLabel.Text = 'Radius';
+
+            % Create Fix_Radius
+            app.Fix_Radius = uieditfield(app.MapTab, 'numeric');
+            app.Fix_Radius.Tag = 'Fix_Radius';
+            app.Fix_Radius.Position = [472 197 34 22];
+            app.Fix_Radius.Value = 0.03;
+
+            % Create FlashXMinEditFieldLabel
+            app.FlashXMinEditFieldLabel = uilabel(app.MapTab);
+            app.FlashXMinEditFieldLabel.HorizontalAlignment = 'right';
+            app.FlashXMinEditFieldLabel.Position = [14 171 68 22];
+            app.FlashXMinEditFieldLabel.Text = 'Flash X Min';
+
+            % Create Map_FlashXMin
+            app.Map_FlashXMin = uieditfield(app.MapTab, 'numeric');
+            app.Map_FlashXMin.Tag = 'Map_FlashXMin';
+            app.Map_FlashXMin.Position = [103 171 34 22];
+            app.Map_FlashXMin.Value = -1;
+
+            % Create LoomMinScaleLabel
+            app.LoomMinScaleLabel = uilabel(app.MapTab);
+            app.LoomMinScaleLabel.HorizontalAlignment = 'right';
+            app.LoomMinScaleLabel.Position = [173 171 91 22];
+            app.LoomMinScaleLabel.Text = 'Loom Min Scale';
+
+            % Create Map_LoomMinScale
+            app.Map_LoomMinScale = uieditfield(app.MapTab, 'numeric');
+            app.Map_LoomMinScale.Tag = 'Map_LoomMinScale';
+            app.Map_LoomMinScale.Position = [279 171 34 22];
+            app.Map_LoomMinScale.Value = 0.5;
+
+            % Create PeriodSecLabel
+            app.PeriodSecLabel = uilabel(app.MapTab);
+            app.PeriodSecLabel.HorizontalAlignment = 'right';
+            app.PeriodSecLabel.Position = [397 173 60 22];
+            app.PeriodSecLabel.Text = 'PeriodSec';
+
+            % Create Fix_PeriodSec
+            app.Fix_PeriodSec = uieditfield(app.MapTab, 'numeric');
+            app.Fix_PeriodSec.Tag = 'Fix_PeriodSec';
+            app.Fix_PeriodSec.Position = [472 173 34 22];
+            app.Fix_PeriodSec.Value = 2;
+
+            % Create FlashXMaxLabel
+            app.FlashXMaxLabel = uilabel(app.MapTab);
+            app.FlashXMaxLabel.HorizontalAlignment = 'right';
+            app.FlashXMaxLabel.Position = [14 147 65 22];
+            app.FlashXMaxLabel.Text = 'FlashXMax';
+
+            % Create Map_FlashXMax
+            app.Map_FlashXMax = uieditfield(app.MapTab, 'numeric');
+            app.Map_FlashXMax.Tag = 'Map_FlashXMax';
+            app.Map_FlashXMax.Position = [103 147 34 22];
+            app.Map_FlashXMax.Value = 1;
+
+            % Create EditField_6Label_5
+            app.EditField_6Label_5 = uilabel(app.MapTab);
+            app.EditField_6Label_5.HorizontalAlignment = 'right';
+            app.EditField_6Label_5.Position = [176 147 88 22];
+            app.EditField_6Label_5.Text = 'LoomMaxScale';
+
+            % Create Map_LoomMaxScale
+            app.Map_LoomMaxScale = uieditfield(app.MapTab, 'numeric');
+            app.Map_LoomMaxScale.Tag = 'Map_LoomMaxScale';
+            app.Map_LoomMaxScale.Position = [279 147 34 22];
+            app.Map_LoomMaxScale.Value = 1.5;
+
+            % Create PeakThresholdLabel
+            app.PeakThresholdLabel = uilabel(app.MapTab);
+            app.PeakThresholdLabel.HorizontalAlignment = 'right';
+            app.PeakThresholdLabel.Position = [371 149 86 22];
+            app.PeakThresholdLabel.Text = 'PeakThreshold';
+
+            % Create Fix_PeakThreshold
+            app.Fix_PeakThreshold = uieditfield(app.MapTab, 'numeric');
+            app.Fix_PeakThreshold.Tag = 'Fix_PeakThreshold';
+            app.Fix_PeakThreshold.Position = [472 149 34 22];
+            app.Fix_PeakThreshold.Value = 0.9;
+
+            % Create EditField_5Label_4
+            app.EditField_5Label_4 = uilabel(app.MapTab);
+            app.EditField_5Label_4.HorizontalAlignment = 'right';
+            app.EditField_5Label_4.Position = [14 123 76 22];
+            app.EditField_5Label_4.Text = 'Sweep X Min';
+
+            % Create Map_SweepXMin
+            app.Map_SweepXMin = uieditfield(app.MapTab, 'numeric');
+            app.Map_SweepXMin.Tag = 'Map_SweepXMin';
+            app.Map_SweepXMin.Position = [103 123 34 22];
+            app.Map_SweepXMin.Value = -1.2;
+
+            % Create EditField_6Label_6
+            app.EditField_6Label_6 = uilabel(app.MapTab);
+            app.EditField_6Label_6.HorizontalAlignment = 'right';
+            app.EditField_6Label_6.Position = [174 123 90 22];
+            app.EditField_6Label_6.Text = 'LoomPeriodSec';
+
+            % Create Map_LoomPeriodSec
+            app.Map_LoomPeriodSec = uieditfield(app.MapTab, 'numeric');
+            app.Map_LoomPeriodSec.Tag = 'Map_LoomPeriodSec';
+            app.Map_LoomPeriodSec.Position = [279 123 34 22];
+
+            % Create RewardCooldownSecLabel
+            app.RewardCooldownSecLabel = uilabel(app.MapTab);
+            app.RewardCooldownSecLabel.HorizontalAlignment = 'right';
+            app.RewardCooldownSecLabel.Position = [337 125 120 22];
+            app.RewardCooldownSecLabel.Text = 'RewardCooldownSec';
+
+            % Create Fix_RewardCooldownSec
+            app.Fix_RewardCooldownSec = uieditfield(app.MapTab, 'numeric');
+            app.Fix_RewardCooldownSec.Tag = 'Fix_RewardCooldownSec';
+            app.Fix_RewardCooldownSec.Position = [472 125 34 22];
+
+            % Create SweepXMaxLabel
+            app.SweepXMaxLabel = uilabel(app.MapTab);
+            app.SweepXMaxLabel.HorizontalAlignment = 'right';
+            app.SweepXMaxLabel.Position = [14 99 79 22];
+            app.SweepXMaxLabel.Text = 'Sweep X Max';
+
+            % Create Map_SweepXMax
+            app.Map_SweepXMax = uieditfield(app.MapTab, 'numeric');
+            app.Map_SweepXMax.Tag = 'Map_SweepXMax';
+            app.Map_SweepXMax.Position = [103 99 34 22];
+            app.Map_SweepXMax.Value = 1.2;
+
+            % Create Fix_RewardEnable
+            app.Fix_RewardEnable = uicheckbox(app.MapTab);
+            app.Fix_RewardEnable.Tag = 'Fix_RewardEnable';
+            app.Fix_RewardEnable.Text = 'Enable Reward';
+            app.Fix_RewardEnable.Position = [343 101 123 22];
+            app.Fix_RewardEnable.Value = true;
 
             % Create DataViewerTab
             app.DataViewerTab = uitab(app.TabGroup);
@@ -3733,6 +3891,17 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.Files_Data.Layout.Row = 1;
             app.Files_Data.Layout.Column = 4;
 
+            % Create Plot_Data
+            app.Plot_Data = uibutton(app.GridLayout8, 'state');
+            app.Plot_Data.ValueChangedFcn = createCallbackFcn(app, @Plot_DataValueChanged, true);
+            app.Plot_Data.Tag = 'Plot_Data';
+            app.Plot_Data.IconAlignment = 'center';
+            app.Plot_Data.Text = 'Plot';
+            app.Plot_Data.BackgroundColor = [0.4941 0.1843 0.5569];
+            app.Plot_Data.FontColor = [1 1 1];
+            app.Plot_Data.Layout.Row = 1;
+            app.Plot_Data.Layout.Column = 5;
+
             % Create SmallBinLabel
             app.SmallBinLabel = uilabel(app.GridLayout8);
             app.SmallBinLabel.Tag = 'SmallBinText';
@@ -3760,61 +3929,12 @@ classdef BehaviorBox_App < matlab.apps.AppBase
             app.BigBin_Data.Layout.Row = 1;
             app.BigBin_Data.Layout.Column = 9;
 
-            % Create Plot_Data
-            app.Plot_Data = uibutton(app.GridLayout8, 'state');
-            app.Plot_Data.ValueChangedFcn = createCallbackFcn(app, @Plot_DataValueChanged, true);
-            app.Plot_Data.Tag = 'Plot_Data';
-            app.Plot_Data.IconAlignment = 'center';
-            app.Plot_Data.Text = 'Plot';
-            app.Plot_Data.BackgroundColor = [0.4941 0.1843 0.5569];
-            app.Plot_Data.FontColor = [1 1 1];
-            app.Plot_Data.Layout.Row = 1;
-            app.Plot_Data.Layout.Column = 5;
-
             % Create PerfHistPanel_Data
             app.PerfHistPanel_Data = uipanel(app.GridLayout7);
             app.PerfHistPanel_Data.Title = 'Performance - History';
             app.PerfHistPanel_Data.Tag = 'PerfHistPanel_Data';
             app.PerfHistPanel_Data.Layout.Row = 2;
             app.PerfHistPanel_Data.Layout.Column = 1;
-
-            % Create Git
-            app.Git = uibutton(app.figure1, 'push');
-            app.Git.ButtonPushedFcn = createCallbackFcn(app, @GitButtonPushed, true);
-            app.Git.Tag = 'Git';
-            app.Git.Icon = fullfile(pathToMLAPP, 'imgs', 'git.png');
-            app.Git.WordWrap = 'on';
-            app.Git.FontSize = 10;
-            app.Git.Tooltip = {'Update this App by pulling from stable Git repo'};
-            app.Git.Position = [509 369 32 30];
-            app.Git.Text = '';
-
-            % Create Folder
-            app.Folder = uibutton(app.figure1, 'push');
-            app.Folder.ButtonPushedFcn = createCallbackFcn(app, @FolderButtonPushed, true);
-            app.Folder.Tag = 'Folder';
-            app.Folder.Icon = fullfile(pathToMLAPP, 'imgs', 'folder.png');
-            app.Folder.Tooltip = {'Open mouse''s folder to see files'};
-            app.Folder.Position = [475 369 32 30];
-            app.Folder.Text = '';
-
-            % Create GraphPopOut
-            app.GraphPopOut = uibutton(app.figure1, 'push');
-            app.GraphPopOut.ButtonPushedFcn = createCallbackFcn(app, @GraphPopOutButtonPushed, true);
-            app.GraphPopOut.Tag = 'GraphPopOut';
-            app.GraphPopOut.Icon = fullfile(pathToMLAPP, 'imgs', 'popout.png');
-            app.GraphPopOut.Tooltip = {'Pop out the All Time Graph'};
-            app.GraphPopOut.Position = [438 369 32 30];
-            app.GraphPopOut.Text = '';
-
-            % Create GraphPopOut_2
-            app.GraphPopOut_2 = uibutton(app.figure1, 'push');
-            app.GraphPopOut_2.ButtonPushedFcn = createCallbackFcn(app, @GraphPopOut_2ButtonPushed, true);
-            app.GraphPopOut_2.Tag = 'GraphPopOut_2';
-            app.GraphPopOut_2.Icon = fullfile(pathToMLAPP, 'imgs', 'popout.png');
-            app.GraphPopOut_2.Tooltip = {'Pop out Today''s Performance graph'};
-            app.GraphPopOut_2.Position = [402 369 32 30];
-            app.GraphPopOut_2.Text = '';
 
             % Show the figure after all components are created
             app.figure1.Visible = 'on';
@@ -3825,7 +3945,7 @@ classdef BehaviorBox_App < matlab.apps.AppBase
     methods (Access = public)
 
         % Construct app
-        function app = BehaviorBox_App(varargin)
+        function app = BB_App(varargin)
 
             % Create UIFigure and components
             createComponents(app)

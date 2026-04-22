@@ -2717,6 +2717,8 @@ classdef BehaviorBoxWheel < handle
             end
             this.Stimulus_Object.setupMappingScene(char(style), ...
                 "AngleDeg", opts.OrientedLineAngleDeg, ...
+                "FlashVariant", opts.FlashVariant, ...
+                "FlashLevel", opts.FlashLevel, ...
                 "LoomVariant", opts.LoomVariant, ...
                 "LoomLevel", opts.LoomLevel, ...
                 "FixEnabled", opts.FixEnabled, ...
@@ -2755,6 +2757,12 @@ classdef BehaviorBoxWheel < handle
             opts.FlashCount = max(1, round(this.getAppNumericValue_("Map_FlashCount", 5)));
             opts.FlashXMin = this.getAppNumericValue_("Map_FlashXMin", -0.8);
             opts.FlashXMax = this.getAppNumericValue_("Map_FlashXMax", 0.8);
+            opts.FlashXPositions = this.getAppNumericVector_("Map_FlashXPositions", []);
+            if isempty(opts.FlashXPositions)
+                opts.FlashXPositions = linspace(opts.FlashXMin, opts.FlashXMax, opts.FlashCount);
+            end
+            opts.FlashLevel = max(1, round(this.getAppNumericValue_("Animate_Level", 1)));
+            opts.FlashVariant = this.getAnimateStimulusVariant_();
             opts.SweepXMin = this.getAppNumericValue_("Map_SweepXMin", -1.2);
             opts.SweepXMax = this.getAppNumericValue_("Map_SweepXMax", 1.2);
             opts.SweepSpeed = this.getAppNumericValue_("Map_SweepSpeed", max(0.2, this.getAppNumericValue_("Animate_Speed", 0.6)));
@@ -2762,15 +2770,13 @@ classdef BehaviorBoxWheel < handle
 
             xSlider = this.getAppNumericValue_("Animate_XPosition", 0.5);
             ySlider = this.getAppNumericValue_("Animate_YPosition", 0.5);
-            opts.LoomX = this.sliderToMapCoord_(xSlider);
-            opts.LoomY = this.sliderToMapCoord_(ySlider);
+            opts.LoomX = this.getAppNumericValue_("Map_LoomX", this.sliderToMapCoord_(xSlider));
+            opts.LoomY = this.getAppNumericValue_("Map_LoomY", this.sliderToMapCoord_(ySlider));
             opts.LoomMinScale = this.getAppNumericValue_("Map_LoomMinScale", 0.5);
             opts.LoomMaxScale = this.getAppNumericValue_("Map_LoomMaxScale", 1.5);
             opts.LoomPeriodSec = this.getAppNumericValue_("Map_LoomPeriodSec", 2.0);
-            opts.LoomVariant = string(this.getAppControlValue_("Map_LoomVariant", "Correct"));
-            opts.LoomLevel = max(1, round(this.getAppNumericValue_("Starting_opacity_Temp", ...
-                this.getStructNumericValue_(this.Setting_Struct, "Starting_opacity_Temp", ...
-                this.getStructNumericValue_(this.Setting_Struct, "Starting_opacity", 1)))));
+            opts.LoomVariant = this.getAnimateStimulusVariant_();
+            opts.LoomLevel = max(1, round(this.getAppNumericValue_("Animate_Level", 1)));
 
             opts.FixEnabled = this.getAppLogicalValue_("Fix_Enable", false);
             opts.FixX = this.getAppNumericValue_("Fix_X", this.sliderToMapCoord_(xSlider));
@@ -2807,12 +2813,43 @@ classdef BehaviorBoxWheel < handle
                 value = defaultValue;
             end
         end
+        function values = getAppNumericVector_(this, propName, defaultValue)
+            raw = this.getAppControlValue_(propName, defaultValue);
+            if isnumeric(raw)
+                values = double(raw(:))';
+                values = values(isfinite(values));
+                return
+            end
+            if isstring(raw) || ischar(raw)
+                tokens = regexp(char(raw), '[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?', 'match');
+                if isempty(tokens)
+                    values = double(defaultValue);
+                else
+                    values = str2double(tokens);
+                end
+                values = values(isfinite(values));
+                return
+            end
+            values = double(defaultValue);
+            values = values(isfinite(values));
+        end
         function value = getAppLogicalValue_(this, propName, defaultValue)
             raw = this.getAppControlValue_(propName, defaultValue);
             try
                 value = logical(raw);
             catch
                 value = defaultValue;
+            end
+        end
+        function variant = getAnimateStimulusVariant_(this)
+            variant = "Incorrect";
+            try
+                if logical(this.app.Animate_Correct.Value)
+                    variant = "Correct";
+                elseif logical(this.app.Animate_Incorrect.Value)
+                    variant = "Incorrect";
+                end
+            catch
             end
         end
         function value = getStructNumericValue_(~, dataStruct, fieldName, defaultValue)
@@ -3026,25 +3063,35 @@ classdef BehaviorBoxWheel < handle
         end
         function [rows, fixState, aborted] = runMappingFlashContour_(this, rows, t0, modeName, targets, opts, fixState)
             aborted = false;
-            xPositions = linspace(opts.FlashXMin, opts.FlashXMax, opts.FlashCount);
+            xPositions = opts.FlashXPositions;
+            if isempty(xPositions)
+                xPositions = linspace(opts.FlashXMin, opts.FlashXMax, opts.FlashCount);
+            end
             for idx = 1:numel(xPositions)
                 if this.mappingShouldAbort_()
                     aborted = true;
                     return
                 end
                 xPos = xPositions(idx);
-                targets.MapGroup.Matrix = this.makeMappingTransform_(xPos, 0, 0, 1);
+                targets.MapGroup.Matrix = this.makeMappingTransform_(xPos, 0, opts.OrientedLineAngleDeg, 1);
+                targets.MapRandomLine.Visible = 'off';
                 targets.MapContourLine.Visible = 'on';
-                [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "FlashOn", struct('x', xPos, 'y', 0));
+                [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "FlashOn", ...
+                    struct('x', xPos, 'y', 0, 'angleDeg', opts.OrientedLineAngleDeg, ...
+                    'variant', opts.FlashVariant, 'level', opts.FlashLevel));
                 [rows, fixState, aborted] = this.waitMappingInterval_(opts.FlashDurationSec, rows, t0, modeName, targets, fixState, ...
-                    struct('x', xPos, 'y', 0, 'scale', 1));
+                    struct('x', xPos, 'y', 0, 'angleDeg', opts.OrientedLineAngleDeg, ...
+                    'scale', 1, 'variant', opts.FlashVariant, 'level', opts.FlashLevel));
                 if aborted
                     return
                 end
                 targets.MapContourLine.Visible = 'off';
-                [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "FlashOff", struct('x', xPos, 'y', 0));
+                [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "FlashOff", ...
+                    struct('x', xPos, 'y', 0, 'angleDeg', opts.OrientedLineAngleDeg, ...
+                    'variant', opts.FlashVariant, 'level', opts.FlashLevel));
                 [rows, fixState, aborted] = this.waitMappingInterval_(opts.InterFlashIntervalSec, rows, t0, modeName, targets, fixState, ...
-                    struct('x', xPos, 'y', 0, 'scale', 1, 'notes', "hidden"));
+                    struct('x', xPos, 'y', 0, 'angleDeg', opts.OrientedLineAngleDeg, ...
+                    'scale', 1, 'variant', opts.FlashVariant, 'level', opts.FlashLevel, 'notes', "hidden"));
                 if aborted
                     return
                 end
@@ -3164,6 +3211,8 @@ classdef BehaviorBoxWheel < handle
 
             targets = this.Stimulus_Object.setupMappingScene(char(style), ...
                 "AngleDeg", opts.OrientedLineAngleDeg, ...
+                "FlashVariant", opts.FlashVariant, ...
+                "FlashLevel", opts.FlashLevel, ...
                 "LoomVariant", opts.LoomVariant, ...
                 "LoomLevel", opts.LoomLevel, ...
                 "FixEnabled", opts.FixEnabled, ...
@@ -3248,8 +3297,19 @@ classdef BehaviorBoxWheel < handle
                 [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "SequenceStart", struct());
                 while ~this.mappingShouldAbort_()
                     cycleIdx = cycleIdx + 1;
-                    [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "CycleStart", ...
-                        struct('notes', "cycle="+string(cycleIdx), 'level', opts.LoomLevel));
+                    cycleInfo = struct('notes', "cycle="+string(cycleIdx));
+                    switch style
+                        case "Map-FlashContourX"
+                            cycleInfo.level = opts.FlashLevel;
+                            cycleInfo.variant = opts.FlashVariant;
+                            cycleInfo.angleDeg = opts.OrientedLineAngleDeg;
+                        case "Map-SweepLine"
+                            cycleInfo.angleDeg = opts.OrientedLineAngleDeg;
+                        case "Map-LoomingStimulus"
+                            cycleInfo.level = opts.LoomLevel;
+                            cycleInfo.variant = opts.LoomVariant;
+                    end
+                    [rows, ~] = this.appendMappingEvent_(rows, t0, modeName, "CycleStart", cycleInfo);
                     switch style
                         case "Map-FlashContourX"
                             [rows, fixState, aborted] = this.runMappingFlashContour_(rows, t0, modeName, targets, opts, fixState);
@@ -3283,6 +3343,8 @@ classdef BehaviorBoxWheel < handle
                 if ismethod(this.Stimulus_Object, 'setupMappingScene')
                     this.Stimulus_Object.setupMappingScene(char(style), ...
                         "AngleDeg", opts.OrientedLineAngleDeg, ...
+                        "FlashVariant", opts.FlashVariant, ...
+                        "FlashLevel", opts.FlashLevel, ...
                         "LoomVariant", opts.LoomVariant, ...
                         "LoomLevel", opts.LoomLevel, ...
                         "FixEnabled", opts.FixEnabled, ...

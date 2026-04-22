@@ -360,6 +360,8 @@ classdef BehaviorBoxVisualStimulus < handle
                     stimType = "Bar";
                 case "Flash Stimulus"
                     stimType = "Stimulus";
+                case {"Map-SweepVerticalLine", "Map-SweepOrientedLine"}
+                    stimType = "Map-SweepLine";
             end
             this = findfigs(this);
             this.hideMappingScene_();
@@ -576,6 +578,8 @@ classdef BehaviorBoxVisualStimulus < handle
                 this
                 mode
                 options.AngleDeg double = 90
+                options.FlashVariant string = "Correct"
+                options.FlashLevel double = NaN
                 options.LoomVariant string = "Correct"
                 options.LoomLevel double = NaN
                 options.FixEnabled logical = false
@@ -600,6 +604,14 @@ classdef BehaviorBoxVisualStimulus < handle
             [contourX, contourY] = this.buildContourPolyline_(contourSegCount);
             [randomX, randomY] = this.buildRandomSegmentsPolyline_(max(3, contourSegCount));
             [lineX, lineY] = this.buildLongLine_();
+            if mode == "Map-FlashContourX"
+                [contourX, contourY] = this.buildMappingStimulusPolyline_(options.FlashLevel, options.FlashVariant);
+                randomX = nan;
+                randomY = nan;
+            elseif mode == "Map-LoomingStimulus"
+                [contourX, contourY] = this.buildMappingStimulusPolyline_(options.LoomLevel, "Correct");
+                [randomX, randomY] = this.buildMappingStimulusPolyline_(options.LoomLevel, "Incorrect");
+            end
 
             this.MapContourLine.XData = contourX;
             this.MapContourLine.YData = contourY;
@@ -621,6 +633,8 @@ classdef BehaviorBoxVisualStimulus < handle
             switch mode
                 case "Map-FlashContourX"
                     this.MapContourLine.Visible = this.onOff_(options.InitialVisible);
+                    this.MapRandomLine.Visible = 'off';
+                    this.MapGroup.Matrix = makehgtform('zrotate', deg2rad(options.AngleDeg));
                 case {"Map-SweepLine", "Map-SweepVerticalLine", "Map-SweepOrientedLine"}
                     this.MapSweepLine.Visible = this.onOff_(options.InitialVisible);
                     this.MapGroup.Matrix = makehgtform('zrotate', deg2rad(options.AngleDeg));
@@ -942,6 +956,77 @@ classdef BehaviorBoxVisualStimulus < handle
                 ii = (idx-1)*3 + 1;
                 [dx1, dy1] = pol2cart(deg2rad(ang(idx)), halfSeg);
                 [dx2, dy2] = pol2cart(deg2rad(ang(idx)+180), halfSeg);
+                xData(ii:ii+2) = [pos(idx,1)+dx1 pos(idx,1)+dx2 nan];
+                yData(ii:ii+2) = [pos(idx,2)+dy1 pos(idx,2)+dy2 nan];
+            end
+        end
+        function [xData, yData] = buildMappingStimulusPolyline_(this, level, variant)
+            if nargin < 2 || isempty(level) || isnan(level)
+                level = max(1, round(this.Level));
+            end
+            level = max(1, min(size(this.numDistractorsTable, 1), round(level)));
+            variant = upper(strtrim(string(variant)));
+
+            nodes = this.ContourNodes;
+            if isempty(nodes)
+                nodes = this.SetupHexGrid();
+            end
+            if isempty(nodes)
+                if variant == "INCORRECT"
+                    [xData, yData] = this.buildRandomSegmentsPolyline_(max(1, this.numDistractorsTable(level, 1)));
+                else
+                    [xData, yData] = this.buildContourPolyline_();
+                end
+                return
+            end
+
+            isCorrect = variant ~= "INCORRECT";
+            if isCorrect
+                numDs = this.numDistractorsTable(level, 2);
+                contourNodes = nodes(logical(nodes(:,1) == 0), :);
+                nonContourNodes = nodes(~logical(nodes(:,1) == 0), :);
+            else
+                numDs = this.numDistractorsTable(level, 1);
+                contourNodes = zeros(0, 2);
+                nonContourNodes = nodes;
+            end
+
+            selectedNodes = zeros(0, 2);
+            if ~isempty(nonContourNodes) && numDs > 0
+                takeN = min(size(nonContourNodes, 1), numDs);
+                idx = randperm(size(nonContourNodes, 1), takeN);
+                selectedNodes = nonContourNodes(idx, :);
+            end
+            selectedAngles = randi(180, size(selectedNodes, 1), 1);
+            dists = [selectedNodes selectedAngles];
+            if isCorrect && ~isempty(contourNodes)
+                dists = [dists; contourNodes repmat(90, size(contourNodes, 1), 1)];
+            end
+            [xData, yData] = this.buildSegmentsPolyline_(dists, nodes);
+        end
+        function [xData, yData] = buildSegmentsPolyline_(~, dists, nodes)
+            if isempty(dists)
+                xData = nan(1, 1);
+                yData = nan(1, 1);
+                return
+            end
+            pos = double(dists(:,1:2));
+            if nargin >= 3 && ~isempty(nodes)
+                xScale = max(max(abs(nodes(:,1))), eps);
+                yScale = max(max(abs(nodes(:,2))), eps);
+                pos(:,1) = pos(:,1) / xScale * 0.45;
+                pos(:,2) = pos(:,2) / yScale * 0.70;
+            end
+            segLength = 0.20;
+            halfSeg = segLength / 2;
+            nSeg = size(dists, 1);
+            xData = nan(1, 3*nSeg);
+            yData = nan(1, 3*nSeg);
+            for idx = 1:nSeg
+                ii = (idx-1)*3 + 1;
+                ang = double(dists(idx, 3));
+                [dx1, dy1] = pol2cart(deg2rad(ang), halfSeg);
+                [dx2, dy2] = pol2cart(deg2rad(ang + 180), halfSeg);
                 xData(ii:ii+2) = [pos(idx,1)+dx1 pos(idx,1)+dx2 nan];
                 yData(ii:ii+2) = [pos(idx,2)+dy1 pos(idx,2)+dy2 nan];
             end

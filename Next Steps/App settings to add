@@ -3,7 +3,7 @@ Use these exact component variable names in App Designer. The code looks them up
 Minimum
 
  Update Animate_Style.Items to:
-{'Y-Line', 'X-Line', 'Bar', 'Stimulus', 'Dot', 'Map-FlashContourX', 'Map-SweepVerticalLine', 'Map-SweepOrientedLine', 'Map-LoomingStimulus'}
+{'Stimulus', 'Dot', 'Map-FlashContourX', 'Map-SweepLine', 'Map-LoomingStimulus'}
  Keep these existing controls in place: Animate_Speed, Animate_LineAngle, Animate_XPosition, Animate_YPosition, Animate_End, Animate_MimicTrial
 Mapping Controls
 
@@ -49,6 +49,5 @@ Fastest Layout
  Put all Map_* controls in a new “Mapping” panel inside the animate area
  Put all Fix_* controls in a new “Fixation / Reward” panel below it
  Keep Animate_Style, Animate_Speed, Animate_LineAngle, Animate_XPosition, and Animate_YPosition where they already are
-One important note: Map-SweepVerticalLine currently shares the same Map-SweepLine backend as the oriented sweep, so for a truly vertical line you should leave Map_OrientedLineAngleDeg or Animate_LineAngle at 90. If you want, I can patch that next so vertical mode forces 90 automatically.
-
+One important note: Map-SweepLine uses Map_OrientedLineAngleDeg or Animate_LineAngle to set orientation, so use 90 for a vertical line and 0 for a horizontal line.
 

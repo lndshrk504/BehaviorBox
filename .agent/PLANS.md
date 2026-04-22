@@ -25,8 +25,47 @@
 - If the task crosses MATLAB and Python, list both sides of the boundary and the file/schema contract.
 
     Required stop conditions:
-    - stop if MATLAB and Python disagree on shapes, dtypes, indexing, or file schema
+- stop if MATLAB and Python disagree on shapes, dtypes, indexing, or file schema
 - stop if a change would silently alter saved `.mat`, `.h5`, `.json`, or `.csv` outputs without an explicit migration note
+
+## 2026-04-21 Fix Mapping Loom Stimulus Controls
+
+1. Goal
+- Make `Map-LoomingStimulus` use the intended GUI controls and stimulus semantics.
+- Use `Animate_Level` for loom level, use `Map_LoomX` / `Map_LoomY` for loom position, and render the looming stimulus from the same correct/incorrect stimulus-construction path used by `Map-FlashContourX`.
+
+2. Non-goals
+- Do not change flash or sweep behavior, save schemas, Arduino timing, or GUI layout.
+- Do not add new mapping modes or new GUI fields.
+
+3. Current-state summary
+- `BehaviorBoxWheel.buildMappingOptions_()` currently takes loom level from `Starting_opacity_Temp` and loom position from the generic animate X/Y sliders, even though the GUI exposes dedicated loom X/Y fields and animate-level control.
+- `BehaviorBoxVisualStimulus.setupMappingScene()` currently renders loom mode with the simplified `buildContourPolyline_()` / `buildRandomSegmentsPolyline_()` placeholders instead of the newer correct/incorrect stimulus generator used for flash mode.
+- The result is that loom can appear nonfunctional or semantically wrong: the visible change may be only a subtle single-segment scale pulse, and loom-specific GUI controls do not fully drive the display.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxWheel.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxVisualStimulus.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- Static checks:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); checkcode('BehaviorBoxWheel.m'); checkcode('BehaviorBoxVisualStimulus.m');"`
+- Focused loom smoke:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); obj=BehaviorBoxVisualStimulus(struct(),Preview=1); obj=obj.updateProps(struct()); [fig,~,~,~,~]=obj.setUpFigure(); t=obj.setupMappingScene('Map-LoomingStimulus','LoomVariant','Correct','LoomLevel',10,'InitialVisible',true); disp([numel(t.MapContourLine.XData) numel(t.MapRandomLine.XData)]); close(fig);"`
+
+6. Milestones
+- Patch loom option sourcing in `BehaviorBoxWheel.buildMappingOptions_()`.
+- Patch loom stimulus construction in `BehaviorBoxVisualStimulus.setupMappingScene()` so correct and incorrect looming variants use the mapping stimulus polyline builder.
+- Run narrow MATLAB validation and inspect the diff.
+
+7. Risks and stop conditions
+- Stop if the intended loom behavior requires a saved-output schema change or a new GUI control.
+- Stop if the newer mapping stimulus builder cannot safely represent loom incorrect stimuli without breaking flash mode semantics.
+
+8. Handoff notes
+- Expected invariants: mapping log schema, acquisition/timestamp handling, flash behavior, sweep behavior, and non-mapping animation paths.
+- Intentional visual behavior change: loom should now visibly reflect `Animate_Level`, `Animate_Correct` / `Animate_Incorrect`, and dedicated loom X/Y controls.
 
 ## 2026-04-16 Production DLC Eye Tracking Framework
 
