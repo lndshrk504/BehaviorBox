@@ -284,6 +284,10 @@ classdef BB_App < matlab.apps.AppBase
         StyleDropDownLabel              matlab.ui.control.Label
         FixationDotPanel                matlab.ui.container.Panel
         LineSweepPanel                  matlab.ui.container.Panel
+        Map_DistractorAngle             matlab.ui.control.NumericEditField
+        EditField_5Label_7              matlab.ui.control.Label
+        Map_ContourAngle                matlab.ui.control.NumericEditField
+        EditField_5Label_6              matlab.ui.control.Label
         DataViewerTab                   matlab.ui.container.Tab
         GridLayout7                     matlab.ui.container.GridLayout
         PerfHistPanel_Data              matlab.ui.container.Panel
@@ -1456,7 +1460,7 @@ classdef BB_App < matlab.apps.AppBase
             drawnow limitrate;
         end
 
-        % Callback function: not associated with a component
+        % Callback function
         function Animate_PositionValueChanged(app, event)
             try
                 switch event.Source.Tag
@@ -3439,7 +3443,29 @@ classdef BB_App < matlab.apps.AppBase
             % Create LineSweepPanel
             app.LineSweepPanel = uipanel(app.MapTab);
             app.LineSweepPanel.Title = 'Line Sweep';
-            app.LineSweepPanel.Position = [10 94 314 224];
+            app.LineSweepPanel.Position = [10 83 314 235];
+
+            % Create EditField_5Label_6
+            app.EditField_5Label_6 = uilabel(app.LineSweepPanel);
+            app.EditField_5Label_6.HorizontalAlignment = 'right';
+            app.EditField_5Label_6.Position = [141 131 49 22];
+            app.EditField_5Label_6.Text = 'Contour';
+
+            % Create Map_ContourAngle
+            app.Map_ContourAngle = uieditfield(app.LineSweepPanel, 'numeric');
+            app.Map_ContourAngle.Tag = 'Map_OrientedLineAngleDeg';
+            app.Map_ContourAngle.Position = [195 131 34 22];
+
+            % Create EditField_5Label_7
+            app.EditField_5Label_7 = uilabel(app.LineSweepPanel);
+            app.EditField_5Label_7.HorizontalAlignment = 'right';
+            app.EditField_5Label_7.Position = [237 133 26 22];
+            app.EditField_5Label_7.Text = 'Dist';
+
+            % Create Map_DistractorAngle
+            app.Map_DistractorAngle = uieditfield(app.LineSweepPanel, 'numeric');
+            app.Map_DistractorAngle.Tag = 'Map_OrientedLineAngleDeg';
+            app.Map_DistractorAngle.Position = [270 133 34 22];
 
             % Create FixationDotPanel
             app.FixationDotPanel = uipanel(app.MapTab);
@@ -3620,13 +3646,13 @@ classdef BB_App < matlab.apps.AppBase
             app.Map_FlashDurationSec = uieditfield(app.MapTab, 'numeric');
             app.Map_FlashDurationSec.Tag = 'Map_FlashDurationSec';
             app.Map_FlashDurationSec.Position = [103 244 34 22];
-            app.Map_FlashDurationSec.Value = 0.5;
+            app.Map_FlashDurationSec.Value = 0.2;
 
             % Create EditField_5Label_5
             app.EditField_5Label_5 = uilabel(app.MapTab);
             app.EditField_5Label_5.HorizontalAlignment = 'right';
-            app.EditField_5Label_5.Position = [197 243 67 22];
-            app.EditField_5Label_5.Text = 'Angle (deg)';
+            app.EditField_5Label_5.Position = [171 243 93 22];
+            app.EditField_5Label_5.Text = 'Stim Angle (deg)';
 
             % Create Map_OrientedLineAngleDeg
             app.Map_OrientedLineAngleDeg = uieditfield(app.MapTab, 'numeric');
@@ -3654,18 +3680,18 @@ classdef BB_App < matlab.apps.AppBase
             app.Map_InterFlashIntervalSec = uieditfield(app.MapTab, 'numeric');
             app.Map_InterFlashIntervalSec.Tag = 'Map_InterFlashIntervalSec';
             app.Map_InterFlashIntervalSec.Position = [103 219 34 22];
-            app.Map_InterFlashIntervalSec.Value = 2;
+            app.Map_InterFlashIntervalSec.Value = 1.8;
 
             % Create EditField_6Label_4
             app.EditField_6Label_4 = uilabel(app.MapTab);
             app.EditField_6Label_4.HorizontalAlignment = 'right';
-            app.EditField_6Label_4.Position = [218 219 46 22];
+            app.EditField_6Label_4.Position = [218 189 46 22];
             app.EditField_6Label_4.Text = 'Loom X';
 
             % Create Map_LoomX
             app.Map_LoomX = uieditfield(app.MapTab, 'numeric');
             app.Map_LoomX.Tag = 'Map_LoomX';
-            app.Map_LoomX.Position = [279 219 34 22];
+            app.Map_LoomX.Position = [279 189 34 22];
 
             % Create Fix_YEditFieldLabel
             app.Fix_YEditFieldLabel = uilabel(app.MapTab);
@@ -3693,13 +3719,13 @@ classdef BB_App < matlab.apps.AppBase
             % Create LoomYLabel
             app.LoomYLabel = uilabel(app.MapTab);
             app.LoomYLabel.HorizontalAlignment = 'right';
-            app.LoomYLabel.Position = [218 195 46 22];
+            app.LoomYLabel.Position = [218 165 46 22];
             app.LoomYLabel.Text = 'Loom Y';
 
             % Create Map_LoomY
             app.Map_LoomY = uieditfield(app.MapTab, 'numeric');
             app.Map_LoomY.Tag = 'Map_LoomY';
-            app.Map_LoomY.Position = [279 195 34 22];
+            app.Map_LoomY.Position = [279 165 34 22];
 
             % Create RadiusLabel
             app.RadiusLabel = uilabel(app.MapTab);
@@ -3728,13 +3754,13 @@ classdef BB_App < matlab.apps.AppBase
             % Create LoomMinScaleLabel
             app.LoomMinScaleLabel = uilabel(app.MapTab);
             app.LoomMinScaleLabel.HorizontalAlignment = 'right';
-            app.LoomMinScaleLabel.Position = [173 171 91 22];
+            app.LoomMinScaleLabel.Position = [173 141 91 22];
             app.LoomMinScaleLabel.Text = 'Loom Min Scale';
 
             % Create Map_LoomMinScale
             app.Map_LoomMinScale = uieditfield(app.MapTab, 'numeric');
             app.Map_LoomMinScale.Tag = 'Map_LoomMinScale';
-            app.Map_LoomMinScale.Position = [279 171 34 22];
+            app.Map_LoomMinScale.Position = [279 141 34 22];
             app.Map_LoomMinScale.Value = 0.5;
 
             % Create PeriodSecLabel
@@ -3764,13 +3790,13 @@ classdef BB_App < matlab.apps.AppBase
             % Create EditField_6Label_5
             app.EditField_6Label_5 = uilabel(app.MapTab);
             app.EditField_6Label_5.HorizontalAlignment = 'right';
-            app.EditField_6Label_5.Position = [176 147 88 22];
+            app.EditField_6Label_5.Position = [176 117 88 22];
             app.EditField_6Label_5.Text = 'LoomMaxScale';
 
             % Create Map_LoomMaxScale
             app.Map_LoomMaxScale = uieditfield(app.MapTab, 'numeric');
             app.Map_LoomMaxScale.Tag = 'Map_LoomMaxScale';
-            app.Map_LoomMaxScale.Position = [279 147 34 22];
+            app.Map_LoomMaxScale.Position = [279 117 34 22];
             app.Map_LoomMaxScale.Value = 1.5;
 
             % Create PeakThresholdLabel
@@ -3800,13 +3826,13 @@ classdef BB_App < matlab.apps.AppBase
             % Create EditField_6Label_6
             app.EditField_6Label_6 = uilabel(app.MapTab);
             app.EditField_6Label_6.HorizontalAlignment = 'right';
-            app.EditField_6Label_6.Position = [174 123 90 22];
+            app.EditField_6Label_6.Position = [174 93 90 22];
             app.EditField_6Label_6.Text = 'LoomPeriodSec';
 
             % Create Map_LoomPeriodSec
             app.Map_LoomPeriodSec = uieditfield(app.MapTab, 'numeric');
             app.Map_LoomPeriodSec.Tag = 'Map_LoomPeriodSec';
-            app.Map_LoomPeriodSec.Position = [279 123 34 22];
+            app.Map_LoomPeriodSec.Position = [279 93 34 22];
 
             % Create RewardCooldownSecLabel
             app.RewardCooldownSecLabel = uilabel(app.MapTab);
