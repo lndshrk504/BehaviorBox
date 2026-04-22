@@ -78,7 +78,7 @@
 - Keep the exact DeepLabCut sample schema for the current bundled YangLab 8-point pupil model inside `EyeAlignedRecord`.
 
 2. Non-goals
-- Do not change the raw `EyeTrackingRecord` schema, raw `MapLog` schema, raw `TimestampRecord` segment schema, GUI layout, DeepLabCut Python payload contract, or training-session `FrameAlignedRecord` behavior.
+- Do not change the raw `EyeTrackingRecord` schema, raw `MapLog` schema, raw `TimestampRecord` segment schema, GUI layout, or DeepLabCut Python payload contract.
 - Do not alter reward logic, Arduino protocols, or non-mapping animation behavior.
 
 3. Current-state summary
@@ -120,7 +120,7 @@
 
 8. Handoff notes
 - Expected invariants: raw eye record columns, raw map-log columns, raw timestamp-segment content, training-frame alignment behavior, and drain-all eye capture semantics.
-- Intentional saved-schema changes: animate mapping `.mat` files will gain derived `FrameAlignedRecord` and `EyeAlignedRecord`, `MapLog` will remain the raw event table instead of an eye-augmented convenience table, and Wheel training saves will also gain derived `EyeAlignedRecord` when eye samples exist.
+- Intentional saved-schema changes: animate mapping `.mat` files will gain derived `FrameAlignedRecord` and `EyeAlignedRecord`, `MapLog` will remain the raw event table instead of an eye-augmented convenience table, Wheel training saves will also gain derived `EyeAlignedRecord` when eye samples exist, and Wheel training saves will omit `FrameAlignedRecord` when no frame-backed rows were derived.
 
 ## 2026-04-16 Production DLC Eye Tracking Framework
 

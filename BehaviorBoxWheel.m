@@ -2358,7 +2358,12 @@ classdef BehaviorBoxWheel < handle
                     [newData.EyeTrackingRecord, newData.EyeTrackingMeta] = this.eyeTrackSaveOutputs_();
                     if ~isempty(this.Time) && isobject(this.Time)
                         newData.WheelDisplayRecord = this.annotateWheelDisplayRecordForSave_(this.WheelDisplayRecord, FullTrials);
-                        newData.FrameAlignedRecord = this.alignFrameRowsWithEyeTrack_(this.FrameAlignedRecord);
+                        frameAlignedRecord = this.alignFrameRowsWithEyeTrack_(this.FrameAlignedRecord);
+                        if istable(frameAlignedRecord) && height(frameAlignedRecord) > 0
+                            newData.FrameAlignedRecord = frameAlignedRecord;
+                        elseif isfield(newData, 'FrameAlignedRecord')
+                            newData = rmfield(newData, 'FrameAlignedRecord');
+                        end
                     end
                     if istable(newData.EyeTrackingRecord) && height(newData.EyeTrackingRecord) > 0
                         wheelDisplayForEye = this.emptyWheelDisplayRecord_();
