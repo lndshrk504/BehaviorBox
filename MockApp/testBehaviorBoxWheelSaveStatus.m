@@ -133,6 +133,10 @@ assert(height(loaded.newData.EyeTrackingRecord) == 1, 'Expected one saved eye-tr
 assert(all(ismember(["Lpupil_x", "RVpupil_y", "VLpupil_likelihood"], string(loaded.newData.EyeTrackingRecord.Properties.VariableNames))), ...
     'Saved eye-point columns are missing.');
 assert(loaded.newData.EyeTrackingMeta.PointCount == 8, 'Saved eye metadata should report 8 tracked points.');
+assert(isfield(loaded.newData, 'EyeAlignedRecord'), 'Training save should include EyeAlignedRecord when eye samples exist.');
+assert(height(loaded.newData.EyeAlignedRecord) == 1, 'Training EyeAlignedRecord should retain one eye-backed row.');
+assert(isnan(loaded.newData.EyeAlignedRecord.nextMicroscopeFrame(1)), ...
+    'Training EyeAlignedRecord microscope back-reference should be empty when no frame rows exist.');
 
 frameVars = string(loaded.newData.FrameAlignedRecord.Properties.VariableNames);
 assert(all(ismember(["eye_center_x", "eye_center_y", "eye_diameter_px", "eye_is_valid", "eye_sample_status"], frameVars)), ...

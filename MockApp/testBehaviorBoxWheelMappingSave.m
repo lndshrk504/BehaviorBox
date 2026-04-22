@@ -126,6 +126,33 @@ assert(loaded.EyeAlignedRecord.nextMicroscopeFrame(3) == 102, 'Third eye sample 
 assert(abs(loaded.EyeAlignedRecord.nextMicroscopeFrame_dt_us(1) - 12000) <= 1, 'First eye sample frame lag is wrong.');
 assert(abs(loaded.EyeAlignedRecord.nextMicroscopeFrame_dt_us(3) - 2000) <= 1, 'Third eye sample frame lag is wrong.');
 
+appNoEye = MockApp();
+guiNoEye = struct('MsgBox', appNoEye.MsgBox, 'NotesText', appNoEye.NotesText);
+wheelNoEye = BehaviorBoxWheel(guiNoEye, appNoEye);
+wheelNoEye.Setting_Struct.Subject = "999996";
+wheelNoEye.Setting_Struct.Strain = "New";
+wheelNoEye.Data_Object = struct( ...
+    'start_time', datetime(2026, 3, 27, 12, 11, 0), ...
+    'Str', "New", ...
+    'filedir', validationDir);
+wheelNoEye.TrainStartWallClock = datetime(2026, 3, 27, 12, 11, 0);
+wheelNoEye.TrainStartTime = tic;
+
+wheelNoEye.SaveAllData("Activity", "Animate", "PosRecord", [], ...
+    "TimeLog", string.empty(0,1), ...
+    "MapLog", mapLog, ...
+    "MapMeta", struct('Style', "Map-FlashContourX"), ...
+    "TimestampRecord", timestampRecord);
+
+saveFileNoEye = fullfile(validationDir, '260327_121100_999996_New_Animate_Wheel.mat');
+loadedNoEye = load(saveFileNoEye);
+assert(isfield(loadedNoEye, 'EyeTrackingRecord'), 'No-eye mapping save should still write EyeTrackingRecord.');
+assert(height(loadedNoEye.EyeTrackingRecord) == 0, 'No-eye mapping save should write an empty EyeTrackingRecord.');
+assert(~isfield(loadedNoEye, 'EyeAlignedRecord'), 'No-eye mapping save should omit EyeAlignedRecord.');
+assert(isfield(loadedNoEye, 'FrameAlignedRecord'), 'No-eye mapping save should still write FrameAlignedRecord when timestamps exist.');
+assert(height(loadedNoEye.FrameAlignedRecord) == 2, 'No-eye mapping save should still keep microscope-backed frame rows.');
+assert(all(isnan(loadedNoEye.FrameAlignedRecord.eye_center_x)), 'No-eye frame-aligned rows should have empty aligned-eye values.');
+
 disp("BEHAVIORBOX_WHEEL_MAPPING_SAVE_OK");
 
 function jsonText = makeEyeJson_(sessionStartWallClock, offsetUs, frameId, centerX, pointOffset)

@@ -2360,6 +2360,22 @@ classdef BehaviorBoxWheel < handle
                         newData.WheelDisplayRecord = this.annotateWheelDisplayRecordForSave_(this.WheelDisplayRecord, FullTrials);
                         newData.FrameAlignedRecord = this.alignFrameRowsWithEyeTrack_(this.FrameAlignedRecord);
                     end
+                    if istable(newData.EyeTrackingRecord) && height(newData.EyeTrackingRecord) > 0
+                        wheelDisplayForEye = this.emptyWheelDisplayRecord_();
+                        if isfield(newData, 'WheelDisplayRecord') && istable(newData.WheelDisplayRecord)
+                            wheelDisplayForEye = newData.WheelDisplayRecord;
+                        elseif ~isempty(this.WheelDisplayRecord) && istable(this.WheelDisplayRecord)
+                            wheelDisplayForEye = this.WheelDisplayRecord;
+                        end
+                        timestampForEye = {};
+                        if isfield(newData, 'TimestampRecord')
+                            timestampForEye = newData.TimestampRecord;
+                        end
+                        eyeAlignedRecord = this.buildTrainingEyeAlignedRecord_(newData.EyeTrackingRecord, wheelDisplayForEye, timestampForEye);
+                        if istable(eyeAlignedRecord) && height(eyeAlignedRecord) > 0
+                            newData.EyeAlignedRecord = eyeAlignedRecord;
+                        end
+                    end
 
                 end
                 if isscalar(this.SetUpdate) % Settings never changed during the session.
@@ -2437,7 +2453,10 @@ classdef BehaviorBoxWheel < handle
                 end
                 saveFile = fullfile(savefolder, char(saveasname + ".mat"));
                 saveVars = {'Settings', 'Position_Record', 'Notes', 'TimeLog', 'MapLog', 'MapMeta', 'TimestampRecord', ...
-                    'EyeTrackingRecord', 'EyeTrackingMeta', 'EyeAlignedRecord'};
+                    'EyeTrackingRecord', 'EyeTrackingMeta'};
+                if istable(EyeAlignedRecord) && height(EyeAlignedRecord) > 0
+                    saveVars{end+1} = 'EyeAlignedRecord'; %#ok<AGROW>
+                end
                 if istable(FrameAlignedRecord) && height(FrameAlignedRecord) > 0
                     saveVars{end+1} = 'FrameAlignedRecord'; %#ok<AGROW>
                 end
@@ -4903,6 +4922,101 @@ classdef BehaviorBoxWheel < handle
             eyeAlignedRecord = this.buildMappingEyeAlignedRecord_(eyeRecord, frameRows, mapLog);
         end
 
+        function rows = buildTrainingEyeAlignedRecord_(this, eyeRecord, wheelDisplayRecord, timestampRecord)
+            rows = this.emptyTrainingEyeAlignedRecord_(eyeRecord);
+            if isempty(eyeRecord) || ~istable(eyeRecord) || height(eyeRecord) == 0
+                return
+            end
+
+            wheelDisplayRecord = this.normalizeWheelDisplayForEyeAlignment_(wheelDisplayRecord);
+            frameRows = this.mappingFrameRowsFromTimestampRecord_(timestampRecord);
+            parsedEventRows = this.trainingParsedEventRowsFromTimestampRecord_(timestampRecord);
+
+            displayEventTimes = NaN(0,1);
+            displayEventNames = strings(0,1);
+            wheelDisplayUs = NaN(0,1);
+            if ~isempty(wheelDisplayRecord) && istable(wheelDisplayRecord) && height(wheelDisplayRecord) > 0
+                wheelDisplayUs = double(wheelDisplayRecord.t_us);
+                displayEventMask = wheelDisplayRecord.screenEvent ~= "" & ~isnan(wheelDisplayUs);
+                displayEventTimes = double(wheelDisplayUs(displayEventMask));
+                displayEventNames = string(wheelDisplayRecord.screenEvent(displayEventMask));
+            end
+
+            parsedEventTimes = NaN(0,1);
+            parsedEventNames = strings(0,1);
+            if ~isempty(parsedEventRows) && istable(parsedEventRows) && height(parsedEventRows) > 0
+                parsedEventTimes = double(parsedEventRows.t_us);
+                parsedEventNames = this.frameAlignedEventLabel_(string(parsedEventRows.event));
+            end
+
+            frameTimes = NaN(0,1);
+            frameIds = NaN(0,1);
+            frameArduinoUs = NaN(0,1);
+            framePcReceiveUs = NaN(0,1);
+            if ~isempty(frameRows) && istable(frameRows) && height(frameRows) > 0
+                frameTimes = double(frameRows.t_us);
+                frameIds = double(frameRows.frame);
+                frameArduinoUs = double(frameRows.t_arduino_us);
+                framePcReceiveUs = double(frameRows.t_pc_receive_us);
+            end
+
+            rows = eyeRecord;
+            rows = this.ensureTrainingEyeAlignedRecordColumns_(rows);
+            prevEyeUs = -Inf;
+            frameIdx = 1;
+            frameCount = numel(frameTimes);
+
+            for iEye = 1:height(rows)
+                eyeUs = this.rowNumericScalar_(rows(iEye, :), "t_us");
+
+                sourceIdx = [];
+                if ~isempty(wheelDisplayUs)
+                    sourceIdx = find(wheelDisplayUs <= eyeUs, 1, 'last');
+                    if isempty(sourceIdx)
+                        sourceIdx = 1;
+                    end
+                end
+                if ~isempty(sourceIdx)
+                    sourceRow = wheelDisplayRecord(sourceIdx, :);
+                    rows.phase(iEye) = this.rowStringScalar_(sourceRow, "phase");
+                    rows.tTrial(iEye) = this.rowNumericScalar_(sourceRow, "tTrial");
+                    rows.rawWheel(iEye) = this.rowNumericScalar_(sourceRow, "rawWheel");
+                    rows.delta(iEye) = this.rowNumericScalar_(sourceRow, "delta");
+                    rows.StimColor(iEye) = this.rowNumericScalar_(sourceRow, "StimColor");
+                    rows.level(iEye) = this.rowNumericScalar_(sourceRow, "level");
+                    rows.isLeftTrial(iEye) = logical(this.rowNumericScalar_(sourceRow, "isLeftTrial"));
+                end
+
+                displayEventIdx = find(displayEventTimes > prevEyeUs & displayEventTimes <= eyeUs);
+                parsedEventIdx = find(parsedEventTimes > prevEyeUs & parsedEventTimes <= eyeUs);
+                if ~isempty(displayEventIdx) || ~isempty(parsedEventIdx)
+                    mergedTimes = [displayEventTimes(displayEventIdx); parsedEventTimes(parsedEventIdx)];
+                    mergedNames = [displayEventNames(displayEventIdx); parsedEventNames(parsedEventIdx)];
+                    mergedOrder = transpose(1:numel(mergedTimes));
+                    [~, sortIdx] = sortrows([mergedTimes(:), mergedOrder], [1 2]);
+                    mergedNames = this.dedupeFrameAlignedEventNames_(mergedNames(sortIdx));
+                    rows.screenEvent(iEye) = strjoin(mergedNames, " | ");
+                    rows.screenEvent_count(iEye) = numel(mergedNames);
+                    mergedTimes = mergedTimes(sortIdx);
+                    rows.screenEvent_t_first_us(iEye) = mergedTimes(1);
+                    rows.screenEvent_t_last_us(iEye) = mergedTimes(end);
+                end
+
+                while frameIdx <= frameCount && frameTimes(frameIdx) < eyeUs
+                    frameIdx = frameIdx + 1;
+                end
+                if frameIdx <= frameCount
+                    rows.nextMicroscopeFrame(iEye) = frameIds(frameIdx);
+                    rows.nextMicroscopeFrame_t_us(iEye) = frameTimes(frameIdx);
+                    rows.nextMicroscopeFrame_t_arduino_us(iEye) = frameArduinoUs(frameIdx);
+                    rows.nextMicroscopeFrame_t_pc_receive_us(iEye) = framePcReceiveUs(frameIdx);
+                    rows.nextMicroscopeFrame_dt_us(iEye) = frameTimes(frameIdx) - eyeUs;
+                end
+
+                prevEyeUs = eyeUs;
+            end
+        end
+
         function frameRows = mappingFrameRowsFromTimestampRecord_(this, timestampRecord)
             frameRows = table();
             if isempty(timestampRecord)
@@ -4979,6 +5093,100 @@ classdef BehaviorBoxWheel < handle
                 frameRows = sortrows(frameRows, {'t_us', 'AlignmentOrder'});
             end
             frameRows.AlignmentOrder = [];
+        end
+
+        function eventRows = trainingParsedEventRowsFromTimestampRecord_(this, timestampRecord)
+            eventRows = table();
+            if isempty(timestampRecord)
+                return
+            end
+
+            eventChunks = cell(0,1);
+            for iSeg = 1:numel(timestampRecord)
+                segment = timestampRecord{iSeg};
+                if isempty(segment) || ~isstruct(segment) || ~isfield(segment, 'parsed') || ~istable(segment.parsed)
+                    continue
+                end
+                parsed = segment.parsed;
+                if isempty(parsed) || height(parsed) == 0
+                    continue
+                end
+                parsedVars = string(parsed.Properties.VariableNames);
+                if ~ismember("event", parsedVars) || ~ismember("t_us", parsedVars)
+                    continue
+                end
+
+                eventMask = parsed.event ~= "" & ~isnan(parsed.t_us);
+                if ismember("kind", parsedVars)
+                    eventMask = eventMask & string(parsed.kind) ~= "frame";
+                end
+                if ~any(eventMask)
+                    continue
+                end
+
+                segEventRows = parsed(eventMask, :);
+                if ~ismember("trial", string(segEventRows.Properties.VariableNames))
+                    trialValue = 0;
+                    if isfield(segment, 'trial') && ~isempty(segment.trial)
+                        trialValue = double(segment.trial);
+                        if numel(trialValue) > 1
+                            trialValue = trialValue(1);
+                        end
+                        if ~isfinite(trialValue)
+                            trialValue = 0;
+                        end
+                    end
+                    segEventRows = addvars(segEventRows, repmat(trialValue, height(segEventRows), 1), ...
+                        'Before', 1, 'NewVariableNames', 'trial');
+                end
+                if ~ismember("scanImageFile", string(segEventRows.Properties.VariableNames))
+                    scanValue = NaN;
+                    if isfield(segment, 'scanImageFile') && ~isempty(segment.scanImageFile)
+                        scanValue = double(segment.scanImageFile);
+                        if numel(scanValue) > 1
+                            scanValue = scanValue(1);
+                        end
+                    end
+                    segEventRows.scanImageFile = repmat(scanValue, height(segEventRows), 1);
+                end
+                eventChunks{end+1,1} = segEventRows; %#ok<AGROW>
+            end
+
+            if isempty(eventChunks)
+                return
+            end
+            eventRows = vertcat(eventChunks{:});
+            eventRows.AlignmentOrder = transpose(1:height(eventRows));
+            eventRows = sortrows(eventRows, {'t_us', 'AlignmentOrder'});
+            eventRows.AlignmentOrder = [];
+        end
+
+        function rows = normalizeWheelDisplayForEyeAlignment_(this, rows)
+            if isempty(rows) || ~istable(rows)
+                rows = this.emptyWheelDisplayRecord_();
+                return
+            end
+            specs = {
+                'trial', zeros(height(rows),1)
+                't_us', NaN(height(rows),1)
+                'phase', strings(height(rows),1)
+                'tTrial', NaN(height(rows),1)
+                'rawWheel', NaN(height(rows),1)
+                'delta', NaN(height(rows),1)
+                'StimColor', NaN(height(rows),1)
+                'screenEvent', strings(height(rows),1)
+                'level', NaN(height(rows),1)
+                'isLeftTrial', false(height(rows),1)
+            };
+            for idx = 1:size(specs, 1)
+                varName = specs{idx, 1};
+                if ~ismember(varName, rows.Properties.VariableNames)
+                    rows.(varName) = specs{idx, 2};
+                end
+            end
+            rows.AlignmentOrder = transpose(1:height(rows));
+            rows = sortrows(rows, {'t_us', 'AlignmentOrder'});
+            rows.AlignmentOrder = [];
         end
 
         function mapLog = normalizeMappingLogForAlignment_(this, mapLog)
@@ -5307,6 +5515,15 @@ classdef BehaviorBoxWheel < handle
             tbl = this.ensureEyeAlignedRecordColumns_(tbl);
         end
 
+        function tbl = emptyTrainingEyeAlignedRecord_(this, eyeRecord)
+            if nargin < 2 || isempty(eyeRecord) || ~istable(eyeRecord)
+                tbl = BehaviorBoxEyeTrack.emptyRecordTable();
+            else
+                tbl = eyeRecord([], :);
+            end
+            tbl = this.ensureTrainingEyeAlignedRecordColumns_(tbl);
+        end
+
         function tbl = ensureEyeAlignedRecordColumns_(~, tbl)
             n = height(tbl);
             specs = {
@@ -5324,6 +5541,34 @@ classdef BehaviorBoxWheel < handle
                 'angleDeg', NaN(n,1)
                 'scale', NaN(n,1)
                 'brightness', NaN(n,1)
+                'nextMicroscopeFrame', NaN(n,1)
+                'nextMicroscopeFrame_t_us', NaN(n,1)
+                'nextMicroscopeFrame_t_arduino_us', NaN(n,1)
+                'nextMicroscopeFrame_t_pc_receive_us', NaN(n,1)
+                'nextMicroscopeFrame_dt_us', NaN(n,1)
+            };
+            for idx = 1:size(specs, 1)
+                varName = specs{idx, 1};
+                if ~ismember(varName, tbl.Properties.VariableNames)
+                    tbl.(varName) = specs{idx, 2};
+                end
+            end
+        end
+
+        function tbl = ensureTrainingEyeAlignedRecordColumns_(~, tbl)
+            n = height(tbl);
+            specs = {
+                'screenEvent', strings(n,1)
+                'screenEvent_count', zeros(n,1)
+                'screenEvent_t_first_us', NaN(n,1)
+                'screenEvent_t_last_us', NaN(n,1)
+                'phase', strings(n,1)
+                'tTrial', NaN(n,1)
+                'rawWheel', NaN(n,1)
+                'delta', NaN(n,1)
+                'StimColor', NaN(n,1)
+                'level', NaN(n,1)
+                'isLeftTrial', false(n,1)
                 'nextMicroscopeFrame', NaN(n,1)
                 'nextMicroscopeFrame_t_us', NaN(n,1)
                 'nextMicroscopeFrame_t_arduino_us', NaN(n,1)
