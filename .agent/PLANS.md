@@ -121,6 +121,7 @@
 8. Handoff notes
 - Expected invariants: raw eye record columns, raw map-log columns, raw timestamp-segment content, training-frame alignment behavior, and drain-all eye capture semantics.
 - Intentional saved-schema changes: animate mapping `.mat` files will gain derived `FrameAlignedRecord` and `EyeAlignedRecord`, `MapLog` will remain the raw event table instead of an eye-augmented convenience table, Wheel training saves will also gain derived `EyeAlignedRecord` when eye samples exist, and Wheel training saves will omit `FrameAlignedRecord` when no frame-backed rows were derived.
+- Intentional visual-behavior updates after rollout: `Map-FlashContourX` preview and runtime flash size now match the standard preview stimulus size, and `Map-FlashContourX` vertical placement follows `Animate_YPosition`.
 
 ## 2026-04-16 Production DLC Eye Tracking Framework
 

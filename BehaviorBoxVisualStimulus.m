@@ -580,6 +580,7 @@ classdef BehaviorBoxVisualStimulus < handle
                 options.AngleDeg double = 90
                 options.FlashVariant string = "Correct"
                 options.FlashLevel double = NaN
+                options.FlashY double = 0
                 options.LoomVariant string = "Correct"
                 options.LoomLevel double = NaN
                 options.FixEnabled logical = false
@@ -605,7 +606,8 @@ classdef BehaviorBoxVisualStimulus < handle
             [randomX, randomY] = this.buildRandomSegmentsPolyline_(max(3, contourSegCount));
             [lineX, lineY] = this.buildLongLine_();
             if mode == "Map-FlashContourX"
-                [contourX, contourY] = this.buildMappingStimulusPolyline_(options.FlashLevel, options.FlashVariant);
+                [contourX, contourY] = this.buildMappingStimulusPolyline_( ...
+                    options.FlashLevel, options.FlashVariant, "MatchPreviewSize", true);
                 randomX = nan;
                 randomY = nan;
             elseif mode == "Map-LoomingStimulus"
@@ -634,7 +636,8 @@ classdef BehaviorBoxVisualStimulus < handle
                 case "Map-FlashContourX"
                     this.MapContourLine.Visible = this.onOff_(options.InitialVisible);
                     this.MapRandomLine.Visible = 'off';
-                    this.MapGroup.Matrix = makehgtform('zrotate', deg2rad(options.AngleDeg));
+                    this.MapGroup.Matrix = makehgtform('translate', [0 options.FlashY 0]) * ...
+                        makehgtform('zrotate', deg2rad(options.AngleDeg));
                 case {"Map-SweepLine", "Map-SweepVerticalLine", "Map-SweepOrientedLine"}
                     this.MapSweepLine.Visible = this.onOff_(options.InitialVisible);
                     this.MapGroup.Matrix = makehgtform('zrotate', deg2rad(options.AngleDeg));
@@ -960,7 +963,13 @@ classdef BehaviorBoxVisualStimulus < handle
                 yData(ii:ii+2) = [pos(idx,2)+dy1 pos(idx,2)+dy2 nan];
             end
         end
-        function [xData, yData] = buildMappingStimulusPolyline_(this, level, variant)
+        function [xData, yData] = buildMappingStimulusPolyline_(this, level, variant, options)
+            arguments
+                this
+                level
+                variant
+                options.MatchPreviewSize logical = false
+            end
             if nargin < 2 || isempty(level) || isnan(level)
                 level = max(1, round(this.Level));
             end
@@ -1003,6 +1012,34 @@ classdef BehaviorBoxVisualStimulus < handle
                 dists = [dists; contourNodes repmat(90, size(contourNodes, 1), 1)];
             end
             [xData, yData] = this.buildSegmentsPolyline_(dists, nodes);
+            if options.MatchPreviewSize
+                [previewX, previewY] = this.buildStimulusSpaceSegmentsPolyline_(dists);
+                previewScale = this.mappingPreviewScaleFactor_(previewX, previewY, xData, yData);
+                if isfinite(previewScale) && previewScale > 0
+                    xData = xData .* previewScale;
+                    yData = yData .* previewScale;
+                end
+            end
+        end
+        function [xData, yData] = buildStimulusSpaceSegmentsPolyline_(this, dists)
+            if isempty(dists)
+                xData = nan(1, 1);
+                yData = nan(1, 1);
+                return
+            end
+            pos = double(dists(:,1:2));
+            halfSeg = max(this.SegLength, eps) / 2;
+            nSeg = size(dists, 1);
+            xData = nan(1, 3*nSeg);
+            yData = nan(1, 3*nSeg);
+            for idx = 1:nSeg
+                ii = (idx-1)*3 + 1;
+                ang = double(dists(idx, 3));
+                [dx1, dy1] = pol2cart(deg2rad(ang), halfSeg);
+                [dx2, dy2] = pol2cart(deg2rad(ang + 180), halfSeg);
+                xData(ii:ii+2) = [pos(idx,1)+dx1 pos(idx,1)+dx2 nan];
+                yData(ii:ii+2) = [pos(idx,2)+dy1 pos(idx,2)+dy2 nan];
+            end
         end
         function [xData, yData] = buildSegmentsPolyline_(~, dists, nodes)
             if isempty(dists)
@@ -1029,6 +1066,58 @@ classdef BehaviorBoxVisualStimulus < handle
                 [dx2, dy2] = pol2cart(deg2rad(ang + 180), halfSeg);
                 xData(ii:ii+2) = [pos(idx,1)+dx1 pos(idx,1)+dx2 nan];
                 yData(ii:ii+2) = [pos(idx,2)+dy1 pos(idx,2)+dy2 nan];
+            end
+        end
+        function scaleFactor = mappingPreviewScaleFactor_(this, previewX, previewY, mapX, mapY)
+            scaleFactor = 1;
+            previewSpan = max(this.polylineSpan_(previewX), this.polylineSpan_(previewY));
+            mapSpan = max(this.polylineSpan_(mapX), this.polylineSpan_(mapY));
+            if ~isfinite(previewSpan) || ~isfinite(mapSpan) || previewSpan <= 0 || mapSpan <= 0
+                return
+            end
+            previewPixelsPerUnit = this.axisPixelsPerUnit_(this.LStimAx);
+            if ~isfinite(previewPixelsPerUnit) || previewPixelsPerUnit <= 0
+                previewPixelsPerUnit = this.axisPixelsPerUnit_(this.RStimAx);
+            end
+            mapPixelsPerUnit = this.axisPixelsPerUnit_(this.MapAx);
+            if ~isfinite(previewPixelsPerUnit) || previewPixelsPerUnit <= 0 || ...
+                    ~isfinite(mapPixelsPerUnit) || mapPixelsPerUnit <= 0
+                return
+            end
+            targetPixels = previewSpan * previewPixelsPerUnit;
+            currentPixels = mapSpan * mapPixelsPerUnit;
+            if currentPixels <= 0
+                return
+            end
+            scaleFactor = targetPixels / currentPixels;
+        end
+        function pixelsPerUnit = axisPixelsPerUnit_(~, ax)
+            pixelsPerUnit = NaN;
+            if isempty(ax) || ~isgraphics(ax)
+                return
+            end
+            try
+                oldUnits = ax.Units;
+                ax.Units = 'pixels';
+                axPos = ax.Position;
+                ax.Units = oldUnits;
+            catch
+                return
+            end
+            dataRange = max(diff(ax.XLim), diff(ax.YLim));
+            plotBoxPixels = min(axPos(3), axPos(4));
+            if ~isfinite(dataRange) || dataRange <= 0 || ~isfinite(plotBoxPixels) || plotBoxPixels <= 0
+                return
+            end
+            pixelsPerUnit = plotBoxPixels / dataRange;
+        end
+        function span = polylineSpan_(~, values)
+            values = double(values(:));
+            values = values(isfinite(values));
+            if isempty(values)
+                span = NaN;
+            else
+                span = max(values) - min(values);
             end
         end
         function [xData, yData] = buildLongLine_(this)
