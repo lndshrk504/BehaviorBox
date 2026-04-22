@@ -183,9 +183,15 @@ loadedAnimation = load(animationFile);
 assert(isfield(loadedAnimation, 'EyeTrackingRecord'), 'Animation save is missing EyeTrackingRecord.');
 assert(isfield(loadedAnimation, 'EyeTrackingMeta'), 'Animation save is missing EyeTrackingMeta.');
 assert(height(loadedAnimation.EyeTrackingRecord) == 1, 'Animation save should retain dense eye samples.');
-assert(all(ismember(["eye_center_x", "eye_center_y", "eye_sample_count"], string(loadedAnimation.MapLog.Properties.VariableNames))), ...
-    'Animation MapLog should include eye-alignment columns.');
-assert(loadedAnimation.MapLog.eye_center_x(2) == 11.1, 'Animation MapLog did not align the previous eye sample.');
+assert(~any(startsWith(string(loadedAnimation.MapLog.Properties.VariableNames), "eye_")), ...
+    'Animation MapLog should remain the raw mapping-event table.');
+assert(~isfield(loadedAnimation, 'FrameAlignedRecord'), ...
+    'Animation save should omit FrameAlignedRecord when there are no microscope frame rows.');
+assert(isfield(loadedAnimation, 'EyeAlignedRecord'), 'Animation save is missing EyeAlignedRecord.');
+assert(height(loadedAnimation.EyeAlignedRecord) == 1, 'Animation save should retain one eye-aligned row.');
+assert(loadedAnimation.EyeAlignedRecord.center_x(1) == 11.1, 'EyeAlignedRecord should preserve the raw eye sample values.');
+assert(isnan(loadedAnimation.EyeAlignedRecord.nextMicroscopeFrame(1)), ...
+    'EyeAlignedRecord microscope back-reference should be empty when no frame rows exist.');
 assert(loadedAnimation.MapMeta.EyeTrackingSampleCount == 1, 'Animation MapMeta should record the dense eye sample count.');
 
 app2 = MockApp();

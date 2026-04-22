@@ -2429,19 +2429,24 @@ classdef BehaviorBoxWheel < handle
                 MapMeta = options.MapMeta;
                 TimestampRecord = options.TimestampRecord;
                 [EyeTrackingRecord, EyeTrackingMeta] = this.eyeTrackSaveOutputs_();
-                MapLog = this.alignMappingRowsWithEyeTrack_(MapLog);
+                [FrameAlignedRecord, EyeAlignedRecord] = this.buildMappingAlignedRecords_(TimestampRecord, MapLog, EyeTrackingRecord);
                 if isstruct(MapMeta)
                     MapMeta.EyeTrackAlignmentMode = this.EyeTrackAlignmentMode;
                     MapMeta.EyeTrackingSampleCount = height(EyeTrackingRecord);
                     MapMeta.EyeTrackingReady = EyeTrackingMeta.IsReady;
                 end
                 saveFile = fullfile(savefolder, char(saveasname + ".mat"));
+                saveVars = {'Settings', 'Position_Record', 'Notes', 'TimeLog', 'MapLog', 'MapMeta', 'TimestampRecord', ...
+                    'EyeTrackingRecord', 'EyeTrackingMeta', 'EyeAlignedRecord'};
+                if istable(FrameAlignedRecord) && height(FrameAlignedRecord) > 0
+                    saveVars{end+1} = 'FrameAlignedRecord'; %#ok<AGROW>
+                end
                 fakeNames = {'w', 'W'};
                 if any(strcmp(num2str(this.Setting_Struct.Subject), fakeNames)) || any(strcmp(this.Setting_Struct.Strain, fakeNames)) %do not save if I use a fake name for fake data
                     return
                 end
                 try
-                    save(saveFile, 'Settings', 'Position_Record', 'Notes', 'TimeLog', 'MapLog', 'MapMeta', 'TimestampRecord', 'EyeTrackingRecord', 'EyeTrackingMeta')
+                    save(saveFile, saveVars{:})
                 catch err
                     this.unwrapError(err)
                     [file,path] = uiputfile(pwd , 'Choose folder to save animation data' , saveasname);
@@ -2449,7 +2454,7 @@ classdef BehaviorBoxWheel < handle
                         set(this.message_handle,'Text', 'Save canceled.');
                         return
                     end
-                    save(fullfile(path, file), 'Settings', 'Position_Record', 'Notes', 'TimeLog', 'MapLog', 'MapMeta', 'TimestampRecord', 'EyeTrackingRecord', 'EyeTrackingMeta')
+                    save(fullfile(path, file), saveVars{:})
                 end
                 dispstring = 'Data saved as: '+saveasname;
                 fprintf(dispstring+'\n');
@@ -4883,6 +4888,484 @@ classdef BehaviorBoxWheel < handle
                 'Mode', char(this.EyeTrackAlignmentMode), ...
                 'IntervalDirection', 'next', ...
                 'SessionEndUs', this.currentSessionMicros_());
+        end
+
+        function [frameAlignedRecord, eyeAlignedRecord] = buildMappingAlignedRecords_(this, timestampRecord, mapLog, eyeRecord)
+            if nargin < 4 || isempty(eyeRecord) || ~istable(eyeRecord)
+                eyeRecord = BehaviorBoxEyeTrack.emptyRecordTable();
+            end
+            frameRows = this.mappingFrameRowsFromTimestampRecord_(timestampRecord);
+            mapLog = this.normalizeMappingLogForAlignment_(mapLog);
+            frameAlignedRecord = this.emptyMappingFrameAlignedRecord_();
+            if ~isempty(frameRows) && istable(frameRows) && height(frameRows) > 0
+                frameAlignedRecord = this.buildMappingFrameAlignedRecord_(frameRows, mapLog, eyeRecord);
+            end
+            eyeAlignedRecord = this.buildMappingEyeAlignedRecord_(eyeRecord, frameRows, mapLog);
+        end
+
+        function frameRows = mappingFrameRowsFromTimestampRecord_(this, timestampRecord)
+            frameRows = table();
+            if isempty(timestampRecord)
+                return
+            end
+
+            frameChunks = cell(0,1);
+            for iSeg = 1:numel(timestampRecord)
+                segment = timestampRecord{iSeg};
+                if isempty(segment) || ~isstruct(segment) || ~isfield(segment, 'parsed') || ~istable(segment.parsed)
+                    continue
+                end
+                parsed = segment.parsed;
+                if isempty(parsed) || height(parsed) == 0
+                    continue
+                end
+
+                parsedVars = string(parsed.Properties.VariableNames);
+                if ismember("kind", parsedVars)
+                    frameMask = string(parsed.kind) == "frame";
+                elseif ismember("frame", parsedVars) && ismember("t_us", parsedVars)
+                    frameMask = true(height(parsed), 1);
+                else
+                    continue
+                end
+                if ~any(frameMask)
+                    continue
+                end
+
+                segFrameRows = parsed(frameMask, :);
+                if ~ismember("trial", string(segFrameRows.Properties.VariableNames))
+                    trialValue = 0;
+                    if isfield(segment, 'trial') && ~isempty(segment.trial)
+                        trialValue = double(segment.trial);
+                        if numel(trialValue) > 1
+                            trialValue = trialValue(1);
+                        end
+                        if ~isfinite(trialValue)
+                            trialValue = 0;
+                        end
+                    end
+                    segFrameRows = addvars(segFrameRows, repmat(trialValue, height(segFrameRows), 1), ...
+                        'Before', 1, 'NewVariableNames', 'trial');
+                end
+                if ~ismember("scanImageFile", string(segFrameRows.Properties.VariableNames))
+                    scanValue = NaN;
+                    if isfield(segment, 'scanImageFile') && ~isempty(segment.scanImageFile)
+                        scanValue = double(segment.scanImageFile);
+                        if numel(scanValue) > 1
+                            scanValue = scanValue(1);
+                        end
+                    end
+                    segFrameRows.scanImageFile = repmat(scanValue, height(segFrameRows), 1);
+                end
+                frameChunks{end+1,1} = segFrameRows; %#ok<AGROW>
+            end
+
+            if isempty(frameChunks)
+                return
+            end
+            frameRows = vertcat(frameChunks{:});
+            frameVars = string(frameRows.Properties.VariableNames);
+            if ~ismember("frame", frameVars)
+                frameRows.frame = transpose(1:height(frameRows));
+            end
+            if ~ismember("t_arduino_us", frameVars)
+                frameRows.t_arduino_us = NaN(height(frameRows), 1);
+            end
+            if ~ismember("t_pc_receive_us", frameVars)
+                frameRows.t_pc_receive_us = NaN(height(frameRows), 1);
+            end
+            frameRows.AlignmentOrder = transpose(1:height(frameRows));
+            if ismember("t_us", string(frameRows.Properties.VariableNames))
+                frameRows = sortrows(frameRows, {'t_us', 'AlignmentOrder'});
+            end
+            frameRows.AlignmentOrder = [];
+        end
+
+        function mapLog = normalizeMappingLogForAlignment_(this, mapLog)
+            if isempty(mapLog) || ~istable(mapLog)
+                mapLog = this.mappingRowsToTable_(struct('t_us', {}, 'event', {}, 'mode', {}, 'x', {}, 'y', {}, ...
+                    'angleDeg', {}, 'scale', {}, 'brightness', {}, 'variant', {}, 'notes', {}));
+                return
+            end
+            specs = {
+                't_us', NaN(height(mapLog), 1)
+                'event', strings(height(mapLog), 1)
+                'mode', strings(height(mapLog), 1)
+                'x', NaN(height(mapLog), 1)
+                'y', NaN(height(mapLog), 1)
+                'angleDeg', NaN(height(mapLog), 1)
+                'scale', NaN(height(mapLog), 1)
+                'brightness', NaN(height(mapLog), 1)
+                'variant', strings(height(mapLog), 1)
+                'notes', strings(height(mapLog), 1)
+            };
+            for idx = 1:size(specs, 1)
+                varName = specs{idx, 1};
+                if ~ismember(varName, mapLog.Properties.VariableNames)
+                    mapLog.(varName) = specs{idx, 2};
+                end
+            end
+            mapLog.AlignmentOrder = transpose(1:height(mapLog));
+            mapLog = sortrows(mapLog, {'t_us', 'AlignmentOrder'});
+            mapLog.AlignmentOrder = [];
+        end
+
+        function rows = buildMappingFrameAlignedRecord_(this, frameRows, mapLog, eyeRecord)
+            rows = this.emptyMappingFrameAlignedRecord_();
+            if isempty(frameRows) || ~istable(frameRows) || height(frameRows) == 0
+                return
+            end
+
+            currentState = this.defaultMappingAlignmentState_();
+            mapIdx = 0;
+            mapCount = height(mapLog);
+            rowChunks = cell(height(frameRows), 1);
+            for iFrame = 1:height(frameRows)
+                frameUs = this.rowNumericScalar_(frameRows(iFrame, :), "t_us");
+                intervalEventNames = strings(0, 1);
+                while mapIdx < mapCount && this.rowNumericScalar_(mapLog(mapIdx + 1, :), "t_us") <= frameUs
+                    mapIdx = mapIdx + 1;
+                    mapRow = mapLog(mapIdx, :);
+                    currentState = this.updateMappingAlignmentState_(currentState, mapRow);
+                    eventName = this.rowStringScalar_(mapRow, "event");
+                    if strlength(eventName) > 0 && eventName ~= "State"
+                        intervalEventNames(end+1,1) = eventName; %#ok<AGROW>
+                    end
+                end
+
+                frameTrial = this.rowNumericScalar_(frameRows(iFrame, :), "trial");
+                if ~isfinite(frameTrial)
+                    frameTrial = 0;
+                end
+                frameId = this.rowNumericScalar_(frameRows(iFrame, :), "frame");
+                if ~isfinite(frameId)
+                    frameId = iFrame;
+                end
+                rowChunks{iFrame,1} = this.mappingFrameAlignedRow_( ...
+                    frameTrial, ...
+                    frameId, ...
+                    frameUs, ...
+                    this.rowNumericScalar_(frameRows(iFrame, :), "t_arduino_us"), ...
+                    this.rowNumericScalar_(frameRows(iFrame, :), "t_pc_receive_us"), ...
+                    currentState.phase, ...
+                    frameUs ./ 1e6, ...
+                    this.mappingEventString_(intervalEventNames), ...
+                    currentState.mode, ...
+                    currentState.level, ...
+                    currentState.variant, ...
+                    currentState.x, ...
+                    currentState.y, ...
+                    currentState.angleDeg, ...
+                    currentState.scale, ...
+                    currentState.brightness);
+            end
+            rows = vertcat(rowChunks{:});
+            rows = BehaviorBoxEyeTrack.alignEyeSamplesToTable( ...
+                eyeRecord, rows, ...
+                'Mode', char(this.EyeTrackAlignmentMode), ...
+                'IntervalDirection', 'previous');
+        end
+
+        function rows = buildMappingEyeAlignedRecord_(this, eyeRecord, frameRows, mapLog)
+            rows = this.emptyEyeAlignedRecord_(eyeRecord);
+            if isempty(eyeRecord) || ~istable(eyeRecord) || height(eyeRecord) == 0
+                return
+            end
+
+            rows = eyeRecord;
+            rows = this.ensureEyeAlignedRecordColumns_(rows);
+
+            frameTimes = NaN(0,1);
+            frameIds = NaN(0,1);
+            frameArduinoUs = NaN(0,1);
+            framePcReceiveUs = NaN(0,1);
+            if ~isempty(frameRows) && istable(frameRows) && height(frameRows) > 0
+                frameTimes = double(frameRows.t_us);
+                frameIds = double(frameRows.frame);
+                frameArduinoUs = double(frameRows.t_arduino_us);
+                framePcReceiveUs = double(frameRows.t_pc_receive_us);
+            end
+
+            currentState = this.defaultMappingAlignmentState_();
+            mapIdx = 0;
+            mapCount = height(mapLog);
+            frameIdx = 1;
+            frameCount = numel(frameTimes);
+
+            for iEye = 1:height(rows)
+                eyeUs = this.rowNumericScalar_(rows(iEye, :), "t_us");
+                intervalEventNames = strings(0, 1);
+                intervalEventTimes = NaN(0, 1);
+                while mapIdx < mapCount && this.rowNumericScalar_(mapLog(mapIdx + 1, :), "t_us") <= eyeUs
+                    mapIdx = mapIdx + 1;
+                    mapRow = mapLog(mapIdx, :);
+                    currentState = this.updateMappingAlignmentState_(currentState, mapRow);
+                    eventName = this.rowStringScalar_(mapRow, "event");
+                    if strlength(eventName) > 0 && eventName ~= "State"
+                        intervalEventNames(end+1,1) = eventName; %#ok<AGROW>
+                        intervalEventTimes(end+1,1) = this.rowNumericScalar_(mapRow, "t_us"); %#ok<AGROW>
+                    end
+                end
+
+                rows.screenEvent(iEye) = this.mappingEventString_(intervalEventNames);
+                rows.screenEvent_count(iEye) = numel(intervalEventNames);
+                if ~isempty(intervalEventTimes)
+                    rows.screenEvent_t_first_us(iEye) = intervalEventTimes(1);
+                    rows.screenEvent_t_last_us(iEye) = intervalEventTimes(end);
+                end
+                rows.phase(iEye) = currentState.phase;
+                rows.tTrial(iEye) = eyeUs ./ 1e6;
+                rows.mode(iEye) = currentState.mode;
+                rows.level(iEye) = currentState.level;
+                rows.variant(iEye) = currentState.variant;
+                rows.x(iEye) = currentState.x;
+                rows.y(iEye) = currentState.y;
+                rows.angleDeg(iEye) = currentState.angleDeg;
+                rows.scale(iEye) = currentState.scale;
+                rows.brightness(iEye) = currentState.brightness;
+
+                while frameIdx <= frameCount && frameTimes(frameIdx) < eyeUs
+                    frameIdx = frameIdx + 1;
+                end
+                if frameIdx <= frameCount
+                    rows.nextMicroscopeFrame(iEye) = frameIds(frameIdx);
+                    rows.nextMicroscopeFrame_t_us(iEye) = frameTimes(frameIdx);
+                    rows.nextMicroscopeFrame_t_arduino_us(iEye) = frameArduinoUs(frameIdx);
+                    rows.nextMicroscopeFrame_t_pc_receive_us(iEye) = framePcReceiveUs(frameIdx);
+                    rows.nextMicroscopeFrame_dt_us(iEye) = frameTimes(frameIdx) - eyeUs;
+                end
+            end
+        end
+
+        function state = defaultMappingAlignmentState_(~)
+            state = struct( ...
+                'phase', "", ...
+                'mode', "", ...
+                'level', NaN, ...
+                'variant', "", ...
+                'x', NaN, ...
+                'y', NaN, ...
+                'angleDeg', NaN, ...
+                'scale', NaN, ...
+                'brightness', NaN);
+        end
+
+        function state = updateMappingAlignmentState_(this, state, row)
+            modeValue = this.rowStringScalar_(row, "mode");
+            if strlength(strtrim(modeValue)) > 0
+                state.mode = modeValue;
+            end
+
+            numericFields = ["x", "y", "angleDeg", "scale", "brightness"];
+            for iField = 1:numel(numericFields)
+                fieldName = numericFields(iField);
+                value = this.rowNumericScalar_(row, fieldName);
+                if isfinite(value)
+                    state.(char(fieldName)) = value;
+                end
+            end
+
+            variantValue = this.rowStringScalar_(row, "variant");
+            if strlength(strtrim(variantValue)) > 0
+                state.variant = variantValue;
+            end
+
+            notes = this.rowStringScalar_(row, "notes");
+            levelText = this.mappingNoteValue_(notes, "level");
+            if strlength(levelText) > 0
+                levelValue = str2double(levelText);
+                if isfinite(levelValue)
+                    state.level = levelValue;
+                end
+            end
+            variantText = this.mappingNoteValue_(notes, "variant");
+            if strlength(variantText) > 0
+                state.variant = variantText;
+            end
+
+            state.phase = this.mappingPhaseAfterRow_( ...
+                state.phase, ...
+                this.rowStringScalar_(row, "event"), ...
+                notes, ...
+                state.mode);
+        end
+
+        function phase = mappingPhaseAfterRow_(this, previousPhase, eventName, notes, modeName)
+            phase = string(previousPhase);
+            eventKey = lower(strtrim(string(eventName)));
+            modeKey = lower(strtrim(string(modeName)));
+
+            switch eventKey
+                case "settlestart"
+                    phase = "settle";
+                case {"settleend", "sequencestart", "cyclestart", "cycleend", "displayon", "acquisitionstart", "acquisitionend", "sequenceend"}
+                    phase = "sequence";
+                case "flashon"
+                    phase = "flash";
+                case "flashoff"
+                    phase = "interflash";
+                case "sweepstart"
+                    phase = "sweep";
+                case "sweepend"
+                    phase = "sequence";
+                case {"loomstart", "loompeak"}
+                    phase = "loom";
+                case "loomend"
+                    phase = "sequence";
+                case "state"
+                    if this.mappingNoteHasToken_(notes, "settle")
+                        phase = "settle";
+                    elseif this.mappingNoteHasToken_(notes, "hidden")
+                        phase = "interflash";
+                    elseif modeKey == "sweepline"
+                        phase = "sweep";
+                    elseif modeKey == "loomingstimulus"
+                        phase = "loom";
+                    elseif strlength(strtrim(phase)) == 0
+                        phase = "sequence";
+                    end
+                otherwise
+                    if strlength(strtrim(phase)) == 0
+                        if modeKey == "sweepline"
+                            phase = "sweep";
+                        elseif modeKey == "loomingstimulus"
+                            phase = "loom";
+                        else
+                            phase = "sequence";
+                        end
+                    end
+            end
+        end
+
+        function value = mappingNoteValue_(~, notes, key)
+            value = "";
+            notes = strtrim(string(notes));
+            if strlength(notes) == 0
+                return
+            end
+            token = regexp(char(notes), ['(?:^|\s)' regexptranslate('escape', char(string(key))) '=([^\s]+)'], 'tokens', 'once');
+            if isempty(token)
+                return
+            end
+            value = string(token{1});
+        end
+
+        function tf = mappingNoteHasToken_(~, notes, token)
+            tf = false;
+            notes = strtrim(string(notes));
+            if strlength(notes) == 0
+                return
+            end
+            tf = ~isempty(regexp(char(notes), ['(?:^|\s)' regexptranslate('escape', char(string(token))) '(?:\s|$)'], 'once'));
+        end
+
+        function text = mappingEventString_(~, eventNames)
+            text = "";
+            eventNames = string(eventNames);
+            eventNames = eventNames(strlength(strtrim(eventNames)) > 0);
+            if isempty(eventNames)
+                return
+            end
+            text = strjoin(eventNames(:)', " | ");
+        end
+
+        function row = mappingFrameAlignedRow_(~, trial, frame, tUs, tArduinoUs, tPcReceiveUs, phase, tTrial, screenEvent, mode, level, variant, x, y, angleDeg, scale, brightness)
+            row = table( ...
+                double(trial), ...
+                double(frame), ...
+                double(tUs), ...
+                double(tArduinoUs), ...
+                double(tPcReceiveUs), ...
+                string(phase), ...
+                double(tTrial), ...
+                string(screenEvent), ...
+                string(mode), ...
+                double(level), ...
+                string(variant), ...
+                double(x), ...
+                double(y), ...
+                double(angleDeg), ...
+                double(scale), ...
+                double(brightness), ...
+                'VariableNames', {'trial','frame','t_us','t_arduino_us','t_pc_receive_us','phase','tTrial','screenEvent','mode','level','variant','x','y','angleDeg','scale','brightness'});
+        end
+
+        function tbl = emptyMappingFrameAlignedRecord_(this)
+            tbl = table( ...
+                'Size', [0 16], ...
+                'VariableTypes', {'double','double','double','double','double','string','double','string','string','double','string','double','double','double','double','double'}, ...
+                'VariableNames', {'trial','frame','t_us','t_arduino_us','t_pc_receive_us','phase','tTrial','screenEvent','mode','level','variant','x','y','angleDeg','scale','brightness'});
+            tbl = BehaviorBoxEyeTrack.alignEyeSamplesToTable(BehaviorBoxEyeTrack.emptyRecordTable(), tbl);
+        end
+
+        function tbl = emptyEyeAlignedRecord_(this, eyeRecord)
+            if nargin < 2 || isempty(eyeRecord) || ~istable(eyeRecord)
+                tbl = BehaviorBoxEyeTrack.emptyRecordTable();
+            else
+                tbl = eyeRecord([], :);
+            end
+            tbl = this.ensureEyeAlignedRecordColumns_(tbl);
+        end
+
+        function tbl = ensureEyeAlignedRecordColumns_(~, tbl)
+            n = height(tbl);
+            specs = {
+                'screenEvent', strings(n,1)
+                'screenEvent_count', zeros(n,1)
+                'screenEvent_t_first_us', NaN(n,1)
+                'screenEvent_t_last_us', NaN(n,1)
+                'phase', strings(n,1)
+                'tTrial', NaN(n,1)
+                'mode', strings(n,1)
+                'level', NaN(n,1)
+                'variant', strings(n,1)
+                'x', NaN(n,1)
+                'y', NaN(n,1)
+                'angleDeg', NaN(n,1)
+                'scale', NaN(n,1)
+                'brightness', NaN(n,1)
+                'nextMicroscopeFrame', NaN(n,1)
+                'nextMicroscopeFrame_t_us', NaN(n,1)
+                'nextMicroscopeFrame_t_arduino_us', NaN(n,1)
+                'nextMicroscopeFrame_t_pc_receive_us', NaN(n,1)
+                'nextMicroscopeFrame_dt_us', NaN(n,1)
+            };
+            for idx = 1:size(specs, 1)
+                varName = specs{idx, 1};
+                if ~ismember(varName, tbl.Properties.VariableNames)
+                    tbl.(varName) = specs{idx, 2};
+                end
+            end
+        end
+
+        function value = rowStringScalar_(~, row, varName)
+            value = "";
+            if ~istable(row) || ~ismember(char(varName), row.Properties.VariableNames)
+                return
+            end
+            try
+                raw = string(row.(char(varName)));
+                if ~isempty(raw)
+                    value = raw(1);
+                end
+            catch
+                value = "";
+            end
+        end
+
+        function value = rowNumericScalar_(~, row, varName)
+            value = NaN;
+            if ~istable(row) || ~ismember(char(varName), row.Properties.VariableNames)
+                return
+            end
+            try
+                raw = double(row.(char(varName)));
+                if ~isempty(raw)
+                    value = raw(1);
+                end
+            catch
+                value = NaN;
+            end
         end
 
         function record = currentEyeTrackingRecord_(this)

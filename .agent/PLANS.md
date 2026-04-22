@@ -67,6 +67,57 @@
 - Expected invariants: mapping log schema, acquisition/timestamp handling, flash behavior, sweep behavior, and non-mapping animation paths.
 - Intentional visual behavior change: loom should now visibly reflect `Animate_Level`, `Animate_Correct` / `Animate_Incorrect`, and dedicated loom X/Y controls.
 
+## 2026-04-21 Mapping Eye/Frame Aligned Save Outputs
+
+1. Goal
+- Implement the mapping-save plan for `Map-FlashContourX` and `Map-SweepLine` so animate saves retain raw `EyeTrackingRecord`, raw `MapLog`, raw `TimestampRecord`, and derive two aligned tables:
+  - `FrameAlignedRecord`
+  - `EyeAlignedRecord`
+- Reuse the existing training drain-all eye path rather than introducing a mapping-specific receive mechanism.
+- Keep the exact DeepLabCut sample schema for the current bundled YangLab 8-point pupil model inside `EyeAlignedRecord`.
+
+2. Non-goals
+- Do not change the raw `EyeTrackingRecord` schema, raw `MapLog` schema, raw `TimestampRecord` segment schema, GUI layout, DeepLabCut Python payload contract, or training-session `FrameAlignedRecord` behavior.
+- Do not alter reward logic, Arduino protocols, or non-mapping animation behavior.
+
+3. Current-state summary
+- `RunMappingStimulus()` already records raw mapping events into `MappingAnimationLog`, stores timestamp segments in `timestamps_record`, and `SaveAllData(Activity="Animate")` already saves raw `EyeTrackingRecord` and `EyeTrackingMeta`.
+- The animate save branch currently mutates `MapLog` with `alignMappingRowsWithEyeTrack_()`, which adds frame-backed eye summary columns onto the raw mapping event table instead of producing separate derived tables.
+- There is currently no mapping `FrameAlignedRecord`.
+- There is currently no eye-sample-backed `EyeAlignedRecord`.
+- The existing training eye path already uses `BehaviorBoxEyeTrack.pollAvailable()` / `finalDrain()` drain-all semantics and should be reused unchanged.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxWheel.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/MockApp/testBehaviorBoxWheelSaveStatus.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/MockApp/testBehaviorBoxWheelMappingSave.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- Static checks:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); checkcode('BehaviorBoxWheel.m'); checkcode('MockApp/testBehaviorBoxWheelSaveStatus.m'); checkcode('MockApp/testBehaviorBoxWheelMappingSave.m');"`
+- Focused mapping save smoke:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('MockApp/testBehaviorBoxWheelMappingSave.m');"`
+- Existing save-regression smoke:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('MockApp/testBehaviorBoxWheelSaveStatus.m');"`
+- Conflict marker scan:
+  `rg -n "^<<<<<<<|^=======|^>>>>>>>" BehaviorBoxWheel.m MockApp/testBehaviorBoxWheelSaveStatus.m MockApp/testBehaviorBoxWheelMappingSave.m .agent/PLANS.md`
+
+6. Milestones
+- Stop mutating raw `MapLog` during animate save and instead derive dedicated mapping `FrameAlignedRecord` and `EyeAlignedRecord`.
+- Implement mapping alignment helpers in `BehaviorBoxWheel.m` using raw `TimestampRecord`, raw `MapLog`, and raw `EyeTrackingRecord`.
+- Add focused mock coverage for mapping animate saves, including exact `EyeAlignedRecord` DLC point columns and microscope back-reference columns.
+- Re-run focused MATLAB validation and inspect the saved-file schema.
+
+7. Risks and stop conditions
+- Stop if timestamp parsed rows do not expose a stable frame schema (`frame`, `t_us`, `t_arduino_us`, `t_pc_receive_us`) needed for the microscope-backed table.
+- Stop if the mapping save path would need to change `EyeTrackingRecord`, `MapLog`, or `TimestampRecord` raw schemas rather than only adding derived tables.
+- Stop if the implementation reveals a mismatch between the documented `EyeAlignedRecord` schema and the active YangLab 8-point DLC sample schema.
+
+8. Handoff notes
+- Expected invariants: raw eye record columns, raw map-log columns, raw timestamp-segment content, training-frame alignment behavior, and drain-all eye capture semantics.
+- Intentional saved-schema changes: animate mapping `.mat` files will gain derived `FrameAlignedRecord` and `EyeAlignedRecord`, and `MapLog` will remain the raw event table instead of an eye-augmented convenience table.
+
 ## 2026-04-16 Production DLC Eye Tracking Framework
 
 1. Goal
