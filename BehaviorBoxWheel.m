@@ -1062,6 +1062,7 @@ classdef BehaviorBoxWheel < handle
                 end
                 try
                     this.storeCurrentTimeSegment_();
+                    this.finishTrainingSetupEyeTrackSegment_();
                     if ~isempty(this.timestamps_record)
                         this.appendSessionFrameAlignedSegment_(this.timestamps_record{end});
                     end
@@ -1910,8 +1911,10 @@ classdef BehaviorBoxWheel < handle
                 this.wheelchoice = [];
                 this.wheelchoicetime = [];
             else
-                this.wheelchoice = double(wheelchoice(1:I));
-                this.wheelchoicetime = double(wheelchoicetime(1:I));
+                % Keep the saved wheel trace in single precision to avoid
+                % doubling MAT-file size at publish time.
+                this.wheelchoice = wheelchoice(1:I);
+                this.wheelchoicetime = wheelchoicetime(1:I);
             end
         end
         function FlashNew(this, Stim, Box, Lines, whatdecision, OneWay, OnFirstDraw)
@@ -4098,6 +4101,9 @@ classdef BehaviorBoxWheel < handle
             this.TimeSegmentKind = string(kind);
             this.TimeSegmentTrial = double(trialNumber);
             this.TimeSegmentTic = tic;
+            if this.TimeSegmentKind == "setup"
+                this.beginTrainingSetupEyeTrackSegment_();
+            end
         end
 
         function storeCurrentTimeSegment_(this)
@@ -4184,7 +4190,14 @@ classdef BehaviorBoxWheel < handle
                 return
             end
             try
-                this.closeOpenEyeTrackSegment_(true);
+                if strlength(strtrim(this.EyeTrack.ActiveSegmentId)) > 0
+                    if this.EyeTrack.ActiveSegmentKind == "setup"
+                        this.closeOpenEyeTrackSegment_(false);
+                        this.syncEyeTrackImportedSegments_();
+                    else
+                        this.closeOpenEyeTrackSegment_(true);
+                    end
+                end
                 this.EyeTrack.beginSegment( ...
                     "SegmentId", "trial_" + string(this.i), ...
                     "SegmentKind", "trial", ...
@@ -4195,6 +4208,37 @@ classdef BehaviorBoxWheel < handle
                 warning('BehaviorBoxWheel:EyeTrackSegmentStartFailed', ...
                     'Could not start training eye segment for trial %d: %s', this.i, err.message);
             end
+        end
+
+        function beginTrainingSetupEyeTrackSegment_(this)
+            if isempty(this.EyeTrack) || ~isobject(this.EyeTrack) || this.EyeTrackSessionKind ~= "training"
+                return
+            end
+            if strlength(strtrim(this.EyeTrack.ActiveSegmentId)) > 0
+                return
+            end
+            try
+                this.EyeTrack.beginSegment( ...
+                    "SegmentId", "setup_segment_1", ...
+                    "SegmentKind", "setup", ...
+                    "TrialNumber", 0, ...
+                    "Mode", "setup", ...
+                    "ScanImageFile", this.TimeScanImageFileIndex);
+            catch err
+                warning('BehaviorBoxWheel:EyeTrackSegmentStartFailed', ...
+                    'Could not start setup eye-tracking segment: %s', err.message);
+            end
+        end
+
+        function finishTrainingSetupEyeTrackSegment_(this)
+            if isempty(this.EyeTrack) || ~isobject(this.EyeTrack) || this.EyeTrackSessionKind ~= "training"
+                return
+            end
+            if this.EyeTrack.ActiveSegmentKind ~= "setup"
+                return
+            end
+            this.closeOpenEyeTrackSegment_(false);
+            this.syncEyeTrackImportedSegments_();
         end
 
         function beginSessionLevelEyeTrackSegment_(this)
@@ -5074,9 +5118,6 @@ classdef BehaviorBoxWheel < handle
                 sourceIdx = [];
                 if ~isempty(wheelDisplayUs)
                     sourceIdx = find(wheelDisplayUs <= eyeUs, 1, 'last');
-                    if isempty(sourceIdx)
-                        sourceIdx = 1;
-                    end
                 end
                 if ~isempty(sourceIdx)
                     sourceRow = wheelDisplayRecord(sourceIdx, :);
@@ -5087,6 +5128,8 @@ classdef BehaviorBoxWheel < handle
                     rows.StimColor(iEye) = this.rowNumericScalar_(sourceRow, "StimColor");
                     rows.level(iEye) = this.rowNumericScalar_(sourceRow, "level");
                     rows.isLeftTrial(iEye) = logical(this.rowNumericScalar_(sourceRow, "isLeftTrial"));
+                elseif ~isempty(wheelDisplayUs) && eyeUs < wheelDisplayUs(1)
+                    rows.phase(iEye) = "setup";
                 end
 
                 displayEventIdx = find(displayEventTimes > prevEyeUs & displayEventTimes <= eyeUs);

@@ -1450,10 +1450,11 @@ classdef BehaviorBoxEyeTrack < handle
 
         function tNs = sessionStartUnixNs_(this)
             if ~isempty(this.TrainStartWallClock) && ~isnat(this.TrainStartWallClock)
-                tNs = int64(round(posixtime(this.TrainStartWallClock) * 1e9));
+                wallClock = BehaviorBoxEyeTrack.ensureTimezone_(this.TrainStartWallClock);
             else
-                tNs = int64(round(posixtime(datetime("now")) * 1e9));
+                wallClock = BehaviorBoxEyeTrack.ensureTimezone_(datetime("now"));
             end
+            tNs = int64(round(posixtime(wallClock) * 1e9));
         end
 
         function tUs = currentTrainMicros_(this)
@@ -1705,6 +1706,21 @@ classdef BehaviorBoxEyeTrack < handle
 
         function address = defaultSourceAddress_()
             address = BehaviorBoxEyeTrack.getOptionalEnv_("BB_EYETRACK_ZMQ_ADDRESS", "tcp://127.0.0.1:5555");
+        end
+
+        function wallClock = ensureTimezone_(wallClock)
+            if isempty(wallClock) || ~isdatetime(wallClock) || any(isnat(wallClock))
+                wallClock = datetime("now", "TimeZone", "local");
+                return
+            end
+            try
+                tz = string(wallClock.TimeZone);
+            catch
+                tz = "";
+            end
+            if strlength(strtrim(tz)) == 0
+                wallClock.TimeZone = "local";
+            end
         end
     end
 end
