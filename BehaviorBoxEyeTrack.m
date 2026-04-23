@@ -927,11 +927,32 @@ classdef BehaviorBoxEyeTrack < handle
                 request = RequestMessage('GET');
             else
                 headers = HeaderField('Content-Type', 'application/json');
-                request = RequestMessage(char(upper(string(method))), headers, jsonencode(body));
+                request = RequestMessage(char(upper(string(method))), headers, body);
             end
             options = HTTPOptions('ConnectTimeout', this.ReceiverTimeoutSeconds);
             response = request.send(uri, options);
             if response.StatusCode ~= StatusCode.OK
+                detail = "";
+                try
+                    errorPayload = response.Body.Data;
+                    if ischar(errorPayload) || isstring(errorPayload)
+                        decodedPayload = jsondecode(char(string(errorPayload)));
+                        if isstruct(decodedPayload) && isfield(decodedPayload, 'error')
+                            detail = string(decodedPayload.error);
+                        else
+                            detail = string(errorPayload);
+                        end
+                    elseif isstruct(errorPayload) && isfield(errorPayload, 'error')
+                        detail = string(errorPayload.error);
+                    end
+                catch
+                    detail = "";
+                end
+                if strlength(strtrim(detail)) > 0
+                    error('BehaviorBoxEyeTrack:ReceiverHttpError', ...
+                        'Receiver request failed with status %s: %s', ...
+                        char(string(response.StatusLine)), char(detail));
+                end
                 error('BehaviorBoxEyeTrack:ReceiverHttpError', ...
                     'Receiver request failed with status %s', char(string(response.StatusLine)));
             end

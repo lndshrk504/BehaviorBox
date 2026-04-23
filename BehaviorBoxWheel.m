@@ -447,7 +447,7 @@ classdef BehaviorBoxWheel < handle
             this.GuiHandles.MsgBox.String = "";
             this.GuiHandles.NotesText.String = "";
             this.GuiHandles.NotesText.String = sprintf(string(datetime("today"))+" Behavior Notes:\n");
-            if ~any([this.app.Animate_Go.Value this.app.Animate_Show.Value this.app.Animate_Flash.Value this.app.Animate_Rec.Value]) % Don't show finish line for animation
+            if ~any([this.app.Animate_Go.Value this.app.Animate_Show.Value this.app.Animate_Flash.Value]) % Don't show finish line for animation
                 this.app.Stimulus_FinishLine.Value = true;
                 this.Setting_Struct.Stimulus_FinishLine = true;
                 this.StimulusStruct.FinishLine = true;
@@ -475,7 +475,7 @@ classdef BehaviorBoxWheel < handle
             [this.Level] = this.Setting_Struct.Starting_opacity;
             rng('shuffle');
             [this.fig, this.LStimAx, this.RStimAx, this.FLAx, ~] = this.Stimulus_Object.setUpFigure();
-            if ~any([this.app.Animate_Go.Value this.app.Animate_Show.Value this.app.Animate_Flash.Value this.app.Animate_Rec.Value]) % Don't show finish line for animation
+            if ~any([this.app.Animate_Go.Value this.app.Animate_Show.Value this.app.Animate_Flash.Value]) % Don't show finish line for animation
                 this.ReadyCue('Create')
                 if isempty(this.ReadyCueAx) || ~isgraphics(this.ReadyCueAx)
                     this.ReadyCueAx = findobj(this.fig, 'Type', 'axes', 'Tag', 'ReadyCue');
