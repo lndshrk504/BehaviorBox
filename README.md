@@ -6,7 +6,7 @@ The repo also includes:
 
 - visual stimulus generation for task presentation
 - Arduino firmware and wiring references for connected hardware
-- eye-tracking bridge code and demos
+- eye-tracking streamer, receiver, import, and alignment code
 - headless MATLAB smoke tests for save/load paths
 - a separate Linux-only multi-camera utility in `usbcamv4l/`
 
@@ -18,7 +18,7 @@ The repo also includes:
 - `BehaviorBoxWheel.m`: wheel task runtime, including wheel-specific imaging and timestamp logic
 - `BehaviorBoxData.m`: data loading, saving, plotting, and aggregate analysis
 - `BehaviorBoxVisualStimulus.m`: visual stimulus rendering
-- `BehaviorBoxEyeTrack.m`: eye-tracking log helper for the active ZeroMQ-based DLCLive bridge
+- `BehaviorBoxEyeTrack.m`: receiver-backed eye-tracking client, importer, and alignment helper
 
 ## Repository layout
 
@@ -26,7 +26,7 @@ The repo also includes:
 | --- | --- |
 | `fcns/` | MATLAB helpers, analysis utilities, and focused smoke tests |
 | `MockApp/` | Headless MATLAB harness for debugging `BehaviorBoxWheel` logic without the full GUI or hardware |
-| `EyeTrack/` | Active eye-tracking boundary, MATLAB/Python bridge code, and legacy references |
+| `EyeTrack/` | Active eye-tracking streamer/receiver boundary, MATLAB importer code, and legacy references |
 | `Arduino/` | Sketches and wiring references for behavior and timing hardware |
 | `Equipment/` | CAD files, board references, and hardware assets |
 | `Linux-Scripts/` | Linux setup and automation scripts |
@@ -127,9 +127,25 @@ Relevant files:
 - [`EyeTrack/DeepLabCut/README.md`](EyeTrack/DeepLabCut/README.md)
 - [`EyeTrack/DeepLabCut/ToMatlab/README.md`](EyeTrack/DeepLabCut/ToMatlab/README.md)
 - [`EyeTrack/DeepLabCut/ToMatlab/README_eye_stream.md`](EyeTrack/DeepLabCut/ToMatlab/README_eye_stream.md)
-- [`EyeTrack/DeepLabCut/ToMatlab/receive_eye_stream_demo.m`](EyeTrack/DeepLabCut/ToMatlab/receive_eye_stream_demo.m)
+- [`EyeTrack/DeepLabCut/TWO_COMPUTER_EYE_TRACKING_QUICKSTART.md`](EyeTrack/DeepLabCut/TWO_COMPUTER_EYE_TRACKING_QUICKSTART.md)
+- [`EyeTrack/DeepLabCut/ToMatlab/run_eye_stream_receive_test.m`](EyeTrack/DeepLabCut/ToMatlab/run_eye_stream_receive_test.m)
 
-The active MATLAB/Python bridge is a ZeroMQ JSON stream between the Python streamer and MATLAB subscriber tools in `EyeTrack/DeepLabCut/ToMatlab/`.
+The active eye-tracking runtime is a three-stage pipeline:
+
+- Python streamer on the eye-tracking computer:
+  `EyeTrack/DeepLabCut/ToMatlab/dlc_eye_streamer.py`
+- Python deferred receiver on the behavior computer:
+  `EyeTrack/DeepLabCut/ToMatlab/behavior_eye_receiver.py`
+- MATLAB-side client/import/alignment path:
+  `BehaviorBoxEyeTrack.m`
+
+Transport is split accordingly:
+
+- ZeroMQ JSON stream from streamer to receiver
+- append-only per-segment CSV + JSON chunks written by the receiver
+- localhost HTTP control/status API used by MATLAB to open sessions, close segments, and import finalized chunks
+
+`EyeTrack/DeepLabCut/ToMatlab/matlab_zmq_bridge.py` and `receive_eye_stream_demo.m` are retained as older reference/demo tooling, but they are no longer the production ingest path used by BehaviorBox.
 
 ## Mock harness
 

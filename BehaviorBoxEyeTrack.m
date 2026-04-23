@@ -1,6 +1,6 @@
 classdef BehaviorBoxEyeTrack < handle
-    % BehaviorBox eye-tracking log helper for the DLCLive -> ZeroMQ stream.
-    % WBS Apr - 15 - 2026
+    % BehaviorBox eye-tracking helper for deferred receiver-backed ingest.
+    % WBS Apr - 22 - 2026
 
     properties
         DispOutput logical = false
@@ -15,6 +15,8 @@ classdef BehaviorBoxEyeTrack < handle
         SourceMode string = ""
         SourceHost string = ""
         SourcePort double = NaN
+        ReceiverUrl string = ""
+        ReceiverTimeoutSeconds double = 5
         BridgeDir string = ""
         PythonExecutable string = ""
         ModelName string = "DLC_PupilTracking_YangLab_resnet_50_iteration-0_shuffle-1"
@@ -22,6 +24,7 @@ classdef BehaviorBoxEyeTrack < handle
         PlaceholderLiveSubscriber logical = false
         IsConnected logical = false
         IsReady logical = false
+        SessionActive logical = false
         LastReceiveWallClock = NaT
         LastSampleReceiveWallClock = NaT
         SubscriberStartWallClock = NaT
@@ -34,7 +37,7 @@ classdef BehaviorBoxEyeTrack < handle
         StaleTimeoutSeconds double = 2
         MaxDrainMessages double = 10000
         ChunkSize double = 5000
-        StartTimerOnStart logical = true
+        StartTimerOnStart logical = false
         MessagesReceived double = 0
         SamplesReceived double = 0
         MetadataMessagesReceived double = 0
@@ -51,17 +54,25 @@ classdef BehaviorBoxEyeTrack < handle
         StreamMetadata struct = struct()
         TrialBoundaryUs double = double.empty(0,1)
         TrialBoundaryValues double = double.empty(0,1)
+        AlignmentTimeColumn string = "t_receive_us"
+        SessionId string = ""
+        SessionKind string = ""
+        SessionLabel string = ""
+        SessionOutputDir string = ""
+        ActiveSegmentId string = ""
+        ActiveSegmentKind string = ""
+        ActiveSegmentTrial double = NaN
+        ActiveSegmentMode string = ""
+        SessionManifest struct = struct('session_id', "", 'segments', struct.empty(0,1))
+        ClientAdapter struct = struct()
     end
 
     properties (Access = private)
-        RecordChunks cell = {}
-        CurrentRows = struct.empty(0,1)
-        CurrentChunkCount double = 0
+        ImportedSegmentIds string = string.empty(0,1)
+        ImportedSegmentTables cell = {}
+        ImportedSegmentMeta cell = {}
         StartupWarningIssued logical = false
-        NotReadyWarningIssued logical = false
         RuntimeWarningIssued logical = false
-        FrameGapWarningIssued logical = false
-        StaleActive logical = false
     end
 
     methods
@@ -82,8 +93,11 @@ classdef BehaviorBoxEyeTrack < handle
                 options.StaleTimeoutSeconds double = 2
                 options.MaxDrainMessages double = 10000
                 options.ChunkSize double = 5000
-                options.StartTimerOnStart logical = true
+                options.StartTimerOnStart logical = false
                 options.BridgeAdapter struct = struct()
+                options.ReceiverUrl string = ""
+                options.ReceiverTimeoutSeconds double = 5
+                options.ClientAdapter struct = struct()
             end
 
             this.PointNames = string(options.PointNames(:));
@@ -100,6 +114,12 @@ classdef BehaviorBoxEyeTrack < handle
             this.ChunkSize = double(options.ChunkSize);
             this.StartTimerOnStart = logical(options.StartTimerOnStart);
             this.BridgeAdapter = options.BridgeAdapter;
+            this.ClientAdapter = options.ClientAdapter;
+            if isempty(fieldnames(this.ClientAdapter)) && ~isempty(fieldnames(this.BridgeAdapter))
+                if isfield(this.BridgeAdapter, 'health') || isfield(this.BridgeAdapter, 'manifest')
+                    this.ClientAdapter = this.BridgeAdapter;
+                end
+            end
 
             if strlength(strtrim(options.Address)) > 0
                 [host, port, address] = BehaviorBoxEyeTrack.parseAddress(options.Address);
@@ -107,9 +127,17 @@ classdef BehaviorBoxEyeTrack < handle
                 this.SourceHost = host;
                 this.SourcePort = port;
             else
-                this.Address = "";
+                address = BehaviorBoxEyeTrack.defaultSourceAddress_();
+                [host, port, address] = BehaviorBoxEyeTrack.parseAddress(address);
+                this.Address = address;
                 this.SourceHost = string(options.SourceHost);
+                if strlength(strtrim(this.SourceHost)) == 0
+                    this.SourceHost = host;
+                end
                 this.SourcePort = double(options.SourcePort);
+                if ~isfinite(this.SourcePort)
+                    this.SourcePort = port;
+                end
             end
 
             if strlength(strtrim(options.SourceMode)) > 0
@@ -117,26 +145,31 @@ classdef BehaviorBoxEyeTrack < handle
             else
                 this.SourceMode = BehaviorBoxEyeTrack.inferSourceMode_(this.SourceHost);
             end
+
+            receiverUrl = string(options.ReceiverUrl);
+            if strlength(strtrim(receiverUrl)) == 0
+                receiverUrl = BehaviorBoxEyeTrack.defaultReceiverUrl_();
+            end
+            this.ReceiverUrl = receiverUrl;
+            this.ReceiverTimeoutSeconds = double(options.ReceiverTimeoutSeconds);
         end
 
         function tf = connect(this)
-            tf = this.IsConnected;
-            if tf
-                return
-            end
-
+            tf = false;
             try
-                this.prepareBridge_();
-                this.openSubscriber_();
+                payload = this.requestJson_("GET", "/health", struct());
+                this.applyHealthPayload_(payload);
                 this.IsConnected = true;
                 this.LastErrorMessage = "";
-                this.SubscriberStartWallClock = datetime("now");
                 tf = true;
             catch err
                 this.IsConnected = false;
-                this.LastErrorMessage = string(err.message);
-                tf = false;
-                this.warnStartupUnavailable_(err.message);
+                try
+                    this.LastErrorMessage = string(getReport(err, 'extended', 'hyperlinks', 'off'));
+                catch
+                    this.LastErrorMessage = string(err.message);
+                end
+                this.warnStartupUnavailable_(this.LastErrorMessage);
             end
         end
 
@@ -145,17 +178,58 @@ classdef BehaviorBoxEyeTrack < handle
             if ~tf
                 return
             end
-
-            this.waitForReady_();
-            if this.StartTimerOnStart
-                this.startPollTimer_();
+            try
+                this.ensureSessionConfigured_();
+                payload = struct( ...
+                    'session_id', char(this.SessionId), ...
+                    'session_kind', char(this.SessionKind), ...
+                    'session_label', char(this.SessionLabel), ...
+                    'output_dir', char(this.SessionOutputDir), ...
+                    'session_start_unix_ns', this.sessionStartUnixNs_(), ...
+                    'source_address', char(this.Address), ...
+                    'model_name', char(this.ModelName), ...
+                    'point_names', {cellstr(this.PointNames)});
+                response = this.requestJson_("POST", "/session/start", payload);
+                this.SessionActive = true;
+                this.SubscriberStartWallClock = datetime("now");
+                if isstruct(response) && isfield(response, 'point_names')
+                    this.PointNames = BehaviorBoxEyeTrack.readStringArrayField_(response, 'point_names');
+                    this.PointNames = this.PointNames(:);
+                    this.ParsedLog = BehaviorBoxEyeTrack.emptyRecordTable(this.PointNames);
+                end
+                if isstruct(response) && isfield(response, 'model_name')
+                    this.ModelName = bbCoerceStringArray(response.model_name);
+                    this.ModelName = this.ModelName(1);
+                end
+                this.LastErrorMessage = "";
+            catch err
+                tf = false;
+                try
+                    this.LastErrorMessage = string(getReport(err, 'extended', 'hyperlinks', 'off'));
+                catch
+                    this.LastErrorMessage = string(err.message);
+                end
+                this.warnStartupUnavailable_(this.LastErrorMessage);
             end
         end
 
         function stop(this)
-            this.stopPollTimer_();
-            this.closeSubscriber_();
-            this.IsConnected = false;
+            if ~this.SessionActive || strlength(this.SessionId) == 0
+                this.SessionActive = false;
+                this.SubscriberStopWallClock = datetime("now");
+                return
+            end
+            try
+                this.requestJson_("POST", "/session/stop", struct('session_id', char(this.SessionId)));
+            catch err
+                this.LastErrorMessage = string(err.message);
+                this.warnRuntimeFailure_(err.message);
+            end
+            this.SessionActive = false;
+            this.ActiveSegmentId = "";
+            this.ActiveSegmentKind = "";
+            this.ActiveSegmentTrial = NaN;
+            this.ActiveSegmentMode = "";
             this.SubscriberStopWallClock = datetime("now");
         end
 
@@ -172,55 +246,158 @@ classdef BehaviorBoxEyeTrack < handle
             this.TrainStartWallClock = trainStartWallClock;
         end
 
+        function configureSession(this, options)
+            arguments
+                this
+                options.SessionId string = ""
+                options.SessionKind string = "session"
+                options.SessionLabel string = ""
+                options.OutputDir string = ""
+            end
+            if strlength(strtrim(options.SessionId)) > 0
+                this.SessionId = string(options.SessionId);
+            end
+            this.SessionKind = string(options.SessionKind);
+            if strlength(strtrim(options.SessionLabel)) > 0
+                this.SessionLabel = string(options.SessionLabel);
+            end
+            if strlength(strtrim(options.OutputDir)) > 0
+                this.SessionOutputDir = string(options.OutputDir);
+            end
+        end
+
         function markTrial(this, trialNumber)
             this.CurrentTrial = double(trialNumber);
             tUs = this.currentTrainMicros_();
-            if isnan(tUs)
-                if isempty(this.TrialBoundaryUs)
-                    tUs = 0;
-                else
-                    tUs = this.TrialBoundaryUs(end);
-                end
+            if ~isfinite(tUs)
+                tUs = 0;
             end
             this.TrialBoundaryUs(end+1,1) = double(tUs);
             this.TrialBoundaryValues(end+1,1) = double(trialNumber);
         end
 
-        function count = pollAvailable(this, trialNumber)
+        function tf = beginSegment(this, options)
             arguments
                 this
-                trialNumber double = NaN
+                options.SegmentId string = ""
+                options.SegmentKind string = "segment"
+                options.TrialNumber double = NaN
+                options.Mode string = ""
+                options.ScanImageFile double = NaN
             end
-
-            if ~isnan(trialNumber)
-                this.markTrial(trialNumber);
-            end
-
-            count = 0;
-            if ~this.IsConnected && ~this.connect()
+            tf = false;
+            if ~this.SessionActive || strlength(this.SessionId) == 0
                 return
             end
-
             try
-                count = this.drainAvailable_([], this.PollTimeoutMs);
-                this.checkStale_();
+                segmentId = string(options.SegmentId);
+                if strlength(strtrim(segmentId)) == 0
+                    segmentId = this.defaultSegmentId_(string(options.SegmentKind), double(options.TrialNumber));
+                end
+                payload = struct( ...
+                    'session_id', char(this.SessionId), ...
+                    'segment_id', char(segmentId), ...
+                    'segment_kind', char(string(options.SegmentKind)), ...
+                    'trial_number', double(options.TrialNumber), ...
+                    'mode', char(string(options.Mode)), ...
+                    'scan_image_file', double(options.ScanImageFile));
+                this.requestJson_("POST", "/segment/open", payload);
+                this.ActiveSegmentId = segmentId;
+                this.ActiveSegmentKind = string(options.SegmentKind);
+                this.ActiveSegmentTrial = double(options.TrialNumber);
+                this.ActiveSegmentMode = string(options.Mode);
+                tf = true;
             catch err
                 this.LastErrorMessage = string(err.message);
                 this.warnRuntimeFailure_(err.message);
             end
         end
 
-        function count = finalDrain(this)
-            count = 0;
-            if ~this.IsConnected
+        function meta = closeSegment(this, options)
+            arguments
+                this
+                options.Partial logical = false
+            end
+            meta = struct();
+            if ~this.SessionActive || strlength(this.SessionId) == 0
                 return
             end
             try
-                count = this.drainAvailable_(NaN, this.PollTimeoutMs);
-                this.checkStale_();
+                payload = struct( ...
+                    'session_id', char(this.SessionId), ...
+                    'partial', logical(options.Partial));
+                meta = this.requestJson_("POST", "/segment/close", payload);
+                this.ActiveSegmentId = "";
+                this.ActiveSegmentKind = "";
+                this.ActiveSegmentTrial = NaN;
+                this.ActiveSegmentMode = "";
             catch err
                 this.LastErrorMessage = string(err.message);
                 this.warnRuntimeFailure_(err.message);
+            end
+        end
+
+        function [segmentTables, segmentMeta] = importClosedSegments(this)
+            segmentTables = {};
+            segmentMeta = {};
+            if strlength(this.SessionId) == 0
+                return
+            end
+            try
+                manifestPayload = this.requestJson_("GET", "/manifest", struct('session_id', char(this.SessionId)));
+                entries = this.manifestEntries_(manifestPayload);
+                if isempty(entries)
+                    return
+                end
+                this.SessionManifest = manifestPayload;
+                for idx = 1:numel(entries)
+                    entry = entries(idx);
+                    segmentId = this.entryString_(entry, "segment_id");
+                    if strlength(segmentId) == 0 || any(this.ImportedSegmentIds == segmentId)
+                        continue
+                    end
+                    if ~this.entryLogical_(entry, "closed", true)
+                        continue
+                    end
+                    tableRows = this.readSegmentCsv_(entry);
+                    [tableRows, meta] = this.normalizeImportedSegment_(tableRows, entry);
+                    this.appendImportedSegment_(segmentId, tableRows, meta);
+                    segmentTables{end+1,1} = tableRows; %#ok<AGROW>
+                    segmentMeta{end+1,1} = meta; %#ok<AGROW>
+                end
+                this.updateStatusFromImported_();
+            catch err
+                this.LastErrorMessage = string(err.message);
+                this.warnRuntimeFailure_(err.message);
+            end
+        end
+
+        function [segmentTables, segmentMeta] = finalizeSession(this)
+            segmentTables = {};
+            segmentMeta = {};
+            if ~this.SessionActive || strlength(this.SessionId) == 0
+                return
+            end
+            try
+                this.requestJson_("POST", "/session/finalize", struct('session_id', char(this.SessionId), 'partial', false));
+            catch err
+                this.LastErrorMessage = string(err.message);
+                this.warnRuntimeFailure_(err.message);
+            end
+            [segmentTables, segmentMeta] = this.importClosedSegments();
+        end
+
+        function count = pollAvailable(~, varargin) %#ok<INUSD>
+            count = 0;
+        end
+
+        function count = finalDrain(this)
+            [segmentTables, ~] = this.finalizeSession();
+            count = 0;
+            for idx = 1:numel(segmentTables)
+                if istable(segmentTables{idx})
+                    count = count + height(segmentTables{idx});
+                end
             end
         end
 
@@ -230,24 +407,95 @@ classdef BehaviorBoxEyeTrack < handle
                 newReading
                 trialNumber double = NaN
             end
-
-            if ~isnan(trialNumber)
-                this.markTrial(trialNumber);
-            end
-
+            rows = BehaviorBoxEyeTrack.emptyRecordTable(this.PointNames);
             try
-                rows = this.processRawJson_(string(newReading), []);
-                this.checkStale_();
+                decoded = jsondecode(char(string(newReading)));
+                payloads = BehaviorBoxEyeTrack.payloadCellArray_(decoded);
+                rowStructs = struct.empty(0,1);
+                for idx = 1:numel(payloads)
+                    payload = payloads{idx};
+                    if ~isstruct(payload)
+                        continue
+                    end
+                    messageType = this.readStringField_(payload, 'message_type', "sample");
+                    this.updatePointNamesFromPayload_(payload);
+                    this.updateMetadataFromPayload_(payload, messageType);
+                    if messageType == "metadata"
+                        this.MetadataMessagesReceived = this.MetadataMessagesReceived + 1;
+                        continue
+                    end
+                    rowStruct = this.rowStructFromPayload_(payload, double(trialNumber));
+                    rowStructs(end+1,1) = rowStruct; %#ok<AGROW>
+                end
+                if isempty(rowStructs)
+                    return
+                end
+                rows = struct2table(rowStructs);
+                rows = rows(:, cellstr(BehaviorBoxEyeTrack.recordVariableNames(this.PointNames)));
+                testMeta = struct( ...
+                    'segment_id', "manual_segment_" + string(numel(this.ImportedSegmentIds) + 1), ...
+                    'segment_kind', "manual", ...
+                    'trial_number', double(trialNumber), ...
+                    'mode', "", ...
+                    'scan_image_file', NaN, ...
+                    'csv_path', "", ...
+                    'metadata_path', "", ...
+                    'row_count', height(rows), ...
+                    'receive_start_unix_ns', NaN, ...
+                    'receive_end_unix_ns', NaN, ...
+                    't_receive_start_us', this.columnFirstNumeric_(rows, "t_receive_us"), ...
+                    't_receive_end_us', this.columnLastNumeric_(rows, "t_receive_us"), ...
+                    'closed', true, ...
+                    'partial', false, ...
+                    'point_names', {cellstr(this.PointNames)});
+                this.appendImportedSegmentForTest(rows, testMeta);
             catch err
                 this.LastErrorMessage = string(err.message);
                 this.warnRuntimeFailure_(err.message);
-                rows = BehaviorBoxEyeTrack.emptyRecordTable(this.PointNames);
             end
         end
 
+        function appendImportedSegmentForTest(this, segmentTable, segmentMeta)
+            if nargin < 3 || isempty(segmentMeta)
+                segmentMeta = struct();
+            end
+            if ~isstruct(segmentMeta)
+                error('BehaviorBoxEyeTrack:InvalidSegmentMeta', ...
+                    'appendImportedSegmentForTest expects segmentMeta to be a struct.');
+            end
+            segmentId = this.entryString_(segmentMeta, "segment_id");
+            if strlength(segmentId) == 0
+                segmentId = "manual_segment_" + string(numel(this.ImportedSegmentIds) + 1);
+                segmentMeta.segment_id = segmentId;
+            end
+            [segmentTable, segmentMeta] = this.normalizeImportedSegment_(segmentTable, segmentMeta);
+            this.appendImportedSegment_(segmentId, segmentTable, segmentMeta);
+            this.updateStatusFromImported_();
+        end
+
         function record = getRecord(this)
-            record = this.recordFromChunks_();
+            record = BehaviorBoxEyeTrack.emptyRecordTable(this.PointNames);
+            if isempty(this.ImportedSegmentTables)
+                this.ParsedLog = record;
+                return
+            end
+            record = vertcat(this.ImportedSegmentTables{:});
+            if ismember("t_us", string(record.Properties.VariableNames))
+                record.AlignmentOrder = transpose(1:height(record));
+                if ismember("frame_id", string(record.Properties.VariableNames))
+                    record = sortrows(record, {'t_us', 'frame_id', 'AlignmentOrder'});
+                else
+                    record = sortrows(record, {'t_us', 'AlignmentOrder'});
+                end
+                record.AlignmentOrder = [];
+            end
             this.ParsedLog = record;
+            if height(record) > 0
+                try
+                    this.LatestSample = table2struct(record(end, :), 'ToScalar', true);
+                catch
+                end
+            end
         end
 
         function meta = getMeta(this)
@@ -257,16 +505,17 @@ classdef BehaviorBoxEyeTrack < handle
             meta.SourceMode = this.SourceMode;
             meta.SourceHost = this.SourceHost;
             meta.SourcePort = this.SourcePort;
+            meta.ReceiverUrl = this.ReceiverUrl;
             meta.BridgeDir = this.BridgeDir;
-            meta.BridgeAvailable = isfolder(char(this.BridgeDir));
+            meta.BridgeAvailable = false;
             meta.ModelName = this.ModelName;
             meta.PointNames = this.PointNames;
             meta.PointCount = numel(this.PointNames);
-            meta.PlaceholderLiveSubscriber = this.PlaceholderLiveSubscriber;
+            meta.PlaceholderLiveSubscriber = false;
             meta.IsConnected = this.IsConnected;
             meta.IsReady = this.IsReady;
             meta.PythonExecutable = this.PythonExecutable;
-            meta.SessionClockSource = "capture_time_unix_ns - BehaviorBoxWheel.TrainStartWallClock";
+            meta.SessionClockSource = "behavior_receive_time_unix_ns - session_start_unix_ns";
             meta.SessionStartWallClock = this.TrainStartWallClock;
             meta.LastReceiveWallClock = this.LastReceiveWallClock;
             meta.LastSampleReceiveWallClock = this.LastSampleReceiveWallClock;
@@ -290,18 +539,34 @@ classdef BehaviorBoxEyeTrack < handle
             meta.StaleEventCount = this.StaleEventCount;
             meta.LastFrameId = this.LastFrameId;
             meta.LastErrorMessage = this.LastErrorMessage;
-            meta.TimerRunning = this.timerRunning_();
+            meta.TimerRunning = false;
             meta.LatestSampleStatus = "";
-            if ~isempty(this.LatestSample) && isfield(this.LatestSample, 'sample_status')
+            if isfield(this.LatestSample, 'sample_status')
                 meta.LatestSampleStatus = string(this.LatestSample.sample_status);
             end
             meta.RecordVariableNames = string(record.Properties.VariableNames);
             meta.StreamMetadata = this.StreamMetadata;
-            meta.CsvPath = this.readMetadataString_("csv_path", "");
-            meta.MetadataPath = this.readMetadataString_("metadata_path", "");
+            meta.CsvPath = this.firstImportedPath_("csv_path");
+            meta.MetadataPath = this.firstImportedPath_("metadata_path");
             meta.SchemaVersion = this.readMetadataNumeric_("schema_version", NaN);
             meta.TrialBoundaryUs = this.TrialBoundaryUs;
             meta.TrialBoundaryValues = this.TrialBoundaryValues;
+            meta.SessionId = this.SessionId;
+            meta.SessionKind = this.SessionKind;
+            meta.SessionLabel = this.SessionLabel;
+            meta.SessionOutputDir = this.SessionOutputDir;
+            meta.AlignmentTimeColumn = this.AlignmentTimeColumn;
+            meta.SegmentCount = numel(this.ImportedSegmentMeta);
+            meta.ImportedSegmentIds = this.ImportedSegmentIds;
+            meta.ImportedChunkFiles = this.importedChunkFiles_();
+        end
+
+        function segmentTables = getSegmentTables(this)
+            segmentTables = this.ImportedSegmentTables;
+        end
+
+        function segmentMeta = getSegmentMeta(this)
+            segmentMeta = this.ImportedSegmentMeta;
         end
 
         function Reset(this)
@@ -310,8 +575,13 @@ classdef BehaviorBoxEyeTrack < handle
             this.ParsedLog = BehaviorBoxEyeTrack.emptyRecordTable(this.PointNames);
             this.LatestSample = struct();
             this.CurrentTrial = NaN;
+            this.IsConnected = false;
+            this.IsReady = false;
+            this.SessionActive = false;
             this.LastReceiveWallClock = NaT;
             this.LastSampleReceiveWallClock = NaT;
+            this.SubscriberStartWallClock = NaT;
+            this.SubscriberStopWallClock = NaT;
             this.ReadyWallClock = NaT;
             this.MessagesReceived = 0;
             this.SamplesReceived = 0;
@@ -321,18 +591,24 @@ classdef BehaviorBoxEyeTrack < handle
             this.StaleEventCount = 0;
             this.LastFrameId = NaN;
             this.ReadySampleFrameId = NaN;
-            this.IsReady = false;
             this.LastErrorMessage = "";
             this.StreamMetadata = struct();
             this.TrialBoundaryUs = double.empty(0,1);
             this.TrialBoundaryValues = double.empty(0,1);
-            this.RecordChunks = {};
-            this.CurrentRows = struct.empty(0,1);
-            this.CurrentChunkCount = 0;
-            this.NotReadyWarningIssued = false;
+            this.SessionId = "";
+            this.SessionKind = "";
+            this.SessionLabel = "";
+            this.SessionOutputDir = "";
+            this.ActiveSegmentId = "";
+            this.ActiveSegmentKind = "";
+            this.ActiveSegmentTrial = NaN;
+            this.ActiveSegmentMode = "";
+            this.SessionManifest = struct('session_id', "", 'segments', struct.empty(0,1));
+            this.ImportedSegmentIds = string.empty(0,1);
+            this.ImportedSegmentTables = {};
+            this.ImportedSegmentMeta = {};
+            this.StartupWarningIssued = false;
             this.RuntimeWarningIssued = false;
-            this.FrameGapWarningIssued = false;
-            this.StaleActive = false;
         end
     end
 
@@ -427,6 +703,7 @@ classdef BehaviorBoxEyeTrack < handle
                 'SourceMode', "", ...
                 'SourceHost', "", ...
                 'SourcePort', NaN, ...
+                'ReceiverUrl', "", ...
                 'BridgeDir', "", ...
                 'BridgeAvailable', false, ...
                 'ModelName', "", ...
@@ -468,7 +745,15 @@ classdef BehaviorBoxEyeTrack < handle
                 'MetadataPath', "", ...
                 'SchemaVersion', NaN, ...
                 'TrialBoundaryUs', double.empty(0,1), ...
-                'TrialBoundaryValues', double.empty(0,1));
+                'TrialBoundaryValues', double.empty(0,1), ...
+                'SessionId', "", ...
+                'SessionKind', "", ...
+                'SessionLabel', "", ...
+                'SessionOutputDir', "", ...
+                'AlignmentTimeColumn', "t_receive_us", ...
+                'SegmentCount', 0, ...
+                'ImportedSegmentIds', string.empty(0,1), ...
+                'ImportedChunkFiles', string.empty(0,1));
         end
 
         function pointNames = defaultPointNames()
@@ -490,13 +775,20 @@ classdef BehaviorBoxEyeTrack < handle
             if isempty(out) || height(out) == 0 || isempty(eyeRecord) || height(eyeRecord) == 0
                 return
             end
-            if ~ismember(options.TimeColumn, string(out.Properties.VariableNames)) || ...
-                    ~ismember("t_us", string(eyeRecord.Properties.VariableNames))
+            if ~ismember(options.TimeColumn, string(out.Properties.VariableNames))
                 return
             end
+            eyeTimeColumn = options.EyeTimeColumn;
+            if ~ismember(eyeTimeColumn, string(eyeRecord.Properties.VariableNames))
+                if ismember("t_us", string(eyeRecord.Properties.VariableNames))
+                    eyeTimeColumn = "t_us";
+                else
+                    return
+                end
+            end
 
-            eyeRecord = sortrows(eyeRecord, "t_us");
-            eyeT = double(eyeRecord.t_us);
+            eyeRecord = sortrows(eyeRecord, char(eyeTimeColumn));
+            eyeT = double(eyeRecord.(char(eyeTimeColumn)));
             keep = isfinite(eyeT);
             eyeRecord = eyeRecord(keep, :);
             eyeT = eyeT(keep);
@@ -513,7 +805,7 @@ classdef BehaviorBoxEyeTrack < handle
 
                 previousIdx = find(eyeT <= tNow, 1, "last");
                 if ~isempty(previousIdx)
-                    out = BehaviorBoxEyeTrack.copyRepresentativeEyeSample_(out, rowIdx, eyeRecord(previousIdx, :), tNow);
+                    out = BehaviorBoxEyeTrack.copyRepresentativeEyeSample_(out, rowIdx, eyeRecord(previousIdx, :), tNow, eyeTimeColumn);
                 end
 
                 if options.IntervalDirection == "next"
@@ -537,30 +829,25 @@ classdef BehaviorBoxEyeTrack < handle
                 intervalIdx = find(intervalMask);
                 out.eye_sample_count(rowIdx) = numel(intervalIdx);
                 if options.Mode == "interval_summary"
-                    out = BehaviorBoxEyeTrack.copyEyeIntervalSummary_(out, rowIdx, eyeRecord(intervalIdx, :));
+                    out = BehaviorBoxEyeTrack.copyEyeIntervalSummary_(out, rowIdx, eyeRecord(intervalIdx, :), eyeTimeColumn);
                 end
             end
         end
 
         function [isFound, config] = discoverSource()
-            address = string(getenv("BB_EYETRACK_ZMQ_ADDRESS"));
-            if strlength(strtrim(address)) == 0
-                address = "tcp://127.0.0.1:5555";
-            end
-
+            address = BehaviorBoxEyeTrack.defaultSourceAddress_();
+            receiverUrl = BehaviorBoxEyeTrack.defaultReceiverUrl_();
             [host, port, address] = BehaviorBoxEyeTrack.parseAddress(address);
-            bridgeDir = BehaviorBoxEyeTrack.findBridgeDir_();
-
             config = struct( ...
                 'Address', address, ...
+                'ReceiverUrl', receiverUrl, ...
                 'SourceMode', BehaviorBoxEyeTrack.inferSourceMode_(host), ...
                 'SourceHost', host, ...
                 'SourcePort', port, ...
-                'BridgeDir', bridgeDir, ...
+                'BridgeDir', "", ...
                 'ModelName', "DLC_PupilTracking_YangLab_resnet_50_iteration-0_shuffle-1", ...
                 'PointNames', BehaviorBoxEyeTrack.defaultPointNames());
-
-            isFound = BehaviorBoxEyeTrack.probeTcpAddress_(host, port);
+            isFound = BehaviorBoxEyeTrack.probeReceiverUrl_(receiverUrl);
         end
 
         function obj = tryCreateFromEnvironment()
@@ -571,6 +858,7 @@ classdef BehaviorBoxEyeTrack < handle
             end
             obj = BehaviorBoxEyeTrack( ...
                 Address=config.Address, ...
+                ReceiverUrl=config.ReceiverUrl, ...
                 SourceMode=config.SourceMode, ...
                 SourceHost=config.SourceHost, ...
                 SourcePort=config.SourcePort, ...
@@ -592,109 +880,277 @@ classdef BehaviorBoxEyeTrack < handle
     end
 
     methods (Access = private)
-        function count = drainAvailable_(this, trialOverride, timeoutMs)
-            rawMessage = this.recvAllJson_(timeoutMs);
-            count = 0;
-            if strlength(strtrim(rawMessage)) == 0
-                return
+        function ensureSessionConfigured_(this)
+            if strlength(strtrim(this.SessionId)) == 0
+                this.SessionId = this.defaultSessionId_();
             end
-            rows = this.processRawJson_(rawMessage, trialOverride);
-            count = height(rows);
-        end
-
-        function rows = processRawJson_(this, rawMessage, trialOverride)
-            rawMessage = strtrim(string(rawMessage));
-            rows = BehaviorBoxEyeTrack.emptyRecordTable(this.PointNames);
-            if strlength(rawMessage) == 0 || rawMessage == "[]"
-                return
+            if strlength(strtrim(this.SessionKind)) == 0
+                this.SessionKind = "session";
             end
-
-            decoded = jsondecode(char(rawMessage));
-            payloads = BehaviorBoxEyeTrack.payloadCellArray_(decoded);
-            for idx = 1:numel(payloads)
-                payload = payloads{idx};
-                this.MessagesReceived = this.MessagesReceived + 1;
-                this.LastReceiveWallClock = datetime("now");
-                rawLine = jsonencode(payload);
-                this.RawLog(end+1,1) = string(rawLine);
-                this.Log = this.RawLog;
-
-                if this.DispOutput
-                    disp(rawLine);
-                end
-
-                [row, didAppend] = this.processPayload_(payload, string(rawLine), trialOverride);
-                if didAppend
-                    rows = [rows; row]; %#ok<AGROW>
-                end
+            if strlength(strtrim(this.SessionLabel)) == 0
+                this.SessionLabel = this.SessionId;
             end
-            if height(rows) > 0
-                this.ParsedLog = this.recordFromChunks_();
+            if strlength(strtrim(this.SessionOutputDir)) == 0
+                this.SessionOutputDir = fullfile(tempdir, char(this.SessionId));
             end
         end
 
-        function [row, didAppend] = processPayload_(this, payload, rawLine, trialOverride)
-            row = BehaviorBoxEyeTrack.emptyRecordTable(this.PointNames);
-            didAppend = false;
-            messageType = this.readStringField_(payload, 'message_type', "sample");
-
-            this.updatePointNamesFromPayload_(payload);
-            this.updateMetadataFromPayload_(payload, messageType);
-
-            if messageType == "metadata"
-                this.MetadataMessagesReceived = this.MetadataMessagesReceived + 1;
+        function payload = requestJson_(this, method, route, body)
+            if nargin < 4
+                body = struct();
+            end
+            if this.usingClientAdapter_()
+                payload = this.requestViaAdapter_(method, route, body);
                 return
             end
 
-            [points, pointsPresent] = this.pointsFromPayload_(payload);
-            status = this.readStringField_(payload, 'sample_status', "");
-            if strlength(status) == 0
-                if all(pointsPresent)
-                    status = "ok";
-                elseif any(pointsPresent)
-                    status = "partial_points";
-                else
-                    status = "missing_points";
+            import matlab.net.*
+            import matlab.net.http.*
+            uri = URI(char(this.ReceiverUrl + route));
+            if strcmpi(method, "GET")
+                fields = fieldnames(body);
+                if ~isempty(fields)
+                    queryParams = matlab.net.QueryParameter.empty;
+                    for idx = 1:numel(fields)
+                        value = body.(fields{idx});
+                        if isstring(value) || ischar(value)
+                            queryValue = string(value);
+                        elseif isnumeric(value) || islogical(value)
+                            queryValue = string(value);
+                        else
+                            queryValue = string(jsonencode(value));
+                        end
+                        queryParams(end+1) = matlab.net.QueryParameter(fields{idx}, queryValue); %#ok<AGROW>
+                    end
+                    uri.Query = queryParams;
                 end
-            end
-
-            receiveTUs = this.currentTrainMicros_();
-            captureTUs = this.captureTimeUs_(payload, rawLine);
-            if isnan(captureTUs)
-                tUs = receiveTUs;
+                request = RequestMessage('GET');
             else
-                tUs = captureTUs;
+                headers = HeaderField('Content-Type', 'application/json');
+                request = RequestMessage(char(upper(string(method))), headers, jsonencode(body));
             end
-            trial = this.assignTrial_(tUs, trialOverride);
-
-            rowStruct = this.rowStructFromPayload_(payload, rawLine, points, trial, tUs, receiveTUs, status, pointsPresent);
-            this.appendRowStruct_(rowStruct);
-            this.LatestSample = rowStruct;
-            this.SamplesReceived = this.SamplesReceived + 1;
-            this.LastSampleReceiveWallClock = datetime("now");
-            this.updateReadiness_(rowStruct, pointsPresent);
-            this.updateFrameGap_(rowStruct.frame_id);
-
-            row = struct2table(rowStruct, 'AsArray', true);
-            row = row(:, cellstr(BehaviorBoxEyeTrack.recordVariableNames(this.PointNames)));
-            didAppend = true;
+            options = HTTPOptions('ConnectTimeout', this.ReceiverTimeoutSeconds);
+            response = request.send(uri, options);
+            if response.StatusCode ~= StatusCode.OK
+                error('BehaviorBoxEyeTrack:ReceiverHttpError', ...
+                    'Receiver request failed with status %s', char(string(response.StatusLine)));
+            end
+            payload = response.Body.Data;
+            if ischar(payload) || isstring(payload)
+                payload = jsondecode(char(string(payload)));
+            end
         end
 
-        function rowStruct = rowStructFromPayload_(this, payload, rawLine, points, trial, tUs, receiveTUs, status, pointsPresent)
+        function payload = requestViaAdapter_(this, method, route, body)
+            payload = struct();
+            method = upper(string(method));
+            route = string(route);
+            fnName = "";
+            switch method + " " + route
+                case "GET /health"
+                    fnName = "health";
+                case "GET /manifest"
+                    fnName = "manifest";
+                case "POST /session/start"
+                    fnName = "session_start";
+                case "POST /session/finalize"
+                    fnName = "session_finalize";
+                case "POST /session/stop"
+                    fnName = "session_stop";
+                case "POST /segment/open"
+                    fnName = "segment_open";
+                case "POST /segment/close"
+                    fnName = "segment_close";
+            end
+            if strlength(fnName) == 0 || ~isfield(this.ClientAdapter, char(fnName))
+                error('BehaviorBoxEyeTrack:ClientAdapterMissingMethod', ...
+                    'ClientAdapter does not implement %s %s.', char(method), char(route));
+            end
+            payload = feval(this.ClientAdapter.(char(fnName)), body);
+        end
+
+        function tf = usingClientAdapter_(this)
+            tf = isstruct(this.ClientAdapter) && ~isempty(fieldnames(this.ClientAdapter));
+        end
+
+        function applyHealthPayload_(this, payload)
+            if ~isstruct(payload)
+                return
+            end
+            if isfield(payload, 'model_name')
+                this.ModelName = bbCoerceStringArray(payload.model_name);
+                this.ModelName = this.ModelName(1);
+            end
+            if isfield(payload, 'point_names')
+                this.PointNames = BehaviorBoxEyeTrack.readStringArrayField_(payload, 'point_names');
+                this.PointNames = this.PointNames(:);
+                this.ParsedLog = BehaviorBoxEyeTrack.emptyRecordTable(this.PointNames);
+            end
+            if isfield(payload, 'messages_received')
+                this.MessagesReceived = double(payload.messages_received);
+            end
+            if isfield(payload, 'samples_received')
+                this.SamplesReceived = double(payload.samples_received);
+            end
+            if isfield(payload, 'metadata_messages_received')
+                this.MetadataMessagesReceived = double(payload.metadata_messages_received);
+            end
+            if isfield(payload, 'frame_gap_count')
+                this.FrameIdGapCount = double(payload.frame_gap_count);
+            end
+            if isfield(payload, 'missing_frame_count')
+                this.MissingFrameCount = double(payload.missing_frame_count);
+            end
+            if isfield(payload, 'last_frame_id')
+                this.LastFrameId = double(payload.last_frame_id);
+            end
+            if isfield(payload, 'last_error_message')
+                this.LastErrorMessage = bbCoerceStringArray(payload.last_error_message);
+                this.LastErrorMessage = this.LastErrorMessage(1);
+            end
+            if isfield(payload, 'stream_metadata') && isstruct(payload.stream_metadata)
+                this.StreamMetadata = payload.stream_metadata;
+            end
+            this.IsReady = this.SamplesReceived > 0 || ~isempty(this.ImportedSegmentTables);
+        end
+
+        function [tableRows, meta] = normalizeImportedSegment_(this, tableRows, metaIn)
+            if nargin < 3 || isempty(metaIn)
+                metaIn = struct();
+            end
+            if isfield(metaIn, 'point_names')
+                pointNames = BehaviorBoxEyeTrack.readStringArrayField_(metaIn, 'point_names');
+                pointNames = pointNames(:);
+                pointNames = pointNames(strlength(pointNames) > 0);
+                if ~isempty(pointNames)
+                    this.PointNames = pointNames;
+                end
+            end
+            tableRows = this.normalizeRecordTable_(tableRows);
+            meta = struct();
+            meta.segment_id = this.entryString_(metaIn, "segment_id");
+            meta.segment_kind = this.entryString_(metaIn, "segment_kind");
+            meta.trial_number = this.entryNumeric_(metaIn, "trial_number", NaN);
+            meta.mode = this.entryString_(metaIn, "mode");
+            meta.scan_image_file = this.entryNumeric_(metaIn, "scan_image_file", NaN);
+            meta.csv_path = this.entryString_(metaIn, "csv_path");
+            meta.metadata_path = this.entryString_(metaIn, "metadata_path");
+            meta.row_count = height(tableRows);
+            meta.receive_start_unix_ns = this.entryNumeric_(metaIn, "receive_start_unix_ns", NaN);
+            meta.receive_end_unix_ns = this.entryNumeric_(metaIn, "receive_end_unix_ns", NaN);
+            meta.t_receive_start_us = this.entryNumeric_(metaIn, "t_receive_start_us", this.columnFirstNumeric_(tableRows, "t_receive_us"));
+            meta.t_receive_end_us = this.entryNumeric_(metaIn, "t_receive_end_us", this.columnLastNumeric_(tableRows, "t_receive_us"));
+            meta.closed = this.entryLogical_(metaIn, "closed", true);
+            meta.partial = this.entryLogical_(metaIn, "partial", false);
+            meta.point_names = cellstr(this.PointNames);
+        end
+
+        function tableRows = normalizeRecordTable_(this, tableRows)
+            if isempty(tableRows) || ~istable(tableRows)
+                tableRows = BehaviorBoxEyeTrack.emptyRecordTable(this.PointNames);
+                return
+            end
+            variableNames = BehaviorBoxEyeTrack.recordVariableNames(this.PointNames);
+            stringFields = ["capture_time_unix_ns", "publish_time_unix_ns", "sample_status"];
+            logicalFields = "is_valid";
+            for idx = 1:numel(variableNames)
+                varName = variableNames(idx);
+                if ~ismember(varName, string(tableRows.Properties.VariableNames))
+                    tableRows.(char(varName)) = BehaviorBoxEyeTrack.defaultColumnValue_(varName, height(tableRows));
+                end
+            end
+            tableRows = tableRows(:, cellstr(variableNames));
+            for idx = 1:numel(variableNames)
+                varName = variableNames(idx);
+                if any(varName == stringFields)
+                    tableRows.(char(varName)) = string(tableRows.(char(varName)));
+                elseif any(varName == logicalFields)
+                    tableRows.(char(varName)) = logical(tableRows.(char(varName)));
+                else
+                    tableRows.(char(varName)) = double(tableRows.(char(varName)));
+                end
+            end
+        end
+
+        function tableRows = readSegmentCsv_(this, entry)
+            csvPath = this.entryString_(entry, "csv_path");
+            if strlength(csvPath) == 0 || exist(csvPath, 'file') ~= 2
+                error('BehaviorBoxEyeTrack:MissingSegmentCsv', ...
+                    'Could not find eye-track chunk CSV: %s', char(csvPath));
+            end
+            opts = detectImportOptions(char(csvPath), 'TextType', 'string');
+            stringFields = ["capture_time_unix_ns", "publish_time_unix_ns", "sample_status"];
+            for idx = 1:numel(stringFields)
+                varName = stringFields(idx);
+                if ismember(varName, string(opts.VariableNames))
+                    opts = setvartype(opts, char(varName), 'string');
+                end
+            end
+            if ismember("is_valid", string(opts.VariableNames))
+                opts = setvartype(opts, 'is_valid', 'logical');
+            end
+            tableRows = readtable(char(csvPath), opts);
+        end
+
+        function appendImportedSegment_(this, segmentId, tableRows, meta)
+            if any(this.ImportedSegmentIds == segmentId)
+                return
+            end
+            this.ImportedSegmentIds(end+1,1) = string(segmentId);
+            this.ImportedSegmentTables{end+1,1} = tableRows;
+            this.ImportedSegmentMeta{end+1,1} = meta;
+        end
+
+        function updateStatusFromImported_(this)
+            record = this.getRecord();
+            this.SamplesReceived = height(record);
+            this.MessagesReceived = this.SamplesReceived + this.MetadataMessagesReceived;
+            this.IsReady = height(record) > 0;
+            if this.IsReady
+                this.ReadyWallClock = datetime("now");
+            end
+            if height(record) > 0
+                this.LastReceiveWallClock = datetime("now");
+                this.LastSampleReceiveWallClock = this.LastReceiveWallClock;
+                if ismember("frame_id", string(record.Properties.VariableNames))
+                    frameIds = double(record.frame_id);
+                    frameIds = frameIds(isfinite(frameIds));
+                    if ~isempty(frameIds)
+                        this.LastFrameId = frameIds(end);
+                        this.ReadySampleFrameId = frameIds(1);
+                    end
+                end
+                this.LatestSample = table2struct(record(end, :), 'ToScalar', true);
+            end
+        end
+
+        function rowStruct = rowStructFromPayload_(this, payload, trialOverride)
+            this.updateMetadataFromPayload_(payload, this.readStringField_(payload, 'message_type', "sample"));
             names = BehaviorBoxEyeTrack.recordVariableNames(this.PointNames);
             rowStruct = struct();
             for idx = 1:numel(names)
                 rowStruct.(char(names(idx))) = BehaviorBoxEyeTrack.defaultValueForRecordVariable_(names(idx));
             end
-
-            rowStruct.trial = double(trial);
-            rowStruct.t_us = double(tUs);
-            rowStruct.t_receive_us = double(receiveTUs);
+            tReceiveUs = this.currentTrainMicros_();
+            if ~isfinite(tReceiveUs)
+                tReceiveUs = 0;
+            end
+            if isnan(trialOverride)
+                trialValue = this.CurrentTrial;
+                if ~isfinite(trialValue)
+                    trialValue = 0;
+                end
+            else
+                trialValue = trialOverride;
+            end
+            rowStruct.trial = double(trialValue);
+            rowStruct.t_us = double(tReceiveUs);
+            rowStruct.t_receive_us = double(tReceiveUs);
             rowStruct.frame_id = this.readNumericField_(payload, 'frame_id');
             rowStruct.capture_time_unix_s = this.readNumericField_(payload, 'capture_time_unix_s');
-            rowStruct.capture_time_unix_ns = this.readIntegerTextField_(rawLine, payload, 'capture_time_unix_ns');
+            rowStruct.capture_time_unix_ns = this.readIntegerTextField_(payload, 'capture_time_unix_ns');
             rowStruct.publish_time_unix_s = this.readNumericField_(payload, 'publish_time_unix_s');
-            rowStruct.publish_time_unix_ns = this.readIntegerTextField_(rawLine, payload, 'publish_time_unix_ns');
+            rowStruct.publish_time_unix_ns = this.readIntegerTextField_(payload, 'publish_time_unix_ns');
             rowStruct.center_x = this.readNumericField_(payload, 'center_x');
             rowStruct.center_y = this.readNumericField_(payload, 'center_y');
             rowStruct.diameter_px = this.readNumericField_(payload, 'diameter_px');
@@ -705,9 +1161,9 @@ classdef BehaviorBoxEyeTrack < handle
             rowStruct.camera_fps = this.readNumericField_(payload, 'camera_fps');
             rowStruct.inference_fps = this.readNumericField_(payload, 'inference_fps');
             rowStruct.latency_ms = this.readNumericField_(payload, 'latency_ms');
-            rowStruct.is_valid = this.sampleIsValid_(payload, status);
-            rowStruct.sample_status = string(status);
-
+            rowStruct.sample_status = this.readStringField_(payload, 'sample_status', "ok");
+            rowStruct.is_valid = this.sampleIsValid_(payload, rowStruct.sample_status);
+            [points, ~] = this.pointsFromPayload_(payload);
             pointColumns = BehaviorBoxEyeTrack.pointColumnNames(this.PointNames);
             for iPoint = 1:numel(this.PointNames)
                 colBase = (iPoint - 1) * 3;
@@ -715,59 +1171,10 @@ classdef BehaviorBoxEyeTrack < handle
                 rowStruct.(char(pointColumns(colBase + 2))) = double(points(iPoint, 2));
                 rowStruct.(char(pointColumns(colBase + 3))) = double(points(iPoint, 3));
             end
-
-            if ~all(pointsPresent)
-                rowStruct.is_valid = rowStruct.is_valid && any(pointsPresent);
-            end
-        end
-
-        function appendRowStruct_(this, rowStruct)
-            this.CurrentChunkCount = this.CurrentChunkCount + 1;
-            if this.CurrentChunkCount == 1
-                this.CurrentRows = rowStruct;
-            else
-                this.CurrentRows(this.CurrentChunkCount, 1) = rowStruct;
-            end
-            if this.CurrentChunkCount >= this.ChunkSize
-                this.flushCurrentChunk_();
-            end
-        end
-
-        function flushCurrentChunk_(this)
-            if this.CurrentChunkCount == 0
-                return
-            end
-            this.RecordChunks{end+1,1} = this.CurrentRows(:);
-            this.CurrentRows = struct.empty(0,1);
-            this.CurrentChunkCount = 0;
-        end
-
-        function record = recordFromChunks_(this)
-            rows = [];
-            for idx = 1:numel(this.RecordChunks)
-                if isempty(rows)
-                    rows = this.RecordChunks{idx}(:);
-                else
-                    rows = [rows; this.RecordChunks{idx}(:)]; %#ok<AGROW>
-                end
-            end
-            if this.CurrentChunkCount > 0
-                if isempty(rows)
-                    rows = this.CurrentRows(:);
-                else
-                    rows = [rows; this.CurrentRows(:)];
-                end
-            end
-            if isempty(rows)
-                record = BehaviorBoxEyeTrack.emptyRecordTable(this.PointNames);
-                return
-            end
-            record = struct2table(rows);
-            record = record(:, cellstr(BehaviorBoxEyeTrack.recordVariableNames(this.PointNames)));
         end
 
         function updatePointNamesFromPayload_(this, payload)
-            if this.SamplesReceived > 0 || ~isstruct(payload) || ~isfield(payload, 'point_names')
+            if ~isstruct(payload) || ~isfield(payload, 'point_names')
                 return
             end
             names = BehaviorBoxEyeTrack.readStringArrayField_(payload, 'point_names');
@@ -788,24 +1195,13 @@ classdef BehaviorBoxEyeTrack < handle
                     "schema_version"
                     "source"
                     "address"
-                    "csv_path"
-                    "metadata_path"
                     "model_preset"
                     "model_type"
                     "point_names"
                     "point_count"
-                    "pcutoff"
-                    "pose_coordinate_frame"
                     "camera_serial"
                     "camera_model"
-                    "sensor_roi_x"
-                    "sensor_roi_y"
-                    "sensor_roi_width"
-                    "sensor_roi_height"
-                    "crop_x1"
-                    "crop_x2"
-                    "crop_y1"
-                    "crop_y2"];
+                    "pose_coordinate_frame"];
                 fields = intersect(fields, cellstr(staticFields), 'stable');
             end
             for idx = 1:numel(fields)
@@ -815,6 +1211,9 @@ classdef BehaviorBoxEyeTrack < handle
                 end
                 this.StreamMetadata.(fieldName) = payload.(fieldName);
             end
+            if isfield(this.StreamMetadata, 'model_preset')
+                this.ModelName = string(this.StreamMetadata.model_preset);
+            end
         end
 
         function [points, pointsPresent] = pointsFromPayload_(this, payload)
@@ -823,7 +1222,6 @@ classdef BehaviorBoxEyeTrack < handle
             if ~isstruct(payload) || ~isfield(payload, 'points') || ~isstruct(payload.points)
                 return
             end
-
             pointsPayload = payload.points;
             for iPoint = 1:numel(this.PointNames)
                 name = char(this.PointNames(iPoint));
@@ -836,118 +1234,6 @@ classdef BehaviorBoxEyeTrack < handle
                 end
                 points(iPoint, :) = reshape(values(1:3), 1, 3);
                 pointsPresent(iPoint) = true;
-            end
-        end
-
-        function updateReadiness_(this, rowStruct, pointsPresent)
-            status = string(rowStruct.sample_status);
-            readyStatus = any(status == ["ok", "partial_points"]);
-            readyNames = all(pointsPresent);
-            if ~this.IsReady && readyStatus && readyNames
-                this.IsReady = true;
-                this.ReadyWallClock = datetime("now");
-                this.ReadySampleFrameId = double(rowStruct.frame_id);
-                this.StaleActive = false;
-            end
-        end
-
-        function updateFrameGap_(this, frameId)
-            frameId = double(frameId);
-            if isnan(frameId)
-                return
-            end
-            if ~isnan(this.LastFrameId) && frameId > this.LastFrameId + 1
-                missing = frameId - this.LastFrameId - 1;
-                this.MissingFrameCount = this.MissingFrameCount + missing;
-                this.FrameIdGapCount = this.FrameIdGapCount + 1;
-                if ~this.FrameGapWarningIssued
-                    warning('BehaviorBoxEyeTrack:FrameIdGap', ...
-                        ['Eye tracking observed a FLIR frame_id gap. This can be normal when ' ...
-                         'camera acquisition outruns DLC inference; MissingFrameCount will track it.']);
-                    this.FrameGapWarningIssued = true;
-                end
-            end
-            this.LastFrameId = frameId;
-        end
-
-        function checkStale_(this)
-            if ~this.IsReady || isnat(this.LastSampleReceiveWallClock)
-                return
-            end
-            elapsed = seconds(datetime("now") - this.LastSampleReceiveWallClock);
-            if elapsed >= this.StaleTimeoutSeconds
-                if ~this.StaleActive
-                    this.StaleEventCount = this.StaleEventCount + 1;
-                    warning('BehaviorBoxEyeTrack:StaleStream', ...
-                        'No eye tracking sample has been received for %.1f seconds.', elapsed);
-                    this.StaleActive = true;
-                end
-            else
-                this.StaleActive = false;
-            end
-        end
-
-        function waitForReady_(this)
-            if this.IsReady
-                return
-            end
-            startTic = tic;
-            while ~this.IsReady && toc(startTic) < this.WaitForReadySeconds
-                this.drainAvailable_([], 50);
-                if ~this.IsReady
-                    pause(0.02);
-                end
-            end
-            if ~this.IsReady && ~this.NotReadyWarningIssued
-                warning('BehaviorBoxEyeTrack:NotReady', ...
-                    ['Eye tracking subscriber opened, but no ready sample arrived within %.1f seconds. ' ...
-                     'The behavior session can continue; eye tracking will become ready after a valid sample.'], ...
-                    this.WaitForReadySeconds);
-                this.NotReadyWarningIssued = true;
-            end
-        end
-
-        function tUs = captureTimeUs_(this, payload, rawLine)
-            tUs = NaN;
-            if isempty(this.TrainStartWallClock) || isnat(this.TrainStartWallClock)
-                return
-            end
-            sessionStartUnixUs = round(posixtime(this.TrainStartWallClock) * 1e6);
-            captureNs = this.readIntegerTextField_(rawLine, payload, 'capture_time_unix_ns');
-            if strlength(captureNs) > 0
-                captureUnixUs = floor(str2double(captureNs) / 1000);
-            else
-                captureTimeS = this.readNumericField_(payload, 'capture_time_unix_s');
-                if isnan(captureTimeS)
-                    return
-                end
-                captureUnixUs = round(captureTimeS * 1e6);
-            end
-            tUs = double(captureUnixUs - sessionStartUnixUs);
-        end
-
-        function trial = assignTrial_(this, tUs, trialOverride)
-            if ~isempty(trialOverride)
-                trial = double(trialOverride);
-                return
-            end
-            if isempty(this.TrialBoundaryUs)
-                if isnan(this.CurrentTrial)
-                    trial = 0;
-                else
-                    trial = this.CurrentTrial;
-                end
-                return
-            end
-            if isnan(tUs)
-                trial = this.TrialBoundaryValues(end);
-                return
-            end
-            idx = find(this.TrialBoundaryUs <= tUs, 1, "last");
-            if isempty(idx)
-                trial = 0;
-            else
-                trial = this.TrialBoundaryValues(idx);
             end
         end
 
@@ -993,36 +1279,19 @@ classdef BehaviorBoxEyeTrack < handle
             value = string(raw);
         end
 
-        function value = readIntegerTextField_(~, line, payload, fieldName)
+        function value = readIntegerTextField_(~, payload, fieldName)
             value = "";
-            pattern = '"' + string(fieldName) + '"\s*:\s*("?[-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?"?)';
-            tokens = regexp(char(line), char(pattern), 'tokens', 'once');
-            if ~isempty(tokens)
-                token = erase(string(tokens{1}), '"');
-                if contains(token, ".") || contains(lower(token), "e")
-                    parsed = str2double(token);
-                    if isfinite(parsed)
-                        value = string(sprintf('%.0f', parsed));
-                    end
-                else
-                    value = token;
-                end
+            if ~isstruct(payload) || ~isfield(payload, fieldName)
                 return
             end
-            if isstruct(payload) && isfield(payload, fieldName)
-                raw = payload.(fieldName);
-                if isnumeric(raw) && isscalar(raw) && isfinite(raw)
-                    value = string(sprintf('%.0f', double(raw)));
-                elseif ischar(raw) || isstring(raw)
-                    value = string(raw);
-                end
+            raw = payload.(fieldName);
+            if isempty(raw)
+                return
             end
-        end
-
-        function value = readMetadataString_(this, fieldName, defaultValue)
-            value = string(defaultValue);
-            if isstruct(this.StreamMetadata) && isfield(this.StreamMetadata, fieldName)
-                value = string(this.StreamMetadata.(fieldName));
+            if isstring(raw) || ischar(raw)
+                value = string(raw);
+            elseif isnumeric(raw) && isscalar(raw) && isfinite(raw)
+                value = string(sprintf('%.0f', double(raw)));
             end
         end
 
@@ -1041,131 +1310,128 @@ classdef BehaviorBoxEyeTrack < handle
             end
         end
 
-        function rawMessage = recvAllJson_(this, timeoutMs)
-            rawMessage = "";
-            if isempty(this.SubscriberHandle)
-                return
+        function text = firstImportedPath_(this, fieldName)
+            text = "";
+            for idx = 1:numel(this.ImportedSegmentMeta)
+                meta = this.ImportedSegmentMeta{idx};
+                if isstruct(meta) && isfield(meta, fieldName)
+                    raw = meta.(fieldName);
+                    if iscell(raw)
+                        text = bbCoerceStringArray(raw(:));
+                    else
+                        text = bbCoerceStringArray(raw);
+                    end
+                    if strlength(text) > 0
+                        text = text(1);
+                        return
+                    end
+                end
             end
-            if this.usingBridgeAdapter_()
-                if isfield(this.BridgeAdapter, 'recv_all_json')
-                    raw = this.BridgeAdapter.recv_all_json(this.SubscriberHandle, timeoutMs, this.MaxDrainMessages);
+        end
+
+        function files = importedChunkFiles_(this)
+            files = string.empty(0,1);
+            for idx = 1:numel(this.ImportedSegmentMeta)
+                meta = this.ImportedSegmentMeta{idx};
+                if isstruct(meta) && isfield(meta, 'csv_path')
+                    raw = meta.csv_path;
+                    if iscell(raw)
+                        values = bbCoerceStringArray(raw(:));
+                        files(end+1,1) = values(1); %#ok<AGROW>
+                    else
+                        files(end+1,1) = bbCoerceStringArray(raw); %#ok<AGROW>
+                    end
+                end
+            end
+        end
+
+        function value = entryString_(~, entry, fieldName)
+            value = "";
+            if isstruct(entry) && isfield(entry, fieldName)
+                raw = entry.(fieldName);
+                if iscell(raw)
+                    value = bbCoerceStringArray(raw(:));
                 else
-                    raw = this.BridgeAdapter.recv_latest_json(this.SubscriberHandle, timeoutMs);
+                    value = bbCoerceStringArray(raw);
                 end
+                if ~isempty(value)
+                    value = value(1);
+                end
+            end
+        end
+
+        function value = entryNumeric_(~, entry, fieldName, defaultValue)
+            value = defaultValue;
+            if isstruct(entry) && isfield(entry, fieldName)
+                raw = entry.(fieldName);
+                try
+                    numeric = double(raw);
+                    if ~isempty(numeric)
+                        value = numeric(1);
+                    end
+                catch
+                    value = defaultValue;
+                end
+            end
+        end
+
+        function tf = entryLogical_(~, entry, fieldName, defaultValue)
+            tf = logical(defaultValue);
+            if isstruct(entry) && isfield(entry, fieldName)
+                try
+                    tf = logical(entry.(fieldName));
+                    if numel(tf) > 1
+                        tf = tf(1);
+                    end
+                catch
+                    tf = logical(defaultValue);
+                end
+            end
+        end
+
+        function entries = manifestEntries_(~, payload)
+            entries = struct.empty(0,1);
+            if isempty(payload) || ~isstruct(payload) || ~isfield(payload, 'segments')
+                return
+            end
+            raw = payload.segments;
+            if isempty(raw)
+                return
+            end
+            if isstruct(raw)
+                entries = raw(:);
+            elseif iscell(raw)
+                tmp = struct.empty(0,1);
+                for idx = 1:numel(raw)
+                    if isstruct(raw{idx})
+                        tmp(end+1,1) = raw{idx}; %#ok<AGROW>
+                    end
+                end
+                entries = tmp;
+            end
+        end
+
+        function sessionId = defaultSessionId_(this)
+            stamp = string(datetime("now", "Format", "yyyyMMdd_HHmmss"));
+            if ~isempty(this.TrainStartWallClock) && ~isnat(this.TrainStartWallClock)
+                stamp = string(datetime(this.TrainStartWallClock, "Format", "yyyyMMdd_HHmmss"));
+            end
+            sessionId = "eye_" + stamp;
+        end
+
+        function segmentId = defaultSegmentId_(~, segmentKind, trialNumber)
+            if isfinite(trialNumber)
+                segmentId = lower(string(segmentKind)) + "_trial_" + string(trialNumber);
             else
-                raw = this.BridgeModule.recv_all_json(this.SubscriberHandle, int32(timeoutMs), int32(this.MaxDrainMessages));
-            end
-            try
-                rawMessage = string(raw);
-            catch
-                rawMessage = string(char(raw));
+                segmentId = lower(string(segmentKind)) + "_" + string(datetime("now", "Format", "HHmmssSSS"));
             end
         end
 
-        function prepareBridge_(this)
-            if this.usingBridgeAdapter_()
-                return
-            end
-
-            if strlength(strtrim(this.BridgeDir)) == 0
-                this.BridgeDir = BehaviorBoxEyeTrack.findBridgeDir_();
-            end
-            if strlength(strtrim(this.BridgeDir)) == 0 || ~isfolder(char(this.BridgeDir))
-                error('BehaviorBoxEyeTrack:BridgeDirMissing', ...
-                    'Could not find EyeTrack MATLAB bridge directory.');
-            end
-
-            if strlength(strtrim(this.PythonExecutable)) == 0
-                this.PythonExecutable = BehaviorBoxEyeTrack.resolvePythonExecutable_();
-            end
-
-            pe = pyenv;
-            if pe.Status == "Loaded"
-                if string(pe.Executable) ~= this.PythonExecutable
-                    error('BehaviorBoxEyeTrack:PythonAlreadyLoaded', ...
-                        ['MATLAB already loaded a different Python interpreter: %s. ' ...
-                         'Restart MATLAB or terminate(pyenv) first.'], char(pe.Executable));
-                end
+        function tNs = sessionStartUnixNs_(this)
+            if ~isempty(this.TrainStartWallClock) && ~isnat(this.TrainStartWallClock)
+                tNs = int64(round(posixtime(this.TrainStartWallClock) * 1e9));
             else
-                pyenv(Version=char(this.PythonExecutable), ExecutionMode="OutOfProcess");
-            end
-
-            pyPath = string(cell(py.sys.path()));
-            if ~any(pyPath == this.BridgeDir)
-                py.sys.path().insert(int32(0), char(this.BridgeDir));
-            end
-
-            bridge = py.importlib.import_module("matlab_zmq_bridge");
-            this.BridgeModule = py.importlib.reload(bridge);
-        end
-
-        function openSubscriber_(this)
-            this.closeSubscriber_();
-            if this.usingBridgeAdapter_()
-                this.SubscriberHandle = this.BridgeAdapter.open_subscriber(this.Address, this.RcvHighWaterMark);
-            else
-                this.SubscriberHandle = this.BridgeModule.open_subscriber(this.Address, int32(this.RcvHighWaterMark));
-            end
-        end
-
-        function closeSubscriber_(this)
-            if isempty(this.SubscriberHandle)
-                return
-            end
-            try
-                if this.usingBridgeAdapter_()
-                    this.BridgeAdapter.close_socket(this.SubscriberHandle);
-                elseif ~isempty(this.BridgeModule)
-                    this.BridgeModule.close_socket(this.SubscriberHandle);
-                end
-            catch
-            end
-            this.SubscriberHandle = [];
-        end
-
-        function startPollTimer_(this)
-            if isempty(this.PollTimer) || ~isvalid(this.PollTimer)
-                this.PollTimer = timer( ...
-                    'ExecutionMode', 'fixedSpacing', ...
-                    'BusyMode', 'drop', ...
-                    'Period', this.PollPeriodSeconds, ...
-                    'TimerFcn', @(~,~) this.pollAvailable());
-            end
-            if strcmpi(this.PollTimer.Running, 'off')
-                start(this.PollTimer);
-            end
-        end
-
-        function stopPollTimer_(this)
-            if isempty(this.PollTimer)
-                return
-            end
-            try
-                if isvalid(this.PollTimer)
-                    stop(this.PollTimer);
-                    delete(this.PollTimer);
-                end
-            catch
-            end
-            this.PollTimer = [];
-        end
-
-        function tf = usingBridgeAdapter_(this)
-            tf = isstruct(this.BridgeAdapter) && ...
-                isfield(this.BridgeAdapter, 'open_subscriber') && ...
-                isfield(this.BridgeAdapter, 'close_socket') && ...
-                (isfield(this.BridgeAdapter, 'recv_all_json') || isfield(this.BridgeAdapter, 'recv_latest_json'));
-        end
-
-        function tf = timerRunning_(this)
-            tf = false;
-            if isempty(this.PollTimer)
-                return
-            end
-            try
-                tf = isvalid(this.PollTimer) && strcmpi(this.PollTimer.Running, 'on');
-            catch
-                tf = false;
+                tNs = int64(round(posixtime(datetime("now")) * 1e9));
             end
         end
 
@@ -1177,6 +1443,37 @@ classdef BehaviorBoxEyeTrack < handle
             try
                 tUs = round(toc(this.TrainStartTime) * 1e6);
             catch
+                tUs = NaN;
+            end
+        end
+
+        function value = columnFirstNumeric_(~, tbl, varName)
+            value = NaN;
+            if isempty(tbl) || ~istable(tbl) || ~ismember(varName, string(tbl.Properties.VariableNames)) || height(tbl) == 0
+                return
+            end
+            try
+                values = double(tbl.(char(varName)));
+                if ~isempty(values)
+                    value = values(1);
+                end
+            catch
+                value = NaN;
+            end
+        end
+
+        function value = columnLastNumeric_(~, tbl, varName)
+            value = NaN;
+            if isempty(tbl) || ~istable(tbl) || ~ismember(varName, string(tbl.Properties.VariableNames)) || height(tbl) == 0
+                return
+            end
+            try
+                values = double(tbl.(char(varName)));
+                if ~isempty(values)
+                    value = values(end);
+                end
+            catch
+                value = NaN;
             end
         end
 
@@ -1197,6 +1494,7 @@ classdef BehaviorBoxEyeTrack < handle
                 'Eye tracking runtime failure: %s', char(string(messageText)));
             this.RuntimeWarningIssued = true;
         end
+
     end
 
     methods (Static, Access = private)
@@ -1224,15 +1522,8 @@ classdef BehaviorBoxEyeTrack < handle
             if isempty(raw)
                 return
             end
-            if iscell(raw)
-                names = string(raw(:));
-            elseif isstring(raw)
-                names = raw(:);
-            elseif ischar(raw)
-                names = string({raw});
-            else
-                names = string(raw(:));
-            end
+            names = bbCoerceStringArray(raw);
+            names = names(:);
         end
 
         function value = defaultValueForRecordVariable_(name)
@@ -1251,10 +1542,22 @@ classdef BehaviorBoxEyeTrack < handle
             end
         end
 
+        function value = defaultColumnValue_(name, nRows)
+            name = string(name);
+            if any(name == ["capture_time_unix_ns", "publish_time_unix_ns", "sample_status"])
+                value = strings(nRows, 1);
+            elseif name == "is_valid"
+                value = false(nRows, 1);
+            else
+                value = NaN(nRows, 1);
+            end
+        end
+
         function options = parseAlignmentOptions_(varargin)
             parser = inputParser;
             parser.addParameter('Mode', 'previous');
             parser.addParameter('TimeColumn', 't_us');
+            parser.addParameter('EyeTimeColumn', 't_receive_us');
             parser.addParameter('IntervalDirection', 'previous');
             parser.addParameter('SessionEndUs', Inf);
             parser.parse(varargin{:});
@@ -1262,6 +1565,7 @@ classdef BehaviorBoxEyeTrack < handle
             options = struct();
             options.Mode = lower(string(parser.Results.Mode));
             options.TimeColumn = string(parser.Results.TimeColumn);
+            options.EyeTimeColumn = string(parser.Results.EyeTimeColumn);
             options.IntervalDirection = lower(string(parser.Results.IntervalDirection));
             options.SessionEndUs = double(parser.Results.SessionEndUs);
             if ~any(options.Mode == ["previous", "interval_summary"])
@@ -1311,10 +1615,10 @@ classdef BehaviorBoxEyeTrack < handle
             end
         end
 
-        function out = copyRepresentativeEyeSample_(out, rowIdx, sample, targetT)
+        function out = copyRepresentativeEyeSample_(out, rowIdx, sample, targetT, eyeTimeColumn)
             out.eye_frame_id(rowIdx) = sample.frame_id;
-            out.eye_t_us(rowIdx) = sample.t_us;
-            out.eye_dt_us(rowIdx) = targetT - sample.t_us;
+            out.eye_t_us(rowIdx) = sample.(char(eyeTimeColumn));
+            out.eye_dt_us(rowIdx) = targetT - sample.(char(eyeTimeColumn));
             out.eye_center_x(rowIdx) = sample.center_x;
             out.eye_center_y(rowIdx) = sample.center_y;
             out.eye_diameter_px(rowIdx) = sample.diameter_px;
@@ -1327,14 +1631,14 @@ classdef BehaviorBoxEyeTrack < handle
             out.eye_sample_status(rowIdx) = sample.sample_status;
         end
 
-        function out = copyEyeIntervalSummary_(out, rowIdx, interval)
+        function out = copyEyeIntervalSummary_(out, rowIdx, interval, eyeTimeColumn)
             if isempty(interval) || height(interval) == 0
                 return
             end
             out.eye_frame_id_first(rowIdx) = interval.frame_id(1);
             out.eye_frame_id_last(rowIdx) = interval.frame_id(end);
-            out.eye_t_us_first(rowIdx) = interval.t_us(1);
-            out.eye_t_us_last(rowIdx) = interval.t_us(end);
+            out.eye_t_us_first(rowIdx) = interval.(char(eyeTimeColumn))(1);
+            out.eye_t_us_last(rowIdx) = interval.(char(eyeTimeColumn))(end);
             out.eye_center_x_mean(rowIdx) = mean(interval.center_x, 'omitnan');
             out.eye_center_y_mean(rowIdx) = mean(interval.center_y, 'omitnan');
             out.eye_center_x_median(rowIdx) = median(interval.center_x, 'omitnan');
@@ -1342,53 +1646,6 @@ classdef BehaviorBoxEyeTrack < handle
             out.eye_diameter_px_mean(rowIdx) = mean(interval.diameter_px, 'omitnan');
             out.eye_confidence_mean_interval(rowIdx) = mean(interval.confidence_mean, 'omitnan');
             out.eye_valid_fraction(rowIdx) = mean(double(interval.is_valid), 'omitnan');
-        end
-
-        function pythonExe = resolvePythonExecutable_()
-            override = BehaviorBoxEyeTrack.getOptionalEnv_("BB_EYETRACK_PYTHON", "");
-            if strlength(override) > 0
-                if ~isfile(override)
-                    error('BehaviorBoxEyeTrack:PythonMissing', ...
-                        'BB_EYETRACK_PYTHON points to a missing file: %s', char(override));
-                end
-                pythonExe = override;
-                return
-            end
-
-            condaPrefix = BehaviorBoxEyeTrack.getOptionalEnv_("CONDA_PREFIX", "");
-            if strlength(condaPrefix) > 0
-                candidate = BehaviorBoxEyeTrack.pythonInEnv_(condaPrefix);
-                if isfile(candidate)
-                    pythonExe = candidate;
-                    return
-                end
-            end
-
-            homeDir = BehaviorBoxEyeTrack.getOptionalEnv_("HOME", "");
-            if strlength(homeDir) == 0 && ispc
-                homeDir = BehaviorBoxEyeTrack.getOptionalEnv_("USERPROFILE", "");
-            end
-
-            candidateRoots = strings(0,1);
-            if strlength(homeDir) > 0
-                candidateRoots = [ ...
-                    fullfile(homeDir, "miniforge3", "envs", "dlclivegui")
-                    fullfile(homeDir, "mambaforge", "envs", "dlclivegui")
-                    fullfile(homeDir, "miniconda3", "envs", "dlclivegui")
-                    fullfile(homeDir, "anaconda3", "envs", "dlclivegui")];
-            end
-
-            for idx = 1:numel(candidateRoots)
-                candidate = BehaviorBoxEyeTrack.pythonInEnv_(candidateRoots(idx));
-                if isfile(candidate)
-                    pythonExe = candidate;
-                    return
-                end
-            end
-
-            error('BehaviorBoxEyeTrack:PythonNotFound', ...
-                ['Could not find Python for the dlclivegui environment. ' ...
-                 'Set BB_EYETRACK_PYTHON to the full path of the environment''s Python executable.']);
         end
 
         function sourceMode = inferSourceMode_(host)
@@ -1400,28 +1657,15 @@ classdef BehaviorBoxEyeTrack < handle
             end
         end
 
-        function bridgeDir = findBridgeDir_()
-            repoRoot = fileparts(mfilename("fullpath"));
-            candidates = [ ...
-                fullfile(repoRoot, "EyeTrack", "DeepLabCut", "ToMatlab")
-                fullfile(repoRoot, "DLC", "ToMatlab")];
-            bridgeDir = "";
-            for candidate = candidates'
-                if isfolder(candidate)
-                    bridgeDir = string(candidate);
-                    return
-                end
-            end
-        end
-
-        function tf = probeTcpAddress_(host, port)
+        function tf = probeReceiverUrl_(receiverUrl)
             tf = false;
-            if strlength(strtrim(host)) == 0 || isnan(port)
-                return
-            end
             try
-                tcpclient(char(host), port, "Timeout", 0.2);
-                tf = true;
+                payload = webread(char(receiverUrl + "/health"), weboptions('Timeout', 0.5));
+                if isstruct(payload) && isfield(payload, 'ok')
+                    tf = logical(payload.ok);
+                else
+                    tf = true;
+                end
             catch
                 tf = false;
             end
@@ -1434,12 +1678,12 @@ classdef BehaviorBoxEyeTrack < handle
             end
         end
 
-        function candidate = pythonInEnv_(envRoot)
-            if ispc
-                candidate = fullfile(envRoot, "python.exe");
-            else
-                candidate = fullfile(envRoot, "bin", "python");
-            end
+        function receiverUrl = defaultReceiverUrl_()
+            receiverUrl = BehaviorBoxEyeTrack.getOptionalEnv_("BB_EYETRACK_RECEIVER_URL", "http://127.0.0.1:8765");
+        end
+
+        function address = defaultSourceAddress_()
+            address = BehaviorBoxEyeTrack.getOptionalEnv_("BB_EYETRACK_ZMQ_ADDRESS", "tcp://127.0.0.1:5555");
         end
     end
 end

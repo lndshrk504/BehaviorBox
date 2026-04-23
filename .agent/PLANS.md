@@ -1901,3 +1901,106 @@
 8. Handoff notes
 - Call out the handshake locations in `BB_App.m`, `BehaviorBoxNose.m`, `BehaviorBoxWheel.m`, and `fcns/arduinoServer.m`.
 - Report that validation covers inference logic and MATLAB syntax, not live USB enumeration against attached hardware.
+
+## 2026-04-22 Deferred Python Eye Ingest For Training And Mapping
+
+1. Goal
+- Replace the MATLAB timer-driven eye-stream receive path with an external Python receiver that owns live ZeroMQ subscription, behavior-computer receive-time stamping, and durable chunk persistence.
+- Refactor MATLAB so training and mapping both import eye chunks outside hot loops, store per-segment tables in `EyeTrackRecord`, store per-segment metadata in `EyeTrackSegmentMeta`, and derive `EyeTrackingRecord`, `FrameAlignedRecord`, and `EyeAlignedRecord` after import.
+- Make receive time the canonical eye-session timebase for v1 while preserving remote capture and publish timestamps in raw eye rows.
+
+2. Non-goals
+- Do not change the DeepLabCut point order, the existing raw `TimestampRecord` schema, reward logic, GUI layout, or microscope timestamp callback path.
+- Do not launch or manage the lifetime of the upstream eye-stream process from MATLAB. The receiver is still started manually outside BehaviorBox.
+
+3. Current-state summary
+- `BehaviorBoxEyeTrack.m` currently owns a MATLAB timer, direct ZeroMQ receive, JSON decode, row construction, and final record assembly inside MATLAB. That work can run during training and mapping hot loops through explicit polling and `drawnow` scheduling.
+- `BehaviorBoxWheel.m` currently initializes eye tracking at session start, uses trial markers rather than explicit deferred segment import, and saves dense eye outputs directly from the live `BehaviorBoxEyeTrack` object.
+- The active eye-stream Python code under `EyeTrack/DeepLabCut/ToMatlab/` currently publishes ZeroMQ samples and optional CSV, but there is no receiver-side chunk writer or localhost control API for MATLAB.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxEyeTrack.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxWheel.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/MockApp/testBehaviorBoxWheelSaveStatus.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/MockApp/testBehaviorBoxWheelMappingSave.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/fcns/testBehaviorBoxEyeTrack.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/EyeTrack/DeepLabCut/ToMatlab/behavior_eye_receiver.py`
+- `/Users/willsnyder/Desktop/BehaviorBox/EyeTrack/DeepLabCut/ToMatlab/run_eye_receiver_service.py`
+- `/Users/willsnyder/Desktop/BehaviorBox/EyeTrack/DeepLabCut/ToMatlab/test_behavior_eye_receiver.py`
+- `/Users/willsnyder/Desktop/BehaviorBox/Next Steps/DeferredPythonEyeIngestPlan.md`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- Python static checks:
+  `python3 -m py_compile EyeTrack/DeepLabCut/ToMatlab/behavior_eye_receiver.py EyeTrack/DeepLabCut/ToMatlab/run_eye_receiver_service.py EyeTrack/DeepLabCut/ToMatlab/test_behavior_eye_receiver.py`
+- Python receiver smoke:
+  `python3 EyeTrack/DeepLabCut/ToMatlab/test_behavior_eye_receiver.py`
+- MATLAB static checks:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); checkcode('BehaviorBoxEyeTrack.m'); checkcode('BehaviorBoxWheel.m'); checkcode('fcns/testBehaviorBoxEyeTrack.m'); checkcode('MockApp/testBehaviorBoxWheelSaveStatus.m'); checkcode('MockApp/testBehaviorBoxWheelMappingSave.m');"`
+- MATLAB eye-import smoke:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('fcns/testBehaviorBoxEyeTrack.m');"`
+- MATLAB Wheel save smoke:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('MockApp/testBehaviorBoxWheelSaveStatus.m');"`
+- MATLAB mapping save smoke:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('MockApp/testBehaviorBoxWheelMappingSave.m');"`
+
+6. Milestones
+- Write the implementation plan to `Next Steps/DeferredPythonEyeIngestPlan.md`.
+- Add the new Python receiver service with chunk persistence and localhost control/status API.
+- Refactor `BehaviorBoxEyeTrack.m` into a receiver client, chunk importer, and alignment utility with receive-time-backed raw rows.
+- Refactor `BehaviorBoxWheel.m` so training opens/closes/imports eye segments per trial during intertrial, mapping uses a session-level segment and imports after stop, and both save `EyeTrackRecord` / `EyeTrackSegmentMeta`.
+- Update focused MATLAB/Python tests to validate receiver chunk writing, MATLAB import, and training/mapping save outputs.
+
+7. Risks and stop conditions
+- Stop if the Python receiver chunk schema and MATLAB importer disagree on field names, point columns, or time-column meaning.
+- Stop if the new receive-time contract would silently alter saved eye-row timing semantics without explicitly recording that migration in `EyeTrackingMeta`.
+- Stop if training or mapping eye-save changes would require altering raw microscope timestamp rows instead of only changing how eye data is imported and aligned.
+
+8. Handoff notes
+- Expected invariants: the YangLab pupil8 point order, raw microscope timestamp segments, saved mapping log schema, and wheel display event schema.
+- Intentional saved-schema changes: training and animate saves gain `EyeTrackRecord` and `EyeTrackSegmentMeta`, `EyeTrackingMeta` records receiver/session/chunk details plus receive-time alignment, and `EyeTrackingRecord.t_us` becomes receive-time-backed in v1 while remote capture/publish timestamps remain preserved in separate columns.
+
+## 2026-04-22 Receiver Wrapper And Startup Refresh
+
+1. Goal
+- Make the behavior-side wrapper scripts, setup helper, and receiver/test launchers match the current deferred receiver architecture instead of the old direct MATLAB/pyzmq subscriber path.
+
+2. Non-goals
+- Do not change wheel or nose task logic, eye-alignment schema, or receiver protocol.
+- Do not widen this into a general shell cleanup outside the eye-tracking wrapper/startup path.
+
+3. Current-state summary
+- `behavior_eye_tracking_env.sh`, `set_behavior_env_*.sh`, and `setup_two_computer_eye_link.sh` still describe and export the old `BB_EYETRACK_PYTHON` / direct MATLAB subscriber workflow.
+- The actual runtime now uses `BB_EYETRACK_ZMQ_ADDRESS` plus `BB_EYETRACK_RECEIVER_URL`, with the external receiver started separately and MATLAB talking only to the receiver HTTP API.
+- `run_matlab_eye_receive_test.py` still carries stale direct-Python helper code instead of leaning on the current environment variables.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/EyeTrack/DeepLabCut/ToMatlab/behavior_eye_tracking_env.sh`
+- `/Users/willsnyder/Desktop/BehaviorBox/EyeTrack/DeepLabCut/ToMatlab/set_behavior_env_bbeyezmq.sh`
+- `/Users/willsnyder/Desktop/BehaviorBox/EyeTrack/DeepLabCut/ToMatlab/set_behavior_env_dlclivegui.sh`
+- `/Users/willsnyder/Desktop/BehaviorBox/EyeTrack/DeepLabCut/ToMatlab/setup_two_computer_eye_link.sh`
+- `/Users/willsnyder/Desktop/BehaviorBox/EyeTrack/DeepLabCut/ToMatlab/run_eye_receiver_service.py`
+- `/Users/willsnyder/Desktop/BehaviorBox/EyeTrack/DeepLabCut/ToMatlab/run_matlab_eye_receive_test.py`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- Python syntax checks:
+  `python3 -m py_compile EyeTrack/DeepLabCut/ToMatlab/run_eye_receiver_service.py EyeTrack/DeepLabCut/ToMatlab/run_matlab_eye_receive_test.py`
+- Receiver smoke:
+  `python3 EyeTrack/DeepLabCut/ToMatlab/test_behavior_eye_receiver.py`
+- Focused stale-term scan:
+  `rg -n 'BB_EYETRACK_PYTHON|MATLAB subscriber|small pyzmq bridge' EyeTrack/DeepLabCut/ToMatlab/behavior_eye_tracking_env.sh EyeTrack/DeepLabCut/ToMatlab/set_behavior_env_bbeyezmq.sh EyeTrack/DeepLabCut/ToMatlab/set_behavior_env_dlclivegui.sh EyeTrack/DeepLabCut/ToMatlab/setup_two_computer_eye_link.sh EyeTrack/DeepLabCut/ToMatlab/run_eye_receiver_service.py EyeTrack/DeepLabCut/ToMatlab/run_matlab_eye_receive_test.py`
+
+6. Milestones
+- Patch the environment helper and profile wrappers to export the receiver-era variables and comments.
+- Patch the two-computer setup helper to generate the right helper file and next-step commands.
+- Patch the Python launcher/test wrappers to default from the current environment variables.
+- Run narrow validation and confirm stale direct-MATLAB wording is gone.
+
+7. Risks and stop conditions
+- Stop if the shell helper changes would require changing MATLAB runtime behavior instead of just matching it.
+- Stop if any generated helper output would silently diverge from the receiver defaults already used by `BehaviorBoxEyeTrack`.
+
+8. Handoff notes
+- Expected invariants: receiver HTTP API contract, ZMQ address contract, and current MATLAB save behavior.
+- Intentional behavior changes: sourced shell helpers should now prepare the external receiver workflow rather than the retired direct MATLAB/pyzmq workflow.

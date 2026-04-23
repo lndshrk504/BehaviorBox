@@ -65,6 +65,9 @@ classdef BehaviorBoxWheel < handle
         a; %The arduino for behavior
         Time; % The arduino for timestampping
         EyeTrack; % Eye-tracking helper, present only when a source is found
+        EyeTrackRecord cell = {}
+        EyeTrackSegmentMeta cell = {}
+        EyeTrackSessionKind string = ""
         %Variables for running training loop:
         i=0; %Trial Number
         trial; %All trial data that is added to data structure
@@ -172,6 +175,7 @@ classdef BehaviorBoxWheel < handle
             end
             this.cleanUP();
             this.SaveAllData();
+            this.stopEyeTrackForSession_();
         end
         %get the GUI settings for the experiment
         function getGUI(this)
@@ -439,6 +443,7 @@ classdef BehaviorBoxWheel < handle
         end
         %Prepare the window and stimulus
         function SetupBeforeLoop(this)
+            this.EyeTrackSessionKind = "training";
             this.GuiHandles.MsgBox.String = "";
             this.GuiHandles.NotesText.String = "";
             this.GuiHandles.NotesText.String = sprintf(string(datetime("today"))+" Behavior Notes:\n");
@@ -508,12 +513,6 @@ classdef BehaviorBoxWheel < handle
         end
         %Do some things before each trial
         function BeforeTrial(this)
-            if ~isempty(this.EyeTrack) && isobject(this.EyeTrack)
-                try
-                    this.EyeTrack.pollAvailable();
-                catch
-                end
-            end
             this.fig.Color = this.ReadyCueStruct.Color;
             set(this.FF, 'Value', 0) %Turn off FF button
             this.UpdateSettings()
@@ -2210,6 +2209,7 @@ classdef BehaviorBoxWheel < handle
             end
             this.storeCurrentTimeSegment_();
             this.buildCurrentTrialFrameAlignedRecord_();
+            this.finishTrainingEyeTrackTrial_();
             if get(this.stop_handle, 'Value')
                 return
             end
@@ -2355,7 +2355,7 @@ classdef BehaviorBoxWheel < handle
                     end
                     timeSegments = this.annotateTimestampSegmentsForSave_(timeSegments, FullTrials);
                     newData.TimestampRecord = timeSegments;
-                    [newData.EyeTrackingRecord, newData.EyeTrackingMeta] = this.eyeTrackSaveOutputs_();
+                    [newData.EyeTrackingRecord, newData.EyeTrackingMeta, newData.EyeTrackRecord, newData.EyeTrackSegmentMeta] = this.eyeTrackSaveOutputs_();
                     if ~isempty(this.Time) && isobject(this.Time)
                         newData.WheelDisplayRecord = this.annotateWheelDisplayRecordForSave_(this.WheelDisplayRecord, FullTrials);
                         frameAlignedRecord = this.alignFrameRowsWithEyeTrack_(this.FrameAlignedRecord);
@@ -2449,7 +2449,7 @@ classdef BehaviorBoxWheel < handle
                 MapLog = options.MapLog;
                 MapMeta = options.MapMeta;
                 TimestampRecord = options.TimestampRecord;
-                [EyeTrackingRecord, EyeTrackingMeta] = this.eyeTrackSaveOutputs_();
+                [EyeTrackingRecord, EyeTrackingMeta, EyeTrackRecord, EyeTrackSegmentMeta] = this.eyeTrackSaveOutputs_();
                 [FrameAlignedRecord, EyeAlignedRecord] = this.buildMappingAlignedRecords_(TimestampRecord, MapLog, EyeTrackingRecord);
                 if isstruct(MapMeta)
                     MapMeta.EyeTrackAlignmentMode = this.EyeTrackAlignmentMode;
@@ -2458,7 +2458,7 @@ classdef BehaviorBoxWheel < handle
                 end
                 saveFile = fullfile(savefolder, char(saveasname + ".mat"));
                 saveVars = {'Settings', 'Position_Record', 'Notes', 'TimeLog', 'MapLog', 'MapMeta', 'TimestampRecord', ...
-                    'EyeTrackingRecord', 'EyeTrackingMeta'};
+                    'EyeTrackingRecord', 'EyeTrackingMeta', 'EyeTrackRecord', 'EyeTrackSegmentMeta'};
                 if istable(EyeAlignedRecord) && height(EyeAlignedRecord) > 0
                     saveVars{end+1} = 'EyeAlignedRecord'; %#ok<AGROW>
                 end
@@ -2580,7 +2580,6 @@ classdef BehaviorBoxWheel < handle
             %switch on all buttons
             this.toggleButtonsOnOff(this.Buttons,1);
             this.stop_handle.Value = 0;%Turn off Stop button
-            this.stopEyeTrackForSession_();
             %close stimulus if still open
             delete(findobj("Type", "figure", "Name", "Stimulus"))
             this.fig = [];
@@ -3951,6 +3950,7 @@ classdef BehaviorBoxWheel < handle
                 this
                 options.StartAcquisition logical = false
             end
+            this.EyeTrackSessionKind = "mapping";
             this.setAnimationFinishLine_(false);
             this.setGuiNumbers(this.GUI_numbers);
             this.Data_Object = this.createSessionDataObject_();
@@ -4000,6 +4000,8 @@ classdef BehaviorBoxWheel < handle
             this.timestamps = cell(1,1e6);
             this.wheelchoice_record = cell(400,3);
             this.timestamps_record = cell(0,1);
+            this.EyeTrackRecord = {};
+            this.EyeTrackSegmentMeta = {};
             this.TimeSegmentKind = "";
             this.TimeSegmentTrial = NaN;
             this.TimeSegmentTic = [];
@@ -4037,11 +4039,6 @@ classdef BehaviorBoxWheel < handle
                 return
             end
             try
-                this.EyeTrack.markTrial(NaN);
-                this.EyeTrack.finalDrain();
-            catch
-            end
-            try
                 this.EyeTrack.stop();
             catch
             end
@@ -4074,8 +4071,15 @@ classdef BehaviorBoxWheel < handle
             if ~isempty(this.EyeTrack) && isobject(this.EyeTrack)
                 try
                     this.EyeTrack.setSessionClock(this.TrainStartTime, this.TrainStartWallClock);
-                    this.EyeTrack.markTrial(0);
+                    this.EyeTrack.configureSession( ...
+                        "SessionId", this.eyeTrackSessionId_(), ...
+                        "SessionKind", this.EyeTrackSessionKind, ...
+                        "SessionLabel", this.eyeTrackSessionLabel_(), ...
+                        "OutputDir", this.eyeTrackSessionOutputDir_());
                     this.EyeTrack.start();
+                    if this.EyeTrackSessionKind ~= "training"
+                        this.beginSessionLevelEyeTrackSegment_();
+                    end
                 catch err
                     warning('BehaviorBoxEyeTrack:StartupUnavailable', ...
                         'Eye tracking was configured but did not start cleanly: %s', err.message);
@@ -4143,14 +4147,18 @@ classdef BehaviorBoxWheel < handle
             this.TimeSegmentTic = [];
         end
 
-        function [eyeTrackingRecord, eyeTrackingMeta] = eyeTrackSaveOutputs_(this)
+        function [eyeTrackingRecord, eyeTrackingMeta, eyeTrackRecord, eyeTrackSegmentMeta] = eyeTrackSaveOutputs_(this)
             eyeTrackingRecord = BehaviorBoxEyeTrack.emptyRecordTable();
             eyeTrackingMeta = BehaviorBoxEyeTrack.emptyMeta();
+            eyeTrackRecord = this.EyeTrackRecord;
+            eyeTrackSegmentMeta = this.EyeTrackSegmentMeta;
             if isempty(this.EyeTrack) || ~isobject(this.EyeTrack)
                 return
             end
             try
-                this.EyeTrack.finalDrain();
+                this.closeOpenEyeTrackSegment_(this.EyeTrackSessionKind == "training");
+                this.EyeTrack.finalizeSession();
+                this.syncEyeTrackImportedSegments_();
             catch
             end
             try
@@ -4167,6 +4175,97 @@ classdef BehaviorBoxWheel < handle
                     'Could not build EyeTrackingMeta during save: %s', err.message);
                 eyeTrackingMeta = BehaviorBoxEyeTrack.emptyMeta();
             end
+            eyeTrackRecord = this.EyeTrackRecord;
+            eyeTrackSegmentMeta = this.EyeTrackSegmentMeta;
+        end
+
+        function beginTrainingEyeTrackSegment_(this)
+            if isempty(this.EyeTrack) || ~isobject(this.EyeTrack) || this.EyeTrackSessionKind ~= "training"
+                return
+            end
+            try
+                this.closeOpenEyeTrackSegment_(true);
+                this.EyeTrack.beginSegment( ...
+                    "SegmentId", "trial_" + string(this.i), ...
+                    "SegmentKind", "trial", ...
+                    "TrialNumber", this.i, ...
+                    "Mode", "training", ...
+                    "ScanImageFile", this.TimeScanImageFileIndex);
+            catch err
+                warning('BehaviorBoxWheel:EyeTrackSegmentStartFailed', ...
+                    'Could not start training eye segment for trial %d: %s', this.i, err.message);
+            end
+        end
+
+        function beginSessionLevelEyeTrackSegment_(this)
+            if isempty(this.EyeTrack) || ~isobject(this.EyeTrack) || this.EyeTrackSessionKind == "training"
+                return
+            end
+            try
+                this.EyeTrack.beginSegment( ...
+                    "SegmentId", "session_segment_1", ...
+                    "SegmentKind", this.EyeTrackSessionKind, ...
+                    "TrialNumber", 0, ...
+                    "Mode", this.app.Animate_Style.Value, ...
+                    "ScanImageFile", this.TimeScanImageFileIndex);
+            catch err
+                warning('BehaviorBoxWheel:EyeTrackSegmentStartFailed', ...
+                    'Could not start session-level eye segment: %s', err.message);
+            end
+        end
+
+        function finishTrainingEyeTrackTrial_(this)
+            if isempty(this.EyeTrack) || ~isobject(this.EyeTrack) || this.EyeTrackSessionKind ~= "training"
+                return
+            end
+            this.closeOpenEyeTrackSegment_(false);
+            this.syncEyeTrackImportedSegments_();
+        end
+
+        function closeOpenEyeTrackSegment_(this, partial)
+            if isempty(this.EyeTrack) || ~isobject(this.EyeTrack)
+                return
+            end
+            if strlength(strtrim(this.EyeTrack.ActiveSegmentId)) == 0
+                return
+            end
+            try
+                this.EyeTrack.closeSegment("Partial", logical(partial));
+            catch err
+                warning('BehaviorBoxWheel:EyeTrackSegmentCloseFailed', ...
+                    'Could not close eye-tracking segment %s: %s', char(this.EyeTrack.ActiveSegmentId), err.message);
+            end
+        end
+
+        function syncEyeTrackImportedSegments_(this)
+            if isempty(this.EyeTrack) || ~isobject(this.EyeTrack)
+                return
+            end
+            try
+                this.EyeTrack.importClosedSegments();
+                importedTables = this.EyeTrack.getSegmentTables();
+                importedMeta = this.EyeTrack.getSegmentMeta();
+            catch err
+                warning('BehaviorBoxWheel:EyeTrackImportFailed', ...
+                    'Could not import eye-tracking chunks: %s', err.message);
+                return
+            end
+            this.EyeTrackRecord = importedTables;
+            this.EyeTrackSegmentMeta = importedMeta;
+        end
+
+        function sessionId = eyeTrackSessionId_(this)
+            stamp = string(datetime(this.TrainStartWallClock, "Format", "yyMMdd_HHmmss"));
+            sessionId = strjoin([stamp, string(this.Setting_Struct.Subject), string(this.Setting_Struct.Strain), this.EyeTrackSessionKind], "_");
+        end
+
+        function sessionLabel = eyeTrackSessionLabel_(this)
+            sessionLabel = this.EyeTrackSessionKind + "_" + string(this.Setting_Struct.Subject);
+        end
+
+        function outputDir = eyeTrackSessionOutputDir_(this)
+            savefolder = this.normalizeSaveFolder_(this.Data_Object.filedir);
+            outputDir = fullfile(savefolder, char(this.eyeTrackSessionId_() + "_EyeRaw"));
         end
 
         function committedTrials = committedTrialCountForSave_(~, newData)
@@ -4352,13 +4451,7 @@ classdef BehaviorBoxWheel < handle
         end
 
         function beginHoldStillInterval_(this)
-            if ~isempty(this.EyeTrack) && isobject(this.EyeTrack)
-                try
-                    this.EyeTrack.markTrial(this.i);
-                    this.EyeTrack.pollAvailable();
-                catch
-                end
-            end
+            this.beginTrainingEyeTrackSegment_();
             this.logTimeEvent_("hold_still_start", struct( ...
                 'trial', this.i, ...
                 'side', this.trialSideName_(), ...
@@ -5625,6 +5718,13 @@ classdef BehaviorBoxWheel < handle
         function record = currentEyeTrackingRecord_(this)
             record = BehaviorBoxEyeTrack.emptyRecordTable();
             if isempty(this.EyeTrack) || ~isobject(this.EyeTrack)
+                if ~isempty(this.EyeTrackRecord)
+                    try
+                        record = vertcat(this.EyeTrackRecord{:});
+                    catch
+                        record = BehaviorBoxEyeTrack.emptyRecordTable();
+                    end
+                end
                 return
             end
             try
