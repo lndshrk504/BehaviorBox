@@ -441,7 +441,7 @@ classdef BehaviorBoxWheel < handle
             end
             this.message_handle.Text = 'Done';
         end
-        %Prepare the window and stimulus
+            %Prepare the window and stimulus
         function SetupBeforeLoop(this)
             this.EyeTrackSessionKind = "training";
             this.GuiHandles.MsgBox.String = "";
@@ -458,8 +458,18 @@ classdef BehaviorBoxWheel < handle
             end
             this.setGuiNumbers(this.GUI_numbers); %update gui
             this.Data_Object = this.createSessionDataObject_();
+            fileDir = char(this.Data_Object.filedir);
+            if ~isfolder(fileDir)
+                [didCreate, mkdirMsg] = mkdir(fileDir);
+                if ~didCreate
+                    warning("Could not create subject folder '%s' (%s). Falling back to tempdir for diary.", fileDir, mkdirMsg);
+                    fileDir = tempdir;
+                else
+                    fprintf("Created subject folder: %s\n", fileDir);
+                end
+            end
             DATE = sprintf("BBTrialLog_%s.txt", datetime('now', 'Format', 'yyyyMMdd_HHmmss'));
-            diaryname = fullfile(this.Data_Object.filedir, DATE);
+            diaryname = fullfile(fileDir, DATE);
             this.textdiary = diaryname;
             diary(diaryname)
             this.Data_Object.TrainingNow = 1;
