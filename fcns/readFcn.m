@@ -27,6 +27,7 @@ end
 try
     t.newData = canonicalizeHistoricalNewDataFields_(t.newData, t);
     originalNewData = t.newData;
+    [t.newData, data{5}] = moveSessionNewDataFieldsToExtras_(t.newData, data{5});
     names = fieldnames(t.newData)';
     if isfield(t, 'StimHist')
         data{4} = t.StimHist;
@@ -77,12 +78,6 @@ try
     if ~isfield(t.newData, 'wheel_record')
         t.newData.wheel_record = [];
     end
-    if isfield(t.newData, 'TtimestampRecord') && ~isfield(t.newData, 'TimestampRecord')
-        t.newData.TimestampRecord = t.newData.TtimestampRecord;
-    end
-    if ~isfield(t.newData, 'TimestampRecord')
-        t.newData.TimestampRecord = [];
-    end
     if isfield(t.newData, 'Weight')
         if isnumeric(t.newData.Weight)
             %do nothing, it should be double
@@ -104,6 +99,45 @@ end
 done = true;
 end
 
+function [newData, extras] = moveSessionNewDataFieldsToExtras_(newData, extras)
+sessionFields = [
+    "TtimestampRecord"
+    "TimestampRecord"
+    "EyeTrackingRecord"
+    "EyeTrackingMeta"
+    "EyeTrackRecord"
+    "EyeTrackSegmentMeta"
+    "WheelDisplayRecord"
+    "FrameAlignedRecord"
+    "EyeAlignedRecord"];
+
+moved = struct();
+for i = 1:numel(sessionFields)
+    fieldName = char(sessionFields(i));
+    if isfield(newData, fieldName)
+        moved.(fieldName) = newData.(fieldName);
+        newData = rmfield(newData, fieldName);
+    end
+end
+
+if isempty(fieldnames(moved))
+    return
+end
+
+if isfield(extras, 'NewDataSessionFields') && isstruct(extras.NewDataSessionFields)
+    sessionExtras = extras.NewDataSessionFields;
+else
+    sessionExtras = struct();
+end
+
+movedNames = fieldnames(moved);
+for i = 1:numel(movedNames)
+    fieldName = movedNames{i};
+    sessionExtras.(fieldName) = moved.(fieldName);
+end
+extras.NewDataSessionFields = sessionExtras;
+end
+
 function extras = collectReadExtras_(loadedStruct)
 extras = struct();
 extraFields = setdiff(fieldnames(loadedStruct), {'Settings', 'newData', 'StimHist', 'Position_Record'});
@@ -117,6 +151,10 @@ function extras = preserveChangedNewDataFields_(extras, originalNewData, normali
 rawChanged = struct();
 rawNames = fieldnames(originalNewData);
 sharedNames = intersect(rawNames, fieldnames(normalizedNewData), 'stable');
+movedSessionNames = string.empty(0, 1);
+if isfield(extras, 'NewDataSessionFields') && isstruct(extras.NewDataSessionFields)
+    movedSessionNames = string(fieldnames(extras.NewDataSessionFields));
+end
 
 for i = 1:numel(sharedNames)
     fieldName = sharedNames{i};
@@ -133,6 +171,9 @@ end
 removedNames = setdiff(rawNames, fieldnames(normalizedNewData), 'stable');
 for i = 1:numel(removedNames)
     fieldName = removedNames{i};
+    if any(movedSessionNames == string(fieldName))
+        continue
+    end
     rawChanged.(fieldName) = originalNewData.(fieldName);
 end
 

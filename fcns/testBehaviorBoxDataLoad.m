@@ -112,12 +112,28 @@ cfg = struct( ...
 end
 
 function idx = localPickTargetIndex(loadedData)
-idx = size(loadedData, 1);
+latestTrainingIdx = [];
 for iRow = size(loadedData, 1):-1:1
     sessionData = loadedData{iRow, 3};
-    if isstruct(sessionData) && isfield(sessionData, 'WheelDisplayRecord')
+    if ~isstruct(sessionData)
+        continue
+    end
+    if isempty(latestTrainingIdx)
+        latestTrainingIdx = iRow;
+    end
+    extras = loadedData{iRow, 5};
+    if isfield(sessionData, 'WheelDisplayRecord') || localHasNewDataSessionField(extras, 'WheelDisplayRecord')
         idx = iRow;
         return
     end
 end
+idx = latestTrainingIdx;
+assert(~isempty(idx), 'No training file with newData found in loadedData.');
+end
+
+function tf = localHasNewDataSessionField(extras, fieldName)
+tf = isstruct(extras) && ...
+    isfield(extras, 'NewDataSessionFields') && ...
+    isstruct(extras.NewDataSessionFields) && ...
+    isfield(extras.NewDataSessionFields, fieldName);
 end

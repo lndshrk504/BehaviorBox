@@ -2004,3 +2004,49 @@
 8. Handoff notes
 - Expected invariants: receiver HTTP API contract, ZMQ address contract, and current MATLAB save behavior.
 - Intentional behavior changes: sourced shell helpers should now prepare the external receiver workflow rather than the retired direct MATLAB/pyzmq workflow.
+
+## 2026-04-24 Wheel Mixed Eye-Field Loader Fix
+
+1. Goal
+- Fix loading `/Users/willsnyder/Dropbox @RU Dropbox/William Snyder/Data/Will/Wheel/New/3421911` after April 23, 2026 Wheel sessions added eye-tracking fields to only some training `newData` structs.
+
+2. Non-goals
+- Do not change how new behavior files are saved in `BehaviorBoxWheel.SaveAllData` or `BehaviorBoxNose.SaveAllData`.
+- Do not change eye-tracking record schema, alignment calculations, saved `.mat` files, figures, or trial scoring.
+- Do not rewrite `BehaviorBoxData.CombineDays`; keep the fix at the datastore-read normalization boundary if possible.
+
+3. Current-state summary
+- `BehaviorBoxData.GetFiles` builds a `fileDatastore` for subject folders and uses `fcns/readFcn.m`.
+- `BehaviorBoxData.loadFiles` stores each row in `loadedData` and calls `BehaviorBoxData.CombineDays` when any row has a training `newData` struct.
+- `BehaviorBoxData.CombineDays` concatenates per-day training structs with `[allData{sessionMask,3}]`, falling back to `cell2mat(data)` and a narrow historical one-field repair.
+- The April 23 Wheel folder has 86 `.mat` files: 56 training files and 30 animate files. The 56 training files have six different `newData` field sets due to `TtimestampRecord`, `TimestampRecord`, `WheelDisplayRecord`, `FrameAlignedRecord`, `EyeTrackingRecord`, `EyeTrackingMeta`, `EyeTrackRecord`, `EyeTrackSegmentMeta`, and `EyeAlignedRecord`.
+- The failure occurs before behavior analysis when MATLAB tries to concatenate those heterogeneous structs, then cascades into missing `Score` and `TrialNum` errors.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/fcns/readFcn.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxData.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/fcns/testBehaviorBoxDataLoad.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/fcns/testBehaviorBoxDataMixedEyeFieldsLoad.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- Focused fixture regression:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('fcns/testBehaviorBoxDataMixedEyeFieldsLoad.m');"`
+- Live-folder regression:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); root='/Users/willsnyder/Dropbox @RU Dropbox/William Snyder/Data/Will/Wheel/New/3421911'; files=dir(fullfile(root,'*.mat')); rows=cell(numel(files),8); for i=1:numel(files), rows(i,:)=readFcn(fullfile(files(i).folder, files(i).name)); end; bb=BehaviorBoxData('Inv','Will','Inp','w','Str','w','Sub',{'w'},'find',1,'load',0,'analyze',0); bb.loadedData=rows; bb.Sub={'3421911'}; bb.CombineDays(); fprintf('loaded days=%d\n', size(bb.DayData.Mouse3421911,1));"`
+- Static MATLAB check:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); checkcode('fcns/readFcn.m'); checkcode('fcns/testBehaviorBoxDataMixedEyeFieldsLoad.m');"`
+
+6. Milestones
+- Move session-wide eye/timestamp fields out of `data{3}` in `readFcn` and into `data{5}` extras before day concatenation.
+- Preserve behavior trial fields and settings fields in `data{3}` so `CombineDays`, `CleanData`, and analysis outputs stay behavior-compatible.
+- Add a small temporary `.mat` fixture test with mixed old/new eye fields that reproduces the concatenation risk without touching Dropbox.
+- Validate the fixture and the live 3421911 folder.
+
+7. Risks and stop conditions
+- Stop if downstream analysis expects eye tables inside `DayData` rather than through `GetReadExtras`.
+- Stop if moving fields out of `newData` changes trial counts, scores, levels, inclusion vectors, or setting labels in the fixture or live folder.
+
+8. Handoff notes
+- Expected invariants: behavior trial vectors, day grouping, score/level analysis inputs, settings-derived include labels, and original saved files.
+- Intentional load-time schema change: session-wide eye/timestamp records are kept in read extras instead of the day-concatenated behavior struct.

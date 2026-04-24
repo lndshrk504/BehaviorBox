@@ -256,15 +256,15 @@ classdef BehaviorBoxData < handle
             FDS = [];
             SUBDIR = [];
             try
-                FDS = fileDatastore(direc, "ReadMode", "file" ,"ReadFcn", @readFcn, "FileExtensions", ".mat", "IncludeSubfolders",false);
-
-                % Normalize to a cell array of directory paths for parsing
                 if isstring(direc)
                     direc = cellstr(direc);
                 elseif ischar(direc)
                     direc = {direc};
+                elseif iscell(direc)
+                    direc = cellfun(@char, direc, 'UniformOutput', false);
                 end
                 direc = direc(:);
+                FDS = fileDatastore(direc, "ReadMode", "file" ,"ReadFcn", @readFcn, "FileExtensions", ".mat", "IncludeSubfolders",false);
 
                 % Derive subject/strain from directory paths (faster than splitting
                 % every datastore filename).
