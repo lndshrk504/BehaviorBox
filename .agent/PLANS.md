@@ -28,6 +28,54 @@
 - stop if MATLAB and Python disagree on shapes, dtypes, indexing, or file schema
 - stop if a change would silently alter saved `.mat`, `.h5`, `.json`, or `.csv` outputs without an explicit migration note
 
+## 2026-04-24 Reset Wheel Position On Reused Repeat-Wrong Stimulus
+
+1. Goal
+- Fix Wheel repeat-wrong stimulus reuse so recycled stimuli start each repeated trial at the normal left/right starting positions.
+- Reset Wheel display state (`CurrentRawWheel`, `CurrentDelta`) to zero when a recycled stimulus is prepared for a new trial.
+- Preserve exact stimulus reuse: do not redraw randomized distractors when repeat-wrong repeats the previous stimulus.
+
+2. Non-goals
+- Do not change Nose behavior.
+- Do not change side-selection, scoring, reward/penalty logic, Arduino serial command strings, imaging metadata schemas, or saved `.mat` field names.
+- Do not redraw the stimulus on repeat-wrong trials.
+
+3. Current-state summary
+- `BehaviorBoxWheel.DoLoop()` calls `BeforeTrial()`, `WaitForInput()`, and then `WaitForInputAndGiveReward()`.
+- `BehaviorBoxWheel.BeforeTrial()` currently copies the prior `StimHistory` row when `shouldReusePreviousStimulus_()` is true and skips `BehaviorBoxVisualStimulus.DisplayOnScreen(...)`.
+- `BehaviorBoxVisualStimulus.DisplayOnScreen(...)` is the normal path that sets `LStimAx.Position(1)=0`, `RStimAx.Position(1)=0.5`, and calls `resetWheelOffset_()`.
+- `readLeverLoopAnalogWheel()` moves the stimulus during the response using hgtransform matrices from `getWheelMotionTargets()` when available, or by changing the left/right axes positions as a fallback.
+- Therefore the current reuse path can leave the repeated stimulus at the previous wrong-choice displacement.
+- No relevant `+pkg`, `@Class`, or `private/` dispatch path was found. `startup.m` is minimal.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxWheel.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/MockApp/testBehaviorBoxWheelRepeatWrongReset.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- Static checks:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); checkcode('BehaviorBoxWheel.m'); checkcode('MockApp/testBehaviorBoxWheelRepeatWrongReset.m');"`
+- Focused repeat-wrong reset smoke:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('MockApp/testBehaviorBoxWheelRepeatWrongReset.m');"`
+- Existing side/repeat smoke:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('fcns/testPickSideForCorrect.m');"`
+- Conflict marker scan:
+  `rg -n "^<<<<<<<|^=======|^>>>>>>>" BehaviorBoxWheel.m MockApp/testBehaviorBoxWheelRepeatWrongReset.m fcns/testPickSideForCorrect.m .agent/PLANS.md`
+
+6. Milestones
+- Patch the Wheel reused-stimulus branch to reset left/right axes positions, clear wheel transforms, and zero display state.
+- Add focused mock coverage that simulates both hgtransform displacement and axis-position displacement before `BeforeTrial()`.
+- Run MATLAB validation and inspect the final diff.
+
+7. Risks and stop conditions
+- Stop if resetting the displayed position requires redrawing the stimulus or changing saved schema.
+- Stop if the reset would conflict with hold-still wheel reset semantics.
+
+8. Handoff notes
+- Expected invariants: repeated `StimHistory` content, side choice, scoring, rewards, penalties, timing settings, Arduino protocol, and saved field names.
+- Intentional output/display change: repeated Wheel stimuli now start visually centered with display wheel state reset to zero; repeat-wrong no longer preserves prior-response displacement.
+
 ## 2026-04-21 Fix Mapping Loom Stimulus Controls
 
 1. Goal

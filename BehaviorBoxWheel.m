@@ -537,6 +537,7 @@ classdef BehaviorBoxWheel < handle
             end
             if this.shouldReusePreviousStimulus_()
                 this.StimHistory(this.i,:) = this.StimHistory(this.i-1,:);
+                this.resetReusedWheelStimulusForNewTrial_();
             elseif isvalid(this.fig)
                 [this.StimHistory{this.i,1},this.StimHistory{this.i,2}] = this.Stimulus_Object.DisplayOnScreen(this.isLeftTrial, this.Level); %Plot new stimulus as hidden objects, record positions and angles of the segments
             else
@@ -906,6 +907,44 @@ classdef BehaviorBoxWheel < handle
         end
         function tf = shouldReusePreviousStimulus_(this)
             tf = this.repeatWrongTriggered_() && this.previousStimulusAvailable_();
+        end
+        function resetReusedWheelStimulusForNewTrial_(this)
+            this.CurrentRawWheel = 0;
+            this.CurrentDelta = 0;
+            try
+                this.CurrentStimColor = this.colorScalar_(this.StimulusStruct.LineColor);
+            catch
+                this.CurrentStimColor = NaN;
+            end
+
+            try
+                if ~isempty(this.LStimAx) && isgraphics(this.LStimAx)
+                    this.LStimAx.Position(1) = 0;
+                end
+                if ~isempty(this.RStimAx) && isgraphics(this.RStimAx)
+                    this.RStimAx.Position(1) = 0.5;
+                end
+            catch
+            end
+
+            didResetTransform = false;
+            try
+                if ismethod(this.Stimulus_Object, 'resetWheelOffset_')
+                    this.Stimulus_Object.resetWheelOffset_();
+                    didResetTransform = true;
+                end
+            catch
+                didResetTransform = false;
+            end
+            if ~didResetTransform
+                try
+                    stimTransforms = findobj(this.fig, 'Type', 'hgtransform', 'Tag', 'StimulusTransform');
+                    for idx = 1:numel(stimTransforms)
+                        stimTransforms(idx).Matrix = eye(4);
+                    end
+                catch
+                end
+            end
         end
         function tf = repeatWrongTriggered_(this)
             tf = false;
