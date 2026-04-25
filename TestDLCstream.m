@@ -1,17 +1,19 @@
 % MATLAB: Test Production Receiver
-%  In MATLAB:
+% In MATLAB. Start the deferred receiver first, for example:
+%   cd("/home/wbs/Desktop/BehaviorBox/EyeTrack/Stream-DeepLabCut")
+%   system("python run_eye_receiver_service.py --address tcp://127.0.0.1:5555 --api-port 8765 &")
 
 cd("/home/wbs/Desktop/BehaviorBox")
 run("startup.m")
 
-setenv("BB_EYETRACK_PYTHON", "/home/wbs/miniforge3/envs/dlclivegui/bin/python")
 setenv("BB_EYETRACK_ZMQ_ADDRESS", "tcp://127.0.0.1:5555")
+setenv("BB_EYETRACK_RECEIVER_URL", "http://127.0.0.1:8765")
 
 eye = BehaviorBoxEyeTrack( ...
     Address="tcp://127.0.0.1:5555", ...
     SourceMode="localhost", ...
-    BridgeDir="/home/wbs/Desktop/BehaviorBox/EyeTrack/DeepLabCut/ToMatlab", ...
-    PythonExecutable="/home/wbs/miniforge3/envs/dlclivegui/bin/python", ...
+    ReceiverUrl="http://127.0.0.1:8765", ...
+    BridgeDir="/home/wbs/Desktop/BehaviorBox/EyeTrack/Stream-DeepLabCut", ...
     StartTimerOnStart=false);
 
 eye.setSessionClock(tic, datetime("now"));

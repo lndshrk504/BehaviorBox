@@ -39,7 +39,9 @@ The repo also includes:
 - Linux is the default runtime and validation environment for this repo.
 - Development also happens on macOS, and occasionally on Windows.
 - `usbcamv4l/` is Linux-only.
-- The active eye-tracking path is the `EyeTrack/DeepLabCut/` tree. `EyeTrack/legacy/iRecHS2/` remains in the repo as legacy reference material.
+- The active eye-tracking path is the standalone `EyeTrack/` repo, especially
+  `EyeTrack/Stream-DeepLabCut/` for the live streamer/receiver and
+  `EyeTrack/Cam-Tests/` for camera/runtime checks.
 
 ## Quick start
 
@@ -123,19 +125,20 @@ The active eye-tracking boundary lives under [`EyeTrack/`](EyeTrack/README.md).
 
 Relevant files:
 
-- [`EyeTrack/bootstrap_eye_track.m`](EyeTrack/bootstrap_eye_track.m)
-- [`EyeTrack/DeepLabCut/README.md`](EyeTrack/DeepLabCut/README.md)
-- [`EyeTrack/DeepLabCut/ToMatlab/README.md`](EyeTrack/DeepLabCut/ToMatlab/README.md)
-- [`EyeTrack/DeepLabCut/ToMatlab/README_eye_stream.md`](EyeTrack/DeepLabCut/ToMatlab/README_eye_stream.md)
-- [`EyeTrack/DeepLabCut/TWO_COMPUTER_EYE_TRACKING_QUICKSTART.md`](EyeTrack/DeepLabCut/TWO_COMPUTER_EYE_TRACKING_QUICKSTART.md)
-- [`EyeTrack/DeepLabCut/ToMatlab/run_eye_stream_receive_test.m`](EyeTrack/DeepLabCut/ToMatlab/run_eye_stream_receive_test.m)
+- [`EyeTrack/README.md`](EyeTrack/README.md)
+- [`EyeTrack/Stream-DeepLabCut/README.md`](EyeTrack/Stream-DeepLabCut/README.md)
+- [`EyeTrack/Docs/README_eye_stream.md`](EyeTrack/Docs/README_eye_stream.md)
+- [`EyeTrack/Docs/TWO_COMPUTER_EYE_TRACKING_QUICKSTART.md`](EyeTrack/Docs/TWO_COMPUTER_EYE_TRACKING_QUICKSTART.md)
+- [`EyeTrack/Docs/SSH_X11_FORWARDING_POPOS.md`](EyeTrack/Docs/SSH_X11_FORWARDING_POPOS.md)
+- [`EyeTrack/Cam-Tests/README.md`](EyeTrack/Cam-Tests/README.md)
+- [`EyeTrack/Stream-DeepLabCut/run_eye_stream_receive_test.m`](EyeTrack/Stream-DeepLabCut/run_eye_stream_receive_test.m)
 
 The active eye-tracking runtime is a three-stage pipeline:
 
 - Python streamer on the eye-tracking computer:
-  `EyeTrack/DeepLabCut/ToMatlab/dlc_eye_streamer.py`
+  `EyeTrack/Stream-DeepLabCut/dlc_eye_streamer.py`
 - Python deferred receiver on the behavior computer:
-  `EyeTrack/DeepLabCut/ToMatlab/behavior_eye_receiver.py`
+  `EyeTrack/Stream-DeepLabCut/behavior_eye_receiver.py`
 - MATLAB-side client/import/alignment path:
   `BehaviorBoxEyeTrack.m`
 
@@ -145,7 +148,9 @@ Transport is split accordingly:
 - append-only per-segment CSV + JSON chunks written by the receiver
 - localhost HTTP control/status API used by MATLAB to open sessions, close segments, and import finalized chunks
 
-`EyeTrack/DeepLabCut/ToMatlab/matlab_zmq_bridge.py` and `receive_eye_stream_demo.m` are retained as older reference/demo tooling, but they are no longer the production ingest path used by BehaviorBox.
+`EyeTrack/Stream-DeepLabCut/matlab_zmq_bridge.py` and
+`receive_eye_stream_demo.m` are retained as older reference/demo tooling, but
+they are no longer the production ingest path used by BehaviorBox.
 
 ## Mock harness
 

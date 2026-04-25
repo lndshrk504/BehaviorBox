@@ -24,9 +24,84 @@
     - For MATLAB milestones, include the exact `matlab -batch` command you will run.
 - If the task crosses MATLAB and Python, list both sides of the boundary and the file/schema contract.
 
-    Required stop conditions:
+Required stop conditions:
 - stop if MATLAB and Python disagree on shapes, dtypes, indexing, or file schema
 - stop if a change would silently alter saved `.mat`, `.h5`, `.json`, or `.csv` outputs without an explicit migration note
+
+## 2026-04-25 BehaviorBoxWheel EyeTrack Layout Compatibility
+
+1. Goal
+- Verify that `BehaviorBoxWheel.m` still works after the standalone `EyeTrack/`
+  repo was reorganized into `Stream-DeepLabCut/`, `Cam-Tests/`, `Docs/`,
+  `ssh_x11/`, and `Models/`.
+- Update only stale BehaviorBox-side support docs/scripts that still point at
+  the old `EyeTrack/DeepLabCut/ToMatlab` layout.
+
+2. Non-goals
+- Do not change `BehaviorBoxWheel.m` behavior, saved `.mat` schema, eye sample
+  schema, alignment semantics, receiver API routes, ZMQ fields, timing fields,
+  or the Python streamer/receiver implementation.
+- Do not add broad MATLAB path setup or restore deleted EyeTrack folders.
+
+3. Current-state summary
+- `BehaviorBoxWheel.initializeEyeTrackForSession_()` calls
+  `BehaviorBoxEyeTrack.tryCreateFromEnvironment()`.
+- `BehaviorBoxEyeTrack.tryCreateFromEnvironment()` discovers the receiver via
+  `BB_EYETRACK_RECEIVER_URL` / `http://127.0.0.1:8765`; it does not import the
+  moved Python scripts directly.
+- `BehaviorBoxWheel.m` itself contains no old EyeTrack path references.
+- Parent `README.md` and `TestDLCstream.m` still reference the old
+  `EyeTrack/DeepLabCut/ToMatlab` layout.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/README.md`
+- `/Users/willsnyder/Desktop/BehaviorBox/TestDLCstream.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- Static checks:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); checkcode('BehaviorBoxWheel.m'); checkcode('BehaviorBoxEyeTrack.m'); checkcode('fcns/testBehaviorBoxEyeTrack.m'); checkcode('MockApp/testBehaviorBoxWheelSaveStatus.m');"`
+- Focused receiver/import smoke:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('fcns/testBehaviorBoxEyeTrack.m');"`
+- Wheel save/alignment smoke:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('MockApp/testBehaviorBoxWheelSaveStatus.m');"`
+- Wheel setup-eye alignment smoke:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('MockApp/testBehaviorBoxWheelSetupEyeAlignment.m');"`
+- Stale path scan:
+  `rg -n "EyeTrack/DeepLabCut|DeepLabCut/ToMatlab|bootstrap_eye_track" README.md TestDLCstream.m BehaviorBoxWheel.m BehaviorBoxEyeTrack.m`
+
+6. Milestones
+- Validate the existing `BehaviorBoxWheel` -> `BehaviorBoxEyeTrack` path before
+  editing.
+- Update stale manual docs/scripts to the new EyeTrack layout.
+- Re-run the narrow MATLAB and stale-path checks.
+
+7. Risks and stop conditions
+- Stop if validation reveals `BehaviorBoxWheel.m` depends on a deleted MATLAB
+  bootstrap path or direct Python script path.
+- Stop if a fix would change saved data schema or receiver API contracts.
+
+8. Handoff notes
+- Expected invariants: `BehaviorBoxWheel.m` behavior, `EyeTrackingRecord`,
+  `EyeTrackingMeta`, `EyeTrackRecord`, `EyeTrackSegmentMeta`,
+  `FrameAlignedRecord`, and `EyeAlignedRecord` schemas.
+- Intended changes are documentation/manual-test path updates only.
+
+9. Implementation summary
+- Confirmed `BehaviorBoxWheel.m` has no direct old EyeTrack path dependency.
+- Updated `README.md` and `TestDLCstream.m` to reference
+  `EyeTrack/Stream-DeepLabCut/`, `EyeTrack/Cam-Tests/`, and the receiver HTTP
+  URL used by `BehaviorBoxEyeTrack`.
+- Validation passed: static `checkcode` command completed without errors,
+  `fcns/testBehaviorBoxEyeTrack.m` printed `BEHAVIORBOX_EYETRACK_OK`,
+  `MockApp/testBehaviorBoxWheelSaveStatus.m` printed
+  `BEHAVIORBOX_WHEEL_SAVE_STATUS_OK`, and
+  `MockApp/testBehaviorBoxWheelSetupEyeAlignment.m` printed
+  `BEHAVIORBOX_WHEEL_SETUP_EYE_ALIGNMENT_OK`.
+- Stale path scan over `README.md`, `TestDLCstream.m`,
+  `BehaviorBoxWheel.m`, and `BehaviorBoxEyeTrack.m` found no remaining
+  `EyeTrack/DeepLabCut`, `DeepLabCut/ToMatlab`, or `bootstrap_eye_track`
+  references.
 
 ## 2026-04-24 Reset Wheel Position On Reused Repeat-Wrong Stimulus
 
