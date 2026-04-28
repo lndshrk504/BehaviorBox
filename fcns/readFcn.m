@@ -4,11 +4,17 @@ if contains(filename, '2471951')
     1;
 end
 data = cell(1,8);
-t = load(filename);
 tree = split(filename, filesep);
 data{1} = tree{end}; %filename
 data{2} = str2double(tree{end}(1:6)); %Date of session
 data{6} = char(tree{end-1}); %name of the subfolder, Mouse's name
+try
+    t = load(filename);
+catch err
+    data{5} = struct('ReadError', err.message);
+    done = true;
+    return
+end
 data{5} = collectReadExtras_(t);
 if isfield(t, 'Position_Record')
     data{7} = t.Position_Record;
@@ -17,8 +23,13 @@ if isfield(t, 'Settings')
     data{8} = t.Settings;
 end
 if ~isfield(t, 'newData')
-    done = true;
-    return
+    [legacyNewData, legacyExtras] = legacyNewDataFromLoadedStruct_(t);
+    if isempty(fieldnames(legacyNewData))
+        done = true;
+        return
+    end
+    t.newData = legacyNewData;
+    data{5}.LegacyNewData = legacyExtras;
 end
 
 % if data{2} == 241025 % For debugging certain days
@@ -136,6 +147,135 @@ for i = 1:numel(movedNames)
     sessionExtras.(fieldName) = moved.(fieldName);
 end
 extras.NewDataSessionFields = sessionExtras;
+end
+
+function [newData, extras] = legacyNewDataFromLoadedStruct_(loadedStruct)
+newData = struct();
+extras = struct('Source', "", 'RowCount', 0, 'TrialCount', 0);
+
+if isfield(loadedStruct, 'RepairedBehaviorData')
+    legacyMatrix = loadedStruct.RepairedBehaviorData;
+    extras.Source = "RepairedBehaviorData";
+elseif isfield(loadedStruct, 'data')
+    legacyMatrix = loadedStruct.data;
+    extras.Source = "data";
+else
+    return
+end
+
+if ~isnumeric(legacyMatrix) || isempty(legacyMatrix)
+    return
+end
+
+supportedRows = [5 6 7 9 13];
+if ~ismember(size(legacyMatrix, 1), supportedRows) && ismember(size(legacyMatrix, 2), supportedRows)
+    legacyMatrix = legacyMatrix';
+end
+
+nRows = size(legacyMatrix, 1);
+nTrials = size(legacyMatrix, 2);
+extras.RowCount = nRows;
+extras.TrialCount = nTrials;
+
+if nRows >= 5 && any(legacyMatrix(5,:) == -1)
+    legacyMatrix(:, legacyMatrix(5,:) == -1) = [];
+    nTrials = size(legacyMatrix, 2);
+    extras.TrialCount = nTrials;
+end
+if nRows >= 4 && all(legacyMatrix(1,:) - legacyMatrix(4,:) < 1)
+    legacyMatrix(4,:) = 0;
+end
+
+switch nRows
+    case 5
+        names = {'TimeStamp', 'Score', 'Level', 'ResponseTime', 'RewardPulses'};
+    case 6
+        names = {'TimeStamp', 'Score', 'Level', 'ResponseTime', 'RewardPulses', 'RewardTime'};
+    case 7
+        names = {'TimeStamp', 'Score', 'Level', 'ResponseTime', 'isLeftTrial', 'RewardPulses', 'RewardTime'};
+    case 9
+        names = {'TimeStamp', 'Score', 'Level', 'ResponseTime', 'isLeftTrial', 'CodedChoice', 'RewardPulses', 'InterTMal', 'DuringTMal'};
+    case 13
+        names = {'TimeStamp', 'Score', 'Level', 'isLeftTrial', 'CodedChoice', 'RewardPulses', 'InterTMal', 'DuringTMal', 'TrialStartTime', 'ResponseTime', 'DrinkTime', 'SetIdx', 'isTraining'};
+    otherwise
+        return
+end
+
+for i = 1:numel(names)
+    newData.(names{i}) = double(legacyMatrix(i,:))';
+end
+
+newData = fillMissingBehaviorFields_(newData, loadedStruct);
+end
+
+function newData = fillMissingBehaviorFields_(newData, loadedStruct)
+if ~isfield(newData, 'Score') || ~isfield(newData, 'Level')
+    newData = struct();
+    return
+end
+
+newData.Score = newData.Score(:);
+newData.Level = newData.Level(:);
+nTrials = numel(newData.Score);
+
+if nTrials == 0 || numel(newData.Level) ~= nTrials
+    newData = struct();
+    return
+end
+
+if all(newData.Level < 1 & newData.Level >= 0)
+    newData.Level = double(newData.Level * 10);
+end
+newData.Score(newData.Score == 0.8) = 1;
+newData.Score(newData.Score == 0.5) = 0;
+newData.Score(newData.Score == 0.2) = 2;
+
+numericDefaults = {
+    'TimeStamp', zeros(nTrials, 1)
+    'isLeftTrial', zeros(nTrials, 1)
+    'CodedChoice', zeros(nTrials, 1)
+    'SetIdx', ones(nTrials, 1)
+    'RewardPulses', zeros(nTrials, 1)
+    'InterTMal', zeros(nTrials, 1)
+    'DuringTMal', zeros(nTrials, 1)
+    'TrialStartTime', zeros(nTrials, 1)
+    'ResponseTime', zeros(nTrials, 1)
+    'DrinkTime', zeros(nTrials, 1)
+    'isTraining', true(nTrials, 1)
+    'SideBias', zeros(nTrials, 1)
+    'BetweenTrialTime', zeros(nTrials, 1)
+    'RewardTime', zeros(nTrials, 1)
+    'WhatDecision', zeros(nTrials, 1)
+    'LevelGroups', ones(nTrials, 1)
+    'Include', ones(nTrials, 1)
+    };
+
+for i = 1:size(numericDefaults, 1)
+    fieldName = numericDefaults{i, 1};
+    if ~isfield(newData, fieldName) || isempty(newData.(fieldName))
+        newData.(fieldName) = numericDefaults{i, 2};
+    else
+        newData.(fieldName) = newData.(fieldName)(:);
+    end
+end
+
+if ~isfield(newData, 'SetStr') || isempty(newData.SetStr)
+    newData.SetStr = "legacy";
+end
+if ~isfield(newData, 'SetUpdate') || isempty(newData.SetUpdate)
+    newData.SetUpdate = {1};
+end
+if isfield(loadedStruct, 'Settings') && isstruct(loadedStruct.Settings)
+    newData.Settings = loadedStruct.Settings;
+else
+    newData.Settings = struct();
+end
+if ~isfield(newData, 'StimHist') || isempty(newData.StimHist)
+    newData.StimHist = cell(nTrials, 2);
+end
+if ~isfield(newData, 'Weight')
+    newData.Weight = [];
+end
 end
 
 function extras = collectReadExtras_(loadedStruct)

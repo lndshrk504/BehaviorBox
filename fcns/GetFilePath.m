@@ -89,5 +89,5 @@ switch true
     otherwise
         error('GetFilePath:PlatformError', 'Unsupported Operating System.');
 end
-F = fullfile(PREFIX, FOLDER, 'William Snyder', {'Archive', 'Data'});
+F = fullfile(PREFIX, FOLDER, 'William Snyder', 'Data Archive');
 end

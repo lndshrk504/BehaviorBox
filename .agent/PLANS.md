@@ -2173,3 +2173,53 @@ Required stop conditions:
 8. Handoff notes
 - Expected invariants: behavior trial vectors, day grouping, score/level analysis inputs, settings-derived include labels, and original saved files.
 - Intentional load-time schema change: session-wide eye/timestamp records are kept in read extras instead of the day-concatenated behavior struct.
+
+## 2026-04-27 BehaviorBoxData Active And Archive Root Audit
+
+1. Goal
+- Make the BehaviorBoxData load path cover session data under `/Users/willsnyder/Dropbox @RU Dropbox/William Snyder/Data` and `/Users/willsnyder/Dropbox @RU Dropbox/William Snyder/Data Archive`.
+
+2. Non-goals
+- Do not modify, rewrite, move, or resave any `.mat` files in Dropbox.
+- Do not change scoring, trial binning, settings labels, figures, or saved output schema.
+- Do not make broad GUI or analysis refactors.
+
+3. Current-state summary
+- Active `Data` contains about 4,886 `.mat` files across 82 folders with `.mat` files.
+- `Data Archive` contains about 9,528 `.mat` files across 205 folders with `.mat` files.
+- The trees mix session folders with derivative folders such as `Settings`, `Binomial`, `LevelGroup`, `DayTrial`, `Graphs`, and `Rescued Graph Data`.
+- `BehaviorBoxData` currently assumes `GetFilePath("Data")` as its root, so archive loading needs either a root override or a path shadow.
+- `GetFilePath("Archive")` currently returns a cell-style `Archive/Data` path, not the actual `Data Archive` folder.
+- Some archive files still lack `newData` and only contain legacy arrays such as `RepairedBehaviorData` plus `Settings`.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxData.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/fcns/GetFilePath.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/fcns/readFcn.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/fcns/testBehaviorBoxDataAllRootLoads.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- Root audit:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('fcns/testBehaviorBoxDataAllRootLoads.m');"`
+- Focused active root loader:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); BBData = BehaviorBoxData('DataRoot', GetFilePath('Data'), 'Inv','Will','Inp','Wheel','Str','New','Sub',{'3421911'},'find',1,'analyze',0); assert(~isempty(BBData.loadedData));"`
+- Focused archive loader:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); BBData = BehaviorBoxData('DataRoot', GetFilePath('Archive'), 'Inv','Will','Inp','Wheel','Str','16p','Sub',{'2332101'},'find',1,'analyze',0); assert(~isempty(BBData.loadedData));"`
+- Static MATLAB checks:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); checkcode('BehaviorBoxData.m'); checkcode('fcns/GetFilePath.m'); checkcode('fcns/readFcn.m'); checkcode('fcns/testBehaviorBoxDataAllRootLoads.m');"`
+
+6. Milestones
+- Add a narrow `BehaviorBoxData` data-root override and fix `GetFilePath("Archive")`.
+- Add read-time legacy conversion for archived session files that have `RepairedBehaviorData` but no `newData`.
+- Add an audit script that discovers session folders, skips known derivative folders, and verifies each candidate through `BehaviorBoxData`.
+- Run the audit on both roots and fix any loader incompatibilities it exposes.
+
+7. Risks and stop conditions
+- Stop if an archive branch is not organized as `root/investigator/input/strain/subject` and cannot be mapped to BehaviorBoxData without guessing.
+- Stop if a legacy file format cannot be converted without ambiguous score/level/choice semantics.
+- Stop if a compatibility change would alter current active training outputs rather than only load old files.
+
+8. Handoff notes
+- Expected invariants: active behavior data trial counts, score vectors, level vectors, day grouping, and current save behavior.
+- Intentional load-time changes: archive roots can be passed explicitly, `GetFilePath("Archive")` resolves to `Data Archive`, and legacy `RepairedBehaviorData` files can be normalized in memory for loading.

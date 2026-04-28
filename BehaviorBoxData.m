@@ -40,6 +40,7 @@ classdef BehaviorBoxData < handle
         Inp = char;
         Sub = {};
         Str = char;
+        DataRoot = "";
         dc = []; %Day count
         sc = 1; %Subj count
         filedir = char; %file directory
@@ -74,6 +75,7 @@ classdef BehaviorBoxData < handle
                 options.plot logical = 0;
                 options.find logical = 0;
                 options.save logical = 0;
+                options.DataRoot string = "";
             end
             addpath(fullfile(fileparts(mfilename("fullpath")), "fcns"))
             %Apply inputs
@@ -185,7 +187,12 @@ classdef BehaviorBoxData < handle
                 return
             end
 
-            dataRoot = fullfile(GetFilePath("Data"), this.Inv, this.Inp);
+            dataRootBase = string(this.DataRoot);
+            dataRootBase = strtrim(dataRootBase);
+            if strlength(dataRootBase) == 0
+                dataRootBase = string(GetFilePath("Data"));
+            end
+            dataRoot = fullfile(char(dataRootBase), this.Inv, this.Inp);
 
             % ------------------------------------------------------------
             % Fast-path: if Strain is provided and exists, check directly
@@ -293,7 +300,12 @@ classdef BehaviorBoxData < handle
         end
 
         function subdirPath = handleNewStrain(this, ~)
-            dataRoot = fullfile(GetFilePath("Data"), this.Inv, this.Inp);
+            dataRootBase = string(this.DataRoot);
+            dataRootBase = strtrim(dataRootBase);
+            if strlength(dataRootBase) == 0
+                dataRootBase = string(GetFilePath("Data"));
+            end
+            dataRoot = fullfile(char(dataRootBase), this.Inv, this.Inp);
 
             strain = string(this.Str);
             if strlength(strain) == 0 || matches(strain, "w", "IgnoreCase", true)
@@ -423,6 +435,7 @@ classdef BehaviorBoxData < handle
             if isfield(bigSession, 'SetIdx') && ~isempty(bigSession.SetIdx)
                 validIdx = bigSession.SetIdx(isfinite(bigSession.SetIdx) & bigSession.SetIdx >= 1);
                 if ~isempty(validIdx)
+                    validIdx = ceil(double(validIdx));
                     nSettings = max(nSettings, max(validIdx));
                 end
             end
@@ -470,7 +483,7 @@ classdef BehaviorBoxData < handle
                 catch
                     name = S{:};
                 end
-                mouse = "Mouse" + name;
+                mouse = string(matlab.lang.makeValidName("Mouse" + name));
                 w = contains(allData(:,6), name); %only needed if there are multiple subjects
                 [~,days] = findgroups(cell2mat(allData(w,2))');
                 dayData.((mouse)) = cell(numel(days'),4);
@@ -600,8 +613,9 @@ classdef BehaviorBoxData < handle
                         bigSession.Include = Include(bigSession.SetIdx);
                     catch
                         [includeBySetting, setStrBySetting] = this.GetRescuedSettingsFallback(bigSession, Include, SetStr);
-                        safeSetIdx = bigSession.SetIdx;
+                        safeSetIdx = ceil(double(bigSession.SetIdx));
                         safeSetIdx(~isfinite(safeSetIdx) | safeSetIdx < 1) = 1;
+                        safeSetIdx(safeSetIdx > numel(includeBySetting)) = numel(includeBySetting);
                         warning("Sub: "+string(S)+" Day "+d+" - Rescued data found, settings info is missing; using Include=1 and rescued-missing-settings labels");
                         bigSession.Include = includeBySetting(safeSetIdx);
                         SetStr = setStrBySetting;
