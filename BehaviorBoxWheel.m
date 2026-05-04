@@ -2397,7 +2397,6 @@ classdef BehaviorBoxWheel < handle
                     catch
                     end
                 end
-                newData.Settings = Settings;
                 if this.Box.Input_type == 6
                     newData.wheel_record = this.wheelchoice_record;
                     newData.wheel_record(any(cellfun(@isempty, newData.wheel_record)'),:) = [];
@@ -2436,13 +2435,11 @@ classdef BehaviorBoxWheel < handle
 
                 end
                 if isscalar(this.SetUpdate) % Settings never changed during the session.
-                    newData.SetStr = this.SetStr;
                     newData.Include = repmat(this.Include, size(newData.TimeStamp));
                     newData.SetIdx = repmat(this.SetIdx, size(newData.TimeStamp));
                 elseif numel(this.SetUpdate) > 1
                     try
                         Ts = this.Include;
-                        newData.SetStr =  this.SetStr;
                         Idcs = unique([cell2mat(this.SetUpdate) length(newData.TimeStamp)]);
                         [~, ~, newData.SetIdx] = histcounts(1:length(newData.TimeStamp), Idcs);
                         newData.Include = Ts(newData.SetIdx);
@@ -2450,6 +2447,7 @@ classdef BehaviorBoxWheel < handle
                     end
                 end
                 newData.Weight = this.Setting_Struct.Weight;
+                newData = this.removeRedundantSavedNewDataFields_(newData);
                 f = [];
                 try
                     if ~isempty(this.graphFig) && isvalid(this.graphFig)
@@ -2551,6 +2549,15 @@ classdef BehaviorBoxWheel < handle
                     Settings = [Settings oldSettings];
                 catch
                     % Keep current settings only if legacy setting structs are incompatible.
+                end
+            end
+        end
+        function newData = removeRedundantSavedNewDataFields_(~, newData)
+            redundantFields = {'Settings', 'SetStr'};
+            for iField = 1:numel(redundantFields)
+                fieldName = redundantFields{iField};
+                if isfield(newData, fieldName)
+                    newData = rmfield(newData, fieldName);
                 end
             end
         end

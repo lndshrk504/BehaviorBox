@@ -2359,9 +2359,10 @@ classdef BehaviorBoxNose < handle
             Settings = this.combineSettingsForSave_();
             newData.SetUpdate = this.SetUpdate;
             newData.StimHist = this.filterNonEmptyRows(this.StimHistory);
-            newData = this.setDataIndexes(newData, Settings);
+            newData = this.setDataIndexes(newData);
 
             newData.Weight = this.Setting_Struct.Weight;
+            newData = this.removeRedundantSavedNewDataFields_(newData);
             Notes = this.GuiHandles.NotesText.String;
             f = [];
             if ~options.RescueData
@@ -2412,10 +2413,17 @@ classdef BehaviorBoxNose < handle
             nonEmptyRows = any(~cellfun(@isempty, StimHistory'));
             StimHist = StimHistory(nonEmptyRows, :);
         end
-        function newData = setDataIndexes(this, newData, Settings)
+        function newData = setDataIndexes(this, newData)
             [~, newData.Include] = this.getTimeline(newData);
-            newData.SetStr = this.SetStr;
-            newData.Settings = this.removeUnwantedFields(Settings);
+        end
+        function newData = removeRedundantSavedNewDataFields_(~, newData)
+            redundantFields = {'Settings', 'SetStr'};
+            for iField = 1:numel(redundantFields)
+                fieldName = redundantFields{iField};
+                if isfield(newData, fieldName)
+                    newData = rmfield(newData, fieldName);
+                end
+            end
         end
         function [Ts, Include] = getTimeline(this, newData)
         % This fcn causes errors. How necessary is it? All trials are

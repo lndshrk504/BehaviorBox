@@ -2223,3 +2223,51 @@ Required stop conditions:
 8. Handoff notes
 - Expected invariants: active behavior data trial counts, score vectors, level vectors, day grouping, and current save behavior.
 - Intentional load-time changes: archive roots can be passed explicitly, `GetFilePath("Archive")` resolves to `Data Archive`, and legacy `RepairedBehaviorData` files can be normalized in memory for loading.
+
+## 2026-05-03 AI Bootstrap Documentation
+
+1. Goal
+- Turn project-owner answers about BehaviorBox data, workflows, hardware, validation, and future growth into durable AI-facing documentation.
+- Add a small `.agent/` documentation set that future agents can read before broad edits.
+
+2. Non-goals
+- Do not change MATLAB, Python, Arduino, or C++ behavior.
+- Do not touch real Dropbox data or create subject folders.
+- Do not rewrite existing execution-plan history.
+
+3. Current-state summary
+- `BehaviorBox_App.mlapp` is the production GUI entrypoint.
+- `BB_App.m` exists mainly as the AI-readable App Designer surrogate.
+- The main workflows are `BehaviorBoxNose.m` and `BehaviorBoxWheel.m`.
+- Data creation/loading/analysis runs through `BehaviorBoxData.m` and `fcns/readFcn.m`.
+- Data roots are resolved by `fcns/GetFilePath.m`.
+- Active hardware firmware is under `Arduino/`, active DLC bridge work is under `DLC/ToMatlab/`, and `usbcamv4l/` is the active Linux camera utility.
+
+4. Files touched
+- `/Users/willsnyder/Desktop/BehaviorBox/AGENTS.md`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/README.md`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/DATA.md`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/SCHEMA.md`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/HARDWARE.md`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/VALIDATION.md`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/WORKFLOWS.md`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/SCIENTIFIC_CHANGELOG.md`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- Documentation consistency checks:
+  `rg -n "<<<<<<<|=======|>>>>>>>|TODO|FIXME" AGENTS.md .agent`
+  `git diff --stat -- AGENTS.md .agent`
+
+6. Milestones
+- Add focused `.agent/` docs for data, schema, hardware, validation, workflows, and scientific-output changelog.
+- Link those docs from `AGENTS.md`.
+- Preserve existing `.agent/PLANS.md` history and append this plan entry.
+
+7. Risks and stop conditions
+- Stop if documentation claims behavior that conflicts with source code.
+- Stop if a proposed doc would imply agents may write real Dropbox data during validation.
+
+8. Handoff notes
+- This is documentation-only. No scientific outputs, saved schemas, hardware protocols, or validation scripts changed.
+- Follow-up owner answers were incorporated into `.agent/HARDWARE.md`, `.agent/SCHEMA.md`, `.agent/VALIDATION.md`, `.agent/WORKFLOWS.md`, and `.agent/SCIENTIFIC_CHANGELOG.md`: Arduino-to-MATLAB mappings, `Score`/`Level` analysis priority, graph-generation success criteria, cron PDF output target, and mandatory scientific changelog updates for future AI agents.

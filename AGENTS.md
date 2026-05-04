@@ -32,6 +32,16 @@ Keep patches small and anchored on recently read context. If `apply_patch` repor
 ## Planning Rule
 If the task is multi-file, cross-language, touches multiple directories, crosses a data-format boundary, or is likely to change scientific outputs, create or update an ExecPlan in `.agent/PLANS.md` before broad edits.
 
+## AI Bootstrap Docs
+Before broad edits, read the focused AI notes under `.agent/`:
+- `.agent/README.md` for read order and high-risk areas.
+- `.agent/DATA.md` before touching data roots, subject discovery, save paths, or Dropbox data.
+- `.agent/SCHEMA.md` before changing saved `.mat` fields, `BehaviorBoxData.m`, `fcns/readFcn.m`, `BehaviorBoxNose.m`, or `BehaviorBoxWheel.m`.
+- `.agent/HARDWARE.md` before Arduino, serial, reward, microscope, photogate, rotary, screen blanking, or camera utility work.
+- `.agent/VALIDATION.md` before choosing validation commands.
+- `.agent/WORKFLOWS.md` for common Nose, Wheel, save, loader, DLC, automation, and GUI cleanup paths.
+- `.agent/SCIENTIFIC_CHANGELOG.md` for changes that alter scientific outputs, saved arrays, figures, tables, preprocessing, analysis metrics, randomization, tolerances, microscope alignment, or eye-tracking alignment.
+
 ## Repo Layout Checklist
 Before broad edits, inspect the real equivalents in this repo rather than assuming a template layout:
 - Main MATLAB app and workflow files: `BehaviorBox_App.mlapp`, `BB_App.m`, `BehaviorBoxData*.m`, `BehaviorBoxNose.m`, `BehaviorBoxWheel.m`, `BehaviorBoxVisualStimulus.m`

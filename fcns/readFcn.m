@@ -37,6 +37,7 @@ end
 % end
 try
     t.newData = canonicalizeHistoricalNewDataFields_(t.newData, t);
+    [t.newData, data{5}] = injectSettingsCompatibilityFields_(t.newData, t, data{5});
     originalNewData = t.newData;
     [t.newData, data{5}] = moveSessionNewDataFieldsToExtras_(t.newData, data{5});
     names = fieldnames(t.newData)';
@@ -147,6 +148,28 @@ for i = 1:numel(movedNames)
     sessionExtras.(fieldName) = moved.(fieldName);
 end
 extras.NewDataSessionFields = sessionExtras;
+end
+
+function [newData, extras] = injectSettingsCompatibilityFields_(newData, loadedStruct, extras)
+compat = struct();
+if ~isfield(newData, 'Settings') || isempty(newData.Settings)
+    if isfield(loadedStruct, 'Settings') && isstruct(loadedStruct.Settings)
+        newData.Settings = loadedStruct.Settings;
+        compat.Settings = "top-level Settings";
+    else
+        newData.Settings = struct();
+        compat.Settings = "empty fallback";
+    end
+end
+if ~isfield(newData, 'SetStr')
+    newData.SetStr = "";
+    compat.SetStr = "empty compatibility label";
+end
+
+if isempty(fieldnames(compat))
+    return
+end
+extras.CompatibilityFields = compat;
 end
 
 function [newData, extras] = legacyNewDataFromLoadedStruct_(loadedStruct)

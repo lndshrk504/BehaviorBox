@@ -1,3 +1,7 @@
+// LEGACY RECORD ONLY:
+// This is the earlier two-edge screen blanker for the NLW setup.
+// It is kept in the repository as a record/reference, not as the active screen-blanking sketch.
+
 // pin connected to the screen backlight
 const byte pulse_pin = 13;
 

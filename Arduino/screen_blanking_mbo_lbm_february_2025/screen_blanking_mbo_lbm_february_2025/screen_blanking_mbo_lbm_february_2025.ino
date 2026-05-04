@@ -1,3 +1,7 @@
+// ACTIVE USE VERSION:
+// This is the active screen-blanking sketch.
+// It uses only the falling edge from the resonant mirror signal on digital pin 3.
+
 // pin connected to the screen backlight
 const byte pulse_pin = 13;
 // Ground wire from screen driver board goes to any of the board's ground pins
