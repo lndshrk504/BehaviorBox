@@ -539,13 +539,11 @@ classdef BehaviorBoxWheel < handle
                 this.a.TimeStamp('Off')
             end
             this.isLeftTrial = this.PickSideForCorrect(this.isLeftTrial, this.SideBias); %Pick if isLeftTrial
-            %Pick next difficulty level, if variable
-            if this.Setting_Struct.EasyTrials
-                [this.Level] = this.PickDifficultyLevel();
-            else
-                this.Level = this.Setting_Struct.Starting_opacity;
-            end
-            if this.shouldReusePreviousStimulus_()
+            selectedLevel = this.pickLevelForNextStimulus_(false);
+            reusePreviousStimulus = this.shouldReusePreviousStimulus_(selectedLevel);
+            this.Level = selectedLevel;
+            if reusePreviousStimulus
+                this.Level = this.previousStimulusLevel_(selectedLevel);
                 this.StimHistory(this.i,:) = this.StimHistory(this.i-1,:);
                 this.resetReusedWheelStimulusForNewTrial_();
             elseif isvalid(this.fig)
@@ -748,6 +746,94 @@ classdef BehaviorBoxWheel < handle
         function current_difficulty = PickDifficultyLevel(this)
             current_difficulty = this.LevelStruct.ChooseLevel();
         end
+        function level = pickLevelForNextStimulus_(this, reusePreviousStimulus)
+            if reusePreviousStimulus
+                level = this.previousStimulusLevel_(this.Level);
+            elseif this.Setting_Struct.EasyTrials
+                level = this.PickDifficultyLevel();
+            else
+                level = this.Setting_Struct.Starting_opacity;
+            end
+        end
+        function level = previousStimulusLevel_(this, fallbackLevel)
+            level = fallbackLevel;
+            levels = this.currentDataVector_("Level");
+            if ~isempty(levels)
+                level = levels(end);
+            end
+        end
+        function tf = selectedLevelStillMatchesRepeatStimulus_(this, selectedLevel)
+            tf = true;
+            if isempty(selectedLevel) || this.settingLogicalValue_("EasyTrials", false)
+                return
+            end
+            previousLevel = this.previousStimulusLevel_([]);
+            if isempty(previousLevel)
+                return
+            end
+            tf = this.sameScalarLevel_(selectedLevel, previousLevel);
+        end
+        function tf = settingLogicalValue_(this, fieldName, defaultValue)
+            tf = defaultValue;
+            try
+                fieldName = char(fieldName);
+                if ~isstruct(this.Setting_Struct) || ~isfield(this.Setting_Struct, fieldName)
+                    return
+                end
+                value = this.Setting_Struct(1).(fieldName);
+                if iscell(value)
+                    if isempty(value)
+                        return
+                    end
+                    value = value{1};
+                end
+                if isstring(value) || ischar(value)
+                    valueText = lower(strtrim(string(value)));
+                    if any(valueText == ["true", "on", "yes"])
+                        tf = true;
+                        return
+                    elseif any(valueText == ["false", "off", "no"])
+                        tf = false;
+                        return
+                    end
+                    value = str2double(valueText);
+                end
+                if islogical(value)
+                    tf = any(value(:));
+                elseif isnumeric(value) && ~isempty(value)
+                    value = double(value(1));
+                    tf = isfinite(value) && value ~= 0;
+                end
+            catch
+                tf = defaultValue;
+            end
+        end
+        function tf = sameScalarLevel_(this, leftLevel, rightLevel)
+            leftLevel = this.scalarLevelValue_(leftLevel);
+            rightLevel = this.scalarLevelValue_(rightLevel);
+            tf = isfinite(leftLevel) && isfinite(rightLevel) && abs(leftLevel - rightLevel) <= 1e-10;
+        end
+        function level = scalarLevelValue_(~, level)
+            if iscell(level)
+                if isempty(level)
+                    level = NaN;
+                    return
+                end
+                level = level{1};
+            end
+            if isstring(level) || ischar(level)
+                level = str2double(level);
+            end
+            if isnumeric(level) || islogical(level)
+                if isempty(level)
+                    level = NaN;
+                else
+                    level = double(level(1));
+                end
+            else
+                level = NaN;
+            end
+        end
         %Update all the settings if the button is ticked
         function UpdateSettings(this)
             tempSetting_Struct = this.readSettingsFromApp();
@@ -915,8 +1001,13 @@ classdef BehaviorBoxWheel < handle
                 isLeftTrial = this.randomTrialSide_();
             end
         end
-        function tf = shouldReusePreviousStimulus_(this)
-            tf = this.repeatWrongTriggered_() && this.previousStimulusAvailable_();
+        function tf = shouldReusePreviousStimulus_(this, selectedLevel)
+            if nargin < 2
+                selectedLevel = [];
+            end
+            tf = this.repeatWrongTriggered_() && ...
+                this.previousStimulusAvailable_() && ...
+                this.selectedLevelStillMatchesRepeatStimulus_(selectedLevel);
         end
         function resetReusedWheelStimulusForNewTrial_(this)
             this.CurrentRawWheel = 0;

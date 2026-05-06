@@ -2,7 +2,10 @@ scriptDir = fileparts(mfilename('fullpath'));
 repoRoot = fileparts(scriptDir);
 addpath(fullfile(repoRoot, 'MockApp'));
 cd(repoRoot);
-run('startup.m');
+startupFile = fullfile(repoRoot, 'startup.m');
+if exist(startupFile, 'file') == 2
+    run(startupFile);
+end
 cleanupRepeatWrongFigures = onCleanup(@() close(findall(0, 'Type', 'figure', 'Name', 'RepeatWrongStimulusTest')));
 
 rng(7, 'twister');
@@ -20,13 +23,19 @@ disp("BEHAVIORBOX_PICK_SIDE_FOR_CORRECT_OK");
 
 function workflow = configureWorkflow(workflow, app)
     workflow.message_handle = app.text1;
-    workflow.Setting_Struct = struct('Repeat_wrong', false, 'Same_Side_Max', 4);
+    workflow.Setting_Struct = struct( ...
+        'Repeat_wrong', false, ...
+        'Same_Side_Max', 4, ...
+        'EasyTrials', false, ...
+        'Starting_opacity', 5);
     workflow.StimulusStruct = struct('side', 1);
     workflow.Data_Object = struct('current_data_struct', struct( ...
         'Score', [], ...
+        'Level', [], ...
         'isLeftTrial', [], ...
         'CodedChoice', []));
     workflow.i = 2;
+    workflow.Level = 5;
     workflow.current_side = "";
 end
 
@@ -114,6 +123,24 @@ function exercisePickSide(workflow, label)
     configureReusableStimulus(workflow);
     assert(workflow.repeatWrongTriggered_(), label + " repeat-wrong should be marked triggered after a wrong response.");
     assert(workflow.shouldReusePreviousStimulus_(), label + " repeat-wrong should reuse the previous drawn stimulus when handles and history exist.");
+
+    workflow.Data_Object.current_data_struct.Level = [3 7];
+    workflow.Setting_Struct.Starting_opacity = 7;
+    selectedLevel = workflow.pickLevelForNextStimulus_(false);
+    assert(workflow.shouldReusePreviousStimulus_(selectedLevel), ...
+        label + " repeat-wrong should keep reusing the stimulus when the selected level is unchanged.");
+    assert(workflow.pickLevelForNextStimulus_(workflow.shouldReusePreviousStimulus_(selectedLevel)) == 7, ...
+        label + " unchanged repeat-wrong reuse should preserve the previous displayed level.");
+
+    workflow.Setting_Struct.Starting_opacity = 12;
+    selectedLevel = workflow.pickLevelForNextStimulus_(false);
+    assert(~workflow.shouldReusePreviousStimulus_(selectedLevel), ...
+        label + " repeat-wrong should redraw immediately when the selected level changes.");
+    assert(workflow.pickLevelForNextStimulus_(workflow.shouldReusePreviousStimulus_(selectedLevel)) == 12, ...
+        label + " changed repeat-wrong level should use the newly selected level.");
+
+    assert(workflow.pickLevelForNextStimulus_(false) == 12, ...
+        label + " non-repeat trials should use the current Starting_opacity setting.");
 
     workflow.Data_Object.current_data_struct.Score = [1 1];
     assert(~workflow.repeatWrongTriggered_(), label + " repeat-wrong should not trigger after a correct response.");

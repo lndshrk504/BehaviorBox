@@ -28,6 +28,54 @@ Required stop conditions:
 - stop if MATLAB and Python disagree on shapes, dtypes, indexing, or file schema
 - stop if a change would silently alter saved `.mat`, `.h5`, `.json`, or `.csv` outputs without an explicit migration note
 
+## 2026-05-04 Redraw Repeat-Wrong Stimulus When Selected Level Changes
+
+1. Goal
+- Ensure Nose and Wheel repeat-wrong trials save the level of the stimulus actually shown.
+- Preserve exact stimulus reuse while the selected fixed level is unchanged.
+- If the selected fixed level changes during a repeat-wrong streak, redraw a new repeated-side stimulus at the newly selected level immediately.
+
+2. Non-goals
+- Do not change side-selection, scoring, reward/penalty logic, Arduino serial command strings, imaging metadata schemas, or saved `.mat` field names.
+- Do not change behavior after a correct response or timeout.
+- Do not change level selection for ordinary non-repeat trials.
+
+3. Current-state summary
+- `BehaviorBoxNose.BeforeTrial()` and `BehaviorBoxWheel.BeforeTrial()` call `PickSideForCorrect()`, then select `this.Level` from either `PickDifficultyLevel()` or `Setting_Struct.Starting_opacity`.
+- Only after selecting `this.Level` do both classes check `shouldReusePreviousStimulus_()` and copy the prior `StimHistory` row.
+- `UpdateData()` in both classes passes `this.Level` to `BehaviorBoxData.AddData()`.
+- Therefore, if level settings change during a repeat-wrong streak, the saved `Level` can reflect the new setting while the old stimulus is still displayed.
+- A first-pass fix preserved the previous saved level during repeat-wrong reuse, but the requested behavior is stronger: a selected-level change should interrupt reuse and redraw at the selected level.
+- No relevant `+pkg`, `@Class`, or `private/` dispatch path was found. `startup.m` is minimal.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxNose.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxWheel.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/fcns/testPickSideForCorrect.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- Static checks:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); checkcode('BehaviorBoxNose.m'); checkcode('BehaviorBoxWheel.m'); checkcode('fcns/testPickSideForCorrect.m');"`
+- Focused side/repeat/level smoke:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('fcns/testPickSideForCorrect.m');"`
+- Conflict marker scan:
+  `rg -n "^<<<<<<<|^=======|^>>>>>>>" BehaviorBoxNose.m BehaviorBoxWheel.m fcns/testPickSideForCorrect.m .agent/PLANS.md`
+
+6. Milestones
+- Patch Nose and Wheel `BeforeTrial()` to compute the currently selected level before deciding whether stimulus reuse is still valid.
+- Add helper logic that permits reuse only when the selected fixed level still matches the previous displayed level.
+- Extend focused MATLAB smoke coverage for both classes so unchanged levels keep reusing the stimulus and changed `Starting_opacity` redraws immediately.
+- Run MATLAB validation and inspect the diff.
+
+7. Risks and stop conditions
+- Stop if preserving the displayed level requires changing saved schema or redrawing the stimulus.
+- Stop if no previous level is available and the fallback would silently misrepresent a displayed stimulus.
+
+8. Handoff notes
+- Expected invariants: repeated `StimHistory` content, side choice, scoring, rewards, penalties, timing settings, Arduino protocol, and saved field names.
+- Intentional behavior/output change: changing `Starting_opacity` during a repeat-wrong streak redraws the repeated side at the new level immediately, and saved `Level` records that new displayed level.
+
 ## 2026-04-25 BehaviorBoxWheel EyeTrack Layout Compatibility
 
 1. Goal
