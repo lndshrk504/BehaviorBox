@@ -17,6 +17,12 @@ classdef MockApp < matlab.mixin.SetGet
         MsgBox
         NotesText
         Stimulus_type
+        Stimulus_position_x
+        Stimulus_position_y
+        Stimulus_size_x
+        Stimulus_size_y
+        Stimulus_LineColor
+        Starting_opacity
         Box_Input_type
         Subject
         Strain
@@ -48,6 +54,12 @@ classdef MockApp < matlab.mixin.SetGet
             this.NotesText = MockControl("uilabel", "NotesText", "");
 
             this.Stimulus_type = MockControl("uieditfield", "Stimulus_type", "Contour");
+            this.Stimulus_position_x = MockControl("uieditfield", "Stimulus_position_x", "1");
+            this.Stimulus_position_y = MockControl("uieditfield", "Stimulus_position_y", "1");
+            this.Stimulus_size_x = MockControl("uieditfield", "Stimulus_size_x", "10");
+            this.Stimulus_size_y = MockControl("uieditfield", "Stimulus_size_y", "3");
+            this.Stimulus_LineColor = MockControl("uieditfield", "Stimulus_LineColor", "0.6");
+            this.Starting_opacity = MockControl("uispinner", "Starting_opacity", 1);
             this.Box_Input_type = MockControl("uieditfield", "Box_Input_type", "Wheel");
             this.Subject = MockControl("uieditfield", "Subject", "999999");
             this.Strain = MockControl("uieditfield", "Strain", "New");

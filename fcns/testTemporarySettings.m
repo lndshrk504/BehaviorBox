@@ -8,6 +8,7 @@ addpath(fullfile(repoRoot, 'fcns'));
 testNoseCorrectCountStartsAtActivation();
 testNosePerformanceUsesPerfThreshold();
 testWheelCorrectCountIgnoresIncorrectAndTimeouts();
+testWheelCorrectCountUsesRecentPerformanceWindow();
 testWheelPerformanceUsesPerfThreshold();
 testWheelHoldStillThresholdComparison();
 
@@ -98,6 +99,30 @@ function testWheelCorrectCountIgnoresIncorrectAndTimeouts()
     assert(~bb.Temp_Active, 'Wheel temp mode should expire after two new correct responses.');
     assert(bb.Setting_Struct.Starting_opacity == 5, 'Wheel base settings should be restored after temp expiry.');
     assert(bb.app.TempOff_Temp.Value == 1, 'Wheel temp expiry should switch the GUI mode back to Off.');
+end
+
+function testWheelCorrectCountUsesRecentPerformanceWindow()
+    bb = newWheel();
+    bb.app = makeTempApp();
+    bb.Setting_Struct = struct('Starting_opacity', 5);
+    bb.Temp_Settings = struct( ...
+        'TrialNumber', true, ...
+        'PerformanceThreshold', false, ...
+        'TempOff', false, ...
+        'TrialCount', 5, ...
+        'TrialCountThreshold', 95, ...
+        'Starting_opacity', 1);
+    bb.Data_Object = makeData(1, 1);
+
+    bb.CheckTemp();
+    assert(bb.Temp_Active, 'Wheel temp mode should activate for recent-window test.');
+
+    advanceCompletedTrials(bb, [1 0 0 1 1 1 1 1], ones(1, 8));
+    bb.CheckTemp();
+    assert(~bb.Temp_Active, ...
+        'Wheel TrialNumber temp mode should expire after five recent correct trials despite earlier temp-period wrongs.');
+    assert(bb.Setting_Struct.Starting_opacity == 5, ...
+        'Wheel recent-window temp expiry should restore base settings.');
 end
 
 function testWheelPerformanceUsesPerfThreshold()

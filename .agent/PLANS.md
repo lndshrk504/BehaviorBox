@@ -28,6 +28,52 @@ Required stop conditions:
 - stop if MATLAB and Python disagree on shapes, dtypes, indexing, or file schema
 - stop if a change would silently alter saved `.mat`, `.h5`, `.json`, or `.csv` outputs without an explicit migration note
 
+## 2026-05-07 Fix Wheel TrialNumber Temporary Settings Expiry
+
+1. Goal
+- Fix `BehaviorBoxWheel` temporary settings in `TrialNumber_Temp` / `Correct Resp.` mode so strong recent performance can terminate temporary settings.
+- With `TrialCount_Temp = N` and `TrialCountThreshold_Temp = T`, once at least N new correct responses have occurred, evaluate accuracy over the most recent N completed non-timeout trials instead of the whole temporary period.
+- Preserve existing Wheel activation, settings overlay, countdown, and restoration behavior.
+
+2. Non-goals
+- Do not change Nose behavior in this pass.
+- Do not change GUI controls, setting names, saved field names, reward logic, side selection, Arduino protocols, or Wheel imaging metadata.
+- Do not change `PerformanceThreshold_Temp` behavior.
+
+3. Current-state summary
+- `BehaviorBoxWheel.BeforeTrial()` calls `UpdateSettings()` and then `CheckTemp()` before selecting the trial stimulus.
+- `CheckTemp()` activates temp mode from `Temp_Settings.TrialNumber` or `Temp_Settings.PerformanceThreshold`, stores `Temp_CorrectStart` and `Temp_TrialStart`, overlays `Temp_Settings`, and in TrialNumber mode decrements `Temp_Countdown` using new correct responses.
+- When countdown reaches zero, Wheel currently computes `performance = this.tempPeriodPerformance_()`, which is cumulative over all completed non-timeout trials since temp activation.
+- Therefore, earlier wrong trials in the temp period can keep cumulative performance below `TrialCountThreshold_Temp` even after a later long correct streak.
+- Existing focused coverage lives in `fcns/testTemporarySettings.m`.
+- No relevant `+pkg`, `@Class`, or `private/` dispatch path was found. `startup.m` is minimal.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxWheel.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/fcns/testTemporarySettings.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- Static checks:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); checkcode('BehaviorBoxWheel.m'); checkcode('fcns/testTemporarySettings.m');"`
+- Focused temp settings smoke:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('fcns/testTemporarySettings.m');"`
+- Conflict marker scan:
+  `rg -n "^<<<<<<<|^=======|^>>>>>>>" BehaviorBoxWheel.m fcns/testTemporarySettings.m .agent/PLANS.md`
+
+6. Milestones
+- Patch Wheel TrialNumber threshold performance to use a recent `TrialCount_Temp` window.
+- Add a focused regression test where earlier temp-period wrongs are followed by a long correct streak and temp mode must expire.
+- Run MATLAB validation and inspect the diff.
+
+7. Risks and stop conditions
+- Stop if the fix requires changing saved schema or GUI contracts.
+- Stop if the desired TrialNumber threshold semantics conflict with live Nose behavior that should remain unchanged.
+
+8. Handoff notes
+- Expected invariants: temp activation baseline, `Temp_Countdown`, settings overlay/restoration, `PerformanceThreshold_Temp`, saved field names, reward behavior, and hardware protocols.
+- Intentional Wheel behavior change: in `TrialNumber_Temp` mode with a positive threshold, temp expiry is based on recent completed non-timeout performance after enough new correct responses, not cumulative temp-period performance.
+
 ## 2026-05-04 Redraw Repeat-Wrong Stimulus When Selected Level Changes
 
 1. Goal
@@ -2319,3 +2365,44 @@ Required stop conditions:
 8. Handoff notes
 - This is documentation-only. No scientific outputs, saved schemas, hardware protocols, or validation scripts changed.
 - Follow-up owner answers were incorporated into `.agent/HARDWARE.md`, `.agent/SCHEMA.md`, `.agent/VALIDATION.md`, `.agent/WORKFLOWS.md`, and `.agent/SCIENTIFIC_CHANGELOG.md`: Arduino-to-MATLAB mappings, `Score`/`Level` analysis priority, graph-generation success criteria, cron PDF output target, and mandatory scientific changelog updates for future AI agents.
+
+## 2026-05-07 Wheel Stimulus Geometry Preservation
+
+1. Goal
+- Preserve the live `Stimulus` figure position and size during `BehaviorBoxWheel.UpdateSettings()` unless the operator changed one of the GUI geometry fields.
+
+2. Non-goals
+- Do not change stimulus drawing, trial side selection, difficulty selection, saved data schema, reward logic, or hardware integration.
+- Do not change Nose behavior unless required by the shared stimulus helper signature.
+
+3. Current-state summary
+- `BehaviorBoxWheel.BeforeTrial()` calls `UpdateSettings()` before drawing the next stimulus.
+- `UpdateSettings()` calls `BehaviorBoxVisualStimulus.updateProps()` when any `Stimulus_*` field changes.
+- `updateProps()` currently writes `this.fig.Position = [position_x position_y size_x size_y]`, which resets a manually resized live stimulus window even when only stimulus content or color changed.
+- `BB_App.WinPosValueChanged()` is the existing GUI path that copies the live figure geometry back into `Stimulus_position_x`, `Stimulus_position_y`, `Stimulus_size_x`, and `Stimulus_size_y`.
+
+4. Files likely touched
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxVisualStimulus.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/BehaviorBoxWheel.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/MockApp/testBehaviorBoxWheelStimulusGeometryUpdate.m`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/SCIENTIFIC_CHANGELOG.md`
+- `/Users/willsnyder/Desktop/BehaviorBox/.agent/PLANS.md`
+
+5. Validation commands
+- Focused regression:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); run('MockApp/testBehaviorBoxWheelStimulusGeometryUpdate.m');"`
+- Static MATLAB check:
+  `matlab -batch "cd('/Users/willsnyder/Desktop/BehaviorBox'); checkcode('BehaviorBoxVisualStimulus.m'); checkcode('BehaviorBoxWheel.m'); checkcode('MockApp/testBehaviorBoxWheelStimulusGeometryUpdate.m');"`
+
+6. Milestones
+- Add an explicit geometry-preservation option to `BehaviorBoxVisualStimulus.updateProps()`.
+- In `BehaviorBoxWheel.UpdateSettings()`, preserve geometry unless a stimulus position/size field changed.
+- Add a headless Wheel regression that proves color/content updates preserve live geometry and geometry-field updates reapply the saved geometry.
+
+7. Risks and stop conditions
+- Stop if preserving geometry prevents legitimate screen position/size updates from taking effect.
+- Stop if the fix requires changing App Designer callbacks or saved GUI setting semantics.
+
+8. Handoff notes
+- Expected invariants: stimulus content properties still update, trial records are unchanged, saved settings history is unchanged, and new trials still draw normally.
+- Intentional display change: live Wheel stimulus window geometry is no longer reset on non-geometry settings updates.

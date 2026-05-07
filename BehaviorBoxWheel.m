@@ -596,7 +596,7 @@ classdef BehaviorBoxWheel < handle
                 this.setTempLabel_(this.Temp_Countdown + " Correct Trials Remaining");
                 if this.Temp_Countdown <= 0
                     threshold = this.tempThreshold_("TrialCountThreshold");
-                    performance = this.tempPeriodPerformance_();
+                    performance = this.recentTempTrialCountPerformance_();
                     if isnan(threshold) || threshold <= 0 || (~isnan(performance) && performance >= threshold)
                         this.endTempMode_();
                     else
@@ -676,6 +676,25 @@ classdef BehaviorBoxWheel < handle
             else
                 performance = mean(scores == 1);
             end
+        end
+
+        function performance = recentTempTrialCountPerformance_(this)
+            scores = this.currentScoreVector_();
+            startIdx = min(max(this.Temp_TrialStart, 0), numel(scores));
+            scores = scores((startIdx+1):end);
+            scores = scores(scores ~= 2);
+            if isempty(scores)
+                performance = NaN;
+                return
+            end
+
+            windowSize = this.tempSettingNumeric_("TrialCount", numel(scores));
+            if ~isfinite(windowSize) || windowSize < 1
+                windowSize = numel(scores);
+            end
+            windowSize = min(numel(scores), max(1, floor(windowSize)));
+            scores = scores((end-windowSize+1):end);
+            performance = mean(scores == 1);
         end
 
         function performance = currentLevelOnePerformance_(this)
@@ -871,6 +890,8 @@ classdef BehaviorBoxWheel < handle
             needsReady = any(startsWith(changedNames, "ReadyCue_"));
             needsLevel = any(startsWith(changedNames, "Level_"));
             needsTemp  = any(endsWith(changedNames, "_Temp")) | any(contains(changedNames, "_Temp"));
+            stimulusGeometryFields = ["Stimulus_position_x", "Stimulus_position_y", "Stimulus_size_x", "Stimulus_size_y"];
+            needsStimulusGeometry = any(ismember(changedNames, stimulusGeometryFields));
 
             if needsStim || needsBox || needsReady || needsLevel || needsTemp
                 this.makeTrialStructures(tempSetting_Struct);
@@ -881,7 +902,9 @@ classdef BehaviorBoxWheel < handle
 
                 if needsStim
                     try
-                        this.Stimulus_Object = this.Stimulus_Object.updateProps(this.StimulusStruct);
+                        this.Stimulus_Object = this.Stimulus_Object.updateProps( ...
+                            this.StimulusStruct, ...
+                            PreserveFigureGeometry=~needsStimulusGeometry);
                         this.fig = this.Stimulus_Object.fig;
                     catch
                     end

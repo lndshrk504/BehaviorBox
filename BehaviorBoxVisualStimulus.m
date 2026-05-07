@@ -113,12 +113,19 @@ classdef BehaviorBoxVisualStimulus < handle
             catch
             end
         end
-        function this = updateProps(this, StimStruct)
+        function this = updateProps(this, StimStruct, options)
             arguments
                 this
                 StimStruct = struct
+                options.PreserveFigureGeometry logical = false
             end
+            originalFigurePosition = [];
+            originalFigureOuterPosition = [];
             try
+                if options.PreserveFigureGeometry && ~isempty(this.fig) && isgraphics(this.fig)
+                    originalFigurePosition = this.fig.Position;
+                    originalFigureOuterPosition = this.fig.OuterPosition;
+                end
                 for f = fieldnames(StimStruct)'
                     try
                         this.(f{:}) = StimStruct.(f{:});
@@ -127,7 +134,12 @@ classdef BehaviorBoxVisualStimulus < handle
                     end
                 end
                 this.fig.Color = this.BackgroundColor;
-                this.fig.Position = [this.position_x this.position_y this.size_x this.size_y];
+                if options.PreserveFigureGeometry && ~isempty(originalFigurePosition)
+                    this.fig.Position = originalFigurePosition;
+                    this.fig.OuterPosition = originalFigureOuterPosition;
+                else
+                    this.fig.Position = [this.position_x this.position_y this.size_x this.size_y];
+                end
                 [this.fig.findobj('Tag','Spotlight').FaceColor] = deal(this.SpotlightColor);
                 [this.fig.findobj('Type','Line').Color] = deal(this.LineColor);
                 [this.fig.findobj('Type','Polygon').FaceColor] = deal(this.LineColor);
