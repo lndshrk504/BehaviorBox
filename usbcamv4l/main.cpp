@@ -70,6 +70,7 @@ enum class CapturePreference {
 static bool g_activeRendererIsNvidia = false;
 static bool g_activeRendererIsIntel = false;
 static bool g_activeRendererIsAmd = false;
+static bool g_activeRendererIsSoftware = false;
 
 static volatile std::sig_atomic_t g_stopRequested = 0;
 
@@ -125,6 +126,21 @@ static std::string to_lower_copy(std::string s) {
     return static_cast<char>(std::tolower(c));
   });
   return s;
+}
+
+static bool contains_delimited_token(const std::string& text, const std::string& token) {
+  if (token.empty()) return false;
+  size_t pos = 0;
+  while (true) {
+    pos = text.find(token, pos);
+    if (pos == std::string::npos) return false;
+    const bool startOk = (pos == 0) || !std::isalnum(static_cast<unsigned char>(text[pos - 1]));
+    const size_t endPos = pos + token.size();
+    const bool endOk = (endPos == text.size()) ||
+                       !std::isalnum(static_cast<unsigned char>(text[endPos]));
+    if (startOk && endOk) return true;
+    pos = endPos;
+  }
 }
 
 static bool env_is_truthy(const char* name) {
@@ -1935,6 +1951,81 @@ static GLuint make_program(const char* fsSrc) {
   return p;
 }
 
+struct GlStateCache {
+  bool haveProgram{false};
+  GLuint program{0};
+  bool haveActiveTexture{false};
+  GLenum activeTexture{GL_TEXTURE0};
+  int viewportX{-1};
+  int viewportY{-1};
+  int viewportW{-1};
+  int viewportH{-1};
+  GLint unpackAlignment{-1};
+  GLint packAlignment{-1};
+  GLint unpackRowLength{-1};
+
+  void reset() {
+    haveProgram = false;
+    program = 0;
+    haveActiveTexture = false;
+    activeTexture = GL_TEXTURE0;
+    viewportX = -1;
+    viewportY = -1;
+    viewportW = -1;
+    viewportH = -1;
+    unpackAlignment = -1;
+    packAlignment = -1;
+    unpackRowLength = -1;
+  }
+
+  void use_program(GLuint nextProgram) {
+    if (!haveProgram || program != nextProgram) {
+      glUseProgram(nextProgram);
+      program = nextProgram;
+      haveProgram = true;
+    }
+  }
+
+  void active_texture(GLenum nextActiveTexture) {
+    if (!haveActiveTexture || activeTexture != nextActiveTexture) {
+      glActiveTexture(nextActiveTexture);
+      activeTexture = nextActiveTexture;
+      haveActiveTexture = true;
+    }
+  }
+
+  void viewport(int x, int y, int w, int h) {
+    if (viewportX != x || viewportY != y || viewportW != w || viewportH != h) {
+      glViewport(x, y, w, h);
+      viewportX = x;
+      viewportY = y;
+      viewportW = w;
+      viewportH = h;
+    }
+  }
+
+  void set_unpack_alignment(GLint alignment) {
+    if (unpackAlignment != alignment) {
+      glPixelStorei(GL_UNPACK_ALIGNMENT, alignment);
+      unpackAlignment = alignment;
+    }
+  }
+
+  void set_pack_alignment(GLint alignment) {
+    if (packAlignment != alignment) {
+      glPixelStorei(GL_PACK_ALIGNMENT, alignment);
+      packAlignment = alignment;
+    }
+  }
+
+  void set_unpack_row_length(GLint rowLength) {
+    if (unpackRowLength != rowLength) {
+      glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, rowLength);
+      unpackRowLength = rowLength;
+    }
+  }
+};
+
 static void init_plane_texture(GLuint& tex, GLenum format, int width, int height, GLint filter) {
   if (tex != 0) return;
   glGenTextures(1, &tex);
@@ -1973,7 +2064,8 @@ static bool upload_plane_texture(GLuint tex, GLenum format,
                                  int width, int height, int bytesPerPixel,
                                  const uint8_t* src, int srcStrideBytes,
                                  bool canUseUnpackRowLength,
-                                 std::vector<uint8_t>& scratch) {
+                                 std::vector<uint8_t>& scratch,
+                                 GlStateCache* glCache = nullptr) {
   if (!src || width <= 0 || height <= 0 || bytesPerPixel <= 0) return false;
   const int tightStride = width * bytesPerPixel;
   if (srcStrideBytes <= 0) srcStrideBytes = tightStride;
@@ -1984,7 +2076,8 @@ static bool upload_plane_texture(GLuint tex, GLenum format,
 
   if (srcStrideBytes != tightStride) {
     if (canUseUnpackRowLength && (srcStrideBytes % bytesPerPixel) == 0) {
-      glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, srcStrideBytes / bytesPerPixel);
+      if (glCache) glCache->set_unpack_row_length(srcStrideBytes / bytesPerPixel);
+      else glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, srcStrideBytes / bytesPerPixel);
       usedRowLength = true;
     } else {
       const size_t tightStrideSize = static_cast<size_t>(tightStride);
@@ -1999,9 +2092,13 @@ static bool upload_plane_texture(GLuint tex, GLenum format,
   }
 
   glBindTexture(GL_TEXTURE_2D, tex);
-  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  if (glCache) glCache->set_unpack_alignment(1);
+  else glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
   glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, format, GL_UNSIGNED_BYTE, uploadPtr);
-  if (usedRowLength) glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, 0);
+  if (usedRowLength) {
+    if (glCache) glCache->set_unpack_row_length(0);
+    else glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, 0);
+  }
   return true;
 }
 
@@ -2084,13 +2181,20 @@ static bool probe_renderer_context(EGLDisplay edpy, EGLConfig cfg, EGLContext ct
   g_activeRendererIsNvidia = false;
   g_activeRendererIsIntel = false;
   g_activeRendererIsAmd = false;
+  g_activeRendererIsSoftware = false;
   auto classify_renderer = [&](const std::string& text) {
     const std::string lower = to_lower_copy(text);
-    if (lower.find("nvidia") != std::string::npos) g_activeRendererIsNvidia = true;
-    if (lower.find("intel") != std::string::npos) g_activeRendererIsIntel = true;
-    if (lower.find("amd") != std::string::npos ||
+    if (contains_delimited_token(lower, "nvidia")) g_activeRendererIsNvidia = true;
+    if (contains_delimited_token(lower, "intel")) g_activeRendererIsIntel = true;
+    if (contains_delimited_token(lower, "llvmpipe") ||
+        contains_delimited_token(lower, "softpipe") ||
+        lower.find("software rasterizer") != std::string::npos) {
+      g_activeRendererIsSoftware = true;
+    }
+    if (contains_delimited_token(lower, "amd") ||
         lower.find("radeon") != std::string::npos ||
-        lower.find("ati") != std::string::npos) {
+        contains_delimited_token(lower, "ati") ||
+        lower.find("advanced micro devices") != std::string::npos) {
       g_activeRendererIsAmd = true;
     }
   };
@@ -2100,6 +2204,8 @@ static bool probe_renderer_context(EGLDisplay edpy, EGLConfig cfg, EGLContext ct
     std::cerr << "Failed to query active GL renderer.\n";
   } else if (g_activeRendererIsAmd) {
     std::cerr << "Detected AMD renderer; enabling VAAPI MJPEG hardware decode probing.\n";
+  } else if (g_activeRendererIsSoftware) {
+    std::cerr << "Detected software GL renderer; using conservative CPU upload fallbacks.\n";
   }
   eglMakeCurrent(edpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
   eglDestroySurface(edpy, probe);
@@ -2821,7 +2927,8 @@ struct V4L2DmabufCam {
 
     v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if (ioctl(fd, VIDIOC_STREAMON, &type) != 0) {
-      std::cerr << "VIDIOC_STREAMON failed\n";
+      std::cerr << "VIDIOC_STREAMON failed (" << cam.devPath
+                << "): " << strerror(errno) << "\n";
       return fail();
     }
     lastFrameTs = std::chrono::steady_clock::now();
@@ -3493,10 +3600,12 @@ int main(int argc, char** argv) {
     cam.requestedBufferCount = 2;
     cam.allowCudaHwMjpeg = allowFullMjpegHw && g_activeRendererIsNvidia;
     cam.allowFullHwMjpeg = allowFullMjpegHw;
-    cam.allowVaapiHwMjpeg = allowFullMjpegHw || g_activeRendererIsIntel || g_activeRendererIsAmd;
+    cam.allowVaapiHwMjpeg = (allowFullMjpegHw && !g_activeRendererIsSoftware) ||
+                            g_activeRendererIsIntel ||
+                            g_activeRendererIsAmd;
     cam.allowQsvHwMjpeg = g_activeRendererIsIntel;
     cam.preferVaapiHwMjpeg = g_activeRendererIsAmd;
-    cam.preferCpuYuyv = g_activeRendererIsAmd;
+    cam.preferCpuYuyv = g_activeRendererIsAmd || g_activeRendererIsSoftware;
     cam.record = enableRecording;
     cam.recorder.enabled = enableRecording;
     cam.recorder.profile = recordProfile;
@@ -3663,21 +3772,27 @@ int main(int argc, char** argv) {
   GLint locPlanarV = progYUVPlanar ? glGetUniformLocation(progYUVPlanar, "texPlanarV") : -1;
   GLint locRGBA = progRGBA ? glGetUniformLocation(progRGBA, "texRGBA") : -1;
 
+  GlStateCache glCache;
+  auto bind_texture_2d = [&](GLenum unit, GLuint tex) {
+    glCache.active_texture(unit);
+    glBindTexture(GL_TEXTURE_2D, tex);
+  };
+
   if (progNV12) {
-    glUseProgram(progNV12);
+    glCache.use_program(progNV12);
     glUniform1i(locY, 0);
     glUniform1i(locUV, 1);
   } else if (needNV12Shader) {
     std::cerr << "NV12 shader program unavailable; NV12 streams may fail to render.\n";
   }
   if (progYUYV) {
-    glUseProgram(progYUYV);
+    glCache.use_program(progYUYV);
     glUniform1i(locYuyv, 0);
   } else if (needYuyvShader) {
     std::cerr << "YUYV shader program unavailable; YUYV streams may fail to render.\n";
   }
   if (progYUVPlanar) {
-    glUseProgram(progYUVPlanar);
+    glCache.use_program(progYUVPlanar);
     glUniform1i(locPlanarY, 0);
     glUniform1i(locPlanarU, 1);
     glUniform1i(locPlanarV, 2);
@@ -3685,7 +3800,7 @@ int main(int argc, char** argv) {
     std::cerr << "Planar YUV shader program unavailable; MJPEG streams may fail to render.\n";
   }
   if (progRGBA) {
-    glUseProgram(progRGBA);
+    glCache.use_program(progRGBA);
     glUniform1i(locRGBA, 0);
   } else if (needOverlayShader) {
     std::cerr << "RGBA overlay shader unavailable; status overlays will be disabled.\n";
@@ -3726,7 +3841,7 @@ int main(int argc, char** argv) {
     ensure_plane_texture(tex, texW, texH, GL_RGBA, overlayW, overlayH, GL_LINEAR);
     if (!rgba.empty()) {
       glBindTexture(GL_TEXTURE_2D, tex);
-      glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+      glCache.set_unpack_alignment(1);
       glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, overlayW, overlayH,
                       GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
     }
@@ -3804,9 +3919,8 @@ int main(int argc, char** argv) {
     make_overlay_quad(viewW, viewH, drawX, drawY, drawW, drawH, overlayQuad);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glUseProgram(progRGBA);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, tex);
+    glCache.use_program(progRGBA);
+    bind_texture_2d(GL_TEXTURE0, tex);
     draw_quad(overlayQuad);
     glDisable(GL_BLEND);
   };
@@ -3817,7 +3931,7 @@ int main(int argc, char** argv) {
 
     const int viewW = std::max(1, wins[camIndex].geom.w);
     const int viewH = std::max(1, wins[camIndex].geom.h);
-    glViewport(0, 0, viewW, viewH);
+    glCache.viewport(0, 0, viewW, viewH);
     glClearColor(0.06f, 0.02f, 0.02f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
@@ -4106,7 +4220,13 @@ int main(int argc, char** argv) {
 
   const int xfd = ConnectionNumber(dpy);
   std::vector<pollfd> pfds;
-  pfds.reserve(2 + vcams.size());
+  pfds.reserve(2u + static_cast<size_t>(MAX_CAMERAS));
+  auto append_pollfd = [&](int fd) {
+    pollfd pfd{};
+    pfd.fd = fd;
+    pfd.events = POLLIN;
+    pfds.push_back(pfd);
+  };
 
   auto close_camera_window = [&](size_t camIndex, const std::string& reason) -> bool {
     if (camIndex >= wins.size() || camIndex >= vcams.size()) return false;
@@ -4139,6 +4259,72 @@ int main(int argc, char** argv) {
   bool quit = false;
   bool positionsDirty = false;
   static constexpr int kResizeSettleMs = 140;
+  static constexpr int kPollMaxSleepMs = 50;
+
+  auto tighten_poll_timeout = [](int& timeoutMs,
+                                 std::chrono::steady_clock::time_point now,
+                                 std::chrono::steady_clock::time_point deadline) {
+    const auto remainingMs =
+        std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now).count();
+    const int candidate = remainingMs <= 0
+                              ? 0
+                              : static_cast<int>(std::min<long long>(remainingMs, timeoutMs));
+    timeoutMs = std::min(timeoutMs, candidate);
+  };
+
+  auto tighten_blink_poll_timeout = [&](int& timeoutMs,
+                                        std::chrono::steady_clock::time_point now,
+                                        int cycleMs,
+                                        int visibleMs) {
+    const int safeCycle = std::max(250, cycleMs);
+    const int safeVisible = std::clamp(visibleMs, 80, safeCycle);
+    const auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+        now.time_since_epoch()).count();
+    const int phaseMs = static_cast<int>(nowMs % safeCycle);
+    const int untilEdgeMs = (phaseMs < safeVisible)
+                                ? (safeVisible - phaseMs)
+                                : (safeCycle - phaseMs);
+    timeoutMs = std::min(timeoutMs, std::max(1, untilEdgeMs));
+  };
+
+  auto compute_poll_timeout_ms = [&]() {
+    int timeoutMs = kPollMaxSleepMs;
+    const auto now = std::chrono::steady_clock::now();
+
+    for (const auto& w : wins) {
+      if (w.resizePending) {
+        tighten_poll_timeout(timeoutMs, now,
+                             w.lastResizeEvent + std::chrono::milliseconds(kResizeSettleMs));
+      }
+    }
+
+    for (const auto& cam : vcams) {
+      if (cam.fd < 0) {
+        timeoutMs = 0;
+        continue;
+      }
+      if (cam.reconnectPending) {
+        if (cam.lastReconnectAttempt.time_since_epoch().count() == 0) {
+          timeoutMs = 0;
+        } else {
+          tighten_poll_timeout(timeoutMs, now,
+                               cam.lastReconnectAttempt + std::chrono::milliseconds(reconnectRetryMs));
+        }
+        tighten_blink_poll_timeout(timeoutMs, now,
+                                   kReconnectBlinkCycleMs, kReconnectBlinkVisibleMs);
+      }
+      if (cam.frameClockStarted) {
+        tighten_poll_timeout(timeoutMs, now,
+                             cam.lastFrameTs + std::chrono::milliseconds(watchdogNoFrameMs));
+      }
+    }
+
+    if (adaptiveGpuSync) {
+      tighten_poll_timeout(timeoutMs, now, syncWindowStart + std::chrono::milliseconds(800));
+    }
+    return std::clamp(timeoutMs, 0, kPollMaxSleepMs);
+  };
+
   while (!quit) {
     if (g_stopRequested) {
       std::cerr << "Stop requested, saving camera window state and exiting.\n";
@@ -4147,10 +4333,12 @@ int main(int argc, char** argv) {
     }
 
     pfds.clear();
-    pfds.push_back({xfd, POLLIN, 0});
-    if (controlFd >= 0) pfds.push_back({controlFd, POLLIN, 0});
-    for (auto& c : vcams) if (c.fd >= 0) pfds.push_back({c.fd, POLLIN, 0});
-    const int pollRc = poll(pfds.data(), pfds.size(), 10);
+    append_pollfd(xfd);
+    if (controlFd >= 0) append_pollfd(controlFd);
+    for (auto& c : vcams) {
+      if (c.fd >= 0) append_pollfd(c.fd);
+    }
+    const int pollRc = poll(pfds.data(), pfds.size(), compute_poll_timeout_ms());
     if (pollRc < 0 && errno == EINTR) continue;
     drain_control_socket();
 
@@ -4329,7 +4517,7 @@ int main(int argc, char** argv) {
         ioctl(cam.fd, VIDIOC_QBUF, &b);
         continue;
       } else {
-        glViewport(0, 0, std::max(1, wins[i].geom.w), std::max(1, wins[i].geom.h));
+        glCache.viewport(0, 0, std::max(1, wins[i].geom.w), std::max(1, wins[i].geom.h));
         glClearColor(0, 0, 0, 1);
         glClear(GL_COLOR_BUFFER_BIT);
 
@@ -4338,11 +4526,9 @@ int main(int argc, char** argv) {
         int recordSourceW = 0;
         int recordSourceH = 0;
         if (progNV12 && cam.nv12 && cam.bufs[b.index].yTex && cam.bufs[b.index].uvTex) {
-          glUseProgram(progNV12);
-          glActiveTexture(GL_TEXTURE0);
-          glBindTexture(GL_TEXTURE_2D, cam.bufs[b.index].yTex);
-          glActiveTexture(GL_TEXTURE1);
-          glBindTexture(GL_TEXTURE_2D, cam.bufs[b.index].uvTex);
+          glCache.use_program(progNV12);
+          bind_texture_2d(GL_TEXTURE0, cam.bufs[b.index].yTex);
+          bind_texture_2d(GL_TEXTURE1, cam.bufs[b.index].uvTex);
           draw_quad(quad);
           rendered = true;
         } else {
@@ -4358,17 +4544,15 @@ int main(int argc, char** argv) {
               const bool upY = upload_plane_texture(cam.uploadYTex, GL_LUMINANCE,
                                                     cam.width, cam.height, 1,
                                                     srcY, cam.strideY, canUseUnpackRowLength,
-                                                    cam.scratchY);
+                                                    cam.scratchY, &glCache);
               const bool upUV = upload_plane_texture(cam.uploadUVTex, GL_LUMINANCE_ALPHA,
                                                      cam.width / 2, cam.height / 2, 2,
                                                      srcUV, cam.strideUV, canUseUnpackRowLength,
-                                                     cam.scratchUV);
+                                                     cam.scratchUV, &glCache);
               if (upY && upUV && progNV12) {
-                glUseProgram(progNV12);
-                glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_2D, cam.uploadYTex);
-                glActiveTexture(GL_TEXTURE1);
-                glBindTexture(GL_TEXTURE_2D, cam.uploadUVTex);
+                glCache.use_program(progNV12);
+                bind_texture_2d(GL_TEXTURE0, cam.uploadYTex);
+                bind_texture_2d(GL_TEXTURE1, cam.uploadUVTex);
                 draw_quad(quad);
                 rendered = true;
               }
@@ -4409,11 +4593,11 @@ int main(int argc, char** argv) {
                           const bool up = upload_plane_texture(cam.yuyvTex, GL_RGBA,
                                                                hwW, hwH, 4,
                                                                cam.yuyvRgba.data(), hwW * 4,
-                                                               canUseUnpackRowLength, cam.scratchYuyv);
+                                                               canUseUnpackRowLength, cam.scratchYuyv,
+                                                               &glCache);
                           if (up && progRGBA) {
-                            glUseProgram(progRGBA);
-                            glActiveTexture(GL_TEXTURE0);
-                            glBindTexture(GL_TEXTURE_2D, cam.yuyvTex);
+                            glCache.use_program(progRGBA);
+                            bind_texture_2d(GL_TEXTURE0, cam.yuyvTex);
                             draw_quad(quad);
                             rendered = true;
                           }
@@ -4426,17 +4610,17 @@ int main(int argc, char** argv) {
                         const bool upY = upload_plane_texture(cam.uploadYTex, GL_LUMINANCE,
                                                               hwW, hwH, 1,
                                                               hwFrame->data[0], hwFrame->linesize[0],
-                                                              canUseUnpackRowLength, cam.scratchY);
+                                                              canUseUnpackRowLength, cam.scratchY,
+                                                              &glCache);
                         const bool upUV = upload_plane_texture(cam.uploadUVTex, GL_LUMINANCE_ALPHA,
                                                                hwChromaW, hwChromaH, 2,
                                                                hwFrame->data[1], hwFrame->linesize[1],
-                                                               canUseUnpackRowLength, cam.scratchUV);
+                                                               canUseUnpackRowLength, cam.scratchUV,
+                                                               &glCache);
                         if (upY && upUV && progNV12) {
-                          glUseProgram(progNV12);
-                          glActiveTexture(GL_TEXTURE0);
-                          glBindTexture(GL_TEXTURE_2D, cam.uploadYTex);
-                          glActiveTexture(GL_TEXTURE1);
-                          glBindTexture(GL_TEXTURE_2D, cam.uploadUVTex);
+                          glCache.use_program(progNV12);
+                          bind_texture_2d(GL_TEXTURE0, cam.uploadYTex);
+                          bind_texture_2d(GL_TEXTURE1, cam.uploadUVTex);
                           draw_quad(quad);
                           rendered = true;
                         }
@@ -4446,7 +4630,8 @@ int main(int argc, char** argv) {
                         const bool upY = upload_plane_texture(cam.mjpegYTex, GL_LUMINANCE,
                                                               hwW, hwH, 1,
                                                               hwFrame->data[0], hwFrame->linesize[0],
-                                                              canUseUnpackRowLength, cam.scratchMjpegY);
+                                                              canUseUnpackRowLength, cam.scratchMjpegY,
+                                                              &glCache);
 
                         bool upU = true;
                         bool upV = true;
@@ -4460,11 +4645,13 @@ int main(int argc, char** argv) {
                           upU = upload_plane_texture(cam.mjpegUTex, GL_LUMINANCE,
                                                      hwChromaW, hwChromaH, 1,
                                                      hwFrame->data[1], hwFrame->linesize[1],
-                                                     canUseUnpackRowLength, cam.scratchMjpegU);
+                                                     canUseUnpackRowLength, cam.scratchMjpegU,
+                                                     &glCache);
                           upV = upload_plane_texture(cam.mjpegVTex, GL_LUMINANCE,
                                                      hwChromaW, hwChromaH, 1,
                                                      hwFrame->data[2], hwFrame->linesize[2],
-                                                     canUseUnpackRowLength, cam.scratchMjpegV);
+                                                     canUseUnpackRowLength, cam.scratchMjpegV,
+                                                     &glCache);
                           texU = cam.mjpegUTex;
                           texV = cam.mjpegVTex;
                         } else {
@@ -4473,13 +4660,10 @@ int main(int argc, char** argv) {
                           texV = cam.neutralChromaTex;
                         }
                         if (upY && upU && upV && texU && texV && progYUVPlanar) {
-                          glUseProgram(progYUVPlanar);
-                          glActiveTexture(GL_TEXTURE0);
-                          glBindTexture(GL_TEXTURE_2D, cam.mjpegYTex);
-                          glActiveTexture(GL_TEXTURE1);
-                          glBindTexture(GL_TEXTURE_2D, texU);
-                          glActiveTexture(GL_TEXTURE2);
-                          glBindTexture(GL_TEXTURE_2D, texV);
+                          glCache.use_program(progYUVPlanar);
+                          bind_texture_2d(GL_TEXTURE0, cam.mjpegYTex);
+                          bind_texture_2d(GL_TEXTURE1, texU);
+                          bind_texture_2d(GL_TEXTURE2, texV);
                           draw_quad(quad);
                           rendered = true;
                         }
@@ -4519,7 +4703,8 @@ int main(int argc, char** argv) {
                           const bool upY = upload_plane_texture(cam.mjpegYTex, GL_LUMINANCE,
                                                                 cam.mjpegPlaneW[0], cam.mjpegPlaneH[0], 1,
                                                                 cam.mjpegPlaneY.data(), cam.mjpegPlaneStride[0],
-                                                                canUseUnpackRowLength, cam.scratchMjpegY);
+                                                                canUseUnpackRowLength, cam.scratchMjpegY,
+                                                                &glCache);
 
                           bool upU = true;
                           bool upV = true;
@@ -4533,11 +4718,13 @@ int main(int argc, char** argv) {
                             upU = upload_plane_texture(cam.mjpegUTex, GL_LUMINANCE,
                                                        cam.mjpegPlaneW[1], cam.mjpegPlaneH[1], 1,
                                                        cam.mjpegPlaneU.data(), cam.mjpegPlaneStride[1],
-                                                       canUseUnpackRowLength, cam.scratchMjpegU);
+                                                       canUseUnpackRowLength, cam.scratchMjpegU,
+                                                       &glCache);
                             upV = upload_plane_texture(cam.mjpegVTex, GL_LUMINANCE,
                                                        cam.mjpegPlaneW[2], cam.mjpegPlaneH[2], 1,
                                                        cam.mjpegPlaneV.data(), cam.mjpegPlaneStride[2],
-                                                       canUseUnpackRowLength, cam.scratchMjpegV);
+                                                       canUseUnpackRowLength, cam.scratchMjpegV,
+                                                       &glCache);
                             texU = cam.mjpegUTex;
                             texV = cam.mjpegVTex;
                           } else {
@@ -4547,13 +4734,10 @@ int main(int argc, char** argv) {
                           }
 
                           if (upY && upU && upV && texU && texV && progYUVPlanar) {
-                            glUseProgram(progYUVPlanar);
-                            glActiveTexture(GL_TEXTURE0);
-                            glBindTexture(GL_TEXTURE_2D, cam.mjpegYTex);
-                            glActiveTexture(GL_TEXTURE1);
-                            glBindTexture(GL_TEXTURE_2D, texU);
-                            glActiveTexture(GL_TEXTURE2);
-                            glBindTexture(GL_TEXTURE_2D, texV);
+                            glCache.use_program(progYUVPlanar);
+                            bind_texture_2d(GL_TEXTURE0, cam.mjpegYTex);
+                            bind_texture_2d(GL_TEXTURE1, texU);
+                            bind_texture_2d(GL_TEXTURE2, texV);
                             draw_quad(quad);
                             rendered = true;
                             cam.warnedMjpegHeader = false;
@@ -4595,11 +4779,11 @@ int main(int argc, char** argv) {
                   const bool up = upload_plane_texture(cam.yuyvTex, GL_RGBA,
                                                        cam.width, cam.height, 4,
                                                        cam.yuyvRgba.data(), cam.width * 4,
-                                                       canUseUnpackRowLength, cam.scratchYuyv);
+                                                       canUseUnpackRowLength, cam.scratchYuyv,
+                                                       &glCache);
                   if (up && progRGBA) {
-                    glUseProgram(progRGBA);
-                    glActiveTexture(GL_TEXTURE0);
-                    glBindTexture(GL_TEXTURE_2D, cam.yuyvTex);
+                    glCache.use_program(progRGBA);
+                    bind_texture_2d(GL_TEXTURE0, cam.yuyvTex);
                     draw_quad(quad);
                     rendered = true;
                   }
@@ -4610,12 +4794,11 @@ int main(int argc, char** argv) {
                 const bool up = upload_plane_texture(cam.yuyvTex, GL_RGBA,
                                                      cam.width / 2, cam.height, 4,
                                                      base, cam.strideY, canUseUnpackRowLength,
-                                                     cam.scratchYuyv);
+                                                     cam.scratchYuyv, &glCache);
                 if (up) {
-                  glUseProgram(progYUYV);
+                  glCache.use_program(progYUYV);
                   glUniform1f(locYuyvWidth, static_cast<float>(cam.width));
-                  glActiveTexture(GL_TEXTURE0);
-                  glBindTexture(GL_TEXTURE_2D, cam.yuyvTex);
+                  bind_texture_2d(GL_TEXTURE0, cam.yuyvTex);
                   draw_quad(quad);
                   rendered = true;
                 }
@@ -4660,7 +4843,7 @@ int main(int argc, char** argv) {
                                  GL_RGBA, overlayW, overlayH, GL_LINEAR);
             if (!cam.overlayRgba.empty()) {
               glBindTexture(GL_TEXTURE_2D, cam.overlayTex);
-              glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+              glCache.set_unpack_alignment(1);
               glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, overlayW, overlayH,
                               GL_RGBA, GL_UNSIGNED_BYTE, cam.overlayRgba.data());
             }
@@ -4684,7 +4867,7 @@ int main(int argc, char** argv) {
               recPtr = recordSourceRgba;
             } else {
               cam.recordRgba.resize(recBytes);
-              glPixelStorei(GL_PACK_ALIGNMENT, 1);
+              glCache.set_pack_alignment(1);
               glReadPixels(0, 0, recW, recH, GL_RGBA, GL_UNSIGNED_BYTE, cam.recordRgba.data());
               recPtr = cam.recordRgba.data();
             }
